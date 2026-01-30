@@ -1,0 +1,72 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# other
+eclipse
+run
+
+# Files from Forge MDK
+forge*changelog.txt
+
+# Custom ignores
+*.log
+*_log*.txt
+error_log*.txt
+temp_*
+embeddium-*.jar
+.factorypath
+*.javaa
+nul
+hs_err_pid*.log
+replay_pid*.log
+cfr-*.jar
+decompiled_sources/
+jar_contents.txt
+run_cfr.bat
+
+# 動的生成される MANIFEST(ビルド時に build.gradle が再生成)
+src/main/resources/META-INF/MANIFEST.MF
+
+# AI/開発メモ
+lessons.md
+
+# AI/Development docs
+docs/AI/
+
+# Decompiled/extracted libraries
+embeddium_decompiled/
+embeddium_extracted/
+
+# All Rights Reserved JAR (要各自手配: CurseForge等から入手)
+libs/BetterThirdPerson*.jar
+
+# Investigation reports
+SOUND_ISSUE_REPORT.md
+changelog.txt
+
+# AI/Dev tools
+AGENTS.md
+context.md
+docs/
+tasks/
+src_temp/
+情報/
+*.ps1
+*_methods.txt
+*_tsrg.txt

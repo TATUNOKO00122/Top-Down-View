@@ -1,0 +1,485 @@
+package com.topdownview.client;
+
+import com.topdownview.Config;
+import com.topdownview.TopDownViewMod;
+import com.topdownview.baritone.BaritoneIntegration;
+import com.topdownview.state.CameraState;
+import com.topdownview.state.ClickToMoveState;
+import com.topdownview.state.ModState;
+import com.topdownview.mixin.MinecraftInvoker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
+public final class ClickToMoveController {
+
+    private static final double STOP_THRESHOLD = 0.5;
+
+    public enum EntityAction {
+        ATTACK,
+        INTERACT,
+        IGNORE
+    }
+
+    private ClickToMoveController() {
+        throw new IllegalStateException("ユーティリティクラス");
+    }
+
+    public static EntityAction getEntityAction(Entity entity) {
+        if (entity instanceof Player) return EntityAction.IGNORE;
+
+        // 村人、商人 → インタラクト
+        if (entity instanceof Villager || entity instanceof WanderingTrader || entity instanceof AbstractVillager)
+            return EntityAction.INTERACT;
+
+        // 乗り物系 → インタラクト
+        if (entity instanceof AbstractHorse || entity instanceof Boat)
+            return EntityAction.INTERACT;
+
+        // NeutralMob + Enemy以外 + 怒っていない → 無視
+        if (entity instanceof NeutralMob && !(entity instanceof Enemy)) {
+            if (!((NeutralMob) entity).isAngry()) {
+                return EntityAction.IGNORE;
+            }
+        }
+
+        // 敵対Mob → 攻撃
+        if (entity instanceof Enemy) return EntityAction.ATTACK;
+
+        // その他 → 攻撃
+        return EntityAction.ATTACK;
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.ClientTickEvent.Phase.END) return;
+        if (!ModState.STATUS.isEnabled()) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        if (Config.isTargetLockEnabled()) {
+            ModState.TARGET_LOCK.tick();
+        }
+
+        if (!Config.isClickToMoveEnabled()) return;
+        if (!ModState.CLICK_TO_MOVE.isMoving()) return;
+
+        ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
+        ModState.CLICK_TO_MOVE.tickBaritone();
+
+        if (ModState.CLICK_TO_MOVE.isAttacking()) {
+            tickAttackFollow(mc);
+        } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
+            tickDestroyFollow(mc);
+        } else if (ModState.CLICK_TO_MOVE.isInteracting()) {
+            tickInteractFollow(mc);
+        } else if (ModState.CLICK_TO_MOVE.getTargetEntity() != null) {
+            checkEntityTarget(mc);
+        } else if (ModState.CLICK_TO_MOVE.useBaritone()) {
+            checkBaritoneArrival(mc);
+        } else {
+            checkArrival(mc);
+        }
+    }
+
+    private static void checkBaritoneArrival(Minecraft mc) {
+        if (!ModState.CLICK_TO_MOVE.canCheckBaritoneArrival()) {
+            return;
+        }
+        if (!BaritoneIntegration.isPathing()) {
+            stop();
+        }
+    }
+
+    public static void setDestination(Vec3 targetPos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        ModState.CLICK_TO_MOVE.startMoveTo(targetPos, mc.player.position());
+
+        if (BaritoneIntegration.isBaritoneAvailable()) {
+            ModState.CLICK_TO_MOVE.setUseBaritone(true);
+            BaritoneIntegration.pathTo(targetPos);
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.setUseBaritone(false);
+    }
+
+    public static void startFollowAndAttack(Entity entity) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
+        double distSq = mc.player.distanceToSqr(entity.position());
+
+        if (distSq <= attackRange * attackRange) {
+            lookAtTarget(mc.player, entity);
+            if (mc.player.getAttackStrengthScale(0.5F) >= 1.0F) {
+                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
+                return;
+            }
+        }
+
+        ModState.CLICK_TO_MOVE.startFollowAndAttack(entity, mc.player.position());
+
+        if (BaritoneIntegration.isBaritoneAvailable()) {
+            ModState.CLICK_TO_MOVE.setUseBaritone(true);
+            BaritoneIntegration.pathToEntity(entity);
+        }
+    }
+
+    public static void startInteractEntity(Entity entity) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        double interactRange = ClickToMoveState.DEFAULT_INTERACT_RANGE;
+        double distSq = mc.player.distanceToSqr(entity.position());
+
+        if (distSq <= interactRange * interactRange) {
+            executeEntityInteract(mc, entity);
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.startInteractEntity(entity, mc.player.position());
+
+        if (BaritoneIntegration.isBaritoneAvailable()) {
+            ModState.CLICK_TO_MOVE.setUseBaritone(true);
+            BaritoneIntegration.pathToEntity(entity);
+        }
+    }
+
+    private static void executeEntityInteract(Minecraft mc, Entity entity) {
+        mc.gameMode.interact(mc.player, entity, InteractionHand.MAIN_HAND);
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        stop();
+    }
+
+    public static void startDestroyBlock(BlockPos blockPos, Direction direction) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
+        Vec3 blockCenter = Vec3.atCenterOf(blockPos);
+        double distSq = mc.player.distanceToSqr(blockCenter);
+
+        if (distSq <= destroyRange * destroyRange) {
+            startDestroying(mc, blockPos, direction);
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.startDestroyBlock(blockPos, direction, mc.player.position());
+
+        if (BaritoneIntegration.isBaritoneAvailable()) {
+            ModState.CLICK_TO_MOVE.setUseBaritone(true);
+            BaritoneIntegration.pathTo(blockCenter);
+        }
+    }
+
+    private static void startDestroying(Minecraft mc, BlockPos blockPos, Direction direction) {
+        ModState.CLICK_TO_MOVE.startDirectDestroy(blockPos, direction);
+        mc.gameMode.startDestroyBlock(blockPos, direction);
+    }
+
+    public static void startInteractBlock(BlockPos blockPos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        double interactRange = ClickToMoveState.DEFAULT_INTERACT_RANGE;
+        Vec3 blockCenter = Vec3.atCenterOf(blockPos);
+        double distSq = mc.player.distanceToSqr(blockCenter);
+
+        if (distSq <= interactRange * interactRange) {
+            executeInteract(mc, blockPos);
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.startInteractBlock(blockPos, mc.player.position());
+
+        if (BaritoneIntegration.isBaritoneAvailable()) {
+            ModState.CLICK_TO_MOVE.setUseBaritone(true);
+            BaritoneIntegration.pathTo(blockCenter);
+        }
+    }
+
+    private static void executeInteract(Minecraft mc, BlockPos blockPos) {
+        BlockHitResult blockHit = new BlockHitResult(
+                Vec3.atCenterOf(blockPos), Direction.UP, blockPos, false);
+        mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        stop();
+    }
+
+    public static void stop() {
+        if (ModState.CLICK_TO_MOVE.isDestroying()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.gameMode != null) {
+                mc.gameMode.stopDestroyBlock();
+            }
+        }
+        if (ModState.CLICK_TO_MOVE.useBaritone()) {
+            BaritoneIntegration.stop();
+        }
+        ModState.CLICK_TO_MOVE.stopMovement();
+    }
+
+    public static void reset() {
+        BaritoneIntegration.stop();
+        ModState.CLICK_TO_MOVE.reset();
+    }
+
+    public static float[] calculateMovementInput(Minecraft mc) {
+        if (!ModState.CLICK_TO_MOVE.isMoving()) return null;
+        if (mc.player == null) return null;
+
+        if (ModState.CLICK_TO_MOVE.useBaritone()) {
+            return null;
+        }
+
+        // 攻撃モードで攻撃距離内の場合は移動停止
+        if (ModState.CLICK_TO_MOVE.isAttacking()) {
+            Entity target = ModState.CLICK_TO_MOVE.getTargetEntity();
+            if (target != null && target.isAlive()) {
+                double distSq = mc.player.distanceToSqr(target.position());
+                double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
+                if (distSq <= attackRange * attackRange) {
+                    return null;
+                }
+            }
+        }
+
+        if (ModState.CLICK_TO_MOVE.isDestroying()) {
+            BlockPos destroyTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
+            if (destroyTarget != null) {
+                Vec3 blockCenter = Vec3.atCenterOf(destroyTarget);
+                double distSq = mc.player.distanceToSqr(blockCenter);
+                double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
+                if (distSq <= destroyRange * destroyRange) {
+                    return null;
+                }
+            }
+        }
+
+        Vec3 destination = getEffectiveDestination(mc);
+        if (destination == null) return null;
+
+        Vec3 playerPos = mc.player.position();
+        Vec3 direction = calculateDirection(playerPos, destination);
+
+        if (direction == null) return null;
+
+        double horizontalDist = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        if (horizontalDist < STOP_THRESHOLD) return null;
+
+        double moveAngle = Math.atan2(-direction.x, direction.z);
+        float playerYaw = mc.player.getYRot();
+        float relativeAngle = (float) Math.toDegrees(moveAngle) - playerYaw;
+        relativeAngle = CameraState.normalizeAngle(relativeAngle);
+
+        float rad = (float) Math.toRadians(relativeAngle);
+        float forward = Mth.cos(rad);
+        float strafe = -Mth.sin(rad);
+
+        float length = Mth.sqrt(forward * forward + strafe * strafe);
+        if (length > 0) {
+            forward /= length;
+            strafe /= length;
+        }
+
+        return new float[]{forward, strafe};
+    }
+
+    private static Vec3 calculateDirection(Vec3 playerPos, Vec3 destination) {
+        Vec3 direction = destination.subtract(playerPos);
+        double horizontalDist = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        if (horizontalDist < 0.1) return null;
+        return direction.normalize();
+    }
+
+    public static Vec3 getEffectiveDestination(Minecraft mc) {
+        return ModState.CLICK_TO_MOVE.getTargetPosition();
+    }
+
+    private static void checkArrival(Minecraft mc) {
+        if (mc.player == null) return;
+
+        double threshold = Config.getArrivalThreshold();
+        if (ModState.CLICK_TO_MOVE.hasArrived(mc.player.position(), threshold)) {
+            stop();
+        }
+    }
+
+    private static void checkEntityTarget(Minecraft mc) {
+        if (mc.player == null) return;
+
+        Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
+        if (targetEntity == null || !targetEntity.isAlive()) {
+            stop();
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.setTargetPosition(targetEntity.position());
+
+        double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
+        if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
+            float attackStrength = mc.player.getAttackStrengthScale(0.5F);
+            if (attackStrength >= 1.0F) {
+                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
+                stop();
+            }
+        }
+    }
+
+    public static void tickAttackFollow(Minecraft mc) {
+        if (mc.player == null || mc.level == null) return;
+
+        Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
+        if (targetEntity == null || !targetEntity.isAlive()) {
+            stop();
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.setTargetPosition(targetEntity.position());
+
+        double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
+        double distSq = mc.player.distanceToSqr(targetEntity.position());
+
+        if (distSq <= attackRange * attackRange) {
+            lookAtTarget(mc.player, targetEntity);
+
+            float attackStrength = mc.player.getAttackStrengthScale(0.5F);
+            if (attackStrength < 1.0F) {
+                return;
+            }
+
+            ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
+
+            stop();
+        }
+    }
+
+    private static void lookAtTarget(net.minecraft.world.entity.player.Player player, Entity target) {
+        double dx = target.getX() - player.getX();
+        double dz = target.getZ() - player.getZ();
+        double dy = target.getY() + target.getEyeHeight() - player.getEyeY();
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        float targetYaw = (float) Math.toDegrees(Mth.atan2(-dx, dz));
+        float targetPitch = (float) -Math.toDegrees(Mth.atan2(dy, horizontalDist));
+        player.setYRot(targetYaw);
+        player.yBodyRot = targetYaw;
+        player.yHeadRot = targetYaw;
+        player.setXRot(targetPitch);
+        ModState.PLAYER_ROTATION.lockAttackRotation(targetYaw, targetYaw, targetPitch, 15);
+    }
+
+    public static void tickDestroyFollow(Minecraft mc) {
+        if (mc.player == null || mc.level == null) return;
+
+        if (!ClientModBusEvents.DESTROY_KEY.isDown()) {
+            stop();
+            return;
+        }
+
+        double reach = MouseRaycast.getCustomReachDistance();
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+
+        BlockPos newTargetBlock = null;
+        Direction newDirection = null;
+        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult blockHit = (BlockHitResult) hitResult;
+            newTargetBlock = blockHit.getBlockPos();
+            newDirection = blockHit.getDirection();
+        }
+
+        BlockPos currentTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
+
+        if (newTargetBlock == null) {
+            if (currentTarget != null) {
+                mc.gameMode.stopDestroyBlock();
+                ModState.CLICK_TO_MOVE.setDestroying(false);
+                ModState.CLICK_TO_MOVE.setDestroyTargetBlock(null);
+                ModState.CLICK_TO_MOVE.setDestroyDirection(null);
+            }
+            return;
+        }
+
+        if (!newTargetBlock.equals(currentTarget)) {
+            mc.gameMode.stopDestroyBlock();
+            ModState.CLICK_TO_MOVE.setDestroying(false);
+            ModState.CLICK_TO_MOVE.setDestroyTargetBlock(newTargetBlock);
+            ModState.CLICK_TO_MOVE.setDestroyDirection(newDirection);
+            currentTarget = newTargetBlock;
+        }
+
+        BlockState state = mc.level.getBlockState(currentTarget);
+        if (state.isAir()) {
+            return;
+        }
+
+        double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
+        Vec3 blockCenter = Vec3.atCenterOf(currentTarget);
+        double distSq = mc.player.distanceToSqr(blockCenter);
+
+        if (distSq <= destroyRange * destroyRange) {
+            Direction dir = ModState.CLICK_TO_MOVE.getDestroyDirection();
+            if (dir == null) {
+                dir = Direction.UP;
+            }
+
+            if (!ModState.CLICK_TO_MOVE.isDestroying()) {
+                startDestroying(mc, currentTarget, dir);
+            }
+            mc.gameMode.continueDestroyBlock(currentTarget, dir);
+            mc.player.swing(InteractionHand.MAIN_HAND);
+        }
+    }
+
+    private static void tickInteractFollow(Minecraft mc) {
+        if (mc.player == null || mc.level == null) return;
+
+        BlockPos targetBlock = ModState.CLICK_TO_MOVE.getInteractTargetBlock();
+        if (targetBlock == null) {
+            Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
+            if (targetEntity != null && targetEntity.isAlive()) {
+                double interactRange = ClickToMoveState.DEFAULT_INTERACT_RANGE;
+                double distSq = mc.player.distanceToSqr(targetEntity.position());
+
+                if (distSq <= interactRange * interactRange) {
+                    executeEntityInteract(mc, targetEntity);
+                }
+            }
+            return;
+        }
+
+        double interactRange = ClickToMoveState.DEFAULT_INTERACT_RANGE;
+        Vec3 blockCenter = Vec3.atCenterOf(targetBlock);
+        double distSq = mc.player.distanceToSqr(blockCenter);
+
+        if (distSq <= interactRange * interactRange) {
+            executeInteract(mc, targetBlock);
+        }
+    }
+}

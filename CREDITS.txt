@@ -1,0 +1,53 @@
+Top Down View Mod - Credits
+===========================
+
+Author: me
+License: MIT (see LICENSE.txt)
+
+
+Built upon open-source projects
+-------------------------------
+
+This mod would not be possible without the following projects:
+
+- Minecraft Forge  (LGPL-2.1)
+  https://github.com/MinecraftForge/MinecraftForge
+  Mod loading, events, and the development toolchain.
+
+- SpongePowered Mixin  (MIT)
+  https://github.com/SpongePowered/Mixin
+  Runtime bytecode injection used throughout this mod.
+
+- Parchment mappings  (CC0)
+  https://parchmentmc.org/
+  Community parameter names and javadocs (when enabled).
+
+
+Optional runtime integrations
+-----------------------------
+
+The following mods are supported via reflection or compatibility mixins.
+They are NOT bundled with this mod. Install them separately under their
+own licenses if you wish to use the related features.
+
+- Baritone  (LGPL-3.0-or-later, (c) leijurv, Brady)
+  https://github.com/cabaletta/baritone
+  Pathfinding used by the click-to-move feature.
+  The API JAR is bundled under libs/ for compile-time use; see
+  THIRD-PARTY-LICENSES.txt.
+
+- BetterThirdPerson  (All Rights Reserved, (c) Socolio)
+  https://www.curseforge.com/minecraft/mc-mods/better-third-person
+  Compatibility mixin for independent camera rotation.
+  The JAR is NOT bundled (All Rights Reserved). Developers who need to
+  compile the mixin must obtain the JAR locally; see build.gradle.
+
+- Timeless and Classics Zero (TacZ)
+  Compatibility mixin for scope FOV.
+
+- Embeddium  (https://modrinth.com/mod/embeddium)
+  Compatibility mixin for the section render manager (used by the
+  culling system).
+
+See THIRD-PARTY-LICENSES.txt for license details of the compile-time
+libraries bundled under libs/.
