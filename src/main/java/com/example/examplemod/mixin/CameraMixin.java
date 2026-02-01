@@ -11,7 +11,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Camera.class)
+/**
+ * CameraMixin
+ * Vivecraft等の他のMODによるカメラ変更を上書きするため、優先度を高めに設定
+ */
+@Mixin(value = Camera.class, priority = 2000)
 public abstract class CameraMixin {
 
     @Shadow
@@ -20,6 +24,10 @@ public abstract class CameraMixin {
     @Shadow
     public abstract void setRotation(float yRot, float xRot);
 
+    /**
+     * カメラ位置と回転を強制的に設定する
+     * TAILで実行することで、他MODの変更を上書きする
+     */
     @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
     private void onSetup(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
@@ -29,7 +37,7 @@ public abstract class CameraMixin {
         }
 
         // 固定されたピッチとヨー
-        float fixedPitch = 60.0f;
+        float fixedPitch = 45.0f;
         float fixedYaw = 0.0f; // 南向き
 
         // ターゲット（プレイヤー）の補間位置を取得
