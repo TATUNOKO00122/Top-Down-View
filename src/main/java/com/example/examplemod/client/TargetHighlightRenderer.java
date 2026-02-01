@@ -27,8 +27,8 @@ public class TargetHighlightRenderer {
         if (mc.level == null || mc.player == null)
             return;
 
-        // カスタムリーチ距離を使用（距離制限を解除）
-        double reach = MouseRaycast.CUSTOM_REACH_DISTANCE;
+        // カスタムリーチ距離を使用（カリング距離と同期）
+        double reach = MouseRaycast.getCustomReachDistance();
 
         // レイキャスト結果を更新
         MouseRaycast.update(mc, event.getPartialTick(), reach);

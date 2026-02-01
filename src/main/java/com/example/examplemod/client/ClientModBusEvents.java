@@ -16,8 +16,14 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_F4,
             "key.categories.topdown_view");
 
+    public static final KeyMapping TOGGLE_CULLING_KEY = new KeyMapping(
+            "key.topdown_view.toggle_culling",
+            GLFW.GLFW_KEY_F5,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
+        event.register(TOGGLE_CULLING_KEY);
     }
 }

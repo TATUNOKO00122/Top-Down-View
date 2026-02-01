@@ -36,12 +36,25 @@ public class Config {
                         .comment("A list of items to log on common setup.")
                         .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), Config::validateItemName);
 
+        // Top-down view culling settings
+        private static final ForgeConfigSpec.BooleanValue ENABLE_BLOCK_CULLING = BUILDER
+                        .comment("Enable block culling in top-down view mode (blocks behind camera are not rendered)")
+                        .define("enableBlockCulling", true);
+
+        private static final ForgeConfigSpec.DoubleValue CULLING_DISTANCE = BUILDER
+                        .comment("Distance behind the camera to cull blocks (0 = cull all behind camera, higher = more lenient)")
+                        .defineInRange("cullingDistance", 0.0, 0.0, 10.0);
+
         static final ForgeConfigSpec SPEC = BUILDER.build();
 
         public static boolean logDirtBlock;
         public static int magicNumber;
         public static String magicNumberIntroduction;
         public static Set<Item> items;
+
+        // Top-down view culling settings
+        public static boolean enableBlockCulling;
+        public static double cullingDistance;
 
         private static boolean validateItemName(final Object obj) {
                 return obj instanceof final String itemName
@@ -58,5 +71,9 @@ public class Config {
                 items = ITEM_STRINGS.get().stream()
                                 .map(itemName -> ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemName)))
                                 .collect(Collectors.toSet());
+
+                // load culling settings
+                enableBlockCulling = ENABLE_BLOCK_CULLING.get();
+                cullingDistance = CULLING_DISTANCE.get();
         }
 }

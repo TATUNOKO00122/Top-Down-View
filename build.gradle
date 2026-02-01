@@ -167,8 +167,9 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    
-    // Embeddium: 実行時に手動で導入してください (Mixinは文字列ターゲットのためコンパイル時依存不要)
+
+    // Embeddiumは実行時に手動で導入してください
+    // (Mixinは文字列ターゲットを使用するため、コンパイル時依存は不要)
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -199,23 +200,20 @@ tasks.named('jar', Jar).configure {
                 'Specification-Version'   : '1', // We are version 1 of ourselves
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Vendor'   : mod_authors,
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
     
-    // 重複したファイル（refmap.jsonなど）がある場合は除外する設定を追加
+    // Default strategy for duplicates
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Exclude dummy classes from the final jar
+    exclude 'org/embeddedt/**'
+    exclude 'me/jellysquid/**'
 
     // This is the preferred method to reobfuscate your jar file
     finalizedBy 'reobfJar'
 }
-
-// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
-// tasks.named('publish').configure {
-//     dependsOn 'reobfJar'
-// }
 
 // Example configuration to allow publishing using the maven-publish plugin
 publishing {

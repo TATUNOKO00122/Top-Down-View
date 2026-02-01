@@ -29,8 +29,9 @@ public class GameRendererMixin {
             // GUIが開いているときはデフォルトの挙動（このMixinはGUI描画前のワールドレンダリング中に呼ばれるはず）
             // ただし、pickは毎フレーム呼ばれる。
 
+            // カリング距離と同期したリーチ距離でレイキャスト
             net.minecraft.world.phys.HitResult result = com.example.examplemod.client.MouseRaycast.getHitResult(mc,
-                    partialTicks, com.example.examplemod.client.MouseRaycast.CUSTOM_REACH_DISTANCE);
+                    partialTicks, com.example.examplemod.client.MouseRaycast.getCustomReachDistance());
             mc.hitResult = result;
 
             if (result instanceof net.minecraft.world.phys.EntityHitResult entityHit) {

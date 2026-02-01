@@ -41,8 +41,8 @@ public class ClickActionHandler {
         if (mc.level == null || mc.player == null)
             return;
 
-        // カスタムリーチ距離を使用
-        double reach = MouseRaycast.CUSTOM_REACH_DISTANCE;
+        // カスタムリーチ距離を使用（カリング距離と同期）
+        double reach = MouseRaycast.getCustomReachDistance();
         net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f, reach);
 
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
@@ -61,8 +61,8 @@ public class ClickActionHandler {
         if (mc.level == null || mc.player == null)
             return;
 
-        // カスタムリーチ距離を使用
-        double reach = MouseRaycast.CUSTOM_REACH_DISTANCE;
+        // カスタムリーチ距離を使用（カリング距離と同期）
+        double reach = MouseRaycast.getCustomReachDistance();
         net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f, reach);
 
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
@@ -83,7 +83,7 @@ public class ClickActionHandler {
     private static void handleBlockMining(Minecraft mc) {
         // 継続的なブロック破壊
         net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f,
-                MouseRaycast.CUSTOM_REACH_DISTANCE);
+                MouseRaycast.getCustomReachDistance());
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
             BlockHitResult blockHit = (BlockHitResult) result;
             mc.gameMode.continueDestroyBlock(blockHit.getBlockPos(), blockHit.getDirection());
