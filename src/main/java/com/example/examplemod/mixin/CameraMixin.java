@@ -36,9 +36,9 @@ public abstract class CameraMixin {
             return;
         }
 
-        // 固定されたピッチとヨー
+        // 固定されたピッチと可変ヨー
         float fixedPitch = 45.0f;
-        float fixedYaw = 0.0f; // 南向き
+        float cameraYaw = ClientForgeEvents.cameraYaw; // 可変のヨー角度
 
         // ターゲット（プレイヤー）の補間位置を取得
         double targetX = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
@@ -48,18 +48,19 @@ public abstract class CameraMixin {
         // カメラ距離
         double distance = ClientForgeEvents.cameraDistance;
 
-        // カメラ位置オフセット計算
+        // カメラ位置オフセット計算（ヨー角度を考慮）
         double radPitch = Math.toRadians(fixedPitch);
+        double radYaw = Math.toRadians(cameraYaw);
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
 
-        // Yaw=0（南向き）の場合、カメラはターゲットの北（-Z）にある
-        double cameraX = targetX;
+        // ヨー角度に基づいてカメラ位置を計算
+        double cameraX = targetX + Math.sin(radYaw) * offsetH;
         double cameraY = targetY + offsetY;
-        double cameraZ = targetZ - offsetH;
+        double cameraZ = targetZ - Math.cos(radYaw) * offsetH;
 
         // カメラ位置と角度を設定
         this.setPosition(new Vec3(cameraX, cameraY, cameraZ));
-        this.setRotation(fixedYaw, fixedPitch);
+        this.setRotation(cameraYaw, fixedPitch);
     }
 }
