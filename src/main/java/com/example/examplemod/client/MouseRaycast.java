@@ -16,7 +16,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
  * トップダウン視点用のマウスレイキャスト処理
- * カメラは固定角度（ピッチ45度、ヨー0度）であることを前提とする
+ * カメラは固定ピッチ（45度）、可変ヨー角度であることを前提とする
  */
 public class MouseRaycast {
 
@@ -238,7 +238,7 @@ public class MouseRaycast {
         double offsetY = ndcY * tanHalfFov;
 
         double pitchDeg = 45.0;
-        double yawDeg = 0.0;
+        double yawDeg = ClientForgeEvents.cameraYaw;  // 可変のヨー角度を使用
         double pitch = Math.toRadians(pitchDeg);
         double yaw = Math.toRadians(yawDeg);
 
