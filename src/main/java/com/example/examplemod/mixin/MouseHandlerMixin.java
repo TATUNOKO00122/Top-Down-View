@@ -12,7 +12,7 @@ public class MouseHandlerMixin {
 
     @Inject(method = "grabMouse", at = @At("HEAD"), cancellable = true)
     private void onGrabMouse(CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView) {
+        if (ClientForgeEvents.isTopDownView()) {
             ci.cancel();
         }
     }

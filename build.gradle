@@ -168,8 +168,8 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    // Embeddiumは実行時に手動で導入してください
-    // (Mixinは文字列ターゲットを使用するため、コンパイル時依存は不要)
+    // Embeddium - 必須依存
+    implementation files('embeddium-0.3.31+mc1.20.1.jar')
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

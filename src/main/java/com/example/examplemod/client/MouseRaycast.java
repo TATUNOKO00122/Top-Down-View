@@ -1,6 +1,7 @@
 package com.example.examplemod.client;
 
-import com.example.examplemod.api.cullers.BlockCullingLogic;
+import com.example.examplemod.culling.TopDownCuller;
+import com.example.examplemod.state.CameraState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,84 +15,175 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
+import java.util.Objects;
+
 /**
  * トップダウン視点用のマウスレイキャスト処理
- * カメラは固定ピッチ（45度）、可変ヨー角度であることを前提とする
+ * シングルトンパターンでインスタンス管理
+ * パフォーマンス最適化：キャッシュを実装
  */
-public class MouseRaycast {
+public final class MouseRaycast {
 
+    // レイキャスト結果を保持するレコード
+    private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {}
+
+    // レイキャスト定数
+    private static final double RAYCAST_STEP = 0.5;
+    private static final double MIN_RAYCAST_STEP = 0.25;
+    private static final double MAX_RAYCAST_STEP = 1.0;
+    private static final double FAR_DISTANCE_THRESHOLD = 50.0;
+    private static final double MEDIUM_DISTANCE_THRESHOLD = 20.0;
+
+    // カメラ角度定数
+    private static final double FIXED_PITCH_DEG = 45.0;
+    private static final double FIXED_YAW_DEG = 0.0;
+
+    // スクリーン座標変換定数
+    private static final double SCREEN_TO_NDC_FACTOR = 2.0;
+    private static final double NDC_OFFSET = 1.0;
+    private static final double SEARCH_BOX_INFLATE = 1.0;
+    private static final double MIN_SCREEN_DIMENSION = 1.0;
+
+    // リーチ距離計算定数
+    private static final double MIN_REACH_DISTANCE = 30.0;
+    private static final double REACH_DISTANCE_MULTIPLIER = 1.5;
+
+    // シングルトンインスタンス
+    public static final MouseRaycast INSTANCE = new MouseRaycast();
+
+    // 状態（Minecraftはシングルスレッドなのでvolatileは不要）
+    private BlockHitResult lastBlockHit = null;
+    private EntityHitResult lastEntityHit = null;
+    private net.minecraft.world.phys.HitResult lastHitResult = null;
+
+    // キャッシュ
+    private Vec3 cachedDirection = null;
+    private double lastFov = -1;
+    private double lastAspectRatio = -1;
+    private double lastMouseX = -1;
+    private double lastMouseY = -1;
+
+    private MouseRaycast() {}
+
+    /**
+     * カスタムリーチ距離を取得
+     */
     public static double getCustomReachDistance() {
-        return Math.max(30.0, ClientForgeEvents.cameraDistance * 1.5);
+        double cameraDistance = CameraState.INSTANCE.getCameraDistance();
+        return Math.max(MIN_REACH_DISTANCE, cameraDistance * REACH_DISTANCE_MULTIPLIER);
     }
 
-    private static BlockHitResult lastBlockHit = null;
-    private static EntityHitResult lastEntityHit = null;
-    private static net.minecraft.world.phys.HitResult lastHitResult = null;
+    /**
+     * レイキャストを更新
+     * Minecraftメインスレッドのみで呼び出し
+     */
+    public void update(Minecraft mc, float partialTick, double reachDistance) {
+        Objects.requireNonNull(mc, "Minecraft instance cannot be null");
 
-    public static void update(Minecraft mc, float partialTick, double reachDistance) {
         if (mc.level == null || mc.player == null) {
-            lastBlockHit = null;
-            lastEntityHit = null;
-            lastHitResult = null;
+            clearResults();
             return;
         }
 
-        Vec3 start = getCameraPosition(mc);
-        Vec3 direction = getMouseRayDirection(mc);
-        Vec3 end = start.add(direction.scale(reachDistance));
+        // 共通のレイキャスト処理を実行
+        RaycastResult result = performRaycast(mc, reachDistance);
+        if (result == null) {
+            clearResults();
+            return;
+        }
 
-        // Block Hit（カリングされたブロックは無視）
-        lastBlockHit = rayTraceIgnoringCulled(mc, start, end);
-        double blockDist = lastBlockHit.getLocation().distanceToSqr(start);
+        lastBlockHit = result.blockHit;
 
         // Entity Hit
         Entity cameraEntity = mc.getCameraEntity();
         if (cameraEntity != null) {
-            Vec3 entitySearchEnd = lastBlockHit.getLocation();
-            if (lastBlockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
-                entitySearchEnd = end;
-                blockDist = reachDistance * reachDistance;
-            }
-
-            AABB searchBox = new AABB(start, entitySearchEnd).inflate(1.0D);
-            lastEntityHit = ProjectileUtil.getEntityHitResult(
-                    mc.level,
-                    cameraEntity,
-                    start,
-                    entitySearchEnd,
-                    searchBox,
-                    (entity) -> !entity.isSpectator() && entity.isPickable() && entity != mc.player);
+            lastEntityHit = performEntityRaycast(mc, result.start, result.blockHit, result.end, reachDistance);
         } else {
             lastEntityHit = null;
         }
 
+        // 最も近いヒットを選択
         if (lastEntityHit != null) {
-            double entityDist = start.distanceToSqr(lastEntityHit.getLocation());
-            if (entityDist < blockDist) {
-                lastHitResult = lastEntityHit;
-            } else {
-                lastHitResult = lastBlockHit;
-            }
+            double blockDist = lastBlockHit.getLocation().distanceToSqr(result.start);
+            double entityDist = result.start.distanceToSqr(lastEntityHit.getLocation());
+            lastHitResult = (entityDist < blockDist) ? lastEntityHit : lastBlockHit;
         } else {
             lastHitResult = lastBlockHit;
         }
     }
 
     /**
-     * カリングされたブロックを無視してレイキャスト
+     * 共通のレイキャスト処理
+     * カメラ位置、方向、ブロックヒットを計算
      */
-    private static BlockHitResult rayTraceIgnoringCulled(Minecraft mc, Vec3 start, Vec3 end) {
-        // カリングが無効なら通常のレイキャスト
-        if (!ClientForgeEvents.isTopDownView || !ClientForgeEvents.isBlockCullingEnabled) {
-            return mc.level
-                    .clip(new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
+    private RaycastResult performRaycast(Minecraft mc, double reachDistance) {
+        Vec3 start = getCameraPosition(mc);
+        if (start == null) {
+            return null;
         }
 
-        // ステップごとにレイを進め、カリングされていないブロックを探す
-        double distance = start.distanceTo(end);
-        double step = 0.25; // 0.25ブロックずつ進む
-        Vec3 direction = end.subtract(start).normalize();
+        Vec3 direction = getMouseRayDirection(mc);
+        if (direction == null) {
+            return null;
+        }
 
+        Vec3 end = start.add(direction.scale(reachDistance));
+        BlockHitResult blockHit = rayTraceBlocks(mc, start, end);
+
+        if (blockHit == null) {
+            return null;
+        }
+
+        return new RaycastResult(start, end, direction, blockHit);
+    }
+
+    /**
+     * エンティティレイキャストを実行
+     */
+    private EntityHitResult performEntityRaycast(Minecraft mc, Vec3 start, BlockHitResult blockHit, Vec3 end, double reachDistance) {
+        Entity cameraEntity = mc.getCameraEntity();
+        if (cameraEntity == null) {
+            return null;
+        }
+
+        Vec3 entitySearchEnd = blockHit.getLocation();
+        if (blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            entitySearchEnd = end;
+        }
+
+        AABB searchBox = new AABB(start, entitySearchEnd).inflate(SEARCH_BOX_INFLATE);
+        return ProjectileUtil.getEntityHitResult(
+                mc.level,
+                cameraEntity,
+                start,
+                entitySearchEnd,
+                searchBox,
+                (entity) -> entity != null && !entity.isSpectator() && entity.isPickable() && entity != mc.player);
+    }
+
+    /**
+     * ブロックレイキャスト
+     * パフォーマンス最適化：適応的ステップサイズ
+     */
+    private BlockHitResult rayTraceBlocks(Minecraft mc, Vec3 start, Vec3 end) {
+        Objects.requireNonNull(mc, "Minecraft cannot be null");
+        Objects.requireNonNull(mc.level, "Level cannot be null");
+        Objects.requireNonNull(mc.player, "Player cannot be null");
+
+        // トップダウンビューでない場合は通常のレイキャスト
+        if (!ClientForgeEvents.isTopDownView()) {
+            return mc.level.clip(
+                new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player)
+            );
+        }
+
+        double distance = start.distanceTo(end);
+        if (distance <= 0 || !Double.isFinite(distance)) {
+            return BlockHitResult.miss(end, Direction.UP, BlockPos.containing(end));
+        }
+
+        Vec3 direction = end.subtract(start).normalize();
+        double step = calculateAdaptiveStep(distance);
         BlockPos lastCheckedPos = null;
 
         for (double d = 0; d < distance; d += step) {
@@ -104,8 +196,8 @@ public class MouseRaycast {
             }
             lastCheckedPos = blockPos;
 
-            // カリング対象なら無視
-            if (BlockCullingLogic.shouldCull(blockPos)) {
+            // カリングされているブロックは無視（キャッシュにない場合は計算）
+            if (TopDownCuller.getInstance().isBlockCulled(blockPos)) {
                 continue;
             }
 
@@ -127,132 +219,166 @@ public class MouseRaycast {
         return BlockHitResult.miss(end, Direction.UP, BlockPos.containing(end));
     }
 
-    public static net.minecraft.world.phys.HitResult getLastHitResult() {
+    /**
+     * 距離に基づいて適応的なステップサイズを計算
+     */
+    private double calculateAdaptiveStep(double distance) {
+        if (!Double.isFinite(distance) || distance <= 0) {
+            return MIN_RAYCAST_STEP;
+        }
+
+        if (distance > FAR_DISTANCE_THRESHOLD) {
+            return MAX_RAYCAST_STEP;
+        } else if (distance > MEDIUM_DISTANCE_THRESHOLD) {
+            return RAYCAST_STEP;
+        }
+        return MIN_RAYCAST_STEP;
+    }
+
+    public net.minecraft.world.phys.HitResult getLastHitResult() {
         return lastHitResult;
     }
 
-    public static BlockHitResult getLastBlockHit() {
+    public BlockHitResult getLastBlockHit() {
         return lastBlockHit;
     }
 
-    public static EntityHitResult getLastEntityHit() {
+    public EntityHitResult getLastEntityHit() {
         return lastEntityHit;
     }
 
+    /**
+     * ブロックレイキャスト（後方互換性）
+     */
     public static BlockHitResult rayTraceBlock(Minecraft mc, float partialTick, double reachDistance) {
+        return INSTANCE.performRayTraceBlock(mc, reachDistance);
+    }
+
+    private BlockHitResult performRayTraceBlock(Minecraft mc, double reachDistance) {
+        Objects.requireNonNull(mc, "Minecraft cannot be null");
+
         if (mc.level == null || mc.gameRenderer == null || mc.gameRenderer.getMainCamera() == null) {
             return null;
         }
-        Vec3 start = getCameraPosition(mc);
-        Vec3 direction = getMouseRayDirection(mc);
-        Vec3 end = start.add(direction.scale(reachDistance));
 
-        return rayTraceIgnoringCulled(mc, start, end);
+        RaycastResult result = performRaycast(mc, reachDistance);
+        return result != null ? result.blockHit : null;
     }
 
+    /**
+     * エンティティレイキャスト（後方互換性）
+     */
     public static EntityHitResult rayTraceEntity(Minecraft mc, float partialTick, double reachDistance) {
+        return INSTANCE.performRayTraceEntity(mc, reachDistance);
+    }
+
+    private EntityHitResult performRayTraceEntity(Minecraft mc, double reachDistance) {
+        Objects.requireNonNull(mc, "Minecraft cannot be null");
+
         if (mc.level == null || mc.gameRenderer == null || mc.gameRenderer.getMainCamera() == null) {
             return null;
         }
 
-        Vec3 start = getCameraPosition(mc);
-        Vec3 direction = getMouseRayDirection(mc);
-        Vec3 end = start.add(direction.scale(reachDistance));
-
-        Entity cameraEntity = mc.getCameraEntity();
-        if (cameraEntity == null)
+        RaycastResult result = performRaycast(mc, reachDistance);
+        if (result == null) {
             return null;
+        }
 
-        AABB searchBox = new AABB(start, end).inflate(1.0D);
-
-        return ProjectileUtil.getEntityHitResult(
-                mc.level,
-                cameraEntity,
-                start,
-                end,
-                searchBox,
-                (entity) -> !entity.isSpectator() && entity.isPickable() && entity != mc.player);
+        return performEntityRaycast(mc, result.start, result.blockHit, result.end, reachDistance);
     }
 
+    /**
+     * ヒット結果を取得（後方互換性）
+     */
     public static net.minecraft.world.phys.HitResult getHitResult(Minecraft mc, float partialTick,
             double reachDistance) {
+        return INSTANCE.performGetHitResult(mc, reachDistance);
+    }
+
+    private net.minecraft.world.phys.HitResult performGetHitResult(Minecraft mc, double reachDistance) {
+        Objects.requireNonNull(mc, "Minecraft cannot be null");
+
         if (mc.level == null || mc.gameRenderer == null || mc.gameRenderer.getMainCamera() == null) {
             return null;
         }
 
-        Vec3 start = getCameraPosition(mc);
-        Vec3 direction = getMouseRayDirection(mc);
-        Vec3 end = start.add(direction.scale(reachDistance));
-
-        BlockHitResult blockHit = rayTraceIgnoringCulled(mc, start, end);
-        double blockDist = blockHit.getLocation().distanceToSqr(start);
-
-        Entity cameraEntity = mc.getCameraEntity();
-        if (cameraEntity == null)
-            return blockHit;
-
-        Vec3 entitySearchEnd = blockHit.getLocation();
-        if (blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
-            entitySearchEnd = end;
-            blockDist = reachDistance * reachDistance;
+        RaycastResult result = performRaycast(mc, reachDistance);
+        if (result == null) {
+            return null;
         }
 
-        AABB searchBox = new AABB(start, entitySearchEnd).inflate(1.0D);
-        EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
-                mc.level,
-                cameraEntity,
-                start,
-                entitySearchEnd,
-                searchBox,
-                (entity) -> !entity.isSpectator() && entity.isPickable() && entity != mc.player);
-
+        EntityHitResult entityHit = performEntityRaycast(mc, result.start, result.blockHit, result.end, reachDistance);
         if (entityHit != null) {
-            double entityDist = start.distanceToSqr(entityHit.getLocation());
+            double blockDist = result.blockHit.getLocation().distanceToSqr(result.start);
+            double entityDist = result.start.distanceToSqr(entityHit.getLocation());
             if (entityDist < blockDist) {
                 return entityHit;
             }
         }
 
-        return blockHit;
+        return result.blockHit;
     }
 
-    private static Vec3 getCameraPosition(Minecraft mc) {
+    private Vec3 getCameraPosition(Minecraft mc) {
+        if (mc == null || mc.gameRenderer == null || mc.gameRenderer.getMainCamera() == null) {
+            return null;
+        }
         return mc.gameRenderer.getMainCamera().getPosition();
     }
 
-    private static Vec3 getMouseRayDirection(Minecraft mc) {
+    /**
+     * マウスレイの方向を計算
+     * キャッシュを使用してパフォーマンスを最適化
+     */
+    private Vec3 getMouseRayDirection(Minecraft mc) {
+        Objects.requireNonNull(mc, "Minecraft cannot be null");
+        Objects.requireNonNull(mc.mouseHandler, "MouseHandler cannot be null");
+        Objects.requireNonNull(mc.options, "Options cannot be null");
+        Objects.requireNonNull(mc.getWindow(), "Window cannot be null");
+
         double mouseX = mc.mouseHandler.xpos();
         double mouseY = mc.mouseHandler.ypos();
         double screenWidth = mc.getWindow().getScreenWidth();
         double screenHeight = mc.getWindow().getScreenHeight();
 
-        double ndcX = -((2.0 * mouseX / screenWidth) - 1.0);
-        double ndcY = ((2.0 * mouseY / screenHeight) - 1.0);
+        // 画面サイズの検証
+        if (screenWidth < MIN_SCREEN_DIMENSION || screenHeight < MIN_SCREEN_DIMENSION) {
+            return null;
+        }
 
         double fov = mc.options.fov().get();
-        double aspectRatio = (double) screenWidth / screenHeight;
+        double aspectRatio = screenWidth / screenHeight;
+
+        // キャッシュが有効かチェック
+        if (cachedDirection != null &&
+            mouseX == lastMouseX && mouseY == lastMouseY &&
+            fov == lastFov && aspectRatio == lastAspectRatio) {
+            return cachedDirection;
+        }
+
+        double ndcX = -((SCREEN_TO_NDC_FACTOR * mouseX / screenWidth) - NDC_OFFSET);
+        double ndcY = ((SCREEN_TO_NDC_FACTOR * mouseY / screenHeight) - NDC_OFFSET);
+
         double fovRad = Math.toRadians(fov);
-        double tanHalfFov = Math.tan(fovRad / 2.0);
+        double tanHalfFov = Math.tan(fovRad / SCREEN_TO_NDC_FACTOR);
 
         double offsetX = ndcX * tanHalfFov * aspectRatio;
         double offsetY = ndcY * tanHalfFov;
 
-        double pitchDeg = 45.0;
-        double yawDeg = ClientForgeEvents.cameraYaw;  // 可変のヨー角度を使用
-        double pitch = Math.toRadians(pitchDeg);
-        double yaw = Math.toRadians(yawDeg);
+        double pitchRad = Math.toRadians(FIXED_PITCH_DEG);
+        double yawRad = Math.toRadians(FIXED_YAW_DEG);
 
-        double forwardX = -Math.sin(yaw) * Math.cos(pitch);
-        double forwardY = -Math.sin(pitch);
-        double forwardZ = Math.cos(yaw) * Math.cos(pitch);
+        double forwardX = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double forwardY = -Math.sin(pitchRad);
+        double forwardZ = Math.cos(yawRad) * Math.cos(pitchRad);
 
-        double rightX = Math.cos(yaw);
+        double rightX = Math.cos(yawRad);
         double rightY = 0;
-        double rightZ = Math.sin(yaw);
+        double rightZ = Math.sin(yawRad);
 
-        double upX = -Math.sin(yaw) * Math.sin(pitch);
-        double upY = Math.cos(pitch);
-        double upZ = Math.cos(yaw) * Math.sin(pitch);
+        double upX = -Math.sin(yawRad) * Math.sin(pitchRad);
+        double upY = Math.cos(pitchRad);
+        double upZ = Math.cos(yawRad) * Math.sin(pitchRad);
 
         double dirX = forwardX + offsetX * rightX - offsetY * upX;
         double dirY = forwardY + offsetX * rightY - offsetY * upY;
@@ -265,6 +391,35 @@ public class MouseRaycast {
             dirZ /= length;
         }
 
-        return new Vec3(dirX, dirY, dirZ);
+        Vec3 direction = new Vec3(dirX, dirY, dirZ);
+
+        // キャッシュを更新
+        cachedDirection = direction;
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+        lastFov = fov;
+        lastAspectRatio = aspectRatio;
+
+        return direction;
+    }
+
+    /**
+     * 結果をクリア
+     */
+    private void clearResults() {
+        lastBlockHit = null;
+        lastEntityHit = null;
+        lastHitResult = null;
+    }
+
+    /**
+     * キャッシュをクリア
+     */
+    public void clearCache() {
+        cachedDirection = null;
+        lastFov = -1;
+        lastAspectRatio = -1;
+        lastMouseX = -1;
+        lastMouseY = -1;
     }
 }

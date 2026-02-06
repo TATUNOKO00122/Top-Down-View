@@ -28,3 +28,8 @@ forge*changelog.txt
 *.log
 *_log*.txt
 error_log*.txt
+temp_*
+embeddium-*.jar
+.factorypath
+*.javaa
+nul

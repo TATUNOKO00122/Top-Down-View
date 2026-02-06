@@ -1,7 +1,9 @@
 package com.example.examplemod.mixin;
 
+import com.example.examplemod.state.ModState;
 import com.example.examplemod.client.ClientForgeEvents;
 import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
@@ -13,10 +15,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * CameraMixin
- * Vivecraft等の他のMODによるカメラ変更を上書きするため、優先度を高めに設定
+ * トップダウンビューのカメラ位置と回転を制御
  */
-@Mixin(value = Camera.class, priority = 2000)
+@Mixin(value = Camera.class, priority = 1000)
 public abstract class CameraMixin {
+
+    // 定数
+    private static final float FIXED_PITCH = 45.0f;
+    private static final float FIXED_YAW = 0.0f;
+    private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
 
     @Shadow
     public abstract void setPosition(Vec3 pos);
@@ -24,21 +31,20 @@ public abstract class CameraMixin {
     @Shadow
     public abstract void setRotation(float yRot, float xRot);
 
+    @Shadow
+    public abstract Vec3 getPosition();
+
     /**
-     * カメラ位置と回転を強制的に設定する
+     * カメラ位置と回転を設定する
      * TAILで実行することで、他MODの変更を上書きする
      */
     @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
     private void onSetup(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
             CallbackInfo ci) {
-        if (!ClientForgeEvents.isTopDownView) {
+        if (!ClientForgeEvents.isTopDownView()) {
             return;
         }
-
-        // 固定されたピッチと可変ヨー
-        float fixedPitch = 45.0f;
-        float cameraYaw = ClientForgeEvents.cameraYaw; // 可変のヨー角度
 
         // ターゲット（プレイヤー）の補間位置を取得
         double targetX = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
@@ -46,11 +52,11 @@ public abstract class CameraMixin {
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
         // カメラ距離
-        double distance = ClientForgeEvents.cameraDistance;
+        double distance = ClientForgeEvents.getCameraDistance();
 
-        // カメラ位置オフセット計算（ヨー角度を考慮）
-        double radPitch = Math.toRadians(fixedPitch);
-        double radYaw = Math.toRadians(cameraYaw);
+        // カメラ位置オフセット計算
+        double radPitch = FIXED_PITCH * DEGREES_TO_RADIANS;
+        double radYaw = FIXED_YAW * DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
 
@@ -61,6 +67,16 @@ public abstract class CameraMixin {
 
         // カメラ位置と角度を設定
         this.setPosition(new Vec3(cameraX, cameraY, cameraZ));
-        this.setRotation(cameraYaw, fixedPitch);
+        this.setRotation(FIXED_YAW, FIXED_PITCH);
+
+        // カメラ位置を状態に保存
+        ModState.CAMERA.setCameraPosition(this.getPosition());
+
+        // 時間管理
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null && ModState.TIME.getStartTime() == 0) {
+            ModState.TIME.setStartTime(mc.level.getGameTime());
+        }
+        ModState.TIME.setEndTime(0);
     }
 }

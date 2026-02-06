@@ -16,14 +16,14 @@ public class GameRendererMixin {
 
     @Inject(method = "bobView(Lcom/mojang/blaze3d/vertex/PoseStack;F)V", at = @At("HEAD"), cancellable = true)
     private void onBobView(PoseStack pPoseStack, float pPartialTicks, CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView) {
+        if (ClientForgeEvents.isTopDownView()) {
             ci.cancel();
         }
     }
 
     @Inject(method = "pick", at = @At("TAIL"))
     private void onPick(float partialTicks, CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView) {
+        if (ClientForgeEvents.isTopDownView()) {
             Minecraft mc = Minecraft.getInstance();
             // カスタムリーチ距離でレイキャスト
             // GUIが開いているときはデフォルトの挙動（このMixinはGUI描画前のワールドレンダリング中に呼ばれるはず）

@@ -20,7 +20,7 @@ public class TargetHighlightRenderer {
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES)
             return;
-        if (!ClientForgeEvents.isTopDownView)
+        if (!ClientForgeEvents.isTopDownView())
             return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -31,9 +31,9 @@ public class TargetHighlightRenderer {
         double reach = MouseRaycast.getCustomReachDistance();
 
         // レイキャスト結果を更新
-        MouseRaycast.update(mc, event.getPartialTick(), reach);
+        MouseRaycast.INSTANCE.update(mc, event.getPartialTick(), reach);
 
-        net.minecraft.world.phys.HitResult hitResult = MouseRaycast.getLastHitResult();
+        net.minecraft.world.phys.HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         Entity currentEntity = null;
         BlockPos topBlockPos = null;

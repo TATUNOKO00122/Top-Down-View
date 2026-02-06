@@ -1,235 +1,140 @@
 package com.example.examplemod.client;
 
 import com.example.examplemod.TopDownViewMod;
-import com.example.examplemod.api.cullers.FaceCullingManager;
-import net.minecraft.client.CameraType;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ComputeFovModifierEvent;
-import net.minecraftforge.client.event.InputEvent;
-import net.minecraftforge.client.event.MovementInputUpdateEvent;
-import net.minecraftforge.client.event.RenderHandEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.BowItem;
-import net.minecraft.world.phys.HitResult;
+import com.example.examplemod.state.ModState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.common.Mod;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * クライアントサイドの状態管理
+ * 状態変更時の検証とイベント発行を行う
+ */
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
-public class ClientForgeEvents {
-
-    public static boolean isTopDownView = false;
-    public static double cameraDistance = 15.0D;
-    public static boolean isBlockCullingEnabled = true;
-
-    private static int cullingUpdateTick = 0;
-
-    @SubscribeEvent
-    public static void onKeyInput(InputEvent.Key event) {
-        if (ClientModBusEvents.TOGGLE_VIEW_KEY.consumeClick()) {
-            isTopDownView = !isTopDownView;
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                mc.player.displayClientMessage(Component.literal("Top-Down View: " + (isTopDownView ? "ON" : "OFF")),
-                        true);
-                if (isTopDownView) {
-                    mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-                    mc.mouseHandler.releaseMouse();
-                } else {
-                    mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-                    mc.mouseHandler.grabMouse();
-                }
-            }
-        }
-
-        if (ClientModBusEvents.TOGGLE_CULLING_KEY.consumeClick()) {
-            if (isTopDownView) {
-                isBlockCullingEnabled = !isBlockCullingEnabled;
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.player != null) {
-                    mc.player.displayClientMessage(Component.literal(
-                            "Block Culling: " + (isBlockCullingEnabled ? "ON" : "OFF")), true);
-                }
-            }
+public final class ClientForgeEvents {
+    
+    // 状態の変更を追跡するためのリスナーインターフェース
+    @FunctionalInterface
+    public interface StateChangeListener {
+        void onStateChanged(String propertyName, Object oldValue, Object newValue);
+    }
+    
+    private static final AtomicBoolean IS_TOP_DOWN_VIEW = new AtomicBoolean(false);
+    private static final AtomicReference<Double> CAMERA_DISTANCE = new AtomicReference<>(15.0);
+    
+    // 定数
+    public static final double MIN_CAMERA_DISTANCE = 5.0;
+    public static final double MAX_CAMERA_DISTANCE = 50.0;
+    public static final double DEFAULT_CAMERA_DISTANCE = 15.0;
+    
+    // volatileでスレッド安全性を確保
+    private static volatile StateChangeListener stateChangeListener = null;
+    
+    private ClientForgeEvents() {
+        throw new AssertionError("ユーティリティクラスはインスタンス化できません");
+    }
+    
+    // ==================== Getters ====================
+    
+    public static boolean isTopDownView() {
+        return IS_TOP_DOWN_VIEW.get();
+    }
+    
+    public static double getCameraDistance() {
+        return CAMERA_DISTANCE.get();
+    }
+    
+    // ==================== Setters with Validation ====================
+    
+    /**
+     * トップダウンビュー状態を設定
+     * @param enabled 有効/無効
+     * @throws IllegalStateException 無効な状態遷移の場合
+     */
+    public static void setTopDownView(boolean enabled) {
+        boolean oldValue = IS_TOP_DOWN_VIEW.getAndSet(enabled);
+        if (oldValue != enabled) {
+            notifyStateChange("isTopDownView", oldValue, enabled);
         }
     }
-
-    @SubscribeEvent
-    public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
-        if (isTopDownView) {
-            double scroll = event.getScrollDelta();
-            if (scroll != 0) {
-                cameraDistance -= scroll * 1.5;
-                cameraDistance = Math.max(2.0, Math.min(cameraDistance, 50.0));
-                event.setCanceled(true);
-            }
+    
+    /**
+     * カメラ距離を設定
+     * @param distance 距離（5.0 ~ 50.0）
+     * @throws IllegalArgumentException 範囲外の値
+     */
+    public static void setCameraDistance(double distance) {
+        if (distance < MIN_CAMERA_DISTANCE || distance > MAX_CAMERA_DISTANCE) {
+            throw new IllegalArgumentException(
+                String.format("Camera distance must be between %.1f and %.1f: %.1f", 
+                    MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, distance)
+            );
+        }
+        Double oldValue = CAMERA_DISTANCE.getAndSet(distance);
+        if (!oldValue.equals(distance)) {
+            notifyStateChange("cameraDistance", oldValue, distance);
         }
     }
-
-    @SubscribeEvent
-    public static void onRenderHand(RenderHandEvent event) {
-        if (isTopDownView) {
-            event.setCanceled(true);
+    
+    // ==================== State Change Listener ====================
+    
+    /**
+     * 状態変更リスナーを設定
+     * @param listener リスナー（nullで解除）
+     */
+    public static void setStateChangeListener(StateChangeListener listener) {
+        stateChangeListener = listener;
+    }
+    
+    private static void notifyStateChange(String propertyName, Object oldValue, Object newValue) {
+        if (stateChangeListener != null) {
+            stateChangeListener.onStateChanged(propertyName, oldValue, newValue);
         }
     }
-
-    @SubscribeEvent
-    public static void onComputeFovModifier(ComputeFovModifierEvent event) {
-        if (isTopDownView) {
-            event.setNewFovModifier(1.0f);
-        }
+    
+    // ==================== Utility Methods ====================
+    
+    /**
+     * 状態をリセット
+     */
+    public static void reset() {
+        setTopDownView(false);
+        setCameraDistance(DEFAULT_CAMERA_DISTANCE);
     }
-
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END)
-            return;
-        Minecraft mc = Minecraft.getInstance();
-        if (!isTopDownView || mc.player == null)
-            return;
-
-        if (mc.screen != null)
-            return;
-
-        if (mc.mouseHandler.isMouseGrabbed()) {
-            mc.mouseHandler.releaseMouse();
-        }
-
-        updatePlayerRotationToMouse(mc);
-
-        // カリング更新
-        if (isBlockCullingEnabled) {
-            FaceCullingManager.getInstance().setEnabled(true);
-            scheduleSimpleChunkRebuild(mc);
-        } else {
-            FaceCullingManager.getInstance().setEnabled(false);
-        }
+    
+    /**
+     * カメラ距離を増加
+     * @param delta 増加量
+     * @return 新しい距離
+     */
+    public static double increaseCameraDistance(double delta) {
+        double newDistance = Math.min(MAX_CAMERA_DISTANCE, getCameraDistance() + delta);
+        setCameraDistance(newDistance);
+        return newDistance;
+    }
+    
+    /**
+     * カメラ距離を減少
+     * @param delta 減少量
+     * @return 新しい距離
+     */
+    public static double decreaseCameraDistance(double delta) {
+        double newDistance = Math.max(MIN_CAMERA_DISTANCE, getCameraDistance() - delta);
+        setCameraDistance(newDistance);
+        return newDistance;
     }
 
     /**
-     * Embeddiumに対してチャンク再構築をスケジュールする
-     * 少し余裕を持った範囲で再構築をリクエストして、カリング状態の変更を反映させる
+     * 現在のカメラ位置を取得
+     * @return カメラ位置（トップダウンビュー時）
      */
-    private static void scheduleSimpleChunkRebuild(Minecraft mc) {
-        cullingUpdateTick++;
-        if (cullingUpdateTick % 5 != 0)
-            return; // 5tick毎に更新
-
-        if (mc.gameRenderer == null || mc.gameRenderer.getMainCamera() == null)
-            return;
-
-        try {
-            Class<?> rendererClass = Class.forName(
-                    "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer");
-            Object instance = rendererClass.getMethod("instance").invoke(null);
-
-            if (instance != null) {
-                Vec3 pos = mc.player.position();
-                Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
-                // プレイヤーとカメラを含む範囲 + マージン
-                int range = (int) (cameraDistance * 0.6);
-
-                int minX = (int) Math.min(pos.x, cam.x) - range;
-                int maxX = (int) Math.max(pos.x, cam.x) + range;
-                int minY = (int) Math.min(pos.y, cam.y) - 5;
-                int maxY = (int) Math.max(pos.y, cam.y) + 5;
-                int minZ = (int) Math.min(pos.z, cam.z) - range;
-                int maxZ = (int) Math.max(pos.z, cam.z) + range;
-
-                rendererClass.getMethod("scheduleRebuildForBlockArea",
-                        int.class, int.class, int.class, int.class, int.class, int.class, boolean.class)
-                        .invoke(instance, minX, minY, minZ, maxX, maxY, maxZ, true);
-            }
-        } catch (Exception ignored) {
-            // Embeddiumがない場合などは何もしない
+    public static Vec3 getCameraPosition() {
+        if (!isTopDownView()) {
+            return null;
         }
-    }
-
-    @SubscribeEvent
-    public static void onRenderLevelStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
-        if (isTopDownView) {
-            TargetHighlightRenderer.onRenderLevelStage(event);
-        }
-    }
-
-    private static void updatePlayerRotationToMouse(Minecraft mc) {
-        HitResult hitResult = MouseRaycast.getHitResult(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
-        Vec3 targetPos = hitResult.getLocation();
-
-        Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
-        double dx = targetPos.x - playerEyePos.x;
-        double dy = targetPos.y - playerEyePos.y;
-        double dz = targetPos.z - playerEyePos.z;
-
-        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
-
-        float yaw = (float) (Math.atan2(dz, dx) * (180D / Math.PI)) - 90.0F;
-
-        float pitch;
-        if (mc.player.isUsingItem() && mc.player.getUseItem().getItem() instanceof BowItem) {
-            pitch = calculateBowPitch(horizontalDist, dy);
-        } else {
-            pitch = (float) -(Math.atan2(dy, horizontalDist) * (180D / Math.PI));
-        }
-
-        mc.player.setYRot(yaw);
-        mc.player.setXRot(pitch);
-        mc.player.yHeadRot = yaw;
-        mc.player.yBodyRot = yaw;
-    }
-
-    private static float calculateBowPitch(double horizontalDist, double verticalDist) {
-        double arrowSpeed = 3.0 * 20.0;
-        double gravity = 0.05 * 20.0 * 20.0;
-
-        double v = arrowSpeed;
-        double g = gravity;
-        double x = horizontalDist;
-        double y = verticalDist;
-
-        double v2 = v * v;
-        double v4 = v2 * v2;
-        double gx = g * x;
-        double discriminant = v4 - g * (g * x * x + 2.0 * y * v2);
-
-        if (discriminant < 0) {
-            return (float) -(Math.atan2(y, x) * (180D / Math.PI));
-        }
-
-        double sqrtDisc = Math.sqrt(discriminant);
-        double tanTheta = (v2 - sqrtDisc) / gx;
-        double theta = Math.atan(tanTheta);
-        float pitchDegrees = (float) (-theta * (180D / Math.PI));
-
-        return Mth.clamp(pitchDegrees, -90.0F, 90.0F);
-    }
-
-    @SubscribeEvent
-    public static void onMovementInput(MovementInputUpdateEvent event) {
-        if (!isTopDownView)
-            return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null)
-            return;
-
-        float forward = event.getInput().forwardImpulse;
-        float strafe = event.getInput().leftImpulse;
-
-        float dx = strafe;
-        float dz = forward;
-
-        float playerYaw = mc.player.getYRot();
-        float rad = (float) Math.toRadians(playerYaw);
-        float c = Mth.cos(rad);
-        float s = Mth.sin(rad);
-
-        float newForward = -dx * s + dz * c;
-        float newStrafe = dx * c + dz * s;
-
-        event.getInput().forwardImpulse = newForward;
-        event.getInput().leftImpulse = newStrafe;
+        return ModState.CAMERA.getCameraPosition();
     }
 }
