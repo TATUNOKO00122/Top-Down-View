@@ -11,7 +11,10 @@
     "EntityAccessor",
     "MinecraftClientMixin",
     "BlockRendererMixin",
-    "BlockOcclusionCacheMixin"
+    "BlockOcclusionCacheMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "EntityRenderDispatcherMixin",
+    "LevelRendererMixin"
   ],
   "mixins": [],
   "injectors": {

@@ -35,6 +35,9 @@ public final class TopDownCuller implements Culler {
 
     // 最大カリング距離（プレイヤー中心 半径5ブロック = 直径10ブロック）
     private static final double MAX_CULLING_DISTANCE = 5.0;
+    // カリング計算用の固定カメラ距離（ズームに依存しない）
+    // MIN_CAMERA_DISTANCE(5.0)とMAX_CAMERA_DISTANCE(50.0)の中間値
+    private static final double FIXED_CULLING_CAMERA_DISTANCE = 27.5;
     // 高さオフセット（プレイヤー高さ+この値以上を対象）- プレイヤー奥側用
     private static final double HEIGHT_OFFSET = 1.5;
     // 近距離時の高さオフセット - プレイヤーカメラ側（手前）用
@@ -101,12 +104,6 @@ public final class TopDownCuller implements Culler {
         }
 
         if (mc.player == null || mc.level == null) {
-            return false;
-        }
-
-        // プレイヤー位置は除外
-        BlockPos playerBlockPos = mc.player.blockPosition();
-        if (pos.equals(playerBlockPos) || pos.equals(playerBlockPos.above())) {
             return false;
         }
 
@@ -194,16 +191,20 @@ public final class TopDownCuller implements Culler {
     private boolean shouldCullByVector(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
 
-        // カメラからプレイヤーへのベクトル（中心軸）
-        Vec3 toPlayer = playerPos.subtract(cameraPos);
-        double distToPlayerSq = toPlayer.lengthSqr();
+        // カリング用の仮想カメラ位置を計算（固定距離を使用）
+        // 実際のカメラ距離ではなく、固定距離でカリング範囲を一定に保つ
+        Vec3 cameraToPlayer = playerPos.subtract(cameraPos);
+        Vec3 cameraDirection = cameraToPlayer.normalize();
 
-        if (distToPlayerSq < 0.0001) {
-            return false;
-        }
+        // 固定距離を使用した仮想カメラ位置
+        Vec3 virtualCameraPos = playerPos.subtract(cameraDirection.scale(FIXED_CULLING_CAMERA_DISTANCE));
 
-        // カメラからブロックへのベクトル
-        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        // カメラからプレイヤーへのベクトル（中心軸）- 固定距離を使用
+        Vec3 toPlayer = playerPos.subtract(virtualCameraPos);
+        double distToPlayerSq = FIXED_CULLING_CAMERA_DISTANCE * FIXED_CULLING_CAMERA_DISTANCE;
+
+        // カメラからブロックへのベクトル（仮想カメラ位置を基準）
+        Vec3 toBlock = blockCenter.subtract(virtualCameraPos);
         double distToBlockSq = toBlock.lengthSqr();
         double distToBlock = Math.sqrt(distToBlockSq);
 
@@ -221,7 +222,7 @@ public final class TopDownCuller implements Culler {
             return false;
 
         // 軸からの最短距離を計算
-        Vec3 projection = cameraPos.add(toPlayer.scale(t));
+        Vec3 projection = virtualCameraPos.add(toPlayer.scale(t));
         double distFromAxisSq = blockCenter.distanceToSqr(projection);
 
         // --- 判定ロジック ---

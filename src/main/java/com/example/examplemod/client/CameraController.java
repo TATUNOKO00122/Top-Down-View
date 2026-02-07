@@ -68,6 +68,10 @@ public final class CameraController {
 
         if (isAltDown) {
             // ALTキー押下時：カメラを回転させる
+            // アニメーションを解除
+            ModState.CAMERA.setAnimating(false);
+            ModState.CAMERA.setTargetYaw(ModState.CAMERA.getYaw());
+
             // マウスの水平移動量（デルタ）を取得するために、現在のマウス位置と画面中央の差分を取る
             double centerX = mc.getWindow().getScreenWidth() / 2.0;
             double dx = mc.mouseHandler.xpos() - centerX;
@@ -81,9 +85,72 @@ public final class CameraController {
                 org.lwjgl.glfw.GLFW.glfwSetCursorPos(handle, centerX, mc.getWindow().getScreenHeight() / 2.0);
             }
         } else {
-            // ALTキー非押下時：通常のマウス位置への回転
+            // ALTキー非押下時：アニメーションの更新
+            updateAnimation();
+            // 通常のマウス位置への回転
             updatePlayerRotationToMouse(mc);
         }
+    }
+
+    /**
+     * 回転アニメーションを更新
+     */
+    private static void updateAnimation() {
+        if (!ModState.CAMERA.isAnimating())
+            return;
+
+        float currentYaw = ModState.CAMERA.getYaw();
+        float targetYaw = ModState.CAMERA.getTargetYaw();
+
+        // 角度の差分を計算（最短距離で回転）
+        float diff = targetYaw - currentYaw;
+        while (diff < -180.0f)
+            diff += 360.0f;
+        while (diff > 180.0f)
+            diff -= 360.0f;
+
+        if (Math.abs(diff) < 0.1f) {
+            ModState.CAMERA.setYaw(targetYaw);
+            ModState.CAMERA.setAnimating(false);
+        } else {
+            // 線形補間（Lerp）による滑らかな回転
+            float lerpStrength = 0.2f;
+            ModState.CAMERA.setYaw(currentYaw + diff * lerpStrength);
+        }
+    }
+
+    /**
+     * マウスの位置に応じて、カメラを 90 度または 180 度回転させる
+     */
+    public static void rotateCamera90Degrees() {
+        Minecraft mc = Minecraft.getInstance();
+        double mouseX = mc.mouseHandler.xpos();
+        double mouseY = mc.mouseHandler.ypos();
+        double screenWidth = mc.getWindow().getScreenWidth();
+        double screenHeight = mc.getWindow().getScreenHeight();
+
+        boolean isLeftSide = mouseX < (screenWidth / 2.0);
+        // 画面下部（下から20%以内）にあるか判定
+        boolean isBottomSide = mouseY > (screenHeight * 0.8);
+
+        float baseYaw = ModState.CAMERA.isAnimating() ? ModState.CAMERA.getTargetYaw() : ModState.CAMERA.getYaw();
+
+        // 目的地（nextYaw）の計算
+        float nextYaw;
+        if (isBottomSide) {
+            // 下部：180度回転（反対側へスナップ）
+            // 現在の 90 度区切りから +180 度
+            nextYaw = (float) (Math.round(baseYaw / 90.0) * 90.0 + 180.0);
+        } else if (isLeftSide) {
+            // 左側：反時計回り
+            nextYaw = (float) (Math.ceil(baseYaw / 90.0) * 90.0 - 90.0);
+        } else {
+            // 右側：時計回り
+            nextYaw = (float) (Math.floor(baseYaw / 90.0) * 90.0 + 90.0);
+        }
+
+        ModState.CAMERA.setTargetYaw(nextYaw);
+        ModState.CAMERA.setAnimating(true);
     }
 
     public static float getCameraYaw() {

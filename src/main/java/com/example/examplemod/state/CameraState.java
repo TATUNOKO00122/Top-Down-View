@@ -32,6 +32,8 @@ public final class CameraState {
 
     // カメラ制御
     private float yaw = DEFAULT_YAW;
+    private float targetYaw = DEFAULT_YAW;
+    private boolean isAnimating = false;
     private float pitch = DEFAULT_PITCH;
     private double x = 0.0;
     private double z = 0.0;
@@ -39,12 +41,21 @@ public final class CameraState {
     private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
     private Vec3 cameraPosition = DEFAULT_POSITION;
 
-    private CameraState() {}
+    private CameraState() {
+    }
 
     // ==================== Getters ====================
 
     public float getYaw() {
         return yaw;
+    }
+
+    public float getTargetYaw() {
+        return targetYaw;
+    }
+
+    public boolean isAnimating() {
+        return isAnimating;
     }
 
     public float getPitch() {
@@ -81,6 +92,14 @@ public final class CameraState {
         yaw = normalizeAngle(value);
     }
 
+    public void setTargetYaw(float value) {
+        targetYaw = normalizeAngle(value);
+    }
+
+    public void setAnimating(boolean value) {
+        isAnimating = value;
+    }
+
     public void setPitch(float value) {
         pitch = clampPitch(value);
     }
@@ -108,9 +127,8 @@ public final class CameraState {
         }
         if (value < MIN_CAMERA_DISTANCE || value > MAX_CAMERA_DISTANCE) {
             throw new IllegalArgumentException(
-                String.format("Camera distance must be between %.1f and %.1f: %.1f",
-                    MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, value)
-            );
+                    String.format("Camera distance must be between %.1f and %.1f: %.1f",
+                            MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, value));
         }
         cameraDistance = value;
     }
@@ -151,6 +169,8 @@ public final class CameraState {
      */
     public void reset() {
         yaw = DEFAULT_YAW;
+        targetYaw = DEFAULT_YAW;
+        isAnimating = false;
         pitch = DEFAULT_PITCH;
         x = 0.0;
         z = 0.0;

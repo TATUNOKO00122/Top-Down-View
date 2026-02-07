@@ -18,17 +18,20 @@ public class InputHandler {
         if (ClientModBusEvents.TOGGLE_VIEW_KEY.consumeClick()) {
             toggleTopDownView();
         }
+        if (ClientForgeEvents.isTopDownView() && ClientModBusEvents.ROTATE_VIEW_KEY.consumeClick()) {
+            CameraController.rotateCamera90Degrees();
+        }
     }
 
     private static void toggleTopDownView() {
         ClientForgeEvents.setTopDownView(!ClientForgeEvents.isTopDownView());
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null)
+            return;
 
         mc.player.displayClientMessage(
-            Component.literal("Top-Down View: " + (ClientForgeEvents.isTopDownView() ? "ON" : "OFF")),
-            true
-        );
+                Component.literal("Top-Down View: " + (ClientForgeEvents.isTopDownView() ? "ON" : "OFF")),
+                true);
 
         if (ClientForgeEvents.isTopDownView()) {
             enableTopDownView(mc);
@@ -56,14 +59,16 @@ public class InputHandler {
 
     @SubscribeEvent
     public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ClientForgeEvents.isTopDownView())
+            return;
 
         double scroll = event.getScrollDelta();
-        if (scroll == 0) return;
+        if (scroll == 0)
+            return;
 
         double newDistance = ClientForgeEvents.getCameraDistance() - scroll * 1.5;
-        double clampedDistance = Math.max(ClientForgeEvents.MIN_CAMERA_DISTANCE, 
-                                          Math.min(newDistance, ClientForgeEvents.MAX_CAMERA_DISTANCE));
+        double clampedDistance = Math.max(ClientForgeEvents.MIN_CAMERA_DISTANCE,
+                Math.min(newDistance, ClientForgeEvents.MAX_CAMERA_DISTANCE));
         ClientForgeEvents.setCameraDistance(clampedDistance);
         event.setCanceled(true);
     }

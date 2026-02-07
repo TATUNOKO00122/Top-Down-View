@@ -16,8 +16,14 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_F4,
             "key.categories.topdown_view");
 
+    public static final KeyMapping ROTATE_VIEW_KEY = new KeyMapping(
+            "key.topdown_view.rotate",
+            GLFW.GLFW_KEY_R,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
+        event.register(ROTATE_VIEW_KEY);
     }
 }
