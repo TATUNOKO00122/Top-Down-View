@@ -31,18 +31,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TopDownCuller implements Culler {
 
-    private static final Logger LOGGER = LogManager.getLogger();
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
     // 最大カリング距離（プレイヤー中心 半径5ブロック = 直径10ブロック）
     private static final double MAX_CULLING_DISTANCE = 5.0;
-    // 高さオフセット（プレイヤー高さ+この値以上を対象）
+    // 高さオフセット（プレイヤー高さ+この値以上を対象）- プレイヤー奥側用
     private static final double HEIGHT_OFFSET = 1.5;
-    // Dungeons Perspective方式の角度閾値（cos45° = 0.707）
-    private static final double ANGLE_THRESHOLD = 0.71;
+    // 近距離時の高さオフセット - プレイヤーカメラ側（手前）用
+    private static final double HEIGHT_OFFSET_NEAR = 1.0;
+    // 角度閾値（cos 25° ≈ 0.906）- より視線に近いブロックに絞る
+    private static final double ANGLE_THRESHOLD = 0.91;
+    // 近距離判定用：カメラからの距離（ブロック単位）
+    private static final double PROXIMITY_DISTANCE = 3.0;
+    private static final double PROXIMITY_RADIUS_SQR = 2.0 * 2.0; // ニアシリンダーの半径
     // カメラからの近距離カリング閾値（ブロック単位）
-    private static final double NEAR_CAMERA_DISTANCE = 3.0;
-    private static final double NEAR_CAMERA_DISTANCE_SQR = NEAR_CAMERA_DISTANCE * NEAR_CAMERA_DISTANCE;
     // 更新頻度（毎tick更新 - Dungeons Perspective方式）
     private static final int UPDATE_FREQUENCY = 1;
     // キャッシュ最大サイズ（ConcurrentHashMapの負荷を考慮して小さめに）
@@ -56,7 +58,7 @@ public final class TopDownCuller implements Culler {
     // ConcurrentHashMapを使用してマルチスレッドアクセスに対応
     // Key: ブロック位置, Value: カリング結果（true=カリング対象）
     private final ConcurrentHashMap<BlockPos, Boolean> cullingCache = new ConcurrentHashMap<>(1000);
-    
+
     // キャッシュのタイムスタンプ
     private volatile long cacheTimestamp = 0;
     // 前回のプレイヤー位置（キャッシュ無効化判定用）
@@ -64,7 +66,8 @@ public final class TopDownCuller implements Culler {
     // 前回のカメラ位置
     private volatile Vec3 lastCameraPos = Vec3.ZERO;
 
-    private TopDownCuller() {}
+    private TopDownCuller() {
+    }
 
     public static TopDownCuller getInstance() {
         return INSTANCE;
@@ -129,17 +132,10 @@ public final class TopDownCuller implements Culler {
             return false;
         }
 
-        // 高さチェック：プレイヤー頭上のみを対象（最も軽い判定を先に）
-        double blockY = pos.getY() + 0.5;
-        double playerY = mc.player.getY();
-        if (blockY <= playerY + HEIGHT_OFFSET) {
-            cacheResult(pos, false);
-            return false;
-        }
-
         // 円状+視線ベクトルカリング：半径5ブロックの円内かつカメラ視線上のブロックをカリング
+        // 高さチェックも内部で行う（プレイヤー距離に応じた閾値調整あり）
         boolean isCulled = shouldCullByVector(pos, playerPos, cameraPos);
-        
+
         cacheResult(pos, isCulled);
         return isCulled;
     }
@@ -150,21 +146,21 @@ public final class TopDownCuller implements Culler {
      */
     private Boolean getCachedResult(BlockPos pos) {
         long currentTime = System.currentTimeMillis();
-        
+
         // プレイヤーまたはカメラが移動したらキャッシュをクリア
         Vec3 currentPlayerPos = mc.player != null ? mc.player.getEyePosition(1.0f) : Vec3.ZERO;
         Vec3 currentCameraPos = ClientForgeEvents.getCameraPosition();
-        
+
         if (currentCameraPos == null) {
             return null;
         }
-        
+
         // 位置が変わった、またはキャッシュ期限切れの場合はクリア
         // しきい値を大きくして頻繁なキャッシュクリアを防止
         boolean playerMoved = currentPlayerPos.distanceToSqr(lastPlayerPos) > 0.25;
         boolean cameraMoved = currentCameraPos.distanceToSqr(lastCameraPos) > 0.25;
         boolean cacheExpired = (currentTime - cacheTimestamp) > CACHE_DURATION_MS;
-        
+
         if (playerMoved || cameraMoved || cacheExpired) {
             cullingCache.clear();
             lastPlayerPos = currentPlayerPos;
@@ -172,7 +168,7 @@ public final class TopDownCuller implements Culler {
             cacheTimestamp = currentTime;
             return null;
         }
-        
+
         return cullingCache.get(pos);
     }
 
@@ -189,46 +185,70 @@ public final class TopDownCuller implements Culler {
     }
 
     /**
-     * 円柱カリング：カメラ→プレイヤー線分を中心軸とする円柱内のブロックをカリング
-     * 
-     * アルゴリズム：
-     * 1. ブロックがカメラ→プレイヤー線分に対して垂直な方向に半径5ブロック以内かチェック
-     * 2. ブロックがカメラとプレイヤーの間にあるかチェック（線分上に投影）
-     * 
-     * これにより、カメラの視線を遮るブロック（円柱内）のみをカリングする
+     * 円錐+円柱ハイブリッドカリング：視線ベクトル周囲の一定範囲をカリング
+     *
+     * 改善内容：
+     * 1. カメラ近傍 (PROXIMITY_DISTANCE) では角度を無視し、軸近傍のブロックを無条件カリング
+     * 2. 遠方では角度（円錐）で絞りつつ、最大半径（MAX_CULLING_DISTANCE=5.0）で広がりを制限
      */
     private boolean shouldCullByVector(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        
-        // カメラ→プレイヤー線分を定義
-        Vec3 lineStart = cameraPos;
-        Vec3 lineEnd = playerPos;
-        Vec3 lineVec = lineEnd.subtract(lineStart);
-        double lineLengthSq = lineVec.lengthSqr();
-        
-        if (lineLengthSq < 0.0001) {
-            return false; // カメラとプレイヤーが同じ位置
-        }
-        
-        // ブロックから線分への最近接点を計算
-        Vec3 toBlock = blockCenter.subtract(lineStart);
-        double t = toBlock.dot(lineVec) / lineLengthSq;
-        
-        // ブロックが線分の範囲外（カメラより手前またはプレイヤーより奥）の場合はカリングしない
-        if (t < 0.0 || t > 1.0) {
+
+        // カメラからプレイヤーへのベクトル（中心軸）
+        Vec3 toPlayer = playerPos.subtract(cameraPos);
+        double distToPlayerSq = toPlayer.lengthSqr();
+
+        if (distToPlayerSq < 0.0001) {
             return false;
         }
-        
-        // 線分上の最近接点
-        Vec3 closestPoint = lineStart.add(lineVec.scale(t));
-        
-        // ブロックと最近接点の水平距離（XZ平面）を計算
-        double dx = blockCenter.x - closestPoint.x;
-        double dz = blockCenter.z - closestPoint.z;
-        double horizontalDistSq = dx * dx + dz * dz;
-        
-        // 半径5ブロックの円柱内ならカリング対象
-        return horizontalDistSq <= MAX_CULLING_DISTANCE * MAX_CULLING_DISTANCE;
+
+        // カメラからブロックへのベクトル
+        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        double distToBlockSq = toBlock.lengthSqr();
+        double distToBlock = Math.sqrt(distToBlockSq);
+
+        // 距離チェック：プレイヤーより奥にあるブロックは除外
+        if (distToBlockSq > distToPlayerSq + 2.25) {
+            return false;
+        }
+
+        // 軸（視線ベクトル）への投影と距離の計算
+        double dot = toBlock.dot(toPlayer);
+        double t = dot / distToPlayerSq;
+
+        // カメラより手前（t < 0）の場合は除外
+        if (t < 0.0)
+            return false;
+
+        // 軸からの最短距離を計算
+        Vec3 projection = cameraPos.add(toPlayer.scale(t));
+        double distFromAxisSq = blockCenter.distanceToSqr(projection);
+
+        // --- 判定ロジック ---
+        boolean matchesRange = false;
+
+        if (distToBlock < PROXIMITY_DISTANCE) {
+            // 改善1: カメラ至近距離（ニアシリンダー）
+            // 角度がつきすぎて消えにくいカメラ直下の壁を半径指定で消す
+            matchesRange = distFromAxisSq < PROXIMITY_RADIUS_SQR;
+        } else {
+            // 改善2: 角度判定 + 最大半径制限
+            double cosTheta = dot / (distToBlock * Math.sqrt(distToPlayerSq));
+            // 角度が視線に近く（円錐）、かつ広がりすぎていない（円柱）こと
+            matchesRange = (cosTheta > ANGLE_THRESHOLD)
+                    && (distFromAxisSq < MAX_CULLING_DISTANCE * MAX_CULLING_DISTANCE);
+        }
+
+        if (!matchesRange) {
+            return false;
+        }
+
+        // --- 高さチェック（床の消失防止） ---
+        double heightOffset = (t < 1.0) ? HEIGHT_OFFSET_NEAR : HEIGHT_OFFSET;
+        double blockY = pos.getY() + 0.5;
+        double playerY = playerPos.y - 1.5;
+
+        return blockY > playerY + heightOffset;
     }
 
     @Override
@@ -253,7 +273,8 @@ public final class TopDownCuller implements Culler {
     public int getCulledBlockCount() {
         int count = 0;
         for (boolean isCulled : cullingCache.values()) {
-            if (isCulled) count++;
+            if (isCulled)
+                count++;
         }
         return count;
     }
@@ -276,7 +297,7 @@ public final class TopDownCuller implements Culler {
         if (!ClientForgeEvents.isTopDownView()) {
             return false;
         }
-        
+
         Boolean cached = cullingCache.get(pos);
         return cached != null && cached;
     }
