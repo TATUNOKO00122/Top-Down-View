@@ -11,14 +11,19 @@ import org.apache.logging.log4j.Logger;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * トップダウンビュー用カリング実装 - Dungeons Perspective方式（軽量化版）
+ * トップダウンビュー用カリング実装 - Dungeons Perspective方式
+ * 
+ * Dungeons Perspective方式のアルゴリズム：
+ * 1. カメラ→プレイヤー方向（視線方向）とカメラ→ブロック方向の内積を計算
+ * 2. cosθ > 閾値（約45度以内）で視線方向にあるブロックを判定
+ * 3. ブロックがプレイヤーより手前（カメラ側）にある場合のみカリング
+ * 4. 結果：プレイヤーの奥にある壁は表示され、手前の壁はカリングされる
  * 
  * 設計方針：
- * 1. ベクトル内積方式 - レイキャストより高速
- * 2. ブロック単位判定 - 面単位より呼び出し回数を減らす
- * 3. 高さフィルタ - プレイヤー頭上のみを対象
- * 4. 距離・角度による簡易判定
- * 5. ブロックごとキャッシュ - 同じブロックの再計算を防止
+ * - ベクトル内積方式（acos不要）- Dungeons Perspectiveと同じ計算方式
+ * - ブロック単位判定 - 面単位より呼び出し回数を減らす
+ * - 高さフィルタ - プレイヤー頭上のみを対象
+ * - ブロックごとキャッシュ - 同じブロックの再計算を防止
  * 
  * スレッドセーフ設計：
  * Chunk Render Task Executorは複数スレッドで動作するため、
@@ -29,12 +34,15 @@ public final class TopDownCuller implements Culler {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
-    // 最大カリング距離
-    private static final double MAX_CULLING_DISTANCE = 48.0;
+    // 最大カリング距離（プレイヤー中心 半径5ブロック = 直径10ブロック）
+    private static final double MAX_CULLING_DISTANCE = 5.0;
     // 高さオフセット（プレイヤー高さ+この値以上を対象）
     private static final double HEIGHT_OFFSET = 1.5;
-    // 円柱半径（プレイヤー-カメラ線分からの水平距離）
-    private static final double CYLINDER_RADIUS = 5.0;
+    // Dungeons Perspective方式の角度閾値（cos45° = 0.707）
+    private static final double ANGLE_THRESHOLD = 0.71;
+    // カメラからの近距離カリング閾値（ブロック単位）
+    private static final double NEAR_CAMERA_DISTANCE = 3.0;
+    private static final double NEAR_CAMERA_DISTANCE_SQR = NEAR_CAMERA_DISTANCE * NEAR_CAMERA_DISTANCE;
     // 更新頻度（毎tick更新 - Dungeons Perspective方式）
     private static final int UPDATE_FREQUENCY = 1;
     // キャッシュ最大サイズ（ConcurrentHashMapの負荷を考慮して小さめに）
@@ -129,14 +137,7 @@ public final class TopDownCuller implements Culler {
             return false;
         }
 
-        // 距離が遠すぎる場合はカリングしない
-        double distanceToPlayer = pos.distToCenterSqr(playerPos);
-        if (distanceToPlayer > MAX_CULLING_DISTANCE * MAX_CULLING_DISTANCE) {
-            cacheResult(pos, false);
-            return false;
-        }
-
-        // 円柱カリング：プレイヤー-カメラ間の線分を中心軸とする円柱内のブロックのみをカリング
+        // 円状+視線ベクトルカリング：半径5ブロックの円内かつカメラ視線上のブロックをカリング
         boolean isCulled = shouldCullByVector(pos, playerPos, cameraPos);
         
         cacheResult(pos, isCulled);
@@ -188,71 +189,46 @@ public final class TopDownCuller implements Culler {
     }
 
     /**
-     * 円柱カリング判定
-     * プレイヤー-カメラ線分を中心軸とする円柱内のブロックをカリング
+     * 円柱カリング：カメラ→プレイヤー線分を中心軸とする円柱内のブロックをカリング
+     * 
+     * アルゴリズム：
+     * 1. ブロックがカメラ→プレイヤー線分に対して垂直な方向に半径5ブロック以内かチェック
+     * 2. ブロックがカメラとプレイヤーの間にあるかチェック（線分上に投影）
+     * 
+     * これにより、カメラの視線を遮るブロック（円柱内）のみをカリングする
      */
     private boolean shouldCullByVector(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         
-        // 円柱の中心軸（プレイヤー→カメラ線分）とブロックの距離を計算
-        Vec3 axis = cameraPos.subtract(playerPos);
-        double axisLengthSqr = axis.lengthSqr();
+        // カメラ→プレイヤー線分を定義
+        Vec3 lineStart = cameraPos;
+        Vec3 lineEnd = playerPos;
+        Vec3 lineVec = lineEnd.subtract(lineStart);
+        double lineLengthSq = lineVec.lengthSqr();
         
-        // プレイヤーとカメラが同じ位置の場合はカリングしない
-        if (axisLengthSqr < 0.0001) {
-            return false;
+        if (lineLengthSq < 0.0001) {
+            return false; // カメラとプレイヤーが同じ位置
         }
         
-        // 線分上の最近接点パラメータtを計算
-        Vec3 toBlock = blockCenter.subtract(playerPos);
-        double t = toBlock.dot(axis) / axisLengthSqr;
+        // ブロックから線分への最近接点を計算
+        Vec3 toBlock = blockCenter.subtract(lineStart);
+        double t = toBlock.dot(lineVec) / lineLengthSq;
         
-        // 線分の外側にある場合はカリング対象外
+        // ブロックが線分の範囲外（カメラより手前またはプレイヤーより奥）の場合はカリングしない
         if (t < 0.0 || t > 1.0) {
             return false;
         }
         
-        // 最近接点を計算
-        Vec3 closestPoint = playerPos.add(axis.scale(t));
+        // 線分上の最近接点
+        Vec3 closestPoint = lineStart.add(lineVec.scale(t));
         
-        // 水平距離（Y座標を無視）で円柱判定
+        // ブロックと最近接点の水平距離（XZ平面）を計算
         double dx = blockCenter.x - closestPoint.x;
         double dz = blockCenter.z - closestPoint.z;
-        double horizontalDistSqr = dx * dx + dz * dz;
+        double horizontalDistSq = dx * dx + dz * dz;
         
-        // 円柱半径内ならカリング対象
-        return horizontalDistSqr <= CYLINDER_RADIUS * CYLINDER_RADIUS;
-    }
-
-    /**
-     * Dungeons Perspective方式の簡易判定
-     * ベクトル内積で角度を計算（レイキャストより高速）
-     * 
-     * @param pos ブロック位置
-     * @param playerPos プレイヤー位置
-     * @param cameraPos カメラ位置
-     * @return カリング対象ならtrue
-     */
-    private boolean shouldCullByDotProduct(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
-        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        
-        // Dungeons Perspective方式：ブロック→プレイヤー と カメラ→プレイヤー の内積
-        // 両方が同じ方向からプレイヤーを見ている = プレイヤーとカメラの間にある
-        Vec3 fromBlock = playerPos.subtract(blockCenter).normalize();
-        Vec3 fromCamera = playerPos.subtract(cameraPos).normalize();
-        
-        // 内積を計算（cosθ）
-        double dotProduct = fromBlock.dot(fromCamera);
-        
-        // cosθ > 0.71 (約45度以内) ならカリング対象
-        // Dungeons Perspectiveと同じ閾値
-        if (dotProduct > 0.71) {
-            return true;
-        }
-        
-        // カメラから3ブロック以内もカリング対象
-        double distToCamera = blockCenter.distanceToSqr(cameraPos);
-        return distToCamera < 9.0; // 3^2 = 9
+        // 半径5ブロックの円柱内ならカリング対象
+        return horizontalDistSq <= MAX_CULLING_DISTANCE * MAX_CULLING_DISTANCE;
     }
 
     @Override

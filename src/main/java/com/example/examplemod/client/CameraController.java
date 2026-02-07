@@ -25,7 +25,7 @@ public final class CameraController {
     public static final float DEFAULT_CAMERA_YAW = 0.0f;
     private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
     private static final double RADIANS_TO_DEGREES = 180.0 / Math.PI;
-    
+
     // 状態
     private static float cameraYaw = DEFAULT_CAMERA_YAW;
 
@@ -49,14 +49,41 @@ public final class CameraController {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (event.phase != TickEvent.Phase.END)
+            return;
+        if (!ClientForgeEvents.isTopDownView())
+            return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
-        if (mc.isPaused()) return;
+        if (mc.player == null)
+            return;
+        if (mc.isPaused())
+            return;
 
-        updatePlayerRotationToMouse(mc);
+        // ALTキー（左または右）が押されているかチェック
+        long handle = mc.getWindow().getWindow();
+        boolean isAltDown = com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT) ||
+                com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT);
+
+        if (isAltDown) {
+            // ALTキー押下時：カメラを回転させる
+            // マウスの水平移動量（デルタ）を取得するために、現在のマウス位置と画面中央の差分を取る
+            double centerX = mc.getWindow().getScreenWidth() / 2.0;
+            double dx = mc.mouseHandler.xpos() - centerX;
+
+            if (dx != 0) {
+                float sensitivity = 0.15f;
+                float newYaw = ModState.CAMERA.getYaw() + (float) dx * sensitivity;
+                ModState.CAMERA.setYaw(newYaw);
+
+                // マウスを中央に戻してデルタ入力を継続可能にする
+                org.lwjgl.glfw.GLFW.glfwSetCursorPos(handle, centerX, mc.getWindow().getScreenHeight() / 2.0);
+            }
+        } else {
+            // ALTキー非押下時：通常のマウス位置への回転
+            updatePlayerRotationToMouse(mc);
+        }
     }
 
     public static float getCameraYaw() {
@@ -68,18 +95,17 @@ public final class CameraController {
      */
     public static void updatePlayerRotationToMouse(Minecraft mc) {
         HitResult hitResult = MouseRaycast.getHitResult(
-            mc, 
-            mc.getFrameTime(), 
-            MouseRaycast.getCustomReachDistance()
-        );
-        
+                mc,
+                mc.getFrameTime(),
+                MouseRaycast.getCustomReachDistance());
+
         if (hitResult == null || mc.player == null) {
             return;
         }
-        
+
         Vec3 targetPos = hitResult.getLocation();
         Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
-        
+
         double dx = targetPos.x - playerEyePos.x;
         double dy = targetPos.y - playerEyePos.y;
         double dz = targetPos.z - playerEyePos.z;

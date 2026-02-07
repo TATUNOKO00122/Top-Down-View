@@ -22,7 +22,6 @@ public abstract class CameraMixin {
 
     // 定数
     private static final float FIXED_PITCH = 45.0f;
-    private static final float FIXED_YAW = 0.0f;
     private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
 
     @Shadow
@@ -55,8 +54,9 @@ public abstract class CameraMixin {
         double distance = ClientForgeEvents.getCameraDistance();
 
         // カメラ位置オフセット計算
+        float yaw = ModState.CAMERA.getYaw();
         double radPitch = FIXED_PITCH * DEGREES_TO_RADIANS;
-        double radYaw = FIXED_YAW * DEGREES_TO_RADIANS;
+        double radYaw = yaw * DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
 
@@ -67,7 +67,7 @@ public abstract class CameraMixin {
 
         // カメラ位置と角度を設定
         this.setPosition(new Vec3(cameraX, cameraY, cameraZ));
-        this.setRotation(FIXED_YAW, FIXED_PITCH);
+        this.setRotation(yaw, FIXED_PITCH);
 
         // カメラ位置を状態に保存
         ModState.CAMERA.setCameraPosition(this.getPosition());

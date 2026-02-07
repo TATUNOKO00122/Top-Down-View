@@ -1,6 +1,7 @@
 package com.example.examplemod.client;
 
 import com.example.examplemod.culling.TopDownCuller;
+import com.example.examplemod.state.ModState;
 import com.example.examplemod.state.CameraState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -25,7 +26,8 @@ import java.util.Objects;
 public final class MouseRaycast {
 
     // レイキャスト結果を保持するレコード
-    private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {}
+    private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {
+    }
 
     // レイキャスト定数
     private static final double RAYCAST_STEP = 0.5;
@@ -36,7 +38,6 @@ public final class MouseRaycast {
 
     // カメラ角度定数
     private static final double FIXED_PITCH_DEG = 45.0;
-    private static final double FIXED_YAW_DEG = 0.0;
 
     // スクリーン座標変換定数
     private static final double SCREEN_TO_NDC_FACTOR = 2.0;
@@ -63,7 +64,8 @@ public final class MouseRaycast {
     private double lastMouseX = -1;
     private double lastMouseY = -1;
 
-    private MouseRaycast() {}
+    private MouseRaycast() {
+    }
 
     /**
      * カスタムリーチ距離を取得
@@ -140,7 +142,8 @@ public final class MouseRaycast {
     /**
      * エンティティレイキャストを実行
      */
-    private EntityHitResult performEntityRaycast(Minecraft mc, Vec3 start, BlockHitResult blockHit, Vec3 end, double reachDistance) {
+    private EntityHitResult performEntityRaycast(Minecraft mc, Vec3 start, BlockHitResult blockHit, Vec3 end,
+            double reachDistance) {
         Entity cameraEntity = mc.getCameraEntity();
         if (cameraEntity == null) {
             return null;
@@ -173,8 +176,7 @@ public final class MouseRaycast {
         // トップダウンビューでない場合は通常のレイキャスト
         if (!ClientForgeEvents.isTopDownView()) {
             return mc.level.clip(
-                new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player)
-            );
+                    new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
         }
 
         double distance = start.distanceTo(end);
@@ -351,8 +353,8 @@ public final class MouseRaycast {
 
         // キャッシュが有効かチェック
         if (cachedDirection != null &&
-            mouseX == lastMouseX && mouseY == lastMouseY &&
-            fov == lastFov && aspectRatio == lastAspectRatio) {
+                mouseX == lastMouseX && mouseY == lastMouseY &&
+                fov == lastFov && aspectRatio == lastAspectRatio) {
             return cachedDirection;
         }
 
@@ -366,7 +368,7 @@ public final class MouseRaycast {
         double offsetY = ndcY * tanHalfFov;
 
         double pitchRad = Math.toRadians(FIXED_PITCH_DEG);
-        double yawRad = Math.toRadians(FIXED_YAW_DEG);
+        double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
 
         double forwardX = -Math.sin(yawRad) * Math.cos(pitchRad);
         double forwardY = -Math.sin(pitchRad);
