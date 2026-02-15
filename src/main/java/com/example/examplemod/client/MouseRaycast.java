@@ -42,17 +42,21 @@ public final class MouseRaycast {
     // スクリーン座標変換定数
     private static final double SCREEN_TO_NDC_FACTOR = 2.0;
     private static final double NDC_OFFSET = 1.0;
-    private static final double SEARCH_BOX_INFLATE = 1.0;
     private static final double MIN_SCREEN_DIMENSION = 1.0;
 
     // リーチ距離計算定数
     private static final double MIN_REACH_DISTANCE = 30.0;
     private static final double REACH_DISTANCE_MULTIPLIER = 1.5;
 
+    // エンティティ検索定数
+    private static final double SEARCH_BOX_INFLATE = 4.0;            // 検索ボックスの拡張（ブロック）
+    private static final double MAX_ENTITY_DISTANCE = 30.0;          // 最大エンティティ距離（ブロック）
+    private static final double LINE_PROXIMITY_THRESHOLD = 2.0;      // 線からの最大距離（ブロック）
+
     // シングルトンインスタンス
     public static final MouseRaycast INSTANCE = new MouseRaycast();
 
-    // 状態（Minecraftはシングルスレッドなのでvolatileは不要）
+    // 状態
     private BlockHitResult lastBlockHit = null;
     private EntityHitResult lastEntityHit = null;
     private net.minecraft.world.phys.HitResult lastHitResult = null;
@@ -141,27 +145,141 @@ public final class MouseRaycast {
 
     /**
      * エンティティレイキャストを実行
+     * マウスカーソル位置周辺のエンティティを検出
+     * プレイヤーに最も近いエンティティをターゲットする
      */
     private EntityHitResult performEntityRaycast(Minecraft mc, Vec3 start, BlockHitResult blockHit, Vec3 end,
             double reachDistance) {
-        Entity cameraEntity = mc.getCameraEntity();
-        if (cameraEntity == null) {
+        if (mc.player == null) {
             return null;
         }
 
-        Vec3 entitySearchEnd = blockHit.getLocation();
-        if (blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
-            entitySearchEnd = end;
+        // マウスカーソル位置を計算
+        // 斜めカメラでは、レイと地面（プレイヤーのY高度）との交点を使用
+        Vec3 mousePos = calculateGroundIntersection(mc, start, end);
+        if (mousePos == null) {
+            // 地面と交差しない場合はブロックヒット位置を使用
+            mousePos = blockHit.getLocation();
+            if (blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                mousePos = end;
+            }
         }
 
-        AABB searchBox = new AABB(start, entitySearchEnd).inflate(SEARCH_BOX_INFLATE);
-        return ProjectileUtil.getEntityHitResult(
-                mc.level,
-                cameraEntity,
-                start,
-                entitySearchEnd,
+        // プレイヤー位置（目の位置）
+        Vec3 playerEyePos = mc.player.getEyePosition(1.0f);
+
+        // 検索ボックス：マウスカーソル位置を中心に一定範囲を拡張
+        AABB searchBox = new AABB(mousePos, mousePos).inflate(LINE_PROXIMITY_THRESHOLD);
+
+        // マウスカーソル周辺のエンティティを検索
+        var entities = mc.level.getEntities(
+                mc.player,
                 searchBox,
-                (entity) -> entity != null && !entity.isSpectator() && entity.isPickable() && entity != mc.player);
+                (entity) -> entity != null && !entity.isSpectator() && entity.isPickable() && entity != mc.player
+        );
+
+        Entity closestEntity = null;
+        double closestDistanceSq = Double.MAX_VALUE;
+        Vec3 closestHitPoint = null;
+
+        for (Entity entity : entities) {
+            // XZ平面（水平方向）でのマウスカーソルからエンティティの距離を計算
+            double distanceToMouse = distanceFromPointToPointIgnoringY(
+                    entity.getBoundingBox().getCenter(),
+                    mousePos
+            );
+
+            // マウスカーソルから一定距離内にあるかチェック
+            if (distanceToMouse > LINE_PROXIMITY_THRESHOLD) {
+                continue;
+            }
+
+            // 地形による遮断チェック
+            if (!hasLineOfSight(mc, playerEyePos, entity)) {
+                continue;
+            }
+
+            // プレイヤーからの距離を計算
+            double distToPlayerSq = entity.distanceToSqr(playerEyePos);
+            if (distToPlayerSq < closestDistanceSq) {
+                closestDistanceSq = distToPlayerSq;
+                closestEntity = entity;
+                closestHitPoint = entity.getBoundingBox().getCenter();
+            }
+        }
+
+        if (closestEntity != null) {
+            return new EntityHitResult(closestEntity, closestHitPoint);
+        }
+
+        return null;
+    }
+
+    /**
+     * 2点間の距離を計算（Y軸無視）
+     * XZ平面（水平方向）のみで距離を計算する
+     */
+    private double distanceFromPointToPointIgnoringY(Vec3 point1, Vec3 point2) {
+        // Y座標を無視（XZ平面のみで計算）
+        double dx = point1.x - point2.x;
+        double dz = point1.z - point2.z;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /**
+     * レイと地面（プレイヤーのY高度）との交点を計算
+     * 斜めカメラで画面端でも正確なカーソル位置を取得するため
+     */
+    private Vec3 calculateGroundIntersection(Minecraft mc, Vec3 start, Vec3 end) {
+        if (mc.player == null) {
+            return null;
+        }
+
+        // プレイヤーの目の高さを基準にした地面のY座標
+        // プレイヤーの足元より少し上（目の高さより下）をターゲット平面とする
+        double targetY = mc.player.getEyePosition(1.0f).y - 1.0;
+
+        Vec3 direction = end.subtract(start);
+        double dy = direction.y;
+
+        // 水平の場合は交点なし（地面と平行）
+        if (Math.abs(dy) < 0.001) {
+            return null;
+        }
+
+        // レイとtargetY平面との交点を計算
+        // start.y + t * dy = targetY  →  t = (targetY - start.y) / dy
+        double t = (targetY - start.y) / dy;
+
+        // tが負なら交点はカメラの後ろ
+        if (t < 0) {
+            return null;
+        }
+
+        // 交点座標を計算
+        double intersectX = start.x + t * direction.x;
+        double intersectY = targetY;
+        double intersectZ = start.z + t * direction.z;
+
+        return new Vec3(intersectX, intersectY, intersectZ);
+    }
+
+    /**
+     * プレイヤーからエンティティまで視線が通っているかチェック
+     */
+    private boolean hasLineOfSight(Minecraft mc, Vec3 fromPos, Entity target) {
+        Vec3 targetPos = target.getBoundingBox().getCenter();
+
+        BlockHitResult blockHit = mc.level.clip(new ClipContext(
+                fromPos,
+                targetPos,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mc.player
+        ));
+
+        // ブロックにヒットしなかった場合は視線が通っている
+        return blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
     }
 
     /**
@@ -199,7 +317,7 @@ public final class MouseRaycast {
             lastCheckedPos = blockPos;
 
             // カリングされているブロックは無視（キャッシュにない場合は計算）
-            if (TopDownCuller.getInstance().isBlockCulled(blockPos)) {
+            if (TopDownCuller.getInstance().isBlockCulled(blockPos, mc.level)) {
                 continue;
             }
 

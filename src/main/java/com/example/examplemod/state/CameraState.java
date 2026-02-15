@@ -2,8 +2,6 @@ package com.example.examplemod.state;
 
 import net.minecraft.world.phys.Vec3;
 
-import java.util.Objects;
-
 /**
  * カメラ状態管理
  * カメラの位置、角度、ズームレベルを管理
@@ -23,22 +21,33 @@ public final class CameraState {
     public static final float DEFAULT_YAW = 0.0f;
     public static final float DEFAULT_ZOOM = 5.0f;
     public static final Vec3 DEFAULT_POSITION = Vec3.ZERO;
-    public static final double DEFAULT_CAMERA_DISTANCE = 15.0;
-    public static final double MIN_CAMERA_DISTANCE = 5.0;
-    public static final double MAX_CAMERA_DISTANCE = 50.0;
+
+    // Runtime values from Config
+    public static double get_default_camera_distance() {
+        return com.example.examplemod.Config.cameraDistance;
+    }
+
+    public static double get_min_camera_distance() {
+        return com.example.examplemod.Config.minCameraDistance;
+    }
+
+    public static double get_max_camera_distance() {
+        return com.example.examplemod.Config.maxCameraDistance;
+    }
 
     // シングルトンインスタンス
     public static final CameraState INSTANCE = new CameraState();
 
     // カメラ制御
     private float yaw = DEFAULT_YAW;
+    private float prevYaw = DEFAULT_YAW;
     private float targetYaw = DEFAULT_YAW;
     private boolean isAnimating = false;
     private float pitch = DEFAULT_PITCH;
     private double x = 0.0;
     private double z = 0.0;
     private float zoom = DEFAULT_ZOOM;
-    private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
+    private double cameraDistance = 15.0; // Initial value, will be updated by reset() or config load
     private Vec3 cameraPosition = DEFAULT_POSITION;
 
     private CameraState() {
@@ -48,6 +57,10 @@ public final class CameraState {
 
     public float getYaw() {
         return yaw;
+    }
+
+    public float getPrevYaw() {
+        return prevYaw;
     }
 
     public float getTargetYaw() {
@@ -125,10 +138,10 @@ public final class CameraState {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException("Camera distance must be finite: " + value);
         }
-        if (value < MIN_CAMERA_DISTANCE || value > MAX_CAMERA_DISTANCE) {
+        if (value < get_min_camera_distance() || value > get_max_camera_distance()) {
             throw new IllegalArgumentException(
                     String.format("Camera distance must be between %.1f and %.1f: %.1f",
-                            MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, value));
+                            get_min_camera_distance(), get_max_camera_distance(), value));
         }
         cameraDistance = value;
     }
@@ -150,7 +163,7 @@ public final class CameraState {
      * カメラ距離を増加
      */
     public double increaseCameraDistance(double delta) {
-        double newDistance = Math.min(MAX_CAMERA_DISTANCE, cameraDistance + delta);
+        double newDistance = Math.min(get_max_camera_distance(), cameraDistance + delta);
         setCameraDistance(newDistance);
         return newDistance;
     }
@@ -159,7 +172,7 @@ public final class CameraState {
      * カメラ距離を減少
      */
     public double decreaseCameraDistance(double delta) {
-        double newDistance = Math.max(MIN_CAMERA_DISTANCE, cameraDistance - delta);
+        double newDistance = Math.max(get_min_camera_distance(), cameraDistance - delta);
         setCameraDistance(newDistance);
         return newDistance;
     }
@@ -169,17 +182,39 @@ public final class CameraState {
      */
     public void reset() {
         yaw = DEFAULT_YAW;
+        prevYaw = DEFAULT_YAW;
         targetYaw = DEFAULT_YAW;
         isAnimating = false;
         pitch = DEFAULT_PITCH;
         x = 0.0;
         z = 0.0;
         zoom = DEFAULT_ZOOM;
-        cameraDistance = DEFAULT_CAMERA_DISTANCE;
+        cameraDistance = get_default_camera_distance();
         cameraPosition = DEFAULT_POSITION;
     }
 
     // ==================== Utility Methods ====================
+
+    /**
+     * 現在の yaw を prevYaw に保存する
+     */
+    public void updatePrevYaw() {
+        this.prevYaw = this.yaw;
+    }
+
+    /**
+     * 最短距離での角度補間 (Lerp) を行う
+     */
+    public float getLerpYaw(float partialTicks) {
+        float f = this.yaw - this.prevYaw;
+        while (f < -180.0F) {
+            f += 360.0F;
+        }
+        while (f >= 180.0F) {
+            f -= 360.0F;
+        }
+        return this.prevYaw + partialTicks * f;
+    }
 
     /**
      * カメラの視線方向ベクトルを取得

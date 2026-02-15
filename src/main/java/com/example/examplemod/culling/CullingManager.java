@@ -28,7 +28,7 @@ public final class CullingManager {
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
 
     // チャンク再構築の最小間隔（ミリ秒）- より頻繁に更新
-    private static final long CHUNK_REBUILD_INTERVAL_MS = 100;
+    private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
     // Embeddiumのクラス名
     private static final String EMBEDDIUM_CLASS = "me.jellysquid.mods.sodium.client.SodiumClientMod";
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
@@ -81,11 +81,10 @@ public final class CullingManager {
 
             // scheduleRebuildForBlockArea メソッドを取得
             rebuildMethod = rendererClass.getMethod(
-                "scheduleRebuildForBlockArea",
-                int.class, int.class, int.class,
-                int.class, int.class, int.class,
-                boolean.class
-            );
+                    "scheduleRebuildForBlockArea",
+                    int.class, int.class, int.class,
+                    int.class, int.class, int.class,
+                    boolean.class);
 
             LOGGER.info("Embeddium reflection initialized successfully");
             reflectionInitialized = true;
@@ -103,6 +102,8 @@ public final class CullingManager {
         return false;
     }
 
+    private static int tickCounter = 0;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
@@ -112,6 +113,15 @@ public final class CullingManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
             return;
+        }
+
+        tickCounter++;
+        if (tickCounter % 100 == 0) {
+            LOGGER.info("[TopDownView] CullingManager tick {}, isTopDownView={}, culledBlocks={}, cacheSize={}",
+                    tickCounter,
+                    com.example.examplemod.client.ClientForgeEvents.isTopDownView(),
+                    CULLER.getCulledBlockCount(),
+                    CULLER.getCacheSize());
         }
 
         // 頻度制御：player.tickCount % frequency == 0 の時のみ更新
@@ -179,21 +189,21 @@ public final class CullingManager {
 
             // チャンク再構築をスケジュール
             rebuildMethod.invoke(renderer,
-                (int) box.minX, (int) box.minY, (int) box.minZ,
-                (int) box.maxX, (int) box.maxY, (int) box.maxZ,
-                true
-            );
+                    (int) box.minX, (int) box.minY, (int) box.minZ,
+                    (int) box.maxX, (int) box.maxY, (int) box.maxZ,
+                    true);
 
             LOGGER.debug("Scheduled chunk rebuild for area: [{}, {}, {}] to [{}, {}, {}]",
-                (int) box.minX, (int) box.minY, (int) box.minZ,
-                (int) box.maxX, (int) box.maxY, (int) box.maxZ);
+                    (int) box.minX, (int) box.minY, (int) box.minZ,
+                    (int) box.maxX, (int) box.maxY, (int) box.maxZ);
 
             return true;
 
         } catch (IllegalAccessException e) {
             LOGGER.warn("Cannot access Embeddium method: {}", e.getMessage());
         } catch (java.lang.reflect.InvocationTargetException e) {
-            LOGGER.warn("Embeddium method invocation failed: {}", e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+            LOGGER.warn("Embeddium method invocation failed: {}",
+                    e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (Exception e) {
             LOGGER.warn("Failed to schedule chunk rebuild: {}", e.getMessage());
         }

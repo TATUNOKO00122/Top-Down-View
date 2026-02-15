@@ -53,8 +53,8 @@ public abstract class CameraMixin {
         // カメラ距離
         double distance = ClientForgeEvents.getCameraDistance();
 
-        // カメラ位置オフセット計算
-        float yaw = ModState.CAMERA.getYaw();
+        // カメラ位置オフセット計算（補間されたYawを使用）
+        float yaw = ModState.CAMERA.getLerpYaw(partialTick);
         double radPitch = FIXED_PITCH * DEGREES_TO_RADIANS;
         double radYaw = yaw * DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;

@@ -54,42 +54,19 @@ public final class CameraController {
         if (!ClientForgeEvents.isTopDownView())
             return;
 
+        // 次のティックの計算前に、現在の角度を保存しておく
+        ModState.CAMERA.updatePrevYaw();
+
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;
         if (mc.isPaused())
             return;
 
-        // ALTキー（左または右）が押されているかチェック
-        long handle = mc.getWindow().getWindow();
-        boolean isAltDown = com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle,
-                org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT) ||
-                com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT);
-
-        if (isAltDown) {
-            // ALTキー押下時：カメラを回転させる
-            // アニメーションを解除
-            ModState.CAMERA.setAnimating(false);
-            ModState.CAMERA.setTargetYaw(ModState.CAMERA.getYaw());
-
-            // マウスの水平移動量（デルタ）を取得するために、現在のマウス位置と画面中央の差分を取る
-            double centerX = mc.getWindow().getScreenWidth() / 2.0;
-            double dx = mc.mouseHandler.xpos() - centerX;
-
-            if (dx != 0) {
-                float sensitivity = 0.15f;
-                float newYaw = ModState.CAMERA.getYaw() + (float) dx * sensitivity;
-                ModState.CAMERA.setYaw(newYaw);
-
-                // マウスを中央に戻してデルタ入力を継続可能にする
-                org.lwjgl.glfw.GLFW.glfwSetCursorPos(handle, centerX, mc.getWindow().getScreenHeight() / 2.0);
-            }
-        } else {
-            // ALTキー非押下時：アニメーションの更新
-            updateAnimation();
-            // 通常のマウス位置への回転
-            updatePlayerRotationToMouse(mc);
-        }
+        // アニメーションの更新
+        updateAnimation();
+        // 通常のマウス位置への回転
+        updatePlayerRotationToMouse(mc);
     }
 
     /**

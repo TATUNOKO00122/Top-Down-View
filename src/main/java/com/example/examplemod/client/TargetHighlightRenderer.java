@@ -7,7 +7,9 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -49,7 +51,15 @@ public class TargetHighlightRenderer {
         PoseStack poseStack = event.getPoseStack();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        // --- エンティティハイライト処理 (発光エフェクト) ---
+        // --- エンティティハイライト処理 ---
+        // 障害物がある場合はターゲットを無効化
+        if (currentEntity != null && mc.player != null) {
+            if (!hasLineOfSight(mc, mc.player, currentEntity)) {
+                currentEntity = null;
+            }
+        }
+        
+        // 発光エフェクトの更新
         if (currentEntity != lastGlowingEntity) {
             // 前回のエンティティの発光をオフにする
             if (lastGlowingEntity != null) {
@@ -59,7 +69,6 @@ public class TargetHighlightRenderer {
             if (currentEntity != null) {
                 ((com.example.examplemod.mixin.EntityAccessor) currentEntity).callSetSharedFlag(6, true);
             }
-            // 記録更新
             lastGlowingEntity = currentEntity;
         }
 
@@ -103,4 +112,26 @@ public class TargetHighlightRenderer {
         // バッファをフラッシュ
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
     }
+
+    /**
+     * プレイヤーとエンティティの間に視線があるかチェック
+     * ブロックが遮っている場合はfalseを返す
+     */
+    private static boolean hasLineOfSight(Minecraft mc, Entity player, Entity target) {
+        Vec3 playerEyePos = player.getEyePosition(1.0f);
+        Vec3 targetPos = target.getBoundingBox().getCenter();
+        
+        // レイキャストで障害物をチェック
+        BlockHitResult blockHit = mc.level.clip(new ClipContext(
+            playerEyePos,
+            targetPos,
+            ClipContext.Block.COLLIDER,
+            ClipContext.Fluid.NONE,
+            player
+        ));
+        
+        // ブロックにヒットしなかった場合は視線が通っている
+        return blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+    }
+
 }

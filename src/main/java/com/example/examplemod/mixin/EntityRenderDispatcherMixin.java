@@ -28,7 +28,7 @@ public class EntityRenderDispatcherMixin {
             float pPartialTicks, PoseStack pMatrixStack, MultiBufferSource pBuffer, int pPackedLight, CallbackInfo ci) {
         if (ClientForgeEvents.isTopDownView()) {
 
-            if (CULLER.isBlockCulled(pEntity.blockPosition())) {
+            if (CULLER.isBlockCulled(pEntity.blockPosition(), pEntity.level())) {
                 ci.cancel();
             }
         }

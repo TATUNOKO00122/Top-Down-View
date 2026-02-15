@@ -20,7 +20,7 @@ public class BlockEntityRenderDispatcherMixin {
     private <E extends BlockEntity> void onRender(E pBlockEntity, float pPartialTick, PoseStack pPoseStack,
             MultiBufferSource pBufferSource, CallbackInfo ci) {
         if (ClientForgeEvents.isTopDownView()) {
-            if (CULLER.isBlockCulled(pBlockEntity.getBlockPos())) {
+            if (CULLER.isBlockCulled(pBlockEntity.getBlockPos(), pBlockEntity.getLevel())) {
                 ci.cancel();
             }
         }
