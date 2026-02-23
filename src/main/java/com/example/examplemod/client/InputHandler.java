@@ -9,32 +9,23 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public class InputHandler {
 
-    // キー状態追跡用
-    private static boolean wasToggleKeyDown = false;
-    private static boolean wasRotateKeyDown = false;
-
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
-        Minecraft mc = Minecraft.getInstance();
-        long handle = mc.getWindow().getWindow();
+        if (event.getAction() != GLFW.GLFW_PRESS) return;
 
-        // Toggleキー (F4) - 生のキー状態で判定（修飾キーの影響を受けない）
-        boolean isToggleDown = org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_F4) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-        if (isToggleDown && !wasToggleKeyDown) {
+        int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
+        int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
+
+        if (event.getKey() == toggleKeyCode) {
             toggleTopDownView();
-        }
-        wasToggleKeyDown = isToggleDown;
-
-        // Rotateキー (R) - 生のキー状態で判定（修飾キーの影響を受けない）
-        boolean isRotateDown = org.lwjgl.glfw.GLFW.glfwGetKey(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_R) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-        if (ClientForgeEvents.isTopDownView() && isRotateDown && !wasRotateKeyDown) {
+        } else if (ClientForgeEvents.isTopDownView() && event.getKey() == rotateKeyCode) {
             CameraController.rotateCamera90Degrees();
         }
-        wasRotateKeyDown = isRotateDown;
     }
 
     private static void toggleTopDownView() {
@@ -81,12 +72,9 @@ public class InputHandler {
             return;
 
         Minecraft mc = Minecraft.getInstance();
-        long handle = mc.getWindow().getWindow();
-        boolean isAltDown = com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle,
-                org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT) ||
-                com.mojang.blaze3d.platform.InputConstants.isKeyDown(handle, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT);
+        boolean isZoomModifierDown = ClientModBusEvents.ZOOM_MODIFIER_KEY.isDown();
 
-        if (isAltDown) {
+        if (isZoomModifierDown) {
             double newDistance = ClientForgeEvents.getCameraDistance() - scroll * 1.5;
             double clampedDistance = Math.max(ClientForgeEvents.getMinCameraDistance(),
                     Math.min(newDistance, ClientForgeEvents.getMaxCameraDistance()));

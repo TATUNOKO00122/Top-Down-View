@@ -12,7 +12,7 @@ public class Config {
         // Camera settings
         private static final ForgeConfigSpec.DoubleValue CAMERA_DISTANCE = BUILDER
                         .comment("プレイヤーからのデフォルトのカメラ距離")
-                        .defineInRange("cameraDistance", 12.0, 1.0, 100.0);
+                        .defineInRange("cameraDistance", 9.0, 1.0, 100.0);
 
         private static final ForgeConfigSpec.DoubleValue MIN_CAMERA_DISTANCE = BUILDER
                         .comment("カメラの最小距離")

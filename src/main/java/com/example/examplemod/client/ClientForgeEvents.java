@@ -23,7 +23,7 @@ public final class ClientForgeEvents {
     }
 
     private static final AtomicBoolean IS_TOP_DOWN_VIEW = new AtomicBoolean(false);
-    private static final AtomicReference<Double> CAMERA_DISTANCE = new AtomicReference<>(15.0);
+    private static final AtomicReference<Double> CAMERA_DISTANCE = new AtomicReference<>(null);
 
     // 定数はConfigから取得するように変更
     public static double getMinCameraDistance() {
@@ -52,7 +52,12 @@ public final class ClientForgeEvents {
     }
 
     public static double getCameraDistance() {
-        return CAMERA_DISTANCE.get();
+        Double value = CAMERA_DISTANCE.get();
+        if (value == null) {
+            value = getDefaultCameraDistance();
+            CAMERA_DISTANCE.compareAndSet(null, value);
+        }
+        return value;
     }
 
     // ==================== Setters with Validation ====================

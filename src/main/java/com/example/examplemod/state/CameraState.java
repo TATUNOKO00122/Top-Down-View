@@ -47,7 +47,7 @@ public final class CameraState {
     private double x = 0.0;
     private double z = 0.0;
     private float zoom = DEFAULT_ZOOM;
-    private double cameraDistance = 15.0; // Initial value, will be updated by reset() or config load
+    private double cameraDistance = -1.0; // -1 indicates uninitialized
     private Vec3 cameraPosition = DEFAULT_POSITION;
 
     private CameraState() {
@@ -88,6 +88,9 @@ public final class CameraState {
     }
 
     public double getCameraDistance() {
+        if (cameraDistance < 0) {
+            cameraDistance = get_default_camera_distance();
+        }
         return cameraDistance;
     }
 

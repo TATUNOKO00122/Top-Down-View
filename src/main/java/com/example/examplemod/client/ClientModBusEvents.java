@@ -21,9 +21,15 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_R,
             "key.categories.topdown_view");
 
+    public static final KeyMapping ZOOM_MODIFIER_KEY = new KeyMapping(
+            "key.topdown_view.zoom_modifier",
+            GLFW.GLFW_KEY_LEFT_ALT,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
         event.register(ROTATE_VIEW_KEY);
+        event.register(ZOOM_MODIFIER_KEY);
     }
 }
