@@ -23,8 +23,8 @@ public final class TopDownCuller implements Culler {
 
     // カリング角度しきい値（約10度: cosθ ≈ 0.9848）
     private static final double CULLING_ANGLE_COS = 0.9848;
-    // プレイヤーの足元/段差閾値（1.0ブロック）- 接地判定ベース
-    private static final double HEIGHT_THRESHOLD_STEP = 1.0;
+    // プレイヤーの足元/段差閾値（2.0ブロック）- この高さ以下は常に表示
+    private static final double HEIGHT_THRESHOLD_STEP = 2.0;
     // プレイヤー背面（奥側）のカリング停止距離
     private static final double BACK_SIDE_CULL_LIMIT = 3.0;
     // 更新頻度
@@ -156,13 +156,14 @@ public final class TopDownCuller implements Culler {
             return false;
         }
 
-        // 高さチェック用の相対座標
+        // プレイヤーからブロックへのベクトル
+        Vec3 playerToBlock = blockCenter.subtract(playerPos);
+
+        // 高さチェック用の相対座標（プレイヤーの足元を0とした高さ）
         double relativeHeight = (pos.getY() + 0.5) - (playerPos.y - 1.5);
 
         // 手前(Near Side)か奥(Far Side)かの判定を「水平距離」ベースに変更
-        // 3D投影距離だと、垂直な壁の上部が手前(Near)と判定されてカリングされてしまうため
         Vec3 horizontalViewDir = new Vec3(viewAxis.x, 0, viewAxis.z).normalize();
-        Vec3 playerToBlock = blockCenter.subtract(playerPos);
         double horizontalOffset = playerToBlock.x * horizontalViewDir.x + playerToBlock.z * horizontalViewDir.z;
 
         // 判定：プレイヤーより少し手前（-0.2ブロック）以上なら、進行方向の「奥側(Far Side)」とする
