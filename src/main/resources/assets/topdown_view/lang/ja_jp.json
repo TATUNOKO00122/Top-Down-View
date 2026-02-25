@@ -2,5 +2,9 @@
   "key.topdown_view.toggle": "トップダウンビュー切替",
   "key.topdown_view.rotate": "ビュー回転",
   "key.topdown_view.zoom_modifier": "ズーム修飾キー",
-  "key.categories.topdown_view": "トップダウンビュー"
+  "key.categories.topdown_view": "トップダウンビュー",
+  
+  "topdown_view.config.title": "トップダウンビュー設定",
+  "topdown_view.config.culling_range": "カリング範囲: %s",
+  "topdown_view.config.culling_height_threshold": "カリング保護高さ: %d"
 }

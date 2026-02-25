@@ -16,7 +16,7 @@ public class ConfigScreen extends Screen {
     private final Screen lastScreen;
 
     public ConfigScreen(Screen lastScreen) {
-        super(Component.literal("トップダウンビュー設定"));
+        super(Component.translatable("topdown_view.config.title"));
         this.lastScreen = lastScreen;
     }
 
@@ -29,13 +29,13 @@ public class ConfigScreen extends Screen {
         int x = this.width / 2 - width / 2;
 
         // Culling Range Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY, width, height, "カリング範囲",
+        this.addRenderableWidget(new ConfigSlider(x, startY, width, height, "topdown_view.config.culling_range",
                 Config.cullingRange, 1.0, 100.0, (value) -> {
                     Config.cullingRange = value;
                 }));
 
         // Culling Height Threshold Slider (integer)
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "カリング保護高さ",
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.culling_height_threshold",
                 Config.cullingHeightThreshold, 0, 10, (value) -> {
                     Config.cullingHeightThreshold = value;
                 }));
@@ -68,15 +68,15 @@ public class ConfigScreen extends Screen {
      * 汎用的な設定用スライダー
      */
     private static class ConfigSlider extends AbstractSliderButton {
-        private final String prefix;
+        private final String translationKey;
         private final double min;
         private final double max;
         private final java.util.function.Consumer<Double> setter;
 
-        public ConfigSlider(int x, int y, int width, int height, String prefix, double current, double min, double max,
+        public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min, double max,
                 java.util.function.Consumer<Double> setter) {
             super(x, y, width, height, Component.empty(), (current - min) / (max - min));
-            this.prefix = prefix;
+            this.translationKey = translationKey;
             this.min = min;
             this.max = max;
             this.setter = setter;
@@ -86,7 +86,7 @@ public class ConfigScreen extends Screen {
         @Override
         protected void updateMessage() {
             double value = min + (max - min) * this.value;
-            this.setMessage(Component.literal(String.format("%s: %.1f", prefix, value)));
+            this.setMessage(Component.translatable(translationKey, String.format("%.1f", value)));
         }
 
         @Override
@@ -97,15 +97,15 @@ public class ConfigScreen extends Screen {
     }
 
     private static class IntConfigSlider extends AbstractSliderButton {
-        private final String prefix;
+        private final String translationKey;
         private final int min;
         private final int max;
         private final java.util.function.Consumer<Integer> setter;
 
-        public IntConfigSlider(int x, int y, int width, int height, String prefix, int current, int min, int max,
+        public IntConfigSlider(int x, int y, int width, int height, String translationKey, int current, int min, int max,
                 java.util.function.Consumer<Integer> setter) {
             super(x, y, width, height, Component.empty(), (double) (current - min) / (max - min));
-            this.prefix = prefix;
+            this.translationKey = translationKey;
             this.min = min;
             this.max = max;
             this.setter = setter;
@@ -115,7 +115,7 @@ public class ConfigScreen extends Screen {
         @Override
         protected void updateMessage() {
             int value = min + (int) Math.round((max - min) * this.value);
-            this.setMessage(Component.literal(String.format("%s: %d", prefix, value)));
+            this.setMessage(Component.translatable(translationKey, value));
         }
 
         @Override
