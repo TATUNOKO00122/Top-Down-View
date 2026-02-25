@@ -8,7 +8,7 @@ package com.topdownview.state;
 public final class ModState {
 
     private ModState() {
-        throw new AssertionError("ユーティリティクラスはインスタンス化できません");
+        throw new IllegalStateException("ユーティリティクラス");
     }
 
     // 各状態への直接参照を提供

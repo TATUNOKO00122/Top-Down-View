@@ -46,6 +46,7 @@ public class InputHandler {
     }
 
     private static void enableTopDownView(Minecraft mc) {
+        ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         mc.mouseHandler.releaseMouse();
         ModState.resetAll();
@@ -56,7 +57,11 @@ public class InputHandler {
     }
 
     private static void disableTopDownView(Minecraft mc) {
-        mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        CameraType restoreType = ModState.CAMERA.getPreviousCameraType();
+        if (restoreType == null) {
+            restoreType = CameraType.FIRST_PERSON;
+        }
+        mc.options.setCameraType(restoreType);
         mc.mouseHandler.grabMouse();
         ModState.resetAll();
         ModState.STATUS.setEnabled(false);
@@ -75,10 +80,10 @@ public class InputHandler {
         boolean isZoomModifierDown = ClientModBusEvents.ZOOM_MODIFIER_KEY.isDown();
 
         if (isZoomModifierDown) {
-            double newDistance = ClientForgeEvents.getCameraDistance() - scroll * 1.5;
-            double clampedDistance = Math.max(ClientForgeEvents.getMinCameraDistance(),
-                    Math.min(newDistance, ClientForgeEvents.getMaxCameraDistance()));
-            ClientForgeEvents.setCameraDistance(clampedDistance);
+            double newDistance = ModState.CAMERA.getCameraDistance() - scroll * 1.5;
+            double clampedDistance = Math.max(com.topdownview.state.CameraState.MIN_CAMERA_DISTANCE,
+                    Math.min(newDistance, com.topdownview.state.CameraState.MAX_CAMERA_DISTANCE));
+            ModState.CAMERA.setCameraDistance(clampedDistance);
             event.setCanceled(true);
         }
     }

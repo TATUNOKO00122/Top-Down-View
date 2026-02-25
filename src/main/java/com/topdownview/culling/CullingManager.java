@@ -44,7 +44,7 @@ public final class CullingManager {
     private static boolean reflectionInitialized = false;
 
     private CullingManager() {
-        throw new AssertionError("ユーティリティクラス");
+        throw new IllegalStateException("ユーティリティクラス");
     }
 
     /**
@@ -102,8 +102,6 @@ public final class CullingManager {
         return false;
     }
 
-    private static int tickCounter = 0;
-
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
@@ -115,23 +113,11 @@ public final class CullingManager {
             return;
         }
 
-        tickCounter++;
-        if (tickCounter % 100 == 0) {
-            LOGGER.info("[TopDownView] CullingManager tick {}, isTopDownView={}, culledBlocks={}, cacheSize={}",
-                    tickCounter,
-                    com.topdownview.client.ClientForgeEvents.isTopDownView(),
-                    CULLER.getCulledBlockCount(),
-                    CULLER.getCacheSize());
-        }
-
-        // 頻度制御：player.tickCount % frequency == 0 の時のみ更新
         int frequency = CULLER.getFrequency();
         if (mc.player.tickCount % frequency == 0) {
-            // カリング状態を更新
             CULLER.update();
         }
 
-        // トップダウンビューが有効な場合はチャンクを再構築
         if (com.topdownview.client.ClientForgeEvents.isTopDownView()) {
             scheduleChunkRebuildIfNeeded();
         }
@@ -154,9 +140,9 @@ public final class CullingManager {
 
         Minecraft mc = Minecraft.getInstance();
         Vec3 playerPos = mc.player.getEyePosition(1.0f);
-        Vec3 cameraPos = com.topdownview.client.ClientForgeEvents.getCameraPosition();
+        Vec3 cameraPos = com.topdownview.state.ModState.CAMERA.getCameraPosition();
 
-        if (cameraPos == null) {
+        if (cameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
             return;
         }
 

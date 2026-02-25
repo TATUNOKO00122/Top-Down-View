@@ -41,16 +41,14 @@ public class ClickActionHandler {
         if (mc.level == null || mc.player == null)
             return;
 
-        // カスタムリーチ距離を使用（カリング距離と同期）
         double reach = MouseRaycast.getCustomReachDistance();
-        net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f, reach);
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        net.minecraft.world.phys.HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-            // エンティティを攻撃
             mc.gameMode.attack(mc.player, ((EntityHitResult) result).getEntity());
             mc.player.swing(InteractionHand.MAIN_HAND);
         } else if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            // ブロック破壊開始
             BlockHitResult blockHit = (BlockHitResult) result;
             mc.gameMode.startDestroyBlock(blockHit.getBlockPos(), blockHit.getDirection());
             mc.player.swing(InteractionHand.MAIN_HAND);
@@ -61,29 +59,25 @@ public class ClickActionHandler {
         if (mc.level == null || mc.player == null)
             return;
 
-        // カスタムリーチ距離を使用（カリング距離と同期）
         double reach = MouseRaycast.getCustomReachDistance();
-        net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f, reach);
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        net.minecraft.world.phys.HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-            // エンティティにインタラクト
             mc.gameMode.interact(mc.player, ((EntityHitResult) result).getEntity(), InteractionHand.MAIN_HAND);
             mc.player.swing(InteractionHand.MAIN_HAND);
         } else if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            // ブロックにインタラクト（設置など）
             BlockHitResult blockHit = (BlockHitResult) result;
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
             mc.player.swing(InteractionHand.MAIN_HAND);
         } else {
-            // アイテム使用（弓など）
             mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
         }
     }
 
     private static void handleBlockMining(Minecraft mc) {
-        // 継続的なブロック破壊
-        net.minecraft.world.phys.HitResult result = MouseRaycast.getHitResult(mc, 1.0f,
-                MouseRaycast.getCustomReachDistance());
+        MouseRaycast.INSTANCE.update(mc, 1.0f, MouseRaycast.getCustomReachDistance());
+        net.minecraft.world.phys.HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
         if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
             BlockHitResult blockHit = (BlockHitResult) result;
             mc.gameMode.continueDestroyBlock(blockHit.getBlockPos(), blockHit.getDirection());

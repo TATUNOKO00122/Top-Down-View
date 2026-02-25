@@ -1,11 +1,12 @@
 package com.topdownview.state;
 
+import net.minecraft.client.CameraType;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * カメラ状態管理
  * カメラの位置、角度、ズームレベルを管理
- * Minecraftはシングルスレッドなので同期処理は不要
+ * カメラ距離の単一の真実のソース（Single Source of Truth）
  */
 public final class CameraState {
 
@@ -22,18 +23,10 @@ public final class CameraState {
     public static final float DEFAULT_ZOOM = 5.0f;
     public static final Vec3 DEFAULT_POSITION = Vec3.ZERO;
 
-    // Runtime values from Config
-    public static double get_default_camera_distance() {
-        return com.topdownview.client.ClientForgeEvents.getDefaultCameraDistance();
-    }
-
-    public static double get_min_camera_distance() {
-        return com.topdownview.client.ClientForgeEvents.getMinCameraDistance();
-    }
-
-    public static double get_max_camera_distance() {
-        return com.topdownview.client.ClientForgeEvents.getMaxCameraDistance();
-    }
+    // カメラ距離定数（Single Source of Truth）
+    public static final double MIN_CAMERA_DISTANCE = 5.0;
+    public static final double MAX_CAMERA_DISTANCE = 50.0;
+    public static final double DEFAULT_CAMERA_DISTANCE = 9.0;
 
     // シングルトンインスタンス
     public static final CameraState INSTANCE = new CameraState();
@@ -47,8 +40,9 @@ public final class CameraState {
     private double x = 0.0;
     private double z = 0.0;
     private float zoom = DEFAULT_ZOOM;
-    private double cameraDistance = -1.0; // -1 indicates uninitialized
+    private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
     private Vec3 cameraPosition = DEFAULT_POSITION;
+    private CameraType previousCameraType = null;
 
     private CameraState() {
     }
@@ -88,18 +82,15 @@ public final class CameraState {
     }
 
     public double getCameraDistance() {
-        if (cameraDistance < 0) {
-            cameraDistance = get_default_camera_distance();
-        }
         return cameraDistance;
     }
 
-    /**
-     * カメラ位置の防御的コピーを返す
-     * Vec3はイミュータブルなので新しいインスタンスを生成
-     */
     public Vec3 getCameraPosition() {
         return cameraPosition;
+    }
+
+    public CameraType getPreviousCameraType() {
+        return previousCameraType;
     }
 
     // ==================== Setters with Validation ====================
@@ -141,17 +132,14 @@ public final class CameraState {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException("Camera distance must be finite: " + value);
         }
-        if (value < get_min_camera_distance() || value > get_max_camera_distance()) {
+        if (value < MIN_CAMERA_DISTANCE || value > MAX_CAMERA_DISTANCE) {
             throw new IllegalArgumentException(
                     String.format("Camera distance must be between %.1f and %.1f: %.1f",
-                            get_min_camera_distance(), get_max_camera_distance(), value));
+                            MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, value));
         }
         cameraDistance = value;
     }
 
-    /**
-     * カメラ位置を設定（防御的コピー）
-     */
     public void setCameraPosition(Vec3 value) {
         if (value == null) {
             throw new IllegalArgumentException("Position cannot be null");
@@ -159,14 +147,18 @@ public final class CameraState {
         if (!Double.isFinite(value.x) || !Double.isFinite(value.y) || !Double.isFinite(value.z)) {
             throw new IllegalArgumentException("Position coordinates must be finite");
         }
-        cameraPosition = new Vec3(value.x, value.y, value.z);
+        cameraPosition = value;
+    }
+
+    public void setPreviousCameraType(CameraType type) {
+        previousCameraType = type;
     }
 
     /**
      * カメラ距離を増加
      */
     public double increaseCameraDistance(double delta) {
-        double newDistance = Math.min(get_max_camera_distance(), cameraDistance + delta);
+        double newDistance = Math.min(MAX_CAMERA_DISTANCE, cameraDistance + delta);
         setCameraDistance(newDistance);
         return newDistance;
     }
@@ -175,7 +167,7 @@ public final class CameraState {
      * カメラ距離を減少
      */
     public double decreaseCameraDistance(double delta) {
-        double newDistance = Math.max(get_min_camera_distance(), cameraDistance - delta);
+        double newDistance = Math.max(MIN_CAMERA_DISTANCE, cameraDistance - delta);
         setCameraDistance(newDistance);
         return newDistance;
     }
@@ -192,8 +184,9 @@ public final class CameraState {
         x = 0.0;
         z = 0.0;
         zoom = DEFAULT_ZOOM;
-        cameraDistance = get_default_camera_distance();
+        cameraDistance = DEFAULT_CAMERA_DISTANCE;
         cameraPosition = DEFAULT_POSITION;
+        previousCameraType = null;
     }
 
     // ==================== Utility Methods ====================
@@ -221,7 +214,6 @@ public final class CameraState {
 
     /**
      * カメラの視線方向ベクトルを取得
-     * yawとpitchから計算（FloodCullerと同じ計算方式）
      */
     public Vec3 getLookVector() {
         double pitchRad = Math.toRadians(pitch);
@@ -234,10 +226,6 @@ public final class CameraState {
         return new Vec3(x, y, z).normalize();
     }
 
-    /**
-     * 角度を -180 ~ 180 の範囲に正規化
-     * 無限ループ防止のため最大イテレーション数を設定
-     */
     private static float normalizeAngle(float angle) {
         if (Float.isNaN(angle) || Float.isInfinite(angle)) {
             throw new IllegalArgumentException("Angle must be finite: " + angle);
@@ -256,7 +244,6 @@ public final class CameraState {
         }
 
         if (iterations >= MAX_NORMALIZE_ITERATIONS) {
-            // 数学的な方法で正規化
             result = ((result + HALF_ANGLE_RANGE) % ANGLE_RANGE) - HALF_ANGLE_RANGE;
             if (result < -HALF_ANGLE_RANGE) {
                 result += ANGLE_RANGE;
@@ -266,9 +253,6 @@ public final class CameraState {
         return result;
     }
 
-    /**
-     * ピッチを -90 ~ 90 の範囲に制限
-     */
     private static float clampPitch(float pitch) {
         if (Float.isNaN(pitch) || Float.isInfinite(pitch)) {
             throw new IllegalArgumentException("Pitch must be finite: " + pitch);
@@ -276,9 +260,6 @@ public final class CameraState {
         return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitch));
     }
 
-    /**
-     * 値が有限数か検証
-     */
     private static void validateFinite(double value, String name) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException(name + " must be finite: " + value);

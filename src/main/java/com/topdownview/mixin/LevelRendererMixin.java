@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Method;
+
 /**
  * LevelRenderer Mixin
  * 
@@ -20,42 +22,49 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = LevelRenderer.class, priority = 100)
 public class LevelRendererMixin {
 
-    /**
-     * renderEntityメソッドの先頭でプレイヤーのカリング状態をリセット
-     * 
-     * Entity Culling MODはCullableインターフェースを通じてエンティティに
-     * カリング状態を設定する。このMixinでプレイヤーを強制的に可視状態にする。
-     */
+    private static Class<?> cullableClass = null;
+    private static Method setCulledMethod = null;
+    private static Method setOutOfCameraMethod = null;
+    private static boolean entityCullingLoaded = false;
+    private static boolean reflectionInitialized = false;
+
+    static {
+        initializeReflection();
+    }
+
+    private static void initializeReflection() {
+        if (reflectionInitialized) return;
+        reflectionInitialized = true;
+
+        try {
+            cullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
+            setCulledMethod = cullableClass.getMethod("setCulled", boolean.class);
+            setOutOfCameraMethod = cullableClass.getMethod("setOutOfCamera", boolean.class);
+            entityCullingLoaded = true;
+        } catch (ClassNotFoundException e) {
+            // Entity Culling MODがインストールされていない
+        } catch (NoSuchMethodException e) {
+            // メソッドシグネチャが変更されている
+        }
+    }
+
     @Inject(method = "renderEntity", at = @At("HEAD"))
     private void onRenderEntityHead(Entity entity, double camX, double camY, double camZ,
             float partialTick, PoseStack poseStack, MultiBufferSource bufferSource,
             CallbackInfo ci) {
-        if (!ClientForgeEvents.isTopDownView()) {
-            return;
-        }
+        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!entityCullingLoaded) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (entity == mc.player) {
-            // Entity CullingのCullableインターフェースを通じてカリングを無効化
-            // Cullable.setCulled(false)を呼び出す
-            try {
-                // リフレクションでCullableインターフェースにアクセス
-                // Entity CullingがロードされていなくてもクラッシュしないようにOptionalで処理
-                Class<?> cullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
-                if (cullableClass.isInstance(entity)) {
-                    java.lang.reflect.Method setCulledMethod = cullableClass.getMethod("setCulled", boolean.class);
-                    setCulledMethod.invoke(entity, false);
+        if (entity != mc.player) return;
 
-                    // timeout/遅延リセット用のsetOutOfCameraも呼び出し
-                    java.lang.reflect.Method setOutOfCameraMethod = cullableClass.getMethod("setOutOfCamera",
-                            boolean.class);
-                    setOutOfCameraMethod.invoke(entity, false);
-                }
-            } catch (ClassNotFoundException e) {
-                // Entity Culling MODがインストールされていない場合は無視
-            } catch (Exception e) {
-                // その他のエラーも無視（パフォーマンス影響を最小化）
+        try {
+            if (cullableClass.isInstance(entity)) {
+                setCulledMethod.invoke(entity, false);
+                setOutOfCameraMethod.invoke(entity, false);
             }
+        } catch (Exception e) {
+            // リフレクションエラーは無視
         }
     }
 }

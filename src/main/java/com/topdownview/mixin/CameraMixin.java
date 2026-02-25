@@ -2,6 +2,7 @@ package com.topdownview.mixin;
 
 import com.topdownview.state.ModState;
 import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.util.MathConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
@@ -20,9 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = Camera.class, priority = 1000)
 public abstract class CameraMixin {
 
-    // 定数
     private static final float FIXED_PITCH = 45.0f;
-    private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
 
     @Shadow
     public abstract void setPosition(Vec3 pos);
@@ -51,12 +50,12 @@ public abstract class CameraMixin {
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
         // カメラ距離
-        double distance = ClientForgeEvents.getCameraDistance();
+        double distance = ModState.CAMERA.getCameraDistance();
 
         // カメラ位置オフセット計算（補間されたYawを使用）
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
-        double radPitch = FIXED_PITCH * DEGREES_TO_RADIANS;
-        double radYaw = yaw * DEGREES_TO_RADIANS;
+        double radPitch = FIXED_PITCH * MathConstants.DEGREES_TO_RADIANS;
+        double radYaw = yaw * MathConstants.DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
 

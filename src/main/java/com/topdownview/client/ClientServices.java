@@ -6,7 +6,7 @@ public final class ClientServices {
     private static final Minecraft MINECRAFT = Minecraft.getInstance();
     
     private ClientServices() {
-        throw new AssertionError("Utility class");
+        throw new IllegalStateException("ユーティリティクラス");
     }
     
     public static Minecraft getMinecraft() {

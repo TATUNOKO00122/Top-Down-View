@@ -25,15 +25,11 @@ public class GameRendererMixin {
     private void onPick(float partialTicks, CallbackInfo ci) {
         if (ClientForgeEvents.isTopDownView()) {
             Minecraft mc = Minecraft.getInstance();
-            // カスタムリーチ距離でレイキャスト
-            // GUIが開いているときはデフォルトの挙動（このMixinはGUI描画前のワールドレンダリング中に呼ばれるはず）
-            // ただし、pickは毎フレーム呼ばれる。
+            com.topdownview.client.MouseRaycast.INSTANCE.update(mc, partialTicks,
+                    com.topdownview.client.MouseRaycast.getCustomReachDistance());
+            mc.hitResult = com.topdownview.client.MouseRaycast.INSTANCE.getLastHitResult();
 
-            // カリング距離と同期したリーチ距離でレイキャスト
-            net.minecraft.world.phys.HitResult result = com.topdownview.client.MouseRaycast.getHitResult(mc,
-                    partialTicks, com.topdownview.client.MouseRaycast.getCustomReachDistance());
-            mc.hitResult = result;
-
+            net.minecraft.world.phys.HitResult result = mc.hitResult;
             if (result instanceof net.minecraft.world.phys.EntityHitResult entityHit) {
                 mc.crosshairPickEntity = entityHit.getEntity();
             } else {

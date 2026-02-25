@@ -2,6 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BowItem;
@@ -21,16 +22,12 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class CameraController {
 
-    // 定数
     public static final float DEFAULT_CAMERA_YAW = 0.0f;
-    private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
-    private static final double RADIANS_TO_DEGREES = 180.0 / Math.PI;
 
-    // 状態
     private static float cameraYaw = DEFAULT_CAMERA_YAW;
 
     private CameraController() {
-        throw new AssertionError("ユーティリティクラスはインスタンス化できません");
+        throw new IllegalStateException("ユーティリティクラス");
     }
 
     @SubscribeEvent
@@ -138,10 +135,8 @@ public final class CameraController {
      * プレイヤーの回転をマウス位置に合わせて更新
      */
     public static void updatePlayerRotationToMouse(Minecraft mc) {
-        HitResult hitResult = MouseRaycast.getHitResult(
-                mc,
-                mc.getFrameTime(),
-                MouseRaycast.getCustomReachDistance());
+        MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         if (hitResult == null || mc.player == null) {
             return;
@@ -156,7 +151,7 @@ public final class CameraController {
 
         double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
-        float yaw = (float) (Math.atan2(dz, dx) * RADIANS_TO_DEGREES) - 90.0f;
+        float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
         cameraYaw = yaw;
 
         float pitch = calculatePitch(mc, horizontalDist, dy);
@@ -171,6 +166,6 @@ public final class CameraController {
         if (mc.player.isUsingItem() && mc.player.getUseItem().getItem() instanceof BowItem) {
             return BowTrajectoryCalculator.calculateBowPitch(horizontalDist, verticalDist);
         }
-        return (float) -(Math.atan2(verticalDist, horizontalDist) * RADIANS_TO_DEGREES);
+        return (float) -(Math.atan2(verticalDist, horizontalDist) * MathConstants.RADIANS_TO_DEGREES);
     }
 }
