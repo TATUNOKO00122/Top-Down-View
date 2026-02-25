@@ -14,75 +14,92 @@ Minecraft Forge 1.20.1 MOD。トップダウン視点（俯瞰カメラ）を実
 
 ## 2. 全体の現在状態
 
-**フェーズ:** Config整理完了・安定動作中
+**フェーズ:** リリース準備完了（ビルド成功）
 
 **決定事項:**
-- カメラ距離設定（デフォルト/最小/最大）は機能していないため削除 → 定数化
-- カリング保護高さをConfig化（整数、範囲0-10、デフォルト2）
-- サウンド問題はFlerovium MODとの非互換性が原因（無効化で回避）
+- パッケージ名を `com.topdownview` に統一
+- サウンド系デバッグMixinを削除（効果限定的のため）
+- カメラ距離設定は定数化（ConfigではなくClientForgeEventsで管理）
+- カリング保護高さをConfig化
 
-**設定項目（現在有効）:**
+**設定項目（Config）:**
 - `cameraPitch`: カメラピッチ（角度）
 - `cameraYaw`: カメラヨー（方位）
 - `cullingRange`: カリング適用範囲
-- `cullingHeightThreshold`: カリング保護高さ（プレイヤー足元からの高さ）
+- `cullingHeightThreshold`: カリング保護高さ
 
 **カメラ距離定数（ClientForgeEvents）:**
 - MIN: 5.0 / MAX: 50.0 / DEFAULT: 9.0
+
+**生成JAR:** `build/libs/topdown_view-1.0.0.jar`
 
 ---
 
 ## 3. ファイル・ディレクトリ別状態
 
-### src/main/java/com/example/examplemod/
+### src/main/java/com/topdownview/
 
-| ファイル | 役割 | 直近の変更 |
-|---------|------|-----------|
-| `Config.java` | Forge設定管理 | min/max/default距離削除、cullingHeightThreshold追加（整数） |
+| ファイル | 役割 | 状態 |
+|---------|------|------|
+| `TopDownViewMod.java` | メインMODクラス | 安定 |
+| `Config.java` | Forge設定管理 | 4項目（pitch, yaw, cullingRange, cullingHeightThreshold） |
 
-### src/main/java/com/example/examplemod/client/
+### src/main/java/com/topdownview/client/
 
-| ファイル | 役割 | 直近の変更 |
-|---------|------|-----------|
-| `ClientForgeEvents.java` | クライアント状態管理 | カメラ距離定数（MIN/MAX/DEFAULT）を追加 |
-| `gui/ConfigScreen.java` | 設定画面GUI | 距離スライダー削除、カリング保護高さスライダー追加（IntConfigSlider） |
+| ファイル | 役割 | 状態 |
+|---------|------|------|
+| `ClientForgeEvents.java` | クライアント状態管理 | デバッグコード削除済み |
+| `CameraController.java` | カメライベント制御 | 安定 |
+| `InputHandler.java` | キー/マウス入力 | 安定 |
+| `MovementController.java` | 移動マッピング | 安定 |
+| `MouseRaycast.java` | マウスレイキャスト | 安定 |
+| `gui/ConfigScreen.java` | 設定画面GUI | カリング範囲・保護高さスライダー |
 
-### src/main/java/com/example/examplemod/state/
+### src/main/java/com/topdownview/mixin/
 
-| ファイル | 役割 | 直近の変更 |
-|---------|------|-----------|
-| `CameraState.java` | カメラ状態管理 | get_default_camera_distance()をClientForgeEvents参照に変更 |
+| ファイル | 役割 | 状態 |
+|---------|------|------|
+| `CameraMixin.java` | カメラ位置/回転制御 | 安定 |
+| `GameRendererMixin.java` | レンダリング注入 | 安定 |
+| `MouseHandlerMixin.java` | マウス入力変更 | 安定 |
+| `SoundEngineMixin.java` | 音量補正（プレイヤー距離ベース） | 有効 |
+| `LevelRendererMixin.java` | レベル描画 | 安定 |
+| その他 | エンティティ/ブロック描画 | 安定 |
 
-### src/main/java/com/example/examplemod/culling/
+### src/main/java/com/topdownview/culling/
 
-| ファイル | 役割 | 直近の変更 |
-|---------|------|-----------|
-| `TopDownCuller.java` | カリング判定 | HEIGHT_THRESHOLD_STEP定数削除 → Config.cullingHeightThreshold使用 |
+| ファイル | 役割 | 状態 |
+|---------|------|------|
+| `TopDownCuller.java` | カリング判定 | Config.cullingHeightThreshold使用 |
+| `CullingManager.java` | カリング管理 | 安定 |
 
-### src/main/java/com/example/examplemod/mixin/
+### src/main/resources/
 
-| ファイル | 役割 | 直近の変更 |
-|---------|------|-----------|
-| `MinecraftClientMixin.java` | Minecraft.tick注入 | 未使用@Shadowフィールド(player, hitResult)削除 |
+| ファイル | 状態 |
+|---------|------|
+| `topdown_view.mixins.json` | パッケージ名更新済み、インデント修正済み |
+| `topdown_view_compat.mixins.json` | パッケージ名更新済み |
 
 ---
 
 ## 4. 直近の行動履歴
 
-### 2025-02-25 セッション: Config整理
+### 2025-02-25 セッション: リリース前レビュー・修正
 
 **作業内容:**
-1. `minCameraDistance`, `maxCameraDistance`をConfigから削除 → 定数化
-2. `cameraDistance`（デフォルト距離）を削除 → 機能していなかったため
-3. カリング保護高さ（`cullingHeightThreshold`）をConfig化（整数、0-10、デフォルト2）
-4. Mixinクラッシュ修正: 未使用@Shadowフィールド削除
+1. サウンド系Mixin削除（6ファイル）: デバッグ出力のみのため削除
+   - SoundSystemMixin, SoundManagerMixin, ChannelMixin
+   - ClientLevelMixin, ClientLevelSoundMixin, ClientPacketListenerMixin
+2. デバッグコード削除: ClientForgeEventsのSystem.out.println削除
+3. build.gradle修正: ローカル絶対パス（Sound Physics JAR）削除
+4. パッケージ名変更: `com.example.examplemod` → `com.topdownview`
+5. mixin設定ファイル更新: パッケージ名・インデント修正
 
 **結論:**
-- Configは4項目に整理（pitch, yaw, cullingRange, cullingHeightThreshold）
-- カメラ距離は定数管理（スクロールでゲーム内調整可能）
+- ビルド成功（topdown_view-1.0.0.jar生成）
+- リリース準備完了
 
-### 過去: サウンド問題調査
+### 過去の履歴（圧縮）
 
-- 原因: Flerovium MODとの非互換性
-- 対策: Flerovium無効化
-- 詳細: `SOUND_INVESTIGATION_REPORT.md`
+- Config整理: カメラ距離は定数化、カリング保護高さをConfig化
+- サウンド問題: Flerovium MOD非互換が原因（無効化で回避）
