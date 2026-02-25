@@ -1,17 +1,31 @@
 package com.example.examplemod.mixin;
 
 import com.example.examplemod.client.ClientForgeEvents;
+import com.mojang.blaze3d.audio.Listener;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SoundEngine.class)
 public abstract class SoundSystemMixin {
+
+    @Inject(method = "play(Lnet/minecraft/client/resources/sounds/SoundInstance;)V", at = @At("HEAD"))
+    private void onPlayHead(SoundInstance sound, CallbackInfo ci) {
+        if (ClientForgeEvents.isTopDownView() && Minecraft.getInstance().player != null) {
+            Vec3 playerPos = Minecraft.getInstance().player.getEyePosition();
+            Vec3 soundPos = new Vec3(sound.getX(), sound.getY(), sound.getZ());
+            double distance = playerPos.distanceTo(soundPos);
+            System.out.println("[SoundSystemMixin] play() called - Sound: " + sound.getLocation() + ", PlayerPos: " + playerPos + ", SoundPos: " + soundPos + ", Distance: " + distance);
+        }
+    }
 
     @Redirect(method = "updateSource(Lnet/minecraft/client/Camera;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"))
     private Vec3 redirectCameraPosition(Camera camera) {
@@ -39,5 +53,15 @@ public abstract class SoundSystemMixin {
             return new Vector3f((float) upVector.x, (float) upVector.y, (float) upVector.z);
         }
         return camera.getUpVector();
+    }
+
+    @Redirect(method = "play(Lnet/minecraft/client/resources/sounds/SoundInstance;)V", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/audio/Listener;getListenerPosition()Lnet/minecraft/world/phys/Vec3;"))
+    private Vec3 redirectListenerPosition(Listener listener) {
+        if (ClientForgeEvents.isTopDownView() && Minecraft.getInstance().player != null) {
+            Vec3 pos = Minecraft.getInstance().player.getEyePosition();
+            System.out.println("[SoundSystemMixin] Redirecting Listener position to player: " + pos);
+            return pos;
+        }
+        return listener.getListenerPosition();
     }
 }

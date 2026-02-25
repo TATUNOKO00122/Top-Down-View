@@ -1,0 +1,1 @@
+$lines = Get-Content "E:\Minecraft\MOD\topdown_view\build\reobfJar\mappings.tsrg"; $inClass = $false; foreach ($line in $lines) { if ($line -match "^net/minecraft/client/sounds/SoundEngine ") { $inClass = $true; } elseif ($inClass) { if ($line -match "^\s") { if ($line -match "m_") { Write-Output $line } } else { break } } }

@@ -28,35 +28,23 @@ public class ConfigScreen extends Screen {
         int startY = this.height / 4;
         int x = this.width / 2 - width / 2;
 
-        // Camera Distance Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY, width, height, "デフォルト距離", Config.cameraDistance,
-                1.0, 100.0, (value) -> {
-                    Config.cameraDistance = value;
-                }));
-
-        // Min Distance Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "最小距離",
-                Config.minCameraDistance, 1.0, 50.0, (value) -> {
-                    Config.minCameraDistance = value;
-                }));
-
-        // Max Distance Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "最大距離",
-                Config.maxCameraDistance, 10.0, 200.0, (value) -> {
-                    Config.maxCameraDistance = value;
-                }));
-
         // Culling Range Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 3, width, height, "カリング範囲",
+        this.addRenderableWidget(new ConfigSlider(x, startY, width, height, "カリング範囲",
                 Config.cullingRange, 1.0, 100.0, (value) -> {
                     Config.cullingRange = value;
+                }));
+
+        // Culling Height Threshold Slider (integer)
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "カリング保護高さ",
+                Config.cullingHeightThreshold, 0, 10, (value) -> {
+                    Config.cullingHeightThreshold = value;
                 }));
 
         // Save & Done Button
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 5, width, height).build());
+        }).bounds(x, startY + spacing * 2, width, height).build());
     }
 
     private void saveConfig() {
@@ -104,6 +92,35 @@ public class ConfigScreen extends Screen {
         @Override
         protected void applyValue() {
             double newValue = min + (max - min) * this.value;
+            setter.accept(newValue);
+        }
+    }
+
+    private static class IntConfigSlider extends AbstractSliderButton {
+        private final String prefix;
+        private final int min;
+        private final int max;
+        private final java.util.function.Consumer<Integer> setter;
+
+        public IntConfigSlider(int x, int y, int width, int height, String prefix, int current, int min, int max,
+                java.util.function.Consumer<Integer> setter) {
+            super(x, y, width, height, Component.empty(), (double) (current - min) / (max - min));
+            this.prefix = prefix;
+            this.min = min;
+            this.max = max;
+            this.setter = setter;
+            this.updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            int value = min + (int) Math.round((max - min) * this.value);
+            this.setMessage(Component.literal(String.format("%s: %d", prefix, value)));
+        }
+
+        @Override
+        protected void applyValue() {
+            int newValue = min + (int) Math.round((max - min) * this.value);
             setter.accept(newValue);
         }
     }

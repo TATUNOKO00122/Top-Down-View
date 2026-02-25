@@ -23,8 +23,6 @@ public final class TopDownCuller implements Culler {
 
     // カリング角度しきい値（約10度: cosθ ≈ 0.9848）
     private static final double CULLING_ANGLE_COS = 0.9848;
-    // プレイヤーの足元/段差閾値（2.0ブロック）- この高さ以下は常に表示
-    private static final double HEIGHT_THRESHOLD_STEP = 2.0;
     // プレイヤー背面（奥側）のカリング停止距離
     private static final double BACK_SIDE_CULL_LIMIT = 3.0;
     // 更新頻度
@@ -171,7 +169,7 @@ public final class TopDownCuller implements Culler {
 
         if (isNearSide) {
             // プレイヤーより手前（カメラ側）：視界を遮るため高さで判定
-            return relativeHeight > HEIGHT_THRESHOLD_STEP;
+            return relativeHeight > com.example.examplemod.Config.cullingHeightThreshold;
         } else {
             // プレイヤーより奥（進行方向/背面側）：接地判定ロジックを適用
 
@@ -182,7 +180,7 @@ public final class TopDownCuller implements Culler {
             }
 
             // 2. 接地判定ベースのカリング
-            if (relativeHeight > HEIGHT_THRESHOLD_STEP) {
+            if (relativeHeight > com.example.examplemod.Config.cullingHeightThreshold) {
                 // 足元より高いブロックは、真下が空気なら「浮いている（天井/梁）」とみなしてカリング
                 // 真下が固体なら「山/壁/地形」とみなして表示を維持
                 return level.getBlockState(pos.below()).isAir();

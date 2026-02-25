@@ -12,8 +12,13 @@
     "MinecraftClientMixin",
     "BlockEntityRenderDispatcherMixin",
     "EntityRenderDispatcherMixin",
-    "LevelRendererMixin",
-    "SoundSystemMixin"
+"LevelRendererMixin",
+    "SoundSystemMixin",
+    "SoundManagerMixin",
+    "ChannelMixin",
+    "ClientLevelMixin",
+    "ClientLevelSoundMixin",
+    "ClientPacketListenerMixin"
   ],
   "mixins": [],
   "injectors": {

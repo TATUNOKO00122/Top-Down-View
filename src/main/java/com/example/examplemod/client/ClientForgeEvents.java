@@ -4,6 +4,8 @@ import com.example.examplemod.TopDownViewMod;
 import com.example.examplemod.state.ModState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.event.PlayLevelSoundEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,17 +27,21 @@ public final class ClientForgeEvents {
     private static final AtomicBoolean IS_TOP_DOWN_VIEW = new AtomicBoolean(false);
     private static final AtomicReference<Double> CAMERA_DISTANCE = new AtomicReference<>(null);
 
-    // 定数はConfigから取得するように変更
+    // カメラ距離の最小・最大・デフォルト値（定数）
+    private static final double MIN_CAMERA_DISTANCE = 5.0;
+    private static final double MAX_CAMERA_DISTANCE = 50.0;
+    private static final double DEFAULT_CAMERA_DISTANCE = 9.0;
+
     public static double getMinCameraDistance() {
-        return com.example.examplemod.Config.minCameraDistance;
+        return MIN_CAMERA_DISTANCE;
     }
 
     public static double getMaxCameraDistance() {
-        return com.example.examplemod.Config.maxCameraDistance;
+        return MAX_CAMERA_DISTANCE;
     }
 
     public static double getDefaultCameraDistance() {
-        return com.example.examplemod.Config.cameraDistance;
+        return DEFAULT_CAMERA_DISTANCE;
     }
 
     // volatileでスレッド安全性を確保
@@ -154,5 +160,16 @@ public final class ClientForgeEvents {
             return null;
         }
         return ModState.CAMERA.getCameraPosition();
+    }
+
+    // ==================== Sound Event Debug ====================
+
+    @SubscribeEvent
+    public static void onPlaySoundAtPosition(PlayLevelSoundEvent.AtPosition event) {
+        if (isTopDownView()) {
+            System.out.println("[SoundEvent] AtPosition - Sound: " + event.getSound() + 
+                ", Pos: " + event.getPosition() + 
+                ", Canceled: " + event.isCanceled());
+        }
     }
 }

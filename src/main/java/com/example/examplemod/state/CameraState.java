@@ -24,15 +24,15 @@ public final class CameraState {
 
     // Runtime values from Config
     public static double get_default_camera_distance() {
-        return com.example.examplemod.Config.cameraDistance;
+        return com.example.examplemod.client.ClientForgeEvents.getDefaultCameraDistance();
     }
 
     public static double get_min_camera_distance() {
-        return com.example.examplemod.Config.minCameraDistance;
+        return com.example.examplemod.client.ClientForgeEvents.getMinCameraDistance();
     }
 
     public static double get_max_camera_distance() {
-        return com.example.examplemod.Config.maxCameraDistance;
+        return com.example.examplemod.client.ClientForgeEvents.getMaxCameraDistance();
     }
 
     // シングルトンインスタンス

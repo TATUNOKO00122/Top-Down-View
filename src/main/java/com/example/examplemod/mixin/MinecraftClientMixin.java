@@ -5,11 +5,9 @@ import com.example.examplemod.TopDownViewMod;
 import com.example.examplemod.api.MinecraftClientAccessor;
 import com.example.examplemod.client.ClientForgeEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,12 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
-    
-    @Shadow
-    public LocalPlayer player;
-    
-    @Shadow
-    public HitResult hitResult;
     
     @Unique
     private Vec3 originalLocation;
