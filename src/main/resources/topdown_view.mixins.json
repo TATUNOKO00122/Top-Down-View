@@ -13,7 +13,8 @@
     "BlockEntityRenderDispatcherMixin",
     "EntityRenderDispatcherMixin",
     "LevelRendererMixin",
-    "SoundEngineMixin"
+    "SoundSystemMixin",
+    "ClientLevelSoundMixin"
   ],
   "mixins": [],
   "injectors": {
