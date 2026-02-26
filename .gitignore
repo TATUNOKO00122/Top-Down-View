@@ -44,3 +44,14 @@ embeddium_extracted/
 # Investigation reports
 SOUND_ISSUE_REPORT.md
 changelog.txt
+
+# AI/Dev tools
+AGENTS.md
+context.md
+docs/
+tasks/
+src_temp/
+情報/
+*.ps1
+*_methods.txt
+*_tsrg.txt
