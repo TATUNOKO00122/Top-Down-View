@@ -12,22 +12,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * トップダウンビュー用カリング実装 - Dungeons Perspective方式
+ * トップダウンビュー用カリング実装 - ハイブリッド方式
+ * - カメラ↔プレイヤー間: 円柱カリング（従来方式）
+ * - プレイヤーより奥: プレイヤー周囲の円柱内の天井のみカリング
  * Minecraftメインスレッドのみで動作するためHashMapを使用
  */
 public final class TopDownCuller implements Culler {
 
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
-    private static double get_culling_camera_distance() {
-        return com.topdownview.Config.cullingRange;
-    }
-
-    private static final double CULLING_ANGLE_COS = 0.9848;
-    private static final double BACK_SIDE_CULL_LIMIT = 3.0;
     private static final int UPDATE_FREQUENCY = 1;
     private static final int MAX_CACHE_SIZE = 8000;
-    private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0; // 10ブロック移動でキャッシュクリア
+    private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
     private Vec3 currentCameraPos = Vec3.ZERO;
@@ -96,7 +92,7 @@ public final class TopDownCuller implements Culler {
             }
         }
 
-        boolean isCulled = shouldCullByVector(pos, level, pPos, cPos);
+        boolean isCulled = shouldCullByCylinder(pos, level, pPos, cPos);
         cacheResult(pos, isCulled);
         return isCulled;
     }
@@ -108,47 +104,51 @@ public final class TopDownCuller implements Culler {
         cullingCache.put(pos.immutable(), result);
     }
 
-    private boolean shouldCullByVector(BlockPos pos, BlockGetter level, Vec3 playerPos, Vec3 cameraPos) {
+    /**
+     * ハイブリッドカリング判定
+     * - カメラ↔プレイヤー間(t<=1.0): 円柱カリング（従来方式）
+     * - プレイヤーより奥(t>1.0): プレイヤー周囲の円柱内の天井のみカリング
+     */
+    private boolean shouldCullByCylinder(BlockPos pos, BlockGetter level, Vec3 playerPos, Vec3 cameraPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        Vec3 cameraDirection = playerPos.subtract(cameraPos).normalize();
-        double cullingDist = get_culling_camera_distance();
-        Vec3 virtualCameraPos = playerPos.subtract(cameraDirection.scale(cullingDist));
 
-        Vec3 viewAxis = cameraDirection;
-        double distToPlayer = cullingDist;
+        double radius = com.topdownview.Config.cylinderRadius;
+        int extension = com.topdownview.Config.cylinderExtension;
 
-        Vec3 vCameraToBlock = blockCenter.subtract(virtualCameraPos);
-        double distToBlock = vCameraToBlock.length();
-        Vec3 blockDir = vCameraToBlock.normalize();
+        Vec3 lineVec = playerPos.subtract(cameraPos);
+        double lineLengthSq = lineVec.lengthSqr();
 
-        double cosTheta = viewAxis.dot(blockDir);
-
-        if (cosTheta < CULLING_ANGLE_COS) {
+        if (lineLengthSq < 1.0E-8) {
             return false;
         }
 
-        Vec3 playerToBlock = blockCenter.subtract(playerPos);
+        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        double t = toBlock.dot(lineVec) / lineLengthSq;
+
         double relativeHeight = (pos.getY() + 0.5) - (playerPos.y - 1.5);
 
-        Vec3 horizontalViewDir = new Vec3(viewAxis.x, 0, viewAxis.z).normalize();
-        double horizontalOffset = playerToBlock.x * horizontalViewDir.x + playerToBlock.z * horizontalViewDir.z;
-
-        boolean isNearSide = horizontalOffset < -0.2;
-
-        if (isNearSide) {
-            return relativeHeight > com.topdownview.Config.cullingHeightThreshold;
-        } else {
-            double projDist = distToBlock * cosTheta;
-            if (projDist > distToPlayer + BACK_SIDE_CULL_LIMIT) {
+        if (t <= 1.0) {
+            if (relativeHeight <= com.topdownview.Config.baseProtectionHeight) {
                 return false;
             }
 
-            if (relativeHeight > com.topdownview.Config.cullingHeightThreshold) {
-                return level.getBlockState(pos.below()).isAir();
-            } else {
-                return false;
-            }
+            Vec3 closestPoint = cameraPos.add(lineVec.scale(t));
+            double dx = blockCenter.x - closestPoint.x;
+            double dz = blockCenter.z - closestPoint.z;
+            double horizontalDistSq = dx * dx + dz * dz;
+
+            return horizontalDistSq <= radius * radius;
         }
+
+        double dx = blockCenter.x - playerPos.x;
+        double dz = blockCenter.z - playerPos.z;
+        double horizontalDistSq = dx * dx + dz * dz;
+
+        if (horizontalDistSq > extension * extension) {
+            return false;
+        }
+
+        return relativeHeight > com.topdownview.Config.ceilingHeight;
     }
 
     @Override
@@ -156,14 +156,26 @@ public final class TopDownCuller implements Culler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        Vec3 pPos = mc.player.getEyePosition(1.0f);
-        Vec3 cPos = ModState.CAMERA.getCameraPosition();
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        Vec3 pPos = new Vec3(
+            Math.floor(eyePos.x) + 0.5,
+            eyePos.y,
+            Math.floor(eyePos.z) + 0.5
+        );
+        Vec3 rawCameraPos = ModState.CAMERA.getCameraPosition();
 
-        if (cPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
-            cPos = Vec3.ZERO;
+        if (rawCameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
+            this.currentPlayerPos = pPos;
+            this.currentCameraPos = Vec3.ZERO;
+            return;
         }
 
-        // プレイヤーが大きく移動した場合のみキャッシュクリア
+        Vec3 cPos = new Vec3(
+            Math.floor(rawCameraPos.x) + 0.5,
+            Math.floor(rawCameraPos.y) + 0.5,
+            Math.floor(rawCameraPos.z) + 0.5
+        );
+
         if (pPos.distanceToSqr(this.currentPlayerPos) > CACHE_CLEAR_DISTANCE_SQ) {
             cullingCache.clear();
         }

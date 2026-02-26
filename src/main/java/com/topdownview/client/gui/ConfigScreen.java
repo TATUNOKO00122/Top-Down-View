@@ -28,23 +28,35 @@ public class ConfigScreen extends Screen {
         int startY = this.height / 4;
         int x = this.width / 2 - width / 2;
 
-        // Culling Range Slider
-        this.addRenderableWidget(new ConfigSlider(x, startY, width, height, "topdown_view.config.culling_range",
-                Config.cullingRange, 1.0, 100.0, (value) -> {
-                    Config.cullingRange = value;
+        // Ceiling Height Slider (integer)
+        this.addRenderableWidget(new IntConfigSlider(x, startY, width, height, "topdown_view.config.ceiling_height",
+                Config.ceilingHeight, 0, 10, (value) -> {
+                    Config.ceilingHeight = value;
                 }));
 
-        // Culling Height Threshold Slider (integer)
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.culling_height_threshold",
-                Config.cullingHeightThreshold, 0, 10, (value) -> {
-                    Config.cullingHeightThreshold = value;
+        // Base Protection Height Slider (integer)
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.base_protection_height",
+                Config.baseProtectionHeight, 0, 10, (value) -> {
+                    Config.baseProtectionHeight = value;
+                }));
+
+        // Cylinder Radius Slider (integer)
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.cylinder_radius",
+                Config.cylinderRadius, 1, 10, (value) -> {
+                    Config.cylinderRadius = value;
+                }));
+
+        // Cylinder Extension Slider (integer)
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 3, width, height, "topdown_view.config.cylinder_extension",
+                Config.cylinderExtension, 0, 20, (value) -> {
+                    Config.cylinderExtension = value;
                 }));
 
         // Save & Done Button
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 2, width, height).build());
+        }).bounds(x, startY + spacing * 4, width, height).build());
     }
 
     private void saveConfig() {
