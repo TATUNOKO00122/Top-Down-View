@@ -33,3 +33,14 @@ embeddium-*.jar
 .factorypath
 *.javaa
 nul
+
+# AI/Development docs
+docs/AI/
+
+# Decompiled/extracted libraries
+embeddium_decompiled/
+embeddium_extracted/
+
+# Investigation reports
+SOUND_ISSUE_REPORT.md
+changelog.txt
