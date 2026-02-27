@@ -5,6 +5,14 @@ import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.LadderBlock;
+import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -69,10 +77,6 @@ public final class TopDownCuller implements Culler {
         }
 
         net.minecraft.world.level.block.Block block = state.getBlock();
-        if (block instanceof net.minecraft.world.level.block.LadderBlock) {
-            cacheResult(pos, false);
-            return false;
-        }
 
         Vec3 pPos = this.currentPlayerPos;
         Vec3 cPos = this.currentCameraPos;
@@ -82,11 +86,18 @@ public final class TopDownCuller implements Culler {
             return false;
         }
 
-        if (block instanceof net.minecraft.world.level.block.ChestBlock ||
-                block instanceof net.minecraft.world.level.block.EnderChestBlock ||
-                block instanceof net.minecraft.world.level.block.TrappedChestBlock ||
-                block instanceof net.minecraft.world.level.block.DoorBlock) {
-            if (pos.getY() <= pPos.y - 1.5 + 4.0) {
+        // 梯子は足元+3ブロック以内のみ保護
+        if (block instanceof LadderBlock) {
+            double relativeHeight = (pos.getY() + 0.5) - (pPos.y - 1.5);
+            if (relativeHeight >= 0 && relativeHeight <= 3.0) {
+                cacheResult(pos, false);
+                return false;
+            }
+        }
+
+        // インタラクション可能ブロックは足元から+3ブロックまで保護（焚き火除外）
+        if (isInteractableBlock(block) && !(block instanceof CampfireBlock)) {
+            if (pos.getY() <= pPos.y + 1.5) {
                 cacheResult(pos, false);
                 return false;
             }
@@ -149,6 +160,18 @@ public final class TopDownCuller implements Culler {
         }
 
         return relativeHeight > com.topdownview.Config.ceilingHeight;
+    }
+
+    /**
+     * インタラクション可能なブロックかどうか判定
+     * EntityBlock（看板、チェスト等）+ 特定ブロックタイプを対象
+     */
+    private boolean isInteractableBlock(Block block) {
+        return block instanceof EntityBlock ||
+               block instanceof BedBlock ||
+               block instanceof DoorBlock ||
+               block instanceof ButtonBlock ||
+               block instanceof LeverBlock;
     }
 
     @Override
