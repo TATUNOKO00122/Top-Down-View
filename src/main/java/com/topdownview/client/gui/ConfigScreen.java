@@ -52,11 +52,17 @@ public class ConfigScreen extends Screen {
                     Config.cylinderExtension = value;
                 }));
 
+        // Hysteresis Threshold Slider (double)
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.hysteresis_threshold",
+                Config.hysteresisThreshold, 1.0, 3.0, (value) -> {
+                    Config.hysteresisThreshold = value;
+                }));
+
         // Save & Done Button
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 4, width, height).build());
+        }).bounds(x, startY + spacing * 5, width, height).build());
     }
 
     private void saveConfig() {

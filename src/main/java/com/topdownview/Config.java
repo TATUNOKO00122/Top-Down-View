@@ -34,6 +34,10 @@ public class Config {
                         .comment("プレイヤー位置からの延長距離（ブロック数）")
                         .defineInRange("cylinderExtension", 5, 0, 20);
 
+        private static final ForgeConfigSpec.DoubleValue HYSTERESIS_THRESHOLD = BUILDER
+                        .comment("カリング基準点の更新閾値（ブロック数）。小さいほど追従性が高いがチカチカしやすい")
+                        .defineInRange("hysteresisThreshold", 1.0, 1.0, 3.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
@@ -43,6 +47,7 @@ public class Config {
         public static int baseProtectionHeight;
         public static int cylinderRadius;
         public static int cylinderExtension;
+        public static double hysteresisThreshold;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -52,6 +57,7 @@ public class Config {
                 baseProtectionHeight = BASE_PROTECTION_HEIGHT.get();
                 cylinderRadius = CYLINDER_RADIUS.get();
                 cylinderExtension = CYLINDER_EXTENSION.get();
+                hysteresisThreshold = HYSTERESIS_THRESHOLD.get();
         }
 
         public static void save() {
@@ -61,6 +67,7 @@ public class Config {
                 BASE_PROTECTION_HEIGHT.set(baseProtectionHeight);
                 CYLINDER_RADIUS.set(cylinderRadius);
                 CYLINDER_EXTENSION.set(cylinderExtension);
+                HYSTERESIS_THRESHOLD.set(hysteresisThreshold);
                 SPEC.save();
         }
 }

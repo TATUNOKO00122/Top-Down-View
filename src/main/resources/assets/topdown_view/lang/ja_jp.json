@@ -8,5 +8,6 @@
   "topdown_view.config.ceiling_height": "天井カリング高さ: %d",
   "topdown_view.config.base_protection_height": "全体保護高さ: %d",
   "topdown_view.config.cylinder_radius": "円柱半径: %d",
-  "topdown_view.config.cylinder_extension": "延長距離: %d"
+  "topdown_view.config.cylinder_extension": "延長距離: %d",
+  "topdown_view.config.hysteresis_threshold": "更新閾値: %.1f"
 }

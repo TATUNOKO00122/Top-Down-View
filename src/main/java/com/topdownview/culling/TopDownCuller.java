@@ -1,6 +1,8 @@
 package com.topdownview.culling;
 
+import com.topdownview.Config;
 import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.mixin.EntityAccessor;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -35,6 +37,7 @@ public final class TopDownCuller implements Culler {
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
     private Vec3 currentCameraPos = Vec3.ZERO;
+    private double lastGroundY = Double.NaN;
 
     private final Map<BlockPos, Boolean> cullingCache = new HashMap<>(1000);
 
@@ -136,7 +139,7 @@ public final class TopDownCuller implements Culler {
         Vec3 toBlock = blockCenter.subtract(cameraPos);
         double t = toBlock.dot(lineVec) / lineLengthSq;
 
-        double relativeHeight = (pos.getY() + 0.5) - (playerPos.y - 1.5);
+        double relativeHeight = (pos.getY() + 0.5) - playerPos.y;
 
         if (t <= 1.0) {
             if (relativeHeight <= com.topdownview.Config.baseProtectionHeight) {
@@ -179,16 +182,26 @@ public final class TopDownCuller implements Culler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+        double currentY = mc.player.getY();
+
+        if (((EntityAccessor) mc.player).isOnGround()) {
+            lastGroundY = currentY;
+        } else if (Double.isNaN(lastGroundY) || currentY - lastGroundY >= 2.0) {
+            lastGroundY = currentY;
+        }
+
+        double groundY = Double.isNaN(lastGroundY) ? currentY : lastGroundY;
+
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
-        Vec3 pPos = new Vec3(
+        Vec3 candidatePos = new Vec3(
             Math.floor(eyePos.x) + 0.5,
-            eyePos.y,
+            groundY,
             Math.floor(eyePos.z) + 0.5
         );
         Vec3 rawCameraPos = ModState.CAMERA.getCameraPosition();
 
         if (rawCameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
-            this.currentPlayerPos = pPos;
+            this.currentPlayerPos = candidatePos;
             this.currentCameraPos = Vec3.ZERO;
             return;
         }
@@ -199,11 +212,14 @@ public final class TopDownCuller implements Culler {
             Math.floor(rawCameraPos.z) + 0.5
         );
 
-        if (pPos.distanceToSqr(this.currentPlayerPos) > CACHE_CLEAR_DISTANCE_SQ) {
+        if (candidatePos.distanceToSqr(this.currentPlayerPos) > CACHE_CLEAR_DISTANCE_SQ) {
             cullingCache.clear();
         }
 
-        this.currentPlayerPos = pPos;
+        if (this.currentPlayerPos == Vec3.ZERO ||
+            candidatePos.distanceToSqr(this.currentPlayerPos) >= Config.hysteresisThreshold * Config.hysteresisThreshold) {
+            this.currentPlayerPos = candidatePos;
+        }
         this.currentCameraPos = cPos;
     }
 
@@ -212,6 +228,7 @@ public final class TopDownCuller implements Culler {
         cullingCache.clear();
         this.currentPlayerPos = Vec3.ZERO;
         this.currentCameraPos = Vec3.ZERO;
+        this.lastGroundY = Double.NaN;
     }
 
     public int getCulledBlockCount() {
