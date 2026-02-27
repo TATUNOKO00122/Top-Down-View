@@ -42,6 +42,18 @@ public class Config {
                         .comment("保護高さの傾斜（距離1ブロックあたりの保護高さ増加分）。大きいほど遠くまで高く保護")
                         .defineInRange("protectionSlope", 1.2, 0.0, 5.0);
 
+        private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
+                        .comment("クリックツームーブ機能の有効/無効")
+                        .define("clickToMoveEnabled", true);
+
+        private static final ForgeConfigSpec.DoubleValue ARRIVAL_THRESHOLD = BUILDER
+                        .comment("目的地到達判定の距離（ブロック数）")
+                        .defineInRange("arrivalThreshold", 1.5, 0.5, 5.0);
+
+        private static final ForgeConfigSpec.DoubleValue ATTACK_RANGE = BUILDER
+                        .comment("エンティティ攻撃実行距離（ブロック数）")
+                        .defineInRange("attackRange", 3.0, 1.0, 6.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
@@ -53,6 +65,9 @@ public class Config {
         public static int cylinderExtension;
         public static double hysteresisThreshold;
         public static double protectionSlope;
+        public static boolean clickToMoveEnabled;
+        public static double arrivalThreshold;
+        public static double attackRange;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -64,6 +79,9 @@ public class Config {
                 cylinderExtension = CYLINDER_EXTENSION.get();
                 hysteresisThreshold = HYSTERESIS_THRESHOLD.get();
                 protectionSlope = PROTECTION_SLOPE.get();
+                clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
+                arrivalThreshold = ARRIVAL_THRESHOLD.get();
+                attackRange = ATTACK_RANGE.get();
         }
 
         public static void save() {
@@ -75,6 +93,9 @@ public class Config {
                 CYLINDER_EXTENSION.set(cylinderExtension);
                 HYSTERESIS_THRESHOLD.set(hysteresisThreshold);
                 PROTECTION_SLOPE.set(protectionSlope);
+                CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
+                ARRIVAL_THRESHOLD.set(arrivalThreshold);
+                ATTACK_RANGE.set(attackRange);
                 SPEC.save();
         }
 }

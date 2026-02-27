@@ -8,12 +8,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
-/**
- * ゲーム内設定画面
- * スライダーで設定値を変更可能
- */
 public class ConfigScreen extends Screen {
     private final Screen lastScreen;
+    private int currentTab = 0;
+    private static final int TAB_CULLING = 0;
+    private static final int TAB_MOVEMENT = 1;
 
     public ConfigScreen(Screen lastScreen) {
         super(Component.translatable("topdown_view.config.title"));
@@ -25,61 +24,88 @@ public class ConfigScreen extends Screen {
         int width = 200;
         int height = 20;
         int spacing = 24;
-        int startY = this.height / 4;
+        int startY = 60;
         int x = this.width / 2 - width / 2;
+        int tabWidth = 100;
 
-        // Ceiling Height Slider (integer)
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.tab.culling"),
+                (button) -> switchTab(TAB_CULLING))
+                .bounds(this.width / 2 - tabWidth - 2, 25, tabWidth, height).build());
+
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.tab.movement"),
+                (button) -> switchTab(TAB_MOVEMENT))
+                .bounds(this.width / 2 + 2, 25, tabWidth, height).build());
+
+        if (currentTab == TAB_CULLING) {
+            initCullingTab(x, startY, width, height, spacing);
+        } else {
+            initMovementTab(x, startY, width, height, spacing);
+        }
+    }
+
+    private void initCullingTab(int x, int startY, int width, int height, int spacing) {
         this.addRenderableWidget(new IntConfigSlider(x, startY, width, height, "topdown_view.config.ceiling_height",
-                Config.ceilingHeight, 0, 10, (value) -> {
-                    Config.ceilingHeight = value;
-                }));
+                Config.ceilingHeight, 0, 10, (value) -> Config.ceilingHeight = value));
 
-        // Base Protection Height Slider (integer)
         this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.base_protection_height",
-                Config.baseProtectionHeight, 0, 10, (value) -> {
-                    Config.baseProtectionHeight = value;
-                }));
+                Config.baseProtectionHeight, 0, 10, (value) -> Config.baseProtectionHeight = value));
 
-        // Cylinder Radius Slider (integer)
         this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.cylinder_radius",
-                Config.cylinderRadius, 1, 10, (value) -> {
-                    Config.cylinderRadius = value;
-                }));
+                Config.cylinderRadius, 1, 10, (value) -> Config.cylinderRadius = value));
 
-        // Cylinder Extension Slider (integer)
         this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 3, width, height, "topdown_view.config.cylinder_extension",
-                Config.cylinderExtension, 0, 20, (value) -> {
-                    Config.cylinderExtension = value;
-                }));
+                Config.cylinderExtension, 0, 20, (value) -> Config.cylinderExtension = value));
 
-        // Hysteresis Threshold Slider (double)
         this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.hysteresis_threshold",
-                Config.hysteresisThreshold, 1.0, 3.0, (value) -> {
-                    Config.hysteresisThreshold = value;
-                }));
+                Config.hysteresisThreshold, 1.0, 3.0, (value) -> Config.hysteresisThreshold = value));
 
-        // Protection Slope Slider (double)
         this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 5, width, height, "topdown_view.config.protection_slope",
-                Config.protectionSlope, 0.0, 5.0, (value) -> {
-                    Config.protectionSlope = value;
-                }));
+                Config.protectionSlope, 0.0, 5.0, (value) -> Config.protectionSlope = value));
 
-        // Save & Done Button
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 6, width, height).build());
+        }).bounds(x, startY + spacing * 7, width, height).build());
+    }
+
+    private void initMovementTab(int x, int startY, int width, int height, int spacing) {
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.click_to_move",
+                        Config.clickToMoveEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.clickToMoveEnabled = !Config.clickToMoveEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.click_to_move",
+                            Config.clickToMoveEnabled ? "ON" : "OFF"));
+                }).bounds(x, startY, width, height).build());
+
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.arrival_threshold",
+                Config.arrivalThreshold, 0.5, 5.0, (value) -> Config.arrivalThreshold = value));
+
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.attack_range",
+                Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
+
+        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
+            saveConfig();
+            this.minecraft.setScreen(this.lastScreen);
+        }).bounds(x, startY + spacing * 4, width, height).build());
+    }
+
+    private void switchTab(int tab) {
+        this.currentTab = tab;
+        this.clearWidgets();
+        this.init();
     }
 
     private void saveConfig() {
-        // 現在のランタイム値をConfigSpecに反映させて保存
-        com.topdownview.Config.save();
+        Config.save();
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 0xFFFFFF);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 10, 0xFFFFFF);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
@@ -88,9 +114,6 @@ public class ConfigScreen extends Screen {
         this.minecraft.setScreen(this.lastScreen);
     }
 
-    /**
-     * 汎用的な設定用スライダー
-     */
     private static class ConfigSlider extends AbstractSliderButton {
         private final String translationKey;
         private final double min;

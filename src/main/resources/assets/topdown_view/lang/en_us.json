@@ -5,10 +5,15 @@
   "key.categories.topdown_view": "Top-Down View",
   
   "topdown_view.config.title": "Top-Down View Settings",
+  "topdown_view.config.tab.culling": "Culling",
+  "topdown_view.config.tab.movement": "Movement",
   "topdown_view.config.ceiling_height": "Ceiling Height: %d",
   "topdown_view.config.base_protection_height": "Base Protection Height: %d",
   "topdown_view.config.cylinder_radius": "Cylinder Radius: %d",
   "topdown_view.config.cylinder_extension": "Cylinder Extension: %d",
   "topdown_view.config.hysteresis_threshold": "Update Threshold: %.1f",
-  "topdown_view.config.protection_slope": "Protection Slope: %.1f"
+  "topdown_view.config.protection_slope": "Protection Slope: %.1f",
+  "topdown_view.config.click_to_move": "Click to Move: %s",
+  "topdown_view.config.arrival_threshold": "Arrival Distance: %.1f",
+  "topdown_view.config.attack_range": "Attack Range: %.1f"
 }

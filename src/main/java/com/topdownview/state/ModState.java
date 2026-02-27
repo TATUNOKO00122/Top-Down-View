@@ -15,6 +15,7 @@ public final class ModState {
     public static final CameraState CAMERA = CameraState.INSTANCE;
     public static final TimeState TIME = TimeState.INSTANCE;
     public static final ModStatus STATUS = ModStatus.INSTANCE;
+    public static final ClickToMoveState CLICK_TO_MOVE = ClickToMoveState.INSTANCE;
 
     /**
      * 全状態をリセット
@@ -23,5 +24,6 @@ public final class ModState {
         CAMERA.reset();
         TIME.reset();
         STATUS.reset();
+        CLICK_TO_MOVE.reset();
     }
 }

@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.culling.CullingManager;
+import com.topdownview.Config;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -13,19 +14,27 @@ import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
-public class InputHandler {
+public final class InputHandler {
+
+    private InputHandler() {
+        throw new IllegalStateException("ユーティリティクラス");
+    }
 
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
         if (event.getAction() != GLFW.GLFW_PRESS) return;
 
+        Minecraft mc = Minecraft.getInstance();
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
         int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
+        int jumpKeyCode = mc.options.keyJump.getKey().getValue();
 
         if (event.getKey() == toggleKeyCode) {
             toggleTopDownView();
         } else if (ClientForgeEvents.isTopDownView() && event.getKey() == rotateKeyCode) {
             CameraController.rotateCamera90Degrees();
+        } else if (ClientForgeEvents.isTopDownView() && Config.clickToMoveEnabled && event.getKey() == jumpKeyCode) {
+            ClickToMoveController.reset();
         }
     }
 
