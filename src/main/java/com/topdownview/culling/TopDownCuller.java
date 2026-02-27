@@ -141,17 +141,27 @@ public final class TopDownCuller implements Culler {
 
         double relativeHeight = (pos.getY() + 0.5) - playerPos.y;
 
-        if (t <= 1.0) {
-            if (relativeHeight <= com.topdownview.Config.baseProtectionHeight) {
-                return false;
-            }
+        final double MIN_CULLING_RADIUS = 4.0;
 
+        if (t <= 1.0) {
             Vec3 closestPoint = cameraPos.add(lineVec.scale(t));
             double dx = blockCenter.x - closestPoint.x;
             double dz = blockCenter.z - closestPoint.z;
             double horizontalDistSq = dx * dx + dz * dz;
 
-            return horizontalDistSq <= radius * radius;
+            double effectiveRadius = Math.max(radius, MIN_CULLING_RADIUS);
+            if (horizontalDistSq > effectiveRadius * effectiveRadius) {
+                return false;
+            }
+
+            double horizontalDist = Math.sqrt(horizontalDistSq);
+            double dynamicProtectionHeight = Config.baseProtectionHeight + horizontalDist * Config.protectionSlope;
+
+            if (relativeHeight <= dynamicProtectionHeight) {
+                return false;
+            }
+
+            return true;
         }
 
         double dx = blockCenter.x - playerPos.x;
@@ -159,6 +169,12 @@ public final class TopDownCuller implements Culler {
         double horizontalDistSq = dx * dx + dz * dz;
 
         if (horizontalDistSq > extension * extension) {
+            return false;
+        }
+
+        // 下が空気ブロックでない場合はカリングしない（地面を表示）
+        BlockState belowState = level.getBlockState(pos.below());
+        if (!belowState.isAir()) {
             return false;
         }
 

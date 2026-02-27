@@ -2,6 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.culling.CullingManager;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -65,6 +66,7 @@ public class InputHandler {
         mc.mouseHandler.grabMouse();
         ModState.resetAll();
         ModState.STATUS.setEnabled(false);
+        CullingManager.forceChunkRebuild(mc);
     }
 
     @SubscribeEvent

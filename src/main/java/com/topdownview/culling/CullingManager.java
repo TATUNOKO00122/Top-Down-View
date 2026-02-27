@@ -211,4 +211,28 @@ public final class CullingManager {
         CULLER.reset();
         lastChunkRebuildTime = 0;
     }
+
+    /**
+     * トップダウン無効化時のチャンク再構築を強制実行
+     * カリング解除後の透明ブロック問題を解決するため
+     */
+    public static void forceChunkRebuild(Minecraft mc) {
+        if (mc.player == null || mc.level == null) {
+            return;
+        }
+
+        CULLER.reset();
+        lastChunkRebuildTime = 0;
+
+        if (isEmbeddiumLoaded() && initializeReflection()) {
+            Vec3 playerPos = mc.player.getEyePosition(1.0f);
+            double renderDistance = mc.options.getEffectiveRenderDistance() * 16;
+            AABB box = new AABB(
+                playerPos.x - renderDistance, playerPos.y - 64, playerPos.z - renderDistance,
+                playerPos.x + renderDistance, playerPos.y + 64, playerPos.z + renderDistance
+            );
+            scheduleChunkRebuildInternal(box);
+            LOGGER.debug("Forced chunk rebuild on top-down disable");
+        }
+    }
 }

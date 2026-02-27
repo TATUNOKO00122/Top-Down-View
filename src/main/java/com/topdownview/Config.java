@@ -38,6 +38,10 @@ public class Config {
                         .comment("カリング基準点の更新閾値（ブロック数）。小さいほど追従性が高いがチカチカしやすい")
                         .defineInRange("hysteresisThreshold", 1.0, 1.0, 3.0);
 
+        private static final ForgeConfigSpec.DoubleValue PROTECTION_SLOPE = BUILDER
+                        .comment("保護高さの傾斜（距離1ブロックあたりの保護高さ増加分）。大きいほど遠くまで高く保護")
+                        .defineInRange("protectionSlope", 1.2, 0.0, 5.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
@@ -48,6 +52,7 @@ public class Config {
         public static int cylinderRadius;
         public static int cylinderExtension;
         public static double hysteresisThreshold;
+        public static double protectionSlope;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -58,6 +63,7 @@ public class Config {
                 cylinderRadius = CYLINDER_RADIUS.get();
                 cylinderExtension = CYLINDER_EXTENSION.get();
                 hysteresisThreshold = HYSTERESIS_THRESHOLD.get();
+                protectionSlope = PROTECTION_SLOPE.get();
         }
 
         public static void save() {
@@ -68,6 +74,7 @@ public class Config {
                 CYLINDER_RADIUS.set(cylinderRadius);
                 CYLINDER_EXTENSION.set(cylinderExtension);
                 HYSTERESIS_THRESHOLD.set(hysteresisThreshold);
+                PROTECTION_SLOPE.set(protectionSlope);
                 SPEC.save();
         }
 }
