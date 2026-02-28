@@ -1,6 +1,6 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.state.ModState;
 import com.topdownview.culling.TopDownCuller;
 import com.mojang.blaze3d.vertex.PoseStack;
 
@@ -26,7 +26,7 @@ public class EntityRenderDispatcherMixin {
     @Inject(method = "render(Lnet/minecraft/world/entity/Entity;DDDFFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", at = @At("HEAD"), cancellable = true)
     private <E extends Entity> void onRender(E pEntity, double pX, double pY, double pZ, float pRotationYaw,
             float pPartialTicks, PoseStack pMatrixStack, MultiBufferSource pBuffer, int pPackedLight, CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
 
             if (CULLER.isBlockCulled(pEntity.blockPosition(), pEntity.level())) {
                 ci.cancel();

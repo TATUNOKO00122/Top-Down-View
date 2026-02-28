@@ -31,24 +31,25 @@ public final class InputHandler {
 
         if (event.getKey() == toggleKeyCode) {
             toggleTopDownView();
-        } else if (ClientForgeEvents.isTopDownView() && event.getKey() == rotateKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && event.getKey() == rotateKeyCode) {
             CameraController.rotateCamera90Degrees();
-        } else if (ClientForgeEvents.isTopDownView() && Config.clickToMoveEnabled && event.getKey() == jumpKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && event.getKey() == jumpKeyCode) {
             ClickToMoveController.reset();
         }
     }
 
     private static void toggleTopDownView() {
-        ClientForgeEvents.setTopDownView(!ClientForgeEvents.isTopDownView());
+        boolean newState = !ModState.STATUS.isEnabled();
+        ModState.STATUS.setEnabled(newState);
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;
 
         mc.player.displayClientMessage(
-                Component.literal("Top-Down View: " + (ClientForgeEvents.isTopDownView() ? "ON" : "OFF")),
+                Component.literal("Top-Down View: " + (newState ? "ON" : "OFF")),
                 true);
 
-        if (ClientForgeEvents.isTopDownView()) {
+        if (newState) {
             enableTopDownView(mc);
         } else {
             disableTopDownView(mc);
@@ -59,8 +60,6 @@ public final class InputHandler {
         ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         mc.mouseHandler.releaseMouse();
-        ModState.resetAll();
-        ModState.STATUS.setEnabled(true);
         if (mc.level != null) {
             ModState.TIME.setStartTime(mc.level.getGameTime());
         }
@@ -74,13 +73,12 @@ public final class InputHandler {
         mc.options.setCameraType(restoreType);
         mc.mouseHandler.grabMouse();
         ModState.resetAll();
-        ModState.STATUS.setEnabled(false);
         CullingManager.forceChunkRebuild(mc);
     }
 
     @SubscribeEvent
     public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
-        if (!ClientForgeEvents.isTopDownView())
+        if (!ModState.STATUS.isEnabled())
             return;
 
         double scroll = event.getScrollDelta();

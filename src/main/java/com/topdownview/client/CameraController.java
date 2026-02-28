@@ -22,24 +22,20 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class CameraController {
 
-    public static final float DEFAULT_CAMERA_YAW = 0.0f;
-
-    private static float cameraYaw = DEFAULT_CAMERA_YAW;
-
     private CameraController() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
     public static void onComputeFovModifier(ComputeFovModifierEvent event) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             event.setNewFovModifier(1.0f);
         }
     }
@@ -48,7 +44,7 @@ public final class CameraController {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END)
             return;
-        if (!ClientForgeEvents.isTopDownView())
+        if (!ModState.STATUS.isEnabled())
             return;
 
         // 次のティックの計算前に、現在の角度を保存しておく
@@ -127,10 +123,6 @@ public final class CameraController {
         ModState.CAMERA.setAnimating(true);
     }
 
-    public static float getCameraYaw() {
-        return cameraYaw;
-    }
-
     /**
      * プレイヤーの回転をマウス位置に合わせて更新
      */
@@ -152,7 +144,6 @@ public final class CameraController {
         double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
         float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
-        cameraYaw = yaw;
 
         float pitch = calculatePitch(mc, horizontalDist, dy);
 

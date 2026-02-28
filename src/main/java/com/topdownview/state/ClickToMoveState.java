@@ -1,5 +1,6 @@
 package com.topdownview.state;
 
+import com.topdownview.Config;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -8,6 +9,7 @@ public final class ClickToMoveState {
     public static final ClickToMoveState INSTANCE = new ClickToMoveState();
 
     private Vec3 targetPosition = null;
+    private Vec3 originalLocation = null;
     private Entity targetEntity = null;
     private boolean isMoving = false;
     private boolean isLongPressFollow = false;
@@ -18,6 +20,7 @@ public final class ClickToMoveState {
     private ClickToMoveState() {}
 
     public Vec3 getTargetPosition() { return targetPosition; }
+    public Vec3 getOriginalLocation() { return originalLocation; }
     public Entity getTargetEntity() { return targetEntity; }
     public boolean isMoving() { return isMoving; }
     public boolean isLongPressFollow() { return isLongPressFollow; }
@@ -28,6 +31,13 @@ public final class ClickToMoveState {
         }
         this.targetPosition = pos;
         this.isMoving = (pos != null);
+    }
+
+    public void setOriginalLocation(Vec3 pos) {
+        if (pos != null && (!Double.isFinite(pos.x) || !Double.isFinite(pos.y) || !Double.isFinite(pos.z))) {
+            throw new IllegalArgumentException("Original location must be finite");
+        }
+        this.originalLocation = pos;
     }
 
     public void setTargetEntity(Entity entity) {
@@ -44,8 +54,47 @@ public final class ClickToMoveState {
         }
     }
 
+    public void startMoveTo(Vec3 destination, Vec3 playerPos) {
+        this.targetPosition = destination;
+        this.originalLocation = playerPos;
+        this.targetEntity = null;
+        this.isMoving = true;
+    }
+
+    public void startFollowEntity(Entity entity, Vec3 playerPos) {
+        this.targetEntity = entity;
+        this.targetPosition = entity.position();
+        this.originalLocation = playerPos;
+        this.isMoving = true;
+    }
+
+    public boolean hasArrived(Vec3 playerPos, double threshold) {
+        if (targetPosition == null || originalLocation == null) return true;
+        if (!isMoving) return true;
+
+        double distFromOriginalSq = playerPos.distanceToSqr(originalLocation);
+        double totalDistSq = originalLocation.distanceToSqr(targetPosition);
+
+        return distFromOriginalSq >= totalDistSq - (threshold * threshold);
+    }
+
+    public boolean hasArrivedAtEntity(Vec3 playerPos, double threshold) {
+        if (targetEntity == null || !targetEntity.isAlive()) return true;
+        if (!isMoving) return true;
+
+        double distSq = playerPos.distanceToSqr(targetEntity.position());
+        return distSq < threshold * threshold;
+    }
+
+    public void updateEntityTargetPosition() {
+        if (targetEntity != null && targetEntity.isAlive()) {
+            this.targetPosition = targetEntity.position();
+        }
+    }
+
     public void reset() {
         targetPosition = null;
+        originalLocation = null;
         targetEntity = null;
         isMoving = false;
         isLongPressFollow = false;
@@ -54,5 +103,7 @@ public final class ClickToMoveState {
     public void stopMovement() {
         isMoving = false;
         targetPosition = null;
+        originalLocation = null;
+        targetEntity = null;
     }
 }

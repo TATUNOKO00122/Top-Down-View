@@ -9,39 +9,16 @@ import net.minecraftforge.fml.event.config.ModConfigEvent;
 public class Config {
         private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
-        // Camera settings
-        private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-                        .comment("カメラのピッチ（角度）。0 = 水平、90 = 真上から")
-                        .defineInRange("cameraPitch", 45.0, 0.0, 90.0);
+        // Culling settings
+        private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_HORIZONTAL = BUILDER
+                        .comment("シリンダーの水平方向半径（ブロック数）")
+                        .defineInRange("cylinderRadiusHorizontal", 2, 1, 10);
 
-        private static final ForgeConfigSpec.DoubleValue CAMERA_YAW = BUILDER
-                        .comment("カメラのヨー（方位）。0 = 北")
-                        .defineInRange("cameraYaw", 0.0, -180.0, 180.0);
+        private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_VERTICAL = BUILDER
+                        .comment("シリンダーの垂直方向半径（ブロック数）")
+                        .defineInRange("cylinderRadiusVertical", 4, 1, 10);
 
-        private static final ForgeConfigSpec.IntValue CEILING_HEIGHT = BUILDER
-                        .comment("プレイヤー周囲円柱での天井カリング高さ（ブロック数）")
-                        .defineInRange("ceilingHeight", 2, 0, 10);
-
-        private static final ForgeConfigSpec.IntValue BASE_PROTECTION_HEIGHT = BUILDER
-                        .comment("足元からの全体保護高さ（この高さ以下は無条件で表示）")
-                        .defineInRange("baseProtectionHeight", 1, 0, 10);
-
-        private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS = BUILDER
-                        .comment("シリンダーキャストの半径（ブロック数）")
-                        .defineInRange("cylinderRadius", 3, 1, 10);
-
-        private static final ForgeConfigSpec.IntValue CYLINDER_EXTENSION = BUILDER
-                        .comment("プレイヤー位置からの延長距離（ブロック数）")
-                        .defineInRange("cylinderExtension", 5, 0, 20);
-
-        private static final ForgeConfigSpec.DoubleValue HYSTERESIS_THRESHOLD = BUILDER
-                        .comment("カリング基準点の更新閾値（ブロック数）。小さいほど追従性が高いがチカチカしやすい")
-                        .defineInRange("hysteresisThreshold", 1.0, 1.0, 3.0);
-
-        private static final ForgeConfigSpec.DoubleValue PROTECTION_SLOPE = BUILDER
-                        .comment("保護高さの傾斜（距離1ブロックあたりの保護高さ増加分）。大きいほど遠くまで高く保護")
-                        .defineInRange("protectionSlope", 1.2, 0.0, 5.0);
-
+        // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
                         .comment("クリックツームーブ機能の有効/無効")
                         .define("clickToMoveEnabled", true);
@@ -54,48 +31,37 @@ public class Config {
                         .comment("エンティティ攻撃実行距離（ブロック数）")
                         .defineInRange("attackRange", 3.0, 1.0, 6.0);
 
+        private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
+                        .comment("クリックツームーブ中の自動ジャンプ強制")
+                        .define("forceAutoJump", true);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
-        public static double cameraPitch;
-        public static double cameraYaw;
-        public static int ceilingHeight;
-        public static int baseProtectionHeight;
-        public static int cylinderRadius;
-        public static int cylinderExtension;
-        public static double hysteresisThreshold;
-        public static double protectionSlope;
+        public static int cylinderRadiusHorizontal;
+        public static int cylinderRadiusVertical;
         public static boolean clickToMoveEnabled;
         public static double arrivalThreshold;
         public static double attackRange;
+        public static boolean forceAutoJump;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
-                cameraPitch = CAMERA_PITCH.get();
-                cameraYaw = CAMERA_YAW.get();
-                ceilingHeight = CEILING_HEIGHT.get();
-                baseProtectionHeight = BASE_PROTECTION_HEIGHT.get();
-                cylinderRadius = CYLINDER_RADIUS.get();
-                cylinderExtension = CYLINDER_EXTENSION.get();
-                hysteresisThreshold = HYSTERESIS_THRESHOLD.get();
-                protectionSlope = PROTECTION_SLOPE.get();
+                cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
+                cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
                 clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 attackRange = ATTACK_RANGE.get();
+                forceAutoJump = FORCE_AUTO_JUMP.get();
         }
 
         public static void save() {
-                CAMERA_PITCH.set(cameraPitch);
-                CAMERA_YAW.set(cameraYaw);
-                CEILING_HEIGHT.set(ceilingHeight);
-                BASE_PROTECTION_HEIGHT.set(baseProtectionHeight);
-                CYLINDER_RADIUS.set(cylinderRadius);
-                CYLINDER_EXTENSION.set(cylinderExtension);
-                HYSTERESIS_THRESHOLD.set(hysteresisThreshold);
-                PROTECTION_SLOPE.set(protectionSlope);
+                CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
+                CYLINDER_RADIUS_VERTICAL.set(cylinderRadiusVertical);
                 CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 ATTACK_RANGE.set(attackRange);
+                FORCE_AUTO_JUMP.set(forceAutoJump);
                 SPEC.save();
         }
 }

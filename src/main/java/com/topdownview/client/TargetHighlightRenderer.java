@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import com.topdownview.state.ModState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -23,7 +24,7 @@ public class TargetHighlightRenderer {
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES)
             return;
-        if (!ClientForgeEvents.isTopDownView())
+        if (!ModState.STATUS.isEnabled())
             return;
 
         Minecraft mc = Minecraft.getInstance();

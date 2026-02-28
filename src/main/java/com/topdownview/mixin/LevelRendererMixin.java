@@ -1,6 +1,6 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.state.ModState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -52,7 +52,7 @@ public class LevelRendererMixin {
     private void onRenderEntityHead(Entity entity, double camX, double camY, double camZ,
             float partialTick, PoseStack poseStack, MultiBufferSource bufferSource,
             CallbackInfo ci) {
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ModState.STATUS.isEnabled()) return;
         if (!entityCullingLoaded) return;
 
         Minecraft mc = Minecraft.getInstance();

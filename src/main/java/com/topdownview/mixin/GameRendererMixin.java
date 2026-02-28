@@ -1,6 +1,6 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.state.ModState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
@@ -16,14 +16,14 @@ public class GameRendererMixin {
 
     @Inject(method = "bobView(Lcom/mojang/blaze3d/vertex/PoseStack;F)V", at = @At("HEAD"), cancellable = true)
     private void onBobView(PoseStack pPoseStack, float pPartialTicks, CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             ci.cancel();
         }
     }
 
     @Inject(method = "pick", at = @At("TAIL"))
     private void onPick(float partialTicks, CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             Minecraft mc = Minecraft.getInstance();
             com.topdownview.client.MouseRaycast.INSTANCE.update(mc, partialTicks,
                     com.topdownview.client.MouseRaycast.getCustomReachDistance());

@@ -152,7 +152,7 @@ public final class MouseRaycast {
     }
 
     private BlockHitResult rayTraceBlocks(Minecraft mc, Vec3 start, Vec3 end) {
-        if (!ClientForgeEvents.isTopDownView()) {
+        if (!ModState.STATUS.isEnabled()) {
             return mc.level.clip(new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
         }
 

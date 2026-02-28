@@ -26,7 +26,7 @@ public final class ClickToMoveController {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.ClientTickEvent.Phase.END) return;
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ModState.STATUS.isEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
@@ -36,18 +36,27 @@ public final class ClickToMoveController {
         if (!Config.clickToMoveEnabled) return;
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
-        checkArrival(mc);
-        checkEntityTarget(mc);
+        ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
+
+        if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
+            updateLongPressFollow(mc);
+        } else if (ModState.CLICK_TO_MOVE.getTargetEntity() != null) {
+            checkEntityTarget(mc);
+        } else {
+            checkArrival(mc);
+        }
     }
 
     public static void setDestination(Vec3 targetPos) {
-        ModState.CLICK_TO_MOVE.setTargetPosition(targetPos);
-        ModState.CLICK_TO_MOVE.setTargetEntity(null);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        ModState.CLICK_TO_MOVE.startMoveTo(targetPos, mc.player.position());
     }
 
     public static void setTargetEntity(Entity entity) {
-        ModState.CLICK_TO_MOVE.setTargetEntity(entity);
-        ModState.CLICK_TO_MOVE.setTargetPosition(null);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        ModState.CLICK_TO_MOVE.startFollowEntity(entity, mc.player.position());
     }
 
     public static void startLongPressFollow() {
@@ -110,49 +119,50 @@ public final class ClickToMoveController {
             return null;
         }
 
-        Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
-        if (targetEntity != null && targetEntity.isAlive()) {
-            return targetEntity.position();
-        }
-
         return ModState.CLICK_TO_MOVE.getTargetPosition();
     }
 
+    private static void updateLongPressFollow(Minecraft mc) {
+        double reach = MouseRaycast.getCustomReachDistance();
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        var hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+
+        if (hitResult == null || hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            return;
+        }
+
+        ModState.CLICK_TO_MOVE.setTargetPosition(hitResult.getLocation());
+    }
+
     private static void checkArrival(Minecraft mc) {
-        if (ModState.CLICK_TO_MOVE.isLongPressFollow()) return;
+        if (mc.player == null) return;
 
-        Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
-        if (targetEntity != null) return;
-
-        Vec3 targetPos = ModState.CLICK_TO_MOVE.getTargetPosition();
-        if (targetPos == null) return;
-
-        double distSq = mc.player.distanceToSqr(targetPos.x, targetPos.y, targetPos.z);
         double threshold = Config.arrivalThreshold;
-
-        if (distSq < threshold * threshold) {
+        if (ModState.CLICK_TO_MOVE.hasArrived(mc.player.position(), threshold)) {
             stop();
         }
     }
 
     private static void checkEntityTarget(Minecraft mc) {
+        if (mc.player == null) return;
+
         Entity targetEntity = ModState.CLICK_TO_MOVE.getTargetEntity();
         if (targetEntity == null || !targetEntity.isAlive()) {
-            if (targetEntity != null) {
-                ModState.CLICK_TO_MOVE.setTargetEntity(null);
-            }
+            stop();
             return;
         }
 
-        double distSq = mc.player.distanceToSqr(targetEntity);
-        double attackRange = Config.attackRange;
+        ModState.CLICK_TO_MOVE.setTargetPosition(targetEntity.position());
 
-        if (distSq < attackRange * attackRange) {
+        double attackRange = Config.attackRange;
+        if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
             tryAttackEntity(mc, targetEntity);
         }
     }
 
     private static void tryAttackEntity(Minecraft mc, Entity target) {
+        if (mc.level == null) return;
+
         long currentTick = mc.level.getGameTime();
         if (currentTick == lastAttackTick) return;
 

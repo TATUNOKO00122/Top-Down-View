@@ -1,6 +1,6 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.state.ModState;
 import com.topdownview.culling.TopDownCuller;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,7 +29,7 @@ public class BlockOcclusionCacheMixin {
             Direction face,
             CallbackInfoReturnable<Boolean> cir) {
 
-        if (!ClientForgeEvents.isTopDownView()) {
+        if (!ModState.STATUS.isEnabled()) {
             return;
         }
 

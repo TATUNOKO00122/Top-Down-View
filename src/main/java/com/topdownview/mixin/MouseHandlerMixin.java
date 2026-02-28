@@ -1,7 +1,7 @@
 package com.topdownview.mixin;
 
 import com.topdownview.client.ClickActionHandler;
-import com.topdownview.client.ClientForgeEvents;
+import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +14,7 @@ public class MouseHandlerMixin {
 
     @Inject(method = "grabMouse", at = @At("HEAD"), cancellable = true)
     private void onGrabMouse(CallbackInfo ci) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             ci.cancel();
         }
     }
@@ -22,7 +22,7 @@ public class MouseHandlerMixin {
     @Inject(method = "onPress", at = @At("HEAD"))
     private void onMousePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen == null && ClientForgeEvents.isTopDownView()) {
+        if (mc.screen == null && ModState.STATUS.isEnabled()) {
             ClickActionHandler.onInput(button, action, mc);
         }
     }

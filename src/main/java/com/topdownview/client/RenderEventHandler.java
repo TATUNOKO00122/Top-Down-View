@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -11,7 +12,7 @@ public class RenderEventHandler {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             TargetHighlightRenderer.onRenderLevelStage(event);
         }
     }

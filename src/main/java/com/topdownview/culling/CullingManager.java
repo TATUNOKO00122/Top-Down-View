@@ -1,6 +1,7 @@
 package com.topdownview.culling;
 
 import com.topdownview.TopDownViewMod;
+import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
@@ -16,10 +17,7 @@ import java.lang.reflect.Method;
 
 /**
  * カリングマネージャー
- * カリング更新とチャンク再構築を制御
- * パフォーマンス最適化：
- * - チャンク再構築を間引き
- * - カリング判定を間引き（tick単位）
+ * Embeddium連携でチャンク再構築を制御
  */
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class CullingManager {
@@ -27,17 +25,12 @@ public final class CullingManager {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
 
-    // チャンク再構築の最小間隔（ミリ秒）- より頻繁に更新
     private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
-    // Embeddiumのクラス名
     private static final String EMBEDDIUM_CLASS = "me.jellysquid.mods.sodium.client.SodiumClientMod";
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
 
-    // Embeddiumの存在確認（遅延初期化）
     private static Boolean embeddiumLoaded = null;
-    // 前回のチャンク再構築時刻
     private static long lastChunkRebuildTime = 0;
-    // リフレクションで取得したメソッド（キャッシュ）
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
     private static Class<?> rendererClass = null;
@@ -47,9 +40,6 @@ public final class CullingManager {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    /**
-     * Embeddiumが読み込まれているか確認
-     */
     private static boolean isEmbeddiumLoaded() {
         if (embeddiumLoaded == null) {
             try {
@@ -64,10 +54,6 @@ public final class CullingManager {
         return embeddiumLoaded;
     }
 
-    /**
-     * リフレクションを初期化
-     * メソッドシグネチャを検証し、安全にアクセス
-     */
     private static boolean initializeReflection() {
         if (reflectionInitialized) {
             return instanceMethod != null && rebuildMethod != null;
@@ -75,11 +61,7 @@ public final class CullingManager {
 
         try {
             rendererClass = Class.forName(SODIUM_RENDERER_CLASS);
-
-            // instance() メソッドを取得
             instanceMethod = rendererClass.getMethod("instance");
-
-            // scheduleRebuildForBlockArea メソッドを取得
             rebuildMethod = rendererClass.getMethod(
                     "scheduleRebuildForBlockArea",
                     int.class, int.class, int.class,
@@ -118,21 +100,16 @@ public final class CullingManager {
             CULLER.update();
         }
 
-        if (com.topdownview.client.ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             scheduleChunkRebuildIfNeeded();
         }
     }
 
-    /**
-     * 必要に応じてチャンクを再構築
-     * 間引きを適用してパフォーマンスを最適化
-     */
     private static void scheduleChunkRebuildIfNeeded() {
         if (!isEmbeddiumLoaded()) {
             return;
         }
 
-        // 間引きチェック
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
             return;
@@ -140,40 +117,33 @@ public final class CullingManager {
 
         Minecraft mc = Minecraft.getInstance();
         Vec3 playerPos = mc.player.getEyePosition(1.0f);
-        Vec3 cameraPos = com.topdownview.state.ModState.CAMERA.getCameraPosition();
+        Vec3 cameraPos = ModState.CAMERA.getCameraPosition();
 
         if (cameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
             return;
         }
 
-        // プレイヤーとカメラの間の範囲を計算
         AABB box = new AABB(playerPos, cameraPos).inflate(1, 0, 1);
         double distance = playerPos.distanceTo(cameraPos);
         box = box.inflate(distance, distance, distance);
 
-        // リフレクションを使用してチャンク再構築
         if (scheduleChunkRebuildInternal(box)) {
             lastChunkRebuildTime = currentTime;
         }
     }
 
-    /**
-     * リフレクションを使用してチャンク再構築をスケジュール
-     */
     private static boolean scheduleChunkRebuildInternal(AABB box) {
         if (!initializeReflection()) {
             return false;
         }
 
         try {
-            // SodiumWorldRendererのインスタンスを取得
             Object renderer = instanceMethod.invoke(null);
             if (renderer == null) {
                 LOGGER.debug("SodiumWorldRenderer instance is null");
                 return false;
             }
 
-            // チャンク再構築をスケジュール
             rebuildMethod.invoke(renderer,
                     (int) box.minX, (int) box.minY, (int) box.minZ,
                     (int) box.maxX, (int) box.maxY, (int) box.maxZ,
@@ -197,25 +167,15 @@ public final class CullingManager {
         return false;
     }
 
-    /**
-     * ブロックがカリング対象か判定
-     */
     public static boolean isCulled(BlockPos pos) {
         return CULLER.isCulled(pos);
     }
 
-    /**
-     * カリングをリセット
-     */
     public static void reset() {
         CULLER.reset();
         lastChunkRebuildTime = 0;
     }
 
-    /**
-     * トップダウン無効化時のチャンク再構築を強制実行
-     * カリング解除後の透明ブロック問題を解決するため
-     */
     public static void forceChunkRebuild(Minecraft mc) {
         if (mc.player == null || mc.level == null) {
             return;

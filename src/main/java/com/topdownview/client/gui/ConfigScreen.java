@@ -46,28 +46,16 @@ public class ConfigScreen extends Screen {
     }
 
     private void initCullingTab(int x, int startY, int width, int height, int spacing) {
-        this.addRenderableWidget(new IntConfigSlider(x, startY, width, height, "topdown_view.config.ceiling_height",
-                Config.ceilingHeight, 0, 10, (value) -> Config.ceilingHeight = value));
+        this.addRenderableWidget(new IntConfigSlider(x, startY, width, height, "topdown_view.config.cylinder_radius_horizontal",
+                Config.cylinderRadiusHorizontal, 1, 10, (value) -> Config.cylinderRadiusHorizontal = value));
 
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.base_protection_height",
-                Config.baseProtectionHeight, 0, 10, (value) -> Config.baseProtectionHeight = value));
-
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.cylinder_radius",
-                Config.cylinderRadius, 1, 10, (value) -> Config.cylinderRadius = value));
-
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 3, width, height, "topdown_view.config.cylinder_extension",
-                Config.cylinderExtension, 0, 20, (value) -> Config.cylinderExtension = value));
-
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.hysteresis_threshold",
-                Config.hysteresisThreshold, 1.0, 3.0, (value) -> Config.hysteresisThreshold = value));
-
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 5, width, height, "topdown_view.config.protection_slope",
-                Config.protectionSlope, 0.0, 5.0, (value) -> Config.protectionSlope = value));
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.cylinder_radius_vertical",
+                Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 7, width, height).build());
+        }).bounds(x, startY + spacing * 3, width, height).build());
     }
 
     private void initMovementTab(int x, int startY, int width, int height, int spacing) {

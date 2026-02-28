@@ -4,7 +4,13 @@ import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.MovementInputUpdateEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -19,7 +25,7 @@ public final class MovementController {
 
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ModState.STATUS.isEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
@@ -34,21 +40,12 @@ public final class MovementController {
             } else {
                 float[] moveInput = ClickToMoveController.calculateMovementInput(mc);
                 if (moveInput != null) {
-                    float forward = moveInput[0];
-                    float strafe = moveInput[1];
+                    event.getInput().forwardImpulse = moveInput[0];
+                    event.getInput().leftImpulse = moveInput[1];
 
-                    float cameraYaw = ModState.CAMERA.getYaw();
-                    float playerYaw = mc.player.getYRot();
-                    float diffYaw = cameraYaw - playerYaw;
-                    float rad = (float) Math.toRadians(diffYaw);
-                    float cos = Mth.cos(rad);
-                    float sin = Mth.sin(rad);
-
-                    float newForward = forward * cos + strafe * sin;
-                    float newStrafe = strafe * cos - forward * sin;
-
-                    event.getInput().forwardImpulse = newForward;
-                    event.getInput().leftImpulse = newStrafe;
+                    if (Config.forceAutoJump && shouldAutoJump(mc, moveInput[0], moveInput[1])) {
+                        event.getInput().jumping = true;
+                    }
                     return;
                 }
             }
@@ -66,5 +63,43 @@ public final class MovementController {
 
         event.getInput().forwardImpulse = newForward;
         event.getInput().leftImpulse = newStrafe;
+    }
+
+    private static boolean shouldAutoJump(Minecraft mc, float forward, float strafe) {
+        if (mc.player == null || mc.level == null) return false;
+        if (!mc.player.onGround()) return false;
+
+        float speed = Mth.sqrt(forward * forward + strafe * strafe);
+        if (speed < 0.1f) return false;
+
+        float moveYaw = mc.player.getYRot() + (float) Math.toDegrees(Math.atan2(-strafe, forward));
+        float moveYawRad = (float) Math.toRadians(moveYaw);
+
+        double dx = -Math.sin(moveYawRad) * 0.5;
+        double dz = Math.cos(moveYawRad) * 0.5;
+
+        Vec3 playerPos = mc.player.position();
+        Vec3 aheadPos = playerPos.add(dx, 0, dz);
+
+        BlockPos aheadBlockPos = BlockPos.containing(aheadPos);
+        BlockPos feetPos = BlockPos.containing(playerPos);
+
+        BlockState aheadState = mc.level.getBlockState(aheadBlockPos);
+        BlockState aboveAheadState = mc.level.getBlockState(aheadBlockPos.above());
+
+        if (aheadState.isAir() || aheadState.getCollisionShape(mc.level, aheadBlockPos).isEmpty()) {
+            return false;
+        }
+
+        double playerFeetY = Math.floor(playerPos.y);
+        double blockTopY = aheadState.getCollisionShape(mc.level, aheadBlockPos).max(Direction.Axis.Y) + aheadBlockPos.getY();
+
+        if (blockTopY - playerFeetY <= 1.2 && blockTopY - playerFeetY > 0.1) {
+            if (aboveAheadState.isAir() || aboveAheadState.getCollisionShape(mc.level, aheadBlockPos.above()).isEmpty()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -3,10 +3,13 @@ package com.topdownview.client;
 import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 public final class ClickActionHandler {
 
@@ -28,7 +31,6 @@ public final class ClickActionHandler {
             if (isLeftClickDown && !wasDown) {
                 leftClickHoldTicks = 0;
             } else if (!isLeftClickDown && wasDown) {
-                onLeftClickRelease(mc);
                 leftClickHoldTicks = 0;
             }
         } else if (button == 1) {
@@ -48,9 +50,6 @@ public final class ClickActionHandler {
     public static void onClientTick(Minecraft mc) {
         if (isLeftClickDown) {
             leftClickHoldTicks++;
-            if (leftClickHoldTicks >= LONG_PRESS_THRESHOLD) {
-                handleLeftClickLongPress(mc);
-            }
         }
 
         if (isRightClickDown) {
@@ -61,75 +60,55 @@ public final class ClickActionHandler {
         }
     }
 
-    private static void onLeftClickRelease(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return;
-        if (!ClientForgeEvents.isTopDownView()) return;
-        if (!Config.clickToMoveEnabled) return;
-
-        if (leftClickHoldTicks < LONG_PRESS_THRESHOLD) {
-            handleLeftClickSingle(mc);
-        }
-
-        ClickToMoveController.stopLongPressFollow();
-    }
-
-    private static void handleLeftClickSingle(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return;
-
-        double reach = MouseRaycast.getCustomReachDistance();
-        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
-        var result = MouseRaycast.INSTANCE.getLastHitResult();
-
-        if (result == null) return;
-
-        if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-            Entity entity = ((EntityHitResult) result).getEntity();
-            ClickToMoveController.setTargetEntity(entity);
-        } else if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            BlockHitResult blockHit = (BlockHitResult) result;
-            ClickToMoveController.setDestination(blockHit.getLocation());
-        }
-    }
-
-    private static void handleLeftClickLongPress(Minecraft mc) {
-        if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {
-            ClickToMoveController.startLongPressFollow();
-        }
-    }
-
     private static void handleRightClick(Minecraft mc) {
         if (mc.level == null || mc.player == null) return;
-
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ModState.STATUS.isEnabled()) return;
 
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
-        var result = MouseRaycast.INSTANCE.getLastHitResult();
+        HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (result == null) return;
+        if (result == null || result.getType() == HitResult.Type.MISS) return;
 
-        if (result.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-            mc.gameMode.interact(mc.player, ((EntityHitResult) result).getEntity(), InteractionHand.MAIN_HAND);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-        } else if (result.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+        if (result.getType() == HitResult.Type.ENTITY) {
+            if (Config.clickToMoveEnabled) {
+                EntityHitResult entityHit = (EntityHitResult) result;
+                Entity entity = entityHit.getEntity();
+                ModState.CLICK_TO_MOVE.startFollowEntity(entity, mc.player.position());
+            }
+            return;
+        }
+
+        if (result.getType() == HitResult.Type.BLOCK) {
             BlockHitResult blockHit = (BlockHitResult) result;
-            mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-        } else {
-            mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+            BlockPos blockPos = blockHit.getBlockPos();
+
+            boolean isInteractable = InteractableBlocks.isInteractable(
+                    mc.level.getBlockState(blockPos), mc.level, blockPos);
+
+            if (isInteractable) {
+                mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
+                mc.player.swing(InteractionHand.MAIN_HAND);
+                return;
+            }
+
+            if (Config.clickToMoveEnabled) {
+                Vec3 destination = blockHit.getLocation();
+                ModState.CLICK_TO_MOVE.startMoveTo(destination, mc.player.position());
+            }
         }
     }
 
     private static void handleRightClickLongPress(Minecraft mc) {
-        if (!ClientForgeEvents.isTopDownView()) return;
+        if (!ModState.STATUS.isEnabled()) return;
         if (!Config.clickToMoveEnabled) return;
 
         if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {
-            ClickToMoveController.startLongPressFollow();
+            ModState.CLICK_TO_MOVE.setLongPressFollow(true);
         }
     }
 
     private static void onRightClickRelease(Minecraft mc) {
-        ClickToMoveController.stopLongPressFollow();
+        ModState.CLICK_TO_MOVE.setLongPressFollow(false);
     }
 }
