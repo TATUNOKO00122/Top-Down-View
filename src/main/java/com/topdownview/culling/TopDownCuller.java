@@ -31,6 +31,7 @@ public final class TopDownCuller {
     private static final int UPDATE_FREQUENCY = 1;
     private static final int MAX_CACHE_SIZE = 8000;
     private static final int MAX_TRANSLUCENT_CACHE_SIZE = 500;
+    private static final int MAX_FADE_CACHE_SIZE = 2000;
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
@@ -38,6 +39,8 @@ public final class TopDownCuller {
 
     private final Map<BlockPos, Boolean> cullingCache = new HashMap<>(1000);
     private final Set<BlockPos> translucentTrapdoorsCache = new HashSet<>(100);
+    private final Map<BlockPos, Float> fadeAlphaCache = new HashMap<>(500);
+    private final Map<BlockPos, Float> fadeBlocksCache = new HashMap<>(500);
 
     private TopDownCuller() {
     }
@@ -296,6 +299,8 @@ public final class TopDownCuller {
 
     public void reset() {
         cullingCache.clear();
+        fadeAlphaCache.clear();
+        fadeBlocksCache.clear();
         this.currentPlayerPos = Vec3.ZERO;
         this.currentCameraPos = Vec3.ZERO;
     }
@@ -310,6 +315,269 @@ public final class TopDownCuller {
 
     public int getCacheSize() {
         return cullingCache.size();
+    }
+
+    /**
+     * カリング境界フェードの透明度を取得
+     * @return 0.0（完全透明）〜1.0（不透明）
+     */
+    public float getFadeAlpha(BlockPos pos, BlockGetter level) {
+        if (!ModState.STATUS.isEnabled()) {
+            return 1.0f;
+        }
+
+        if (!Config.fadeEnabled) {
+            return 1.0f;
+        }
+
+        Float cached = fadeAlphaCache.get(pos);
+        if (cached != null) {
+            return cached;
+        }
+
+        float alpha = calculateFadeAlpha(pos, level);
+        
+        if (fadeAlphaCache.size() >= MAX_FADE_CACHE_SIZE) {
+            fadeAlphaCache.clear();
+        }
+        fadeAlphaCache.put(pos.immutable(), alpha);
+        
+        return alpha;
+    }
+
+    private float calculateFadeAlpha(BlockPos pos, BlockGetter level) {
+        if (level == null) return 1.0f;
+
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return 1.0f;
+        }
+
+        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
+
+        if (cPos == Vec3.ZERO) {
+            return 1.0f;
+        }
+
+        if (blockCenter.y < pPos.y) {
+            return 1.0f;
+        }
+
+        if (isInInvertedPyramid(pos, pPos)) {
+            return 1.0f;
+        }
+
+        if (InteractableBlocks.isInteractableSimple(state)) {
+            if (pos.getY() <= Math.floor(pPos.y)) {
+                return 1.0f;
+            }
+        }
+
+        if (state.getBlock() instanceof TrapDoorBlock) {
+            if (!shouldCullTrapdoorForFade(pos, level, state, pPos, cPos)) {
+                return 1.0f;
+            }
+        }
+
+        double normalizedDistSq = getNormalizedDistanceSq(pos, pPos, cPos);
+        
+        if (normalizedDistSq < 0) {
+            return 1.0f;
+        }
+
+        double fadeStart = Config.fadeStart;
+        double fadeMinAlpha = Config.fadeMinAlpha;
+
+        if (normalizedDistSq >= 1.0) {
+            return (float) fadeMinAlpha;
+        }
+
+        if (normalizedDistSq <= fadeStart) {
+            return 1.0f;
+        }
+
+        double t = (normalizedDistSq - fadeStart) / (1.0 - fadeStart);
+        return (float) (1.0 - t * (1.0 - fadeMinAlpha));
+    }
+
+    private boolean shouldCullTrapdoorForFade(BlockPos pos, BlockGetter level, BlockState state, Vec3 playerPos, Vec3 cameraPos) {
+        if (state.getValue(TrapDoorBlock.HALF) == Half.BOTTOM) {
+            if (pos.getY() <= Math.floor(playerPos.y)) {
+                return false;
+            }
+        } else {
+            if (pos.getY() < Math.floor(playerPos.y)) {
+                return false;
+            }
+        }
+
+        if (pos.getY() <= Math.floor(playerPos.y) + 3) {
+            if (hasLadderOrScaffoldingBelow(pos, level)) {
+                return false;
+            }
+        }
+
+        return isInCylinderForTrapdoor(pos, playerPos, cameraPos);
+    }
+
+    private double getNormalizedDistanceSq(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
+        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+
+        float yaw = ModState.CAMERA.getYaw();
+        double yawRad = Math.toRadians(yaw);
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+
+        double shift = Config.cylinderForwardShift;
+        Vec3 shiftedPlayerPos = new Vec3(
+            playerPos.x + forwardX * shift,
+            playerPos.y,
+            playerPos.z + forwardZ * shift
+        );
+
+        Vec3 dir = shiftedPlayerPos.subtract(cameraPos);
+        double dirLength = dir.length();
+        if (dirLength < 1.0E-8) {
+            return -1;
+        }
+
+        Vec3 normDir = dir.normalize();
+
+        double radiusH = Config.cylinderRadiusHorizontal;
+        double radiusV = Config.cylinderRadiusVertical;
+
+        Vec3 segVec = shiftedPlayerPos.subtract(cameraPos);
+        double segLengthSq = segVec.lengthSqr();
+
+        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        double t = toBlock.dot(segVec) / segLengthSq;
+
+        double segLength = Math.sqrt(segLengthSq);
+        double extensionT = 3.0 / segLength;
+        if (t < -extensionT) {
+            return -1;
+        }
+
+        t = Math.max(-extensionT, Math.min(t, 1.0));
+
+        Vec3 closestPoint = cameraPos.add(segVec.scale(t));
+        Vec3 relPos = blockCenter.subtract(closestPoint);
+        double alongAxis = relPos.dot(normDir);
+        Vec3 perpPos = relPos.subtract(normDir.scale(alongAxis));
+
+        double distXZ = Math.sqrt(perpPos.x * perpPos.x + perpPos.z * perpPos.z);
+        double distY = Math.abs(perpPos.y);
+
+        return (distXZ * distXZ) / (radiusH * radiusH)
+             + (distY * distY) / (radiusV * radiusV);
+    }
+
+    /**
+     * フェード対象ブロックのセットを取得
+     * 楕円柱境界付近のブロックを半透明描画用に返す
+     */
+    public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
+        fadeBlocksCache.clear();
+
+        if (!ModState.STATUS.isEnabled()) {
+            return fadeBlocksCache;
+        }
+
+        if (!Config.fadeEnabled) {
+            return fadeBlocksCache;
+        }
+
+        if (level == null || currentCameraPos == Vec3.ZERO) {
+            return fadeBlocksCache;
+        }
+
+        int rangeH = Config.cylinderRadiusHorizontal + 2;
+        int rangeV = Config.cylinderRadiusVertical + 2;
+
+        int minX = (int) Math.floor(currentPlayerPos.x) - rangeH;
+        int maxX = (int) Math.floor(currentPlayerPos.x) + rangeH;
+        int minY = (int) Math.floor(currentPlayerPos.y);
+        int maxY = (int) Math.floor(currentPlayerPos.y) + rangeV;
+        int minZ = (int) Math.floor(currentPlayerPos.z) - rangeH;
+        int maxZ = (int) Math.floor(currentPlayerPos.z) + rangeH;
+
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    mutablePos.set(x, y, z);
+                    BlockState state = level.getBlockState(mutablePos);
+
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+
+                    float alpha = calculateFadeAlphaForBlock(mutablePos, state, level);
+                    if (alpha < 1.0f && alpha > 0.0f) {
+                        fadeBlocksCache.put(mutablePos.immutable(), alpha);
+
+                        if (fadeBlocksCache.size() >= MAX_FADE_CACHE_SIZE) {
+                            return fadeBlocksCache;
+                        }
+                    }
+                }
+            }
+        }
+
+        return fadeBlocksCache;
+    }
+
+    private float calculateFadeAlphaForBlock(BlockPos pos, BlockState state, BlockGetter level) {
+        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
+
+        if (cPos == Vec3.ZERO) {
+            return 1.0f;
+        }
+
+        if (blockCenter.y < pPos.y) {
+            return 1.0f;
+        }
+
+        if (isInInvertedPyramid(pos, pPos)) {
+            return 1.0f;
+        }
+
+        if (InteractableBlocks.isInteractableSimple(state)) {
+            if (pos.getY() <= Math.floor(pPos.y)) {
+                return 1.0f;
+            }
+        }
+
+        if (state.getBlock() instanceof TrapDoorBlock) {
+            if (!shouldCullTrapdoorForFade(pos, level, state, pPos, cPos)) {
+                return 1.0f;
+            }
+        }
+
+        double normalizedDistSq = getNormalizedDistanceSq(pos, pPos, cPos);
+        
+        if (normalizedDistSq < 0) {
+            return 1.0f;
+        }
+
+        double fadeStart = Config.fadeStart;
+        double fadeMinAlpha = Config.fadeMinAlpha;
+
+        if (normalizedDistSq >= 1.0) {
+            return (float) fadeMinAlpha;
+        }
+
+        if (normalizedDistSq <= fadeStart) {
+            return 1.0f;
+        }
+
+        double t = (normalizedDistSq - fadeStart) / (1.0 - fadeStart);
+        return (float) (1.0 - t * (1.0 - fadeMinAlpha));
     }
 
     /**

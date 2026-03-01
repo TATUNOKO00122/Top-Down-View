@@ -14,6 +14,7 @@
   "topdown_view.config.click_to_move": "クリック移動: %s",
   "topdown_view.config.arrival_threshold": "到達距離: %.1f",
   "topdown_view.config.attack_range": "攻撃範囲: %.1f",
-  "topdown_view.config.trapdoor_translucency": "トラップドア半透明化: %s",
-  "topdown_view.config.trapdoor_transparency": "透明度: %.2f"
+  "topdown_view.config.fade_enabled": "境界フェード: %s",
+  "topdown_view.config.fade_start": "フェード開始: %.2f",
+  "topdown_view.config.fade_min_alpha": "最小透明度: %.2f"
 }

@@ -17,7 +17,7 @@ public class RenderEventHandler {
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-            TranslucentBlockRenderer.renderTranslucentTrapdoors(event);
+            TranslucentBlockRenderer.renderFadeBlocks(event);
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {

@@ -93,21 +93,24 @@ public class ConfigScreen extends Screen {
 
     private void initVisualTab(int x, int startY, int width, int height, int spacing) {
         this.addRenderableWidget(Button.builder(
-                Component.translatable("topdown_view.config.trapdoor_translucency",
-                        Config.trapdoorTranslucencyEnabled ? "ON" : "OFF"),
+                Component.translatable("topdown_view.config.fade_enabled",
+                        Config.fadeEnabled ? "ON" : "OFF"),
                 (button) -> {
-                    Config.trapdoorTranslucencyEnabled = !Config.trapdoorTranslucencyEnabled;
-                    button.setMessage(Component.translatable("topdown_view.config.trapdoor_translucency",
-                            Config.trapdoorTranslucencyEnabled ? "ON" : "OFF"));
+                    Config.fadeEnabled = !Config.fadeEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.fade_enabled",
+                            Config.fadeEnabled ? "ON" : "OFF"));
                 }).bounds(x, startY, width, height).build());
 
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.trapdoor_transparency",
-                Config.trapdoorTransparency, 0.0, 1.0, (value) -> Config.trapdoorTransparency = value));
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.fade_start",
+                Config.fadeStart, 0.0, 0.9, (value) -> Config.fadeStart = value));
+
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.fade_min_alpha",
+                Config.fadeMinAlpha, 0.0, 0.5, (value) -> Config.fadeMinAlpha = value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 3, width, height).build());
+        }).bounds(x, startY + spacing * 4, width, height).build());
     }
 
     private void switchTab(int tab) {

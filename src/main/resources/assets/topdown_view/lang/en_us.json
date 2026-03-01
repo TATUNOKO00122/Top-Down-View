@@ -14,6 +14,7 @@
   "topdown_view.config.click_to_move": "Click to Move: %s",
   "topdown_view.config.arrival_threshold": "Arrival Distance: %.1f",
   "topdown_view.config.attack_range": "Attack Range: %.1f",
-  "topdown_view.config.trapdoor_translucency": "Translucent Trapdoors: %s",
-  "topdown_view.config.trapdoor_transparency": "Transparency: %.2f"
+  "topdown_view.config.fade_enabled": "Boundary Fade: %s",
+  "topdown_view.config.fade_start": "Fade Start: %.2f",
+  "topdown_view.config.fade_min_alpha": "Min Alpha: %.2f"
 }

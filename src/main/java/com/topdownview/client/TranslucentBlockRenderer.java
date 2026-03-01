@@ -18,34 +18,36 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 
-import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
- * 遮蔽トラップドアの半透明描画
+ * カリング境界フェード描画
  * RenderLevelStageEvent.AFTER_TRANSLUCENT_BLOCKSで描画
  */
 public final class TranslucentBlockRenderer {
 
     private static final RandomSource RANDOM = RandomSource.create();
+    private static final int MAX_FADE_BLOCKS = 1000;
 
     private TranslucentBlockRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    public static void renderTranslucentTrapdoors(RenderLevelStageEvent event) {
+    public static void renderFadeBlocks(RenderLevelStageEvent event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
             return;
         }
 
-        if (!Config.trapdoorTranslucencyEnabled) {
+        if (!Config.fadeEnabled) {
             return;
         }
 
         TopDownCuller culler = TopDownCuller.getInstance();
-        Set<BlockPos> translucentPositions = culler.getTranslucentTrapdoors(mc.level);
+        Map<BlockPos, Float> fadeBlocks = culler.getFadeBlocks(mc.level);
 
-        if (translucentPositions.isEmpty()) {
+        if (fadeBlocks.isEmpty()) {
             return;
         }
 
@@ -54,18 +56,18 @@ public final class TranslucentBlockRenderer {
 
         BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
 
-        float alpha = (float) Config.trapdoorTransparency;
-
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        for (BlockPos pos : translucentPositions) {
-            renderTranslucentBlock(mc.level, pos, poseStack, bufferSource, blockRenderer, alpha, cameraPos);
+        for (Map.Entry<BlockPos, Float> entry : fadeBlocks.entrySet()) {
+            BlockPos pos = entry.getKey();
+            float alpha = entry.getValue();
+            renderFadeBlock(mc.level, pos, poseStack, bufferSource, blockRenderer, alpha, cameraPos);
         }
 
         bufferSource.endBatch(RenderType.translucent());
     }
 
-    private static void renderTranslucentBlock(
+    private static void renderFadeBlock(
             BlockAndTintGetter level,
             BlockPos pos,
             PoseStack poseStack,

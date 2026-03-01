@@ -48,6 +48,19 @@ public class Config {
                         .comment("遮蔽トラップドアの透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
 
+        // Fade settings
+        private static final ForgeConfigSpec.BooleanValue FADE_ENABLED = BUILDER
+                        .comment("カリング境界の距離フェードの有効/無効")
+                        .define("fadeEnabled", true);
+
+        private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
+                        .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")
+                        .defineInRange("fadeStart", 0.7, 0.0, 0.9);
+
+        private static final ForgeConfigSpec.DoubleValue FADE_MIN_ALPHA = BUILDER
+                        .comment("最小透明度（0.0=完全消去、1.0=不透明）")
+                        .defineInRange("fadeMinAlpha", 0.0, 0.0, 0.5);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
@@ -60,6 +73,9 @@ public class Config {
         public static boolean forceAutoJump;
         public static boolean trapdoorTranslucencyEnabled;
         public static double trapdoorTransparency;
+        public static boolean fadeEnabled;
+        public static double fadeStart;
+        public static double fadeMinAlpha;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -72,6 +88,9 @@ public class Config {
                 forceAutoJump = FORCE_AUTO_JUMP.get();
                 trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
                 trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
+                fadeEnabled = FADE_ENABLED.get();
+                fadeStart = FADE_START.get();
+                fadeMinAlpha = FADE_MIN_ALPHA.get();
         }
 
         public static void save() {
@@ -84,6 +103,9 @@ public class Config {
                 FORCE_AUTO_JUMP.set(forceAutoJump);
                 TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
                 TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
+                FADE_ENABLED.set(fadeEnabled);
+                FADE_START.set(fadeStart);
+                FADE_MIN_ALPHA.set(fadeMinAlpha);
                 SPEC.save();
         }
 }
