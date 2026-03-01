@@ -16,6 +16,7 @@ public final class ModState {
     public static final TimeState TIME = TimeState.INSTANCE;
     public static final ModStatus STATUS = ModStatus.INSTANCE;
     public static final ClickToMoveState CLICK_TO_MOVE = ClickToMoveState.INSTANCE;
+    public static final PathfindingState PATHFINDING = PathfindingState.INSTANCE;
 
     /**
      * 全状態をリセット
@@ -25,5 +26,6 @@ public final class ModState {
         TIME.reset();
         STATUS.reset();
         CLICK_TO_MOVE.reset();
+        PATHFINDING.reset();
     }
 }

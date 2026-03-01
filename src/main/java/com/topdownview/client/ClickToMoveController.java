@@ -2,22 +2,32 @@ package com.topdownview.client;
 
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.pathfinding.CollisionDetector;
+import com.topdownview.pathfinding.LocalAvoidanceEngine;
+import com.topdownview.pathfinding.Path;
+import com.topdownview.pathfinding.PathfindingEngine;
 import com.topdownview.state.ModState;
+import com.mojang.logging.LogUtils;
+import java.util.List;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class ClickToMoveController {
 
-    private static final double STOP_THRESHOLD_SQ = 0.5 * 0.5;
-    private static long lastAttackTick = -1;
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final double WAYPOINT_THRESHOLD = 1.0;
+    private static final double STOP_THRESHOLD = 0.5;
 
     private ClickToMoveController() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -33,10 +43,14 @@ public final class ClickToMoveController {
 
         ClickActionHandler.onClientTick(mc);
 
+        ModState.PATHFINDING.tickCooldown();
+
         if (!Config.clickToMoveEnabled) return;
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
         ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
+
+        updateNearbyEntities(mc);
 
         if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
             updateLongPressFollow(mc);
@@ -49,18 +63,52 @@ public final class ClickToMoveController {
 
     public static void setDestination(Vec3 targetPos) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null || mc.level == null) return;
+
+        LOGGER.info("[ClickToMove] 目的地設定: {}", BlockPos.containing(targetPos));
         ModState.CLICK_TO_MOVE.startMoveTo(targetPos, mc.player.position());
+
+        Path path = PathfindingEngine.findPath(
+            mc.level,
+            mc.player.position(),
+            targetPos,
+            Config.pathfindingRange
+        );
+
+        if (path != null && !path.isEmpty()) {
+            LOGGER.info("[ClickToMove] パス使用開始: {}ウェイポイント", path.getLength());
+            ModState.PATHFINDING.setCurrentPath(path);
+        } else {
+            LOGGER.info("[ClickToMove] パスなし - 直線移動にフォールバック");
+            BlockPos nearestWalkable = PathfindingEngine.findNearestWalkableToTarget(
+                mc.level,
+                BlockPos.containing(targetPos),
+                BlockPos.containing(mc.player.position()),
+                5
+            );
+            if (nearestWalkable != null) {
+                Vec3 adjustedTarget = new Vec3(
+                    nearestWalkable.getX() + 0.5,
+                    nearestWalkable.getY(),
+                    nearestWalkable.getZ() + 0.5
+                );
+                ModState.CLICK_TO_MOVE.setTargetPosition(adjustedTarget);
+            }
+            ModState.PATHFINDING.clearPath();
+        }
     }
 
     public static void setTargetEntity(Entity entity) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
+        if (!(entity instanceof Enemy)) return;
         ModState.CLICK_TO_MOVE.startFollowEntity(entity, mc.player.position());
+        ModState.PATHFINDING.clearPath();
     }
 
     public static void startLongPressFollow() {
         ModState.CLICK_TO_MOVE.setLongPressFollow(true);
+        ModState.PATHFINDING.clearPath();
     }
 
     public static void stopLongPressFollow() {
@@ -69,10 +117,12 @@ public final class ClickToMoveController {
 
     public static void stop() {
         ModState.CLICK_TO_MOVE.stopMovement();
+        ModState.PATHFINDING.clearPath();
     }
 
     public static void reset() {
         ModState.CLICK_TO_MOVE.reset();
+        ModState.PATHFINDING.reset();
     }
 
     public static float[] calculateMovementInput(Minecraft mc) {
@@ -83,10 +133,12 @@ public final class ClickToMoveController {
         if (destination == null) return null;
 
         Vec3 playerPos = mc.player.position();
-        Vec3 direction = destination.subtract(playerPos);
+        Vec3 direction = calculateDirectionWithAvoidance(mc, playerPos, destination);
+
+        if (direction == null) return null;
 
         double horizontalDist = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
-        if (horizontalDist < STOP_THRESHOLD_SQ) return null;
+        if (horizontalDist < STOP_THRESHOLD) return null;
 
         double moveAngle = Math.atan2(-direction.x, direction.z);
         float playerYaw = mc.player.getYRot();
@@ -106,6 +158,81 @@ public final class ClickToMoveController {
         }
 
         return new float[]{forward, strafe};
+    }
+
+    private static Vec3 calculateDirectionWithAvoidance(Minecraft mc, Vec3 playerPos, Vec3 finalDestination) {
+        Vec3 targetWaypoint = getTargetWaypoint(mc, playerPos, finalDestination);
+        if (targetWaypoint == null) return null;
+
+        Vec3 baseDirection = targetWaypoint.subtract(playerPos);
+        double horizontalDist = Math.sqrt(baseDirection.x * baseDirection.x + baseDirection.z * baseDirection.z);
+        if (horizontalDist < 0.1) return null;
+
+        baseDirection = baseDirection.normalize();
+
+        if (Config.localAvoidanceEnabled) {
+            List<Entity> nearbyEntities = ModState.PATHFINDING.getNearbyEntities();
+            if (!nearbyEntities.isEmpty()) {
+                Vec3 avoidanceVec = LocalAvoidanceEngine.calculateAvoidanceVectorSimple(
+                    playerPos,
+                    targetWaypoint,
+                    nearbyEntities
+                );
+
+                Vec3 adjustedDir = baseDirection.scale(0.7).add(avoidanceVec.scale(0.3));
+                return adjustedDir.normalize();
+            }
+        }
+
+        return baseDirection;
+    }
+
+    private static Vec3 getTargetWaypoint(Minecraft mc, Vec3 playerPos, Vec3 finalDestination) {
+        if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
+            return finalDestination;
+        }
+
+        if (ModState.CLICK_TO_MOVE.getTargetEntity() != null) {
+            return finalDestination;
+        }
+
+        Path path = ModState.PATHFINDING.getCurrentPath();
+        if (path != null && !path.isEmpty() && !path.isFinished()) {
+            Vec3 currentWaypoint = path.getCurrentNodePosition();
+            if (currentWaypoint != null) {
+                double distToWaypoint = playerPos.distanceTo(currentWaypoint);
+
+                if (distToWaypoint < WAYPOINT_THRESHOLD) {
+                    int prevIndex = path.getCurrentNodeIndex();
+                    path.advance();
+                    Vec3 nextWaypoint = path.getCurrentNodePosition();
+                    if (nextWaypoint != null) {
+                        LOGGER.debug("[ClickToMove] ウェイポイント進行: {} -> {}", prevIndex, path.getCurrentNodeIndex());
+                        return nextWaypoint;
+                    }
+                } else {
+                    return currentWaypoint;
+                }
+            }
+
+            if (path.isFinished()) {
+                LOGGER.info("[ClickToMove] パス完了");
+                ModState.PATHFINDING.clearPath();
+            }
+        }
+
+        return finalDestination;
+    }
+
+    private static void updateNearbyEntities(Minecraft mc) {
+        if (mc.player == null) return;
+
+        List<Entity> nearby = CollisionDetector.getNearbyEntities(
+            mc,
+            mc.player.position(),
+            Config.avoidanceRadius + 1.0
+        );
+        ModState.PATHFINDING.setNearbyEntities(nearby);
     }
 
     private static Vec3 getEffectiveDestination(Minecraft mc) {
@@ -162,17 +289,14 @@ public final class ClickToMoveController {
 
     private static void tryAttackEntity(Minecraft mc, Entity target) {
         if (mc.level == null) return;
-
-        long currentTick = mc.level.getGameTime();
-        if (currentTick == lastAttackTick) return;
-
-        lastAttackTick = currentTick;
+        if (!(target instanceof Enemy)) {
+            stop();
+            return;
+        }
 
         mc.gameMode.attack(mc.player, target);
         mc.player.swing(InteractionHand.MAIN_HAND);
 
-        if (!target.isAlive()) {
-            stop();
-        }
+        stop();
     }
 }

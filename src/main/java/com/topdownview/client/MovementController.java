@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -91,10 +92,14 @@ public final class MovementController {
             return false;
         }
 
+        if (aheadState.getBlock() instanceof StairBlock) {
+            return false;
+        }
+
         double playerFeetY = Math.floor(playerPos.y);
         double blockTopY = aheadState.getCollisionShape(mc.level, aheadBlockPos).max(Direction.Axis.Y) + aheadBlockPos.getY();
 
-        if (blockTopY - playerFeetY <= 1.2 && blockTopY - playerFeetY > 0.1) {
+        if (blockTopY - playerFeetY <= 1.2 && blockTopY - playerFeetY > 0.6) {
             if (aboveAheadState.isAir() || aboveAheadState.getCollisionShape(mc.level, aheadBlockPos.above()).isEmpty()) {
                 return true;
             }

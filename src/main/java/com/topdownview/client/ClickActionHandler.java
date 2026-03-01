@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -77,7 +78,9 @@ public final class ClickActionHandler {
             if (Config.clickToMoveEnabled) {
                 EntityHitResult entityHit = (EntityHitResult) result;
                 Entity entity = entityHit.getEntity();
-                ModState.CLICK_TO_MOVE.startFollowEntity(entity, mc.player.position());
+                if (entity instanceof Enemy) {
+                    ClickToMoveController.setTargetEntity(entity);
+                }
             }
             return false;
         }
@@ -97,7 +100,7 @@ public final class ClickActionHandler {
 
             if (Config.clickToMoveEnabled) {
                 Vec3 destination = blockHit.getLocation();
-                ModState.CLICK_TO_MOVE.startMoveTo(destination, mc.player.position());
+                ClickToMoveController.setDestination(destination);
             }
         }
         return false;
@@ -108,11 +111,11 @@ public final class ClickActionHandler {
         if (!Config.clickToMoveEnabled) return;
 
         if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {
-            ModState.CLICK_TO_MOVE.setLongPressFollow(true);
+            ClickToMoveController.startLongPressFollow();
         }
     }
 
     private static void onRightClickRelease(Minecraft mc) {
-        ModState.CLICK_TO_MOVE.setLongPressFollow(false);
+        ClickToMoveController.stopLongPressFollow();
     }
 }

@@ -16,5 +16,9 @@
   "topdown_view.config.attack_range": "攻撃範囲: %.1f",
   "topdown_view.config.fade_enabled": "境界フェード: %s",
   "topdown_view.config.fade_start": "フェード開始: %.2f",
-  "topdown_view.config.fade_min_alpha": "最小透明度: %.2f"
+  "topdown_view.config.fade_min_alpha": "最小透明度: %.2f",
+  "topdown_view.config.local_avoidance": "動的回避: %s",
+  "topdown_view.config.avoidance_radius": "回避半径: %.1f",
+  "topdown_view.config.pathfinding_range": "経路探索距離: %d",
+  "topdown_view.config.path_recalc_cooldown": "再計算間隔: %d"
 }
