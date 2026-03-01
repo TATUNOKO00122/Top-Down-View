@@ -38,7 +38,7 @@ public class Config {
         // Translucent trapdoor settings
         private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
                         .comment("遮蔽トラップドアの半透明化の有効/無効")
-                        .define("trapdoorTranslucencyEnabled", true);
+                        .define("trapdoorTranslucencyEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
                         .comment("遮蔽トラップドアの透明度（0.0=透明、1.0=不透明）")

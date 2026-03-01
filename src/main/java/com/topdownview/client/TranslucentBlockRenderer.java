@@ -17,8 +17,6 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -28,10 +26,8 @@ import java.util.Set;
  */
 public final class TranslucentBlockRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("TopDownView");
     private static final RandomSource RANDOM = RandomSource.create();
-    private static int logCounter = 0;
-    
+
     private TranslucentBlockRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -46,40 +42,26 @@ public final class TranslucentBlockRenderer {
             return;
         }
 
-        // TODO: 半透明化機能は一時的に無効化（削除するな）
-        // TopDownCuller culler = TopDownCuller.getInstance();
-        // Set<BlockPos> translucentPositions = culler.getTranslucentTrapdoors(mc.level);
-        Set<BlockPos> translucentPositions = java.util.Collections.emptySet();
-        
-        // デバッグログ（60フレームに1回出力）
-        logCounter++;
-        if (logCounter >= 60) {
-            logCounter = 0;
-            LOGGER.info("[TranslucentRenderer] Trapdoors to render: {}, alpha: {}", 
-                translucentPositions.size(), Config.trapdoorTransparency);
-            if (!translucentPositions.isEmpty()) {
-                BlockPos first = translucentPositions.iterator().next();
-                LOGGER.info("[TranslucentRenderer] First position: {}", first);
-            }
-        }
-        
+        TopDownCuller culler = TopDownCuller.getInstance();
+        Set<BlockPos> translucentPositions = culler.getTranslucentTrapdoors(mc.level);
+
         if (translucentPositions.isEmpty()) {
             return;
         }
 
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        
+
         BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
-        
+
         float alpha = (float) Config.trapdoorTransparency;
-        
+
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
-        
+
         for (BlockPos pos : translucentPositions) {
             renderTranslucentBlock(mc.level, pos, poseStack, bufferSource, blockRenderer, alpha, cameraPos);
         }
-        
+
         bufferSource.endBatch(RenderType.translucent());
     }
 
@@ -112,23 +94,19 @@ public final class TranslucentBlockRenderer {
         RANDOM.setSeed(seed);
         
         int packedLight = getLightColor(level, pos);
-        
-        try {
-            blockRenderer.getModelRenderer().renderModel(
-                poseStack.last(),
-                alphaConsumer,
-                state,
-                model,
-                1.0F,
-                1.0F,
-                1.0F,
-                packedLight,
-                OverlayTexture.NO_OVERLAY
-            );
-        } catch (Exception e) {
-            LOGGER.error("[TranslucentRenderer] Error rendering block at {}: {}", pos, e.getMessage());
-        }
-        
+
+        blockRenderer.getModelRenderer().renderModel(
+            poseStack.last(),
+            alphaConsumer,
+            state,
+            model,
+            1.0F,
+            1.0F,
+            1.0F,
+            packedLight,
+            OverlayTexture.NO_OVERLAY
+        );
+
         poseStack.popPose();
     }
 

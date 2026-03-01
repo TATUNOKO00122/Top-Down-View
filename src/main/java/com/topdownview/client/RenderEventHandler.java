@@ -15,12 +15,11 @@ public class RenderEventHandler {
         if (!ModState.STATUS.isEnabled()) {
             return;
         }
-        
-        // TODO: 半透明化機能は一時的に無効化（削除するな）
-        // if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-        //     TranslucentBlockRenderer.renderTranslucentTrapdoors(event);
-        // }
-        
+
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            TranslucentBlockRenderer.renderTranslucentTrapdoors(event);
+        }
+
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             TargetHighlightRenderer.onRenderLevelStage(event);
         }

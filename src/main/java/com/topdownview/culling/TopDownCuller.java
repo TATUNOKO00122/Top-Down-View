@@ -29,16 +29,14 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final int MAX_CACHE_SIZE = 8000;
-    // TODO: 半透明化機能用（削除するな）
-    // private static final int MAX_TRANSLUCENT_CACHE_SIZE = 500;
+    private static final int MAX_TRANSLUCENT_CACHE_SIZE = 500;
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
     private Vec3 currentCameraPos = Vec3.ZERO;
 
     private final Map<BlockPos, Boolean> cullingCache = new HashMap<>(1000);
-    // TODO: 半透明化機能用（削除するな）
-    // private final Set<BlockPos> translucentTrapdoorsCache = new HashSet<>(100);
+    private final Set<BlockPos> translucentTrapdoorsCache = new HashSet<>(100);
 
     private TopDownCuller() {
     }
@@ -105,16 +103,16 @@ public final class TopDownCuller {
 
     /**
      * トラップドア専用のカリング判定
-     * 下方向にハシゴ/足場がある場合は保護（カリングしない）
-     * それ以外は楕円柱カリングを適用
+     * ハシゴ/足場あり → 保護（通常描画）
+     * 楕円柱内 → カリング
+     * 楕円柱外 → 通常描画
      */
     private boolean shouldCullTrapdoor(BlockPos pos, BlockGetter level) {
-        // 条件: 下方向Y-1〜Y-3にハシゴ/足場がある場合は保護
         for (int dy = 1; dy <= 3; dy++) {
             BlockPos checkPos = pos.below(dy);
             BlockState belowState = level.getBlockState(checkPos);
             if (belowState.is(Blocks.LADDER) || belowState.is(Blocks.SCAFFOLDING)) {
-                return false; // 保護（カリングしない）
+                return false;
             }
         }
 
@@ -125,8 +123,7 @@ public final class TopDownCuller {
             return false;
         }
 
-        // 条件に合致しない場合、楕円柱カリングを適用
-        return shouldCullByCylinder(pos, pPos, cPos);
+        return isInCylinderForTrapdoor(pos, pPos, cPos);
     }
 
     private void cacheResult(BlockPos pos, boolean result) {
@@ -255,131 +252,129 @@ public final class TopDownCuller {
         return cullingCache.size();
     }
 
-    // TODO: 半透明化機能用（削除するな）
-    // /**
-    //  * 透明化対象のトラップドア位置のセットを取得
-    //  * カメラ→プレイヤーの楕円柱内にあるトラップドアが対象
-    //  */
-    // public Set<BlockPos> getTranslucentTrapdoors(BlockGetter level) {
-    //     translucentTrapdoorsCache.clear();
-    //     
-    //     if (!ModState.STATUS.isEnabled()) {
-    //         return translucentTrapdoorsCache;
-    //     }
-    //     
-    //     if (!Config.trapdoorTranslucencyEnabled) {
-    //         return translucentTrapdoorsCache;
-    //     }
-    //     
-    //     if (level == null || currentCameraPos == Vec3.ZERO) {
-    //         LOGGER.debug("[Culler] getTranslucentTrapdoors: disabled (level={}, cameraPos={})", 
-    //             level != null, currentCameraPos);
-    //         return translucentTrapdoorsCache;
-    //     }
-    // 
-    //     int rangeH = Config.cylinderRadiusHorizontal + 2;
-    //     int rangeV = Config.cylinderRadiusVertical + 2;
-    //     
-    //     int minX = (int) Math.floor(currentPlayerPos.x) - rangeH;
-    //     int maxX = (int) Math.floor(currentPlayerPos.x) + rangeH;
-    //     int minY = (int) Math.floor(currentPlayerPos.y);
-    //     int maxY = (int) Math.floor(currentPlayerPos.y) + rangeV;
-    //     int minZ = (int) Math.floor(currentPlayerPos.z) - rangeH;
-    //     int maxZ = (int) Math.floor(currentPlayerPos.z) + rangeH;
-    //     
-    //     LOGGER.debug("[Culler] Scanning range: X[{}-{}], Y[{}-{}], Z[{}-{}]", minX, maxX, minY, maxY, minZ, maxZ);
-    // 
-    //     BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-    //     int trapdoorCount = 0;
-    //     
-    //     for (int x = minX; x <= maxX; x++) {
-    //         for (int y = minY; y <= maxY; y++) {
-    //             for (int z = minZ; z <= maxZ; z++) {
-    //                 mutablePos.set(x, y, z);
-    //                 BlockState state = level.getBlockState(mutablePos);
-    //                 
-    //                 if (state.getBlock() instanceof TrapDoorBlock) {
-    //                     trapdoorCount++;
-    //                     if (shouldMakeTranslucent(mutablePos, currentPlayerPos, currentCameraPos)) {
-    //                         translucentTrapdoorsCache.add(mutablePos.immutable());
-    //                         
-    //                         if (translucentTrapdoorsCache.size() >= MAX_TRANSLUCENT_CACHE_SIZE) {
-    //                             LOGGER.info("[Culler] Max cache reached, trapdoors found: {}, translucent: {}", 
-    //                                 trapdoorCount, translucentTrapdoorsCache.size());
-    //                             return translucentTrapdoorsCache;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     
-    //     if (trapdoorCount > 0 || !translucentTrapdoorsCache.isEmpty()) {
-    //         LOGGER.info("[Culler] Trapdoors found: {}, translucent: {}", trapdoorCount, translucentTrapdoorsCache.size());
-    //     }
-    //     
-    //     return translucentTrapdoorsCache;
-    // }
-    // 
-    // /**
-    //  * トラップドアを透明化すべきか判定
-    //  * 楕円柱カリング判定を再利用
-    //  */
-    // private boolean shouldMakeTranslucent(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
-    //     Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-    // 
-    //     if (blockCenter.y < playerPos.y) {
-    //         return false;
-    //     }
-    // 
-    //     Vec3 dir = playerPos.subtract(cameraPos);
-    //     double dirLength = dir.length();
-    //     if (dirLength < 1.0E-8) {
-    //         return false;
-    //     }
-    // 
-    //     Vec3 normDir = dir.normalize();
-    //     Vec3 toBlockFromPlayer = blockCenter.subtract(playerPos);
-    //     double forwardness = toBlockFromPlayer.dot(normDir);
-    // 
-    //     if (forwardness >= 0) {
-    //         double dxPlayer = blockCenter.x - playerPos.x;
-    //         double dzPlayer = blockCenter.z - playerPos.z;
-    //         double distFromPlayerXZ = Math.sqrt(dxPlayer * dxPlayer + dzPlayer * dzPlayer);
-    //         double protectionHeight = playerPos.y + Math.min(distFromPlayerXZ, 2.0);
-    //         if (blockCenter.y < protectionHeight) {
-    //             return false;
-    //         }
-    //     }
-    // 
-    //     double radiusH = Config.cylinderRadiusHorizontal;
-    //     double radiusV = Config.cylinderRadiusVertical;
-    // 
-    //     Vec3 segVec = playerPos.subtract(cameraPos);
-    //     double segLengthSq = segVec.lengthSqr();
-    // 
-    //     Vec3 toBlock = blockCenter.subtract(cameraPos);
-    //     double t = toBlock.dot(segVec) / segLengthSq;
-    // 
-    //     double segLength = Math.sqrt(segLengthSq);
-    //     double extensionT = 3.0 / segLength;
-    //     if (t < -extensionT) {
-    //         return false;
-    //     }
-    // 
-    //     t = Math.max(-extensionT, Math.min(t, 1.0));
-    // 
-    //     Vec3 closestPoint = cameraPos.add(segVec.scale(t));
-    //     Vec3 relPos = blockCenter.subtract(closestPoint);
-    //     double alongAxis = relPos.dot(normDir);
-    //     Vec3 perpPos = relPos.subtract(normDir.scale(alongAxis));
-    // 
-    //     double distXZ = Math.sqrt(perpPos.x * perpPos.x + perpPos.z * perpPos.z);
-    //     double distY = Math.abs(perpPos.y);
-    // 
-    //     double normalizedDistSq = (distXZ * distXZ) / (radiusH * radiusH)
-    //                             + (distY * distY) / (radiusV * radiusV);
-    // 
-    //     return normalizedDistSq <= 1.0;
-    // }
+    /**
+     * 透明化対象のトラップドア位置のセットを取得
+     * ハシゴ/足場がある場合は除外（保護優先）
+     */
+    public Set<BlockPos> getTranslucentTrapdoors(BlockGetter level) {
+        translucentTrapdoorsCache.clear();
+
+        if (!ModState.STATUS.isEnabled()) {
+            return translucentTrapdoorsCache;
+        }
+
+        if (!Config.trapdoorTranslucencyEnabled) {
+            return translucentTrapdoorsCache;
+        }
+
+        if (level == null || currentCameraPos == Vec3.ZERO) {
+            return translucentTrapdoorsCache;
+        }
+
+        int rangeH = Config.cylinderRadiusHorizontal + 2;
+        int rangeV = Config.cylinderRadiusVertical + 2;
+
+        int minX = (int) Math.floor(currentPlayerPos.x) - rangeH;
+        int maxX = (int) Math.floor(currentPlayerPos.x) + rangeH;
+        int minY = (int) Math.floor(currentPlayerPos.y);
+        int maxY = (int) Math.floor(currentPlayerPos.y) + rangeV;
+        int minZ = (int) Math.floor(currentPlayerPos.z) - rangeH;
+        int maxZ = (int) Math.floor(currentPlayerPos.z) + rangeH;
+
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    mutablePos.set(x, y, z);
+                    BlockState state = level.getBlockState(mutablePos);
+
+                    if (state.getBlock() instanceof TrapDoorBlock) {
+                        // ハシゴ/足場がある場合は半透明化しない（保護優先）
+                        if (hasLadderOrScaffoldingBelow(mutablePos, level)) {
+                            continue;
+                        }
+
+                        if (shouldMakeTranslucent(mutablePos, currentPlayerPos, currentCameraPos)) {
+                            translucentTrapdoorsCache.add(mutablePos.immutable());
+
+                            if (translucentTrapdoorsCache.size() >= MAX_TRANSLUCENT_CACHE_SIZE) {
+                                return translucentTrapdoorsCache;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return translucentTrapdoorsCache;
+    }
+
+    /**
+     * 下方向Y-1〜Y-3にハシゴ/足場があるか判定
+     */
+    private boolean hasLadderOrScaffoldingBelow(BlockPos pos, BlockGetter level) {
+        for (int dy = 1; dy <= 3; dy++) {
+            BlockPos checkPos = pos.below(dy);
+            BlockState belowState = level.getBlockState(checkPos);
+            if (belowState.is(Blocks.LADDER) || belowState.is(Blocks.SCAFFOLDING)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * トラップドアを透明化すべきか判定（将来用）
+     * 現在はConfig.trapdoorTranslucencyEnabled=falseで無効化
+     */
+    private boolean shouldMakeTranslucent(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
+        return isInCylinderForTrapdoor(pos, playerPos, cameraPos);
+    }
+
+    /**
+     * トラップドア用の純粋な楕円柱判定
+     * 逆ピラミッド保護などをスキップし、楕円柱内かどうかのみ判定
+     */
+    private boolean isInCylinderForTrapdoor(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
+        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+
+        Vec3 dir = playerPos.subtract(cameraPos);
+        double dirLength = dir.length();
+        if (dirLength < 1.0E-8) {
+            return false;
+        }
+
+        Vec3 normDir = dir.normalize();
+
+        double radiusH = Config.cylinderRadiusHorizontal;
+        double radiusV = Config.cylinderRadiusVertical;
+
+        Vec3 segVec = playerPos.subtract(cameraPos);
+        double segLengthSq = segVec.lengthSqr();
+
+        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        double t = toBlock.dot(segVec) / segLengthSq;
+
+        double segLength = Math.sqrt(segLengthSq);
+        double extensionT = 3.0 / segLength;
+        if (t < -extensionT) {
+            return false;
+        }
+
+        t = Math.max(-extensionT, Math.min(t, 1.0));
+
+        Vec3 closestPoint = cameraPos.add(segVec.scale(t));
+        Vec3 relPos = blockCenter.subtract(closestPoint);
+        double alongAxis = relPos.dot(normDir);
+        Vec3 perpPos = relPos.subtract(normDir.scale(alongAxis));
+
+        double distXZ = Math.sqrt(perpPos.x * perpPos.x + perpPos.z * perpPos.z);
+        double distY = Math.abs(perpPos.y);
+
+        double normalizedDistSq = (distXZ * distXZ) / (radiusH * radiusH)
+                                + (distY * distY) / (radiusV * radiusV);
+
+        return normalizedDistSq <= 1.0;
+    }
 }
