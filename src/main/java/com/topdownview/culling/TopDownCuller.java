@@ -66,7 +66,7 @@ public final class TopDownCuller {
         }
 
         if (InteractableBlocks.isInteractableSimple(state)) {
-            if (pos.getY() <= Math.floor(currentPlayerPos.y) + 1) {
+            if (pos.getY() <= Math.floor(currentPlayerPos.y)) {
                 cacheResult(pos, false);
                 return false;
             }

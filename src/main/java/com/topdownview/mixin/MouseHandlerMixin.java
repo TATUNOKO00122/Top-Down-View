@@ -19,11 +19,13 @@ public class MouseHandlerMixin {
         }
     }
 
-    @Inject(method = "onPress", at = @At("HEAD"))
+    @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void onMousePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen == null && ModState.STATUS.isEnabled()) {
-            ClickActionHandler.onInput(button, action, mc);
+            if (ClickActionHandler.onInput(button, action, mc)) {
+                ci.cancel();
+            }
         }
     }
 }

@@ -6,7 +6,6 @@ import com.topdownview.culling.CullingManager;
 import com.topdownview.Config;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -44,10 +43,6 @@ public final class InputHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;
-
-        mc.player.displayClientMessage(
-                Component.literal("Top-Down View: " + (newState ? "ON" : "OFF")),
-                true);
 
         if (newState) {
             enableTopDownView(mc);

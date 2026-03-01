@@ -23,7 +23,7 @@ public final class ClickActionHandler {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    public static void onInput(int button, int action, Minecraft mc) {
+    public static boolean onInput(int button, int action, Minecraft mc) {
         if (button == 0) {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
@@ -33,18 +33,21 @@ public final class ClickActionHandler {
             } else if (!isLeftClickDown && wasDown) {
                 leftClickHoldTicks = 0;
             }
+            return false;
         } else if (button == 1) {
             boolean wasDown = isRightClickDown;
             isRightClickDown = (action != 0);
 
             if (isRightClickDown && !wasDown) {
                 rightClickHoldTicks = 0;
-                handleRightClick(mc);
+                boolean handled = handleRightClick(mc);
+                return handled;
             } else if (!isRightClickDown && wasDown) {
                 onRightClickRelease(mc);
                 rightClickHoldTicks = 0;
             }
         }
+        return false;
     }
 
     public static void onClientTick(Minecraft mc) {
@@ -60,15 +63,15 @@ public final class ClickActionHandler {
         }
     }
 
-    private static void handleRightClick(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return;
-        if (!ModState.STATUS.isEnabled()) return;
+    private static boolean handleRightClick(Minecraft mc) {
+        if (mc.level == null || mc.player == null) return false;
+        if (!ModState.STATUS.isEnabled()) return false;
 
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (result == null || result.getType() == HitResult.Type.MISS) return;
+        if (result == null || result.getType() == HitResult.Type.MISS) return false;
 
         if (result.getType() == HitResult.Type.ENTITY) {
             if (Config.clickToMoveEnabled) {
@@ -76,7 +79,7 @@ public final class ClickActionHandler {
                 Entity entity = entityHit.getEntity();
                 ModState.CLICK_TO_MOVE.startFollowEntity(entity, mc.player.position());
             }
-            return;
+            return false;
         }
 
         if (result.getType() == HitResult.Type.BLOCK) {
@@ -89,7 +92,7 @@ public final class ClickActionHandler {
             if (isInteractable) {
                 mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
                 mc.player.swing(InteractionHand.MAIN_HAND);
-                return;
+                return true;
             }
 
             if (Config.clickToMoveEnabled) {
@@ -97,6 +100,7 @@ public final class ClickActionHandler {
                 ModState.CLICK_TO_MOVE.startMoveTo(destination, mc.player.position());
             }
         }
+        return false;
     }
 
     private static void handleRightClickLongPress(Minecraft mc) {
