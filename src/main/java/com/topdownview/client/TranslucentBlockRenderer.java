@@ -46,8 +46,10 @@ public final class TranslucentBlockRenderer {
             return;
         }
 
-        TopDownCuller culler = TopDownCuller.getInstance();
-        Set<BlockPos> translucentPositions = culler.getTranslucentTrapdoors(mc.level);
+        // TODO: 半透明化機能は一時的に無効化（削除するな）
+        // TopDownCuller culler = TopDownCuller.getInstance();
+        // Set<BlockPos> translucentPositions = culler.getTranslucentTrapdoors(mc.level);
+        Set<BlockPos> translucentPositions = java.util.Collections.emptySet();
         
         // デバッグログ（60フレームに1回出力）
         logCounter++;

@@ -34,7 +34,6 @@ public final class InteractableBlocks {
         Block block = state.getBlock();
 
         if (block instanceof DoorBlock) return true;
-        if (block instanceof TrapDoorBlock) return true;
         if (block instanceof FenceGateBlock) return true;
         if (block instanceof ButtonBlock) return true;
         if (block instanceof LeverBlock) return true;
