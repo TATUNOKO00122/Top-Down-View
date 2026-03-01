@@ -6,7 +6,19 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.EggItem;
+import net.minecraft.world.item.EnderpearlItem;
+import net.minecraft.world.item.ExperienceBottleItem;
+import net.minecraft.world.item.FireChargeItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.LingeringPotionItem;
+import net.minecraft.world.item.ProjectileWeaponItem;
+import net.minecraft.world.item.SnowballItem;
+import net.minecraft.world.item.SplashPotionItem;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -22,6 +34,22 @@ public final class ClickActionHandler {
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
+    }
+
+    private static boolean isRangedWeapon(Item item) {
+        if (item instanceof ProjectileWeaponItem) return true;
+        if (item instanceof SnowballItem) return true;
+        if (item instanceof EnderpearlItem) return true;
+        if (item instanceof SplashPotionItem) return true;
+        if (item instanceof LingeringPotionItem) return true;
+        if (item instanceof EggItem) return true;
+        if (item instanceof ExperienceBottleItem) return true;
+        if (item instanceof FireChargeItem) return true;
+        return false;
+    }
+
+    private static boolean isBlockItem(Item item) {
+        return item instanceof BlockItem;
     }
 
     public static boolean onInput(int button, int action, Minecraft mc) {
@@ -68,6 +96,10 @@ public final class ClickActionHandler {
         if (mc.level == null || mc.player == null) return false;
         if (!ModState.STATUS.isEnabled()) return false;
 
+        Item mainHandItem = mc.player.getMainHandItem().getItem();
+        boolean hasRangedWeapon = isRangedWeapon(mainHandItem);
+        boolean hasBlockItem = isBlockItem(mainHandItem);
+
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
@@ -75,10 +107,10 @@ public final class ClickActionHandler {
         if (result == null || result.getType() == HitResult.Type.MISS) return false;
 
         if (result.getType() == HitResult.Type.ENTITY) {
-            if (Config.clickToMoveEnabled) {
+            if (Config.clickToMoveEnabled && !hasRangedWeapon) {
                 EntityHitResult entityHit = (EntityHitResult) result;
                 Entity entity = entityHit.getEntity();
-                if (entity instanceof Enemy) {
+                if (entity instanceof LivingEntity && !(entity instanceof Player)) {
                     ClickToMoveController.setTargetEntity(entity);
                 }
             }
@@ -89,6 +121,11 @@ public final class ClickActionHandler {
             BlockHitResult blockHit = (BlockHitResult) result;
             BlockPos blockPos = blockHit.getBlockPos();
 
+            // プレイヤー足元より2ブロック以上低い場所は無視（地下誤クリック防止）
+            if (blockPos.getY() < mc.player.blockPosition().getY() - 2) {
+                return false;
+            }
+
             boolean isInteractable = InteractableBlocks.isInteractable(
                     mc.level.getBlockState(blockPos), mc.level, blockPos);
 
@@ -96,6 +133,14 @@ public final class ClickActionHandler {
                 mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
                 mc.player.swing(InteractionHand.MAIN_HAND);
                 return true;
+            }
+
+            if (hasRangedWeapon) {
+                return false;
+            }
+
+            if (hasBlockItem) {
+                return false;
             }
 
             if (Config.clickToMoveEnabled) {

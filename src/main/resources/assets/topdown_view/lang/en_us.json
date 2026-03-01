@@ -16,9 +16,5 @@
   "topdown_view.config.attack_range": "Attack Range: %.1f",
   "topdown_view.config.fade_enabled": "Boundary Fade: %s",
   "topdown_view.config.fade_start": "Fade Start: %.2f",
-  "topdown_view.config.fade_min_alpha": "Min Alpha: %.2f",
-  "topdown_view.config.local_avoidance": "Local Avoidance: %s",
-  "topdown_view.config.avoidance_radius": "Avoidance Radius: %.1f",
-  "topdown_view.config.pathfinding_range": "Pathfinding Range: %d",
-  "topdown_view.config.path_recalc_cooldown": "Recalc Cooldown: %d"
+  "topdown_view.config.fade_min_alpha": "Min Alpha: %.2f"
 }

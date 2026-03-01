@@ -85,28 +85,29 @@ public class ConfigScreen extends Screen {
         this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.attack_range",
                 Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
 
-        this.addRenderableWidget(Button.builder(
-                Component.translatable("topdown_view.config.local_avoidance",
-                        Config.localAvoidanceEnabled ? "ON" : "OFF"),
-                (button) -> {
-                    Config.localAvoidanceEnabled = !Config.localAvoidanceEnabled;
-                    button.setMessage(Component.translatable("topdown_view.config.local_avoidance",
-                            Config.localAvoidanceEnabled ? "ON" : "OFF"));
-                }).bounds(x, startY + spacing * 3, width, height).build());
-
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.avoidance_radius",
-                Config.avoidanceRadius, 1.0, 5.0, (value) -> Config.avoidanceRadius = value));
-
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 5, width, height, "topdown_view.config.pathfinding_range",
-                Config.pathfindingRange, 8, 64, (value) -> Config.pathfindingRange = value));
-
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 6, width, height, "topdown_view.config.path_recalc_cooldown",
-                Config.pathRecalcCooldown, 5, 100, (value) -> Config.pathRecalcCooldown = value));
+        // Pathfinding UI disabled - straight-line movement only
+        // this.addRenderableWidget(Button.builder(
+        //         Component.translatable("topdown_view.config.pathfinding",
+        //                 Config.pathfindingEnabled ? "ON" : "OFF"),
+        //         (button) -> {
+        //             Config.pathfindingEnabled = !Config.pathfindingEnabled;
+        //             button.setMessage(Component.translatable("topdown_view.config.pathfinding",
+        //                     Config.pathfindingEnabled ? "ON" : "OFF"));
+        //         }).bounds(x, startY + spacing * 3, width, height).build());
+        // 
+        // this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.avoidance_radius",
+        //         Config.avoidanceRadius, 1.0, 5.0, (value) -> Config.avoidanceRadius = value));
+        // 
+        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 5, width, height, "topdown_view.config.pathfinding_range",
+        //         Config.pathfindingRange, 8, 64, (value) -> Config.pathfindingRange = value));
+        // 
+        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 6, width, height, "topdown_view.config.path_recalc_cooldown",
+        //         Config.pathRecalcCooldown, 5, 100, (value) -> Config.pathRecalcCooldown = value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 8, width, height).build());
+        }).bounds(x, startY + spacing * 4, width, height).build());
     }
 
     private void initVisualTab(int x, int startY, int width, int height, int spacing) {

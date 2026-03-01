@@ -31,6 +31,11 @@ public final class MovementController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+        // Baritone使用時は移動制御を委譲（干渉しない）
+        if (ModState.CLICK_TO_MOVE.useBaritone()) {
+            return;
+        }
+
         float originalForward = event.getInput().forwardImpulse;
         float originalStrafe = event.getInput().leftImpulse;
         boolean hasManualInput = Math.abs(originalForward) > 0.01f || Math.abs(originalStrafe) > 0.01f;

@@ -61,22 +61,19 @@ public class Config {
                         .comment("最小透明度（0.0=完全消去、1.0=不透明）")
                         .defineInRange("fadeMinAlpha", 0.0, 0.0, 0.5);
 
-        // Pathfinding settings
-        private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
-                        .comment("経路探索の最大距離（ブロック数）")
-                        .defineInRange("pathfindingRange", 32, 8, 64);
-
-        private static final ForgeConfigSpec.IntValue PATH_RECALC_COOLDOWN = BUILDER
-                        .comment("経路再計算のクールダウン（tick）")
-                        .defineInRange("pathRecalcCooldown", 20, 5, 100);
-
-        private static final ForgeConfigSpec.BooleanValue LOCAL_AVOIDANCE_ENABLED = BUILDER
-                        .comment("動的障害物回避の有効/無効")
-                        .define("localAvoidanceEnabled", true);
-
-        private static final ForgeConfigSpec.DoubleValue AVOIDANCE_RADIUS = BUILDER
-                        .comment("回避判定の半径（ブロック数）")
-                        .defineInRange("avoidanceRadius", 2.0, 1.0, 5.0);
+        // Pathfinding settings (DISABLED - straight-line movement only)
+        // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
+        //                 .comment("経路探索の最大距離（ブロック数）")
+        //                 .defineInRange("pathfindingRange", 32, 8, 64);
+        // private static final ForgeConfigSpec.IntValue PATH_RECALC_COOLDOWN = BUILDER
+        //                 .comment("経路再計算のクールダウン（tick）")
+        //                 .defineInRange("pathRecalcCooldown", 20, 5, 100);
+        // private static final ForgeConfigSpec.BooleanValue PATHFINDING_ENABLED = BUILDER
+        //                 .comment("経路探索（A*）と動的回避の有効/無効")
+        //                 .define("pathfindingEnabled", true);
+        // private static final ForgeConfigSpec.DoubleValue AVOIDANCE_RADIUS = BUILDER
+        //                 .comment("回避判定の半径（ブロック数）")
+        //                 .defineInRange("avoidanceRadius", 2.0, 1.0, 5.0);
 
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -93,10 +90,10 @@ public class Config {
         public static boolean fadeEnabled;
         public static double fadeStart;
         public static double fadeMinAlpha;
-        public static int pathfindingRange;
-        public static int pathRecalcCooldown;
-        public static boolean localAvoidanceEnabled;
-        public static double avoidanceRadius;
+        // public static int pathfindingRange;
+        // public static int pathRecalcCooldown;
+        // public static boolean pathfindingEnabled;
+        // public static double avoidanceRadius;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -112,10 +109,10 @@ public class Config {
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
                 fadeMinAlpha = FADE_MIN_ALPHA.get();
-                pathfindingRange = PATHFINDING_RANGE.get();
-                pathRecalcCooldown = PATH_RECALC_COOLDOWN.get();
-                localAvoidanceEnabled = LOCAL_AVOIDANCE_ENABLED.get();
-                avoidanceRadius = AVOIDANCE_RADIUS.get();
+                // pathfindingRange = PATHFINDING_RANGE.get();
+                // pathRecalcCooldown = PATH_RECALC_COOLDOWN.get();
+                // pathfindingEnabled = PATHFINDING_ENABLED.get();
+                // avoidanceRadius = AVOIDANCE_RADIUS.get();
         }
 
         public static void save() {
@@ -131,10 +128,10 @@ public class Config {
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
                 FADE_MIN_ALPHA.set(fadeMinAlpha);
-                PATHFINDING_RANGE.set(pathfindingRange);
-                PATH_RECALC_COOLDOWN.set(pathRecalcCooldown);
-                LOCAL_AVOIDANCE_ENABLED.set(localAvoidanceEnabled);
-                AVOIDANCE_RADIUS.set(avoidanceRadius);
+                // PATHFINDING_RANGE.set(pathfindingRange);
+                // PATH_RECALC_COOLDOWN.set(pathRecalcCooldown);
+                // PATHFINDING_ENABLED.set(pathfindingEnabled);
+                // AVOIDANCE_RADIUS.set(avoidanceRadius);
                 SPEC.save();
         }
 }

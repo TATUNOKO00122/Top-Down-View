@@ -13,6 +13,10 @@ public final class ClickToMoveState {
     private Entity targetEntity = null;
     private boolean isMoving = false;
     private boolean isLongPressFollow = false;
+    private boolean useBaritone = false;
+    private int baritoneStartTick = 0;
+    private boolean baritonePathStarted = false;
+    private static final int BARITONE_MIN_TICKS = 10;
 
     public static final double DEFAULT_ARRIVAL_THRESHOLD = 1.5;
     public static final double DEFAULT_ATTACK_RANGE = 3.0;
@@ -24,6 +28,26 @@ public final class ClickToMoveState {
     public Entity getTargetEntity() { return targetEntity; }
     public boolean isMoving() { return isMoving; }
     public boolean isLongPressFollow() { return isLongPressFollow; }
+    public boolean useBaritone() { return useBaritone; }
+    public int getBaritoneStartTick() { return baritoneStartTick; }
+    
+    public void setUseBaritone(boolean use) { 
+        if (use && !baritonePathStarted) {
+            this.baritoneStartTick = 0;
+            this.baritonePathStarted = true;
+        }
+        this.useBaritone = use; 
+    }
+    
+    public void tickBaritone() {
+        if (useBaritone && baritoneStartTick < BARITONE_MIN_TICKS) {
+            baritoneStartTick++;
+        }
+    }
+    
+    public boolean canCheckBaritoneArrival() {
+        return baritoneStartTick >= BARITONE_MIN_TICKS;
+    }
 
     public void setTargetPosition(Vec3 pos) {
         if (pos != null && (!Double.isFinite(pos.x) || !Double.isFinite(pos.y) || !Double.isFinite(pos.z))) {
@@ -98,6 +122,9 @@ public final class ClickToMoveState {
         targetEntity = null;
         isMoving = false;
         isLongPressFollow = false;
+        useBaritone = false;
+        baritoneStartTick = 0;
+        baritonePathStarted = false;
     }
 
     public void stopMovement() {
@@ -105,5 +132,8 @@ public final class ClickToMoveState {
         targetPosition = null;
         originalLocation = null;
         targetEntity = null;
+        useBaritone = false;
+        baritoneStartTick = 0;
+        baritonePathStarted = false;
     }
 }

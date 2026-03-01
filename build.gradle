@@ -139,9 +139,9 @@ repositories {
 
     // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
-    // flatDir {
-    //     dir 'libs'
-    // }
+    flatDir {
+        dir 'libs'
+    }
     
     // Modrinth Maven for Embeddium
     maven { url = 'https://api.modrinth.com/maven' }
@@ -174,6 +174,9 @@ dependencies {
 
     // Embeddium - カリング機能に必要（コンパイル時のみ、実行時はオプショナル）
     compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
+    
+    // Baritone API - クリックツームーブ経路探索（オプショナル）
+    compileOnly files('libs/baritone-api-forge-1.10.3.jar')
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

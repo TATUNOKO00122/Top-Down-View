@@ -1,6 +1,6 @@
 package com.topdownview.state;
 
-import com.topdownview.Config;
+// import com.topdownview.Config;
 import com.topdownview.pathfinding.Path;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 public final class PathfindingState {
 
     public static final PathfindingState INSTANCE = new PathfindingState();
+    private static final int DEFAULT_RECALC_COOLDOWN = 20; // Hardcoded since config is disabled
 
     private Path currentPath = null;
     private Vec3 avoidanceVector = Vec3.ZERO;
@@ -78,7 +79,7 @@ public final class PathfindingState {
     }
 
     public void startRecalcCooldown() {
-        this.recalcCooldown = Config.pathRecalcCooldown;
+        this.recalcCooldown = DEFAULT_RECALC_COOLDOWN; // Config.pathRecalcCooldown;
     }
 
     public void advancePath() {
