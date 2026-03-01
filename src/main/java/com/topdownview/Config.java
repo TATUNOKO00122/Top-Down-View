@@ -18,6 +18,10 @@ public class Config {
                         .comment("シリンダーの垂直方向半径（ブロック数）")
                         .defineInRange("cylinderRadiusVertical", 4, 1, 10);
 
+        private static final ForgeConfigSpec.IntValue CYLINDER_FORWARD_SHIFT = BUILDER
+                        .comment("楕円柱の中心を前方にシフトする距離（ブロック数）")
+                        .defineInRange("cylinderForwardShift", 3, 0, 10);
+
         // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
                         .comment("クリックツームーブ機能の有効/無効")
@@ -49,6 +53,7 @@ public class Config {
         // Runtime values
         public static int cylinderRadiusHorizontal;
         public static int cylinderRadiusVertical;
+        public static int cylinderForwardShift;
         public static boolean clickToMoveEnabled;
         public static double arrivalThreshold;
         public static double attackRange;
@@ -60,6 +65,7 @@ public class Config {
         static void onLoad(final ModConfigEvent event) {
                 cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
                 cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
+                cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
                 clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 attackRange = ATTACK_RANGE.get();
@@ -71,6 +77,7 @@ public class Config {
         public static void save() {
                 CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
                 CYLINDER_RADIUS_VERTICAL.set(cylinderRadiusVertical);
+                CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
                 CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 ATTACK_RANGE.set(attackRange);

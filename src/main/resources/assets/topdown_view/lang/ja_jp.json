@@ -10,6 +10,7 @@
   "topdown_view.config.tab.visual": "表示",
   "topdown_view.config.cylinder_radius_horizontal": "水平半径: %d",
   "topdown_view.config.cylinder_radius_vertical": "垂直半径: %d",
+  "topdown_view.config.cylinder_forward_shift": "前方シフト: %d",
   "topdown_view.config.click_to_move": "クリック移動: %s",
   "topdown_view.config.arrival_threshold": "到達距離: %.1f",
   "topdown_view.config.attack_range": "攻撃範囲: %.1f",

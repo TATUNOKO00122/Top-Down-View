@@ -60,10 +60,13 @@ public class ConfigScreen extends Screen {
         this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.cylinder_radius_vertical",
                 Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
 
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.cylinder_forward_shift",
+                Config.cylinderForwardShift, 0, 10, (value) -> Config.cylinderForwardShift = value));
+
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 3, width, height).build());
+        }).bounds(x, startY + spacing * 4, width, height).build());
     }
 
     private void initMovementTab(int x, int startY, int width, int height, int spacing) {

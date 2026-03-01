@@ -9,6 +9,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +77,7 @@ public final class TopDownCuller {
 
         // トラップドアは専用のカリング判定を使用
         if (state.getBlock() instanceof TrapDoorBlock) {
-            boolean shouldCull = shouldCullTrapdoor(pos, level);
+            boolean shouldCull = shouldCullTrapdoor(pos, level, state);
             cacheResult(pos, shouldCull);
             return shouldCull;
         }
@@ -102,25 +103,75 @@ public final class TopDownCuller {
     }
 
     /**
-     * トラップドア専用のカリング判定
-     * ハシゴ/足場あり → 保護（通常描画）
-     * 楕円柱内 → カリング
-     * 楕円柱外 → 通常描画
+     * 逆ピラミッド保護判定
+     * カメラの前方180度（半円）の範囲で、距離に応じて下方向への保護範囲が広がる
+     * 距離1 → 高さ1, 距離2 → 高さ2, 距離3以上 → 高さ3
      */
-    private boolean shouldCullTrapdoor(BlockPos pos, BlockGetter level) {
-        for (int dy = 1; dy <= 3; dy++) {
-            BlockPos checkPos = pos.below(dy);
-            BlockState belowState = level.getBlockState(checkPos);
-            if (belowState.is(Blocks.LADDER) || belowState.is(Blocks.SCAFFOLDING)) {
+    private boolean isInInvertedPyramid(BlockPos pos, Vec3 playerPos) {
+        float yaw = ModState.CAMERA.getYaw();
+        double yawRad = Math.toRadians(yaw);
+
+        // カメラの前方ベクトル（水平のみ）
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+
+        // ブロックへのベクトル（水平のみ）
+        double dx = pos.getX() + 0.5 - playerPos.x;
+        double dz = pos.getZ() + 0.5 - playerPos.z;
+
+        // 内積で前方180度判定（真横を含む）
+        double dot = dx * forwardX + dz * forwardZ;
+        if (dot < 0) {
+            return false;
+        }
+
+        // 水平距離
+        double distXZ = Math.sqrt(dx * dx + dz * dz);
+
+        // 保護高さ: 距離1→1, 距離2→2, 距離3以上→3
+        int protectedHeight = Math.min((int) Math.floor(distXZ), 3);
+        if (protectedHeight <= 0) {
+            return false;
+        }
+
+        // 足元の下のブロックを0として、protectedHeight分上まで保護（< で未満判定）
+        double groundY = Math.floor(playerPos.y) - 1;
+        double blockY = pos.getY();
+
+        return blockY < groundY + protectedHeight;
+    }
+
+    /**
+     * トラップドア専用のカリング判定
+     * Half.BOTTOM（床寄り）→ 足元以下なら保護（2ブロック）
+     * Half.TOP（天井寄り）→ 足元の1ブロックのみ保護 + 3ブロック水平距離内 + ハシゴ/足場ありなら保護
+     */
+    private boolean shouldCullTrapdoor(BlockPos pos, BlockGetter level, BlockState state) {
+        // Half.BOTTOM（床寄り）は足元以下なら保護（2ブロック）
+        if (state.getValue(TrapDoorBlock.HALF) == Half.BOTTOM) {
+            if (pos.getY() <= Math.floor(currentPlayerPos.y)) {
+                return false;
+            }
+        } else {
+            // Half.TOP（天井寄り）は足元の1ブロックのみ保護
+            if (pos.getY() < Math.floor(currentPlayerPos.y)) {
                 return false;
             }
         }
 
+        // Half.TOP の追加保護判定
         Vec3 pPos = this.currentPlayerPos;
         Vec3 cPos = this.currentCameraPos;
 
         if (cPos == Vec3.ZERO) {
             return false;
+        }
+
+        // プレイヤー位置から上に3ブロックまでのトラップドアのみハシゴ保護を適用
+        if (pos.getY() <= Math.floor(pPos.y) + 3) {
+            if (hasLadderOrScaffoldingBelow(pos, level)) {
+                return false;
+            }
         }
 
         return isInCylinderForTrapdoor(pos, pPos, cPos);
@@ -145,7 +196,24 @@ public final class TopDownCuller {
             return false;
         }
 
-        Vec3 dir = playerPos.subtract(cameraPos);
+        // 逆ピラミッド保護: 前方180度のブロックを保護
+        if (isInInvertedPyramid(pos, playerPos)) {
+            return false;
+        }
+
+        float yaw = ModState.CAMERA.getYaw();
+        double yawRad = Math.toRadians(yaw);
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+
+        double shift = Config.cylinderForwardShift;
+        Vec3 shiftedPlayerPos = new Vec3(
+            playerPos.x + forwardX * shift,
+            playerPos.y,
+            playerPos.z + forwardZ * shift
+        );
+
+        Vec3 dir = shiftedPlayerPos.subtract(cameraPos);
         double dirLength = dir.length();
         if (dirLength < 1.0E-8) {
             return false;
@@ -155,20 +223,12 @@ public final class TopDownCuller {
         Vec3 toBlockFromPlayer = blockCenter.subtract(playerPos);
         double forwardness = toBlockFromPlayer.dot(normDir);
 
-        if (forwardness >= 0) {
-            double dxPlayer = blockCenter.x - playerPos.x;
-            double dzPlayer = blockCenter.z - playerPos.z;
-            double distFromPlayerXZ = Math.sqrt(dxPlayer * dxPlayer + dzPlayer * dzPlayer);
-            double protectionHeight = playerPos.y + Math.min(distFromPlayerXZ, 2.0);
-            if (blockCenter.y < protectionHeight) {
-                return false;
-            }
-        }
+
 
         double radiusH = Config.cylinderRadiusHorizontal;
         double radiusV = Config.cylinderRadiusVertical;
 
-        Vec3 segVec = playerPos.subtract(cameraPos);
+        Vec3 segVec = shiftedPlayerPos.subtract(cameraPos);
         double segLengthSq = segVec.lengthSqr();
 
         Vec3 toBlock = blockCenter.subtract(cameraPos);
