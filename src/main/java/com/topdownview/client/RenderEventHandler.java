@@ -12,7 +12,13 @@ public class RenderEventHandler {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (ModState.STATUS.isEnabled()) {
+        if (!ModState.STATUS.isEnabled()) {
+            return;
+        }
+        
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            TranslucentBlockRenderer.renderTranslucentTrapdoors(event);
+        } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             TargetHighlightRenderer.onRenderLevelStage(event);
         }
     }

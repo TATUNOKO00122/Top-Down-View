@@ -7,9 +7,12 @@
   "topdown_view.config.title": "Top-Down View Settings",
   "topdown_view.config.tab.culling": "Culling",
   "topdown_view.config.tab.movement": "Movement",
+  "topdown_view.config.tab.visual": "Visual",
   "topdown_view.config.cylinder_radius_horizontal": "Horizontal Radius: %d",
   "topdown_view.config.cylinder_radius_vertical": "Vertical Radius: %d",
   "topdown_view.config.click_to_move": "Click to Move: %s",
   "topdown_view.config.arrival_threshold": "Arrival Distance: %.1f",
-  "topdown_view.config.attack_range": "Attack Range: %.1f"
+  "topdown_view.config.attack_range": "Attack Range: %.1f",
+  "topdown_view.config.trapdoor_translucency": "Translucent Trapdoors: %s",
+  "topdown_view.config.trapdoor_transparency": "Transparency: %.2f"
 }

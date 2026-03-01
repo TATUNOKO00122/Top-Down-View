@@ -35,6 +35,15 @@ public class Config {
                         .comment("クリックツームーブ中の自動ジャンプ強制")
                         .define("forceAutoJump", true);
 
+        // Translucent trapdoor settings
+        private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
+                        .comment("遮蔽トラップドアの半透明化の有効/無効")
+                        .define("trapdoorTranslucencyEnabled", true);
+
+        private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
+                        .comment("遮蔽トラップドアの透明度（0.0=透明、1.0=不透明）")
+                        .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values
@@ -44,6 +53,8 @@ public class Config {
         public static double arrivalThreshold;
         public static double attackRange;
         public static boolean forceAutoJump;
+        public static boolean trapdoorTranslucencyEnabled;
+        public static double trapdoorTransparency;
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -53,6 +64,8 @@ public class Config {
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 attackRange = ATTACK_RANGE.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
+                trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
+                trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
         }
 
         public static void save() {
@@ -62,6 +75,8 @@ public class Config {
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 ATTACK_RANGE.set(attackRange);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
+                TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
+                TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
                 SPEC.save();
         }
 }

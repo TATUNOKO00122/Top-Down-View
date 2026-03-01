@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Embeddium用ブロックレンダラMixin
  * カリング対象のブロックを描画しない
+ * トラップドアは楕円柱内の場合カリング（半透明版を別途描画）
  */
 @Mixin(value = me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderer.class, remap = false)
 public class BlockRendererMixin {

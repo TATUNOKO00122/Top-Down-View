@@ -13,6 +13,7 @@ public class ConfigScreen extends Screen {
     private int currentTab = 0;
     private static final int TAB_CULLING = 0;
     private static final int TAB_MOVEMENT = 1;
+    private static final int TAB_VISUAL = 2;
 
     public ConfigScreen(Screen lastScreen) {
         super(Component.translatable("topdown_view.config.title"));
@@ -26,22 +27,29 @@ public class ConfigScreen extends Screen {
         int spacing = 24;
         int startY = 60;
         int x = this.width / 2 - width / 2;
-        int tabWidth = 100;
+        int tabWidth = 70;
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.culling"),
                 (button) -> switchTab(TAB_CULLING))
-                .bounds(this.width / 2 - tabWidth - 2, 25, tabWidth, height).build());
+                .bounds(this.width / 2 - tabWidth * 3 / 2 - 2, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.movement"),
                 (button) -> switchTab(TAB_MOVEMENT))
-                .bounds(this.width / 2 + 2, 25, tabWidth, height).build());
+                .bounds(this.width / 2 - tabWidth / 2, 25, tabWidth, height).build());
+
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.tab.visual"),
+                (button) -> switchTab(TAB_VISUAL))
+                .bounds(this.width / 2 + tabWidth / 2 + 2, 25, tabWidth, height).build());
 
         if (currentTab == TAB_CULLING) {
             initCullingTab(x, startY, width, height, spacing);
-        } else {
+        } else if (currentTab == TAB_MOVEMENT) {
             initMovementTab(x, startY, width, height, spacing);
+        } else {
+            initVisualTab(x, startY, width, height, spacing);
         }
     }
 
@@ -78,6 +86,25 @@ public class ConfigScreen extends Screen {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
         }).bounds(x, startY + spacing * 4, width, height).build());
+    }
+
+    private void initVisualTab(int x, int startY, int width, int height, int spacing) {
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.trapdoor_translucency",
+                        Config.trapdoorTranslucencyEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.trapdoorTranslucencyEnabled = !Config.trapdoorTranslucencyEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.trapdoor_translucency",
+                            Config.trapdoorTranslucencyEnabled ? "ON" : "OFF"));
+                }).bounds(x, startY, width, height).build());
+
+        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.trapdoor_transparency",
+                Config.trapdoorTransparency, 0.0, 1.0, (value) -> Config.trapdoorTransparency = value));
+
+        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
+            saveConfig();
+            this.minecraft.setScreen(this.lastScreen);
+        }).bounds(x, startY + spacing * 3, width, height).build());
     }
 
     private void switchTab(int tab) {
