@@ -106,7 +106,7 @@ public final class TranslucentBlockRenderer {
                 pos,
                 poseStack,
                 alphaConsumer,
-                true, // checkSides
+                false, // checkSides
                 RANDOM,
                 seed,
                 OverlayTexture.NO_OVERLAY,
