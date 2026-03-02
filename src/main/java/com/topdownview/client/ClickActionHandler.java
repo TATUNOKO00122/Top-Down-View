@@ -121,11 +121,6 @@ public final class ClickActionHandler {
             BlockHitResult blockHit = (BlockHitResult) result;
             BlockPos blockPos = blockHit.getBlockPos();
 
-            // プレイヤー足元より2ブロック以上低い場所は無視（地下誤クリック防止）
-            if (blockPos.getY() < mc.player.blockPosition().getY() - 2) {
-                return false;
-            }
-
             boolean isInteractable = InteractableBlocks.isInteractable(
                     mc.level.getBlockState(blockPos), mc.level, blockPos);
 

@@ -97,14 +97,24 @@ public final class TranslucentBlockRenderer {
         
         int packedLight = getLightColor(level, pos);
 
+        int tint = Minecraft.getInstance().getBlockColors().getColor(state, level, pos, 0);
+        float red, green, blue;
+        if (tint == -1) {
+            red = green = blue = 1.0F;
+        } else {
+            red = ((tint >> 16) & 0xFF) / 255.0F;
+            green = ((tint >> 8) & 0xFF) / 255.0F;
+            blue = (tint & 0xFF) / 255.0F;
+        }
+
         blockRenderer.getModelRenderer().renderModel(
             poseStack.last(),
             alphaConsumer,
             state,
             model,
-            1.0F,
-            1.0F,
-            1.0F,
+            red,
+            green,
+            blue,
             packedLight,
             OverlayTexture.NO_OVERLAY
         );
