@@ -429,6 +429,47 @@ public final class TopDownCuller {
     /**
      * フェード対象ブロックのセットを取得
      */
+    /**
+     * フェードブロックが当たり判定を持つか判定
+     * 条件: フェード描画中 かつ プレイヤー中心半径3ブロック・高さ3ブロックの円柱内 かつ 足元ブロックでない
+     */
+    public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
+        if (!ModState.STATUS.isEnabled() || !Config.fadeEnabled) {
+            return false;
+        }
+
+        if (level == null) {
+            return false;
+        }
+
+        float alpha = getFadeAlpha(pos, level);
+        if (alpha >= 1.0f) {
+            return false;
+        }
+
+        int playerBlockX = (int) Math.floor(currentPlayerPos.x);
+        int playerBlockY = (int) Math.floor(currentPlayerPos.y);
+        int playerBlockZ = (int) Math.floor(currentPlayerPos.z);
+
+        if (pos.getX() == playerBlockX && pos.getY() == playerBlockY - 1 && pos.getZ() == playerBlockZ) {
+            return false;
+        }
+
+        double dx = (pos.getX() + 0.5) - (playerBlockX + 0.5);
+        double dz = (pos.getZ() + 0.5) - (playerBlockZ + 0.5);
+        double distXZ = Math.sqrt(dx * dx + dz * dz);
+        if (distXZ > 3.0) {
+            return false;
+        }
+
+        int relY = pos.getY() - playerBlockY;
+        if (relY < 0 || relY > 2) {
+            return false;
+        }
+
+        return true;
+    }
+
     public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
         fadeBlocksCache.clear();
 

@@ -172,7 +172,8 @@ public final class MouseRaycast {
             if (blockPos.equals(lastCheckedPos)) continue;
             lastCheckedPos = blockPos;
 
-            if (TopDownCuller.getInstance().isBlockCulled(blockPos, mc.level)) continue;
+            TopDownCuller culler = TopDownCuller.getInstance();
+            if (culler.isBlockCulled(blockPos, mc.level) && !culler.isHittableFadeBlock(blockPos, mc.level)) continue;
 
             BlockState state = mc.level.getBlockState(blockPos);
             if (!state.isAir()) {
