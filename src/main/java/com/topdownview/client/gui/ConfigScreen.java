@@ -54,13 +54,16 @@ public class ConfigScreen extends Screen {
     }
 
     private void initCullingTab(int x, int startY, int width, int height, int spacing) {
-        this.addRenderableWidget(new IntConfigSlider(x, startY, width, height, "topdown_view.config.cylinder_radius_horizontal",
-                Config.cylinderRadiusHorizontal, 1, 10, (value) -> Config.cylinderRadiusHorizontal = value));
+        this.addRenderableWidget(
+                new IntConfigSlider(x, startY, width, height, "topdown_view.config.cylinder_radius_horizontal",
+                        Config.cylinderRadiusHorizontal, 1, 10, (value) -> Config.cylinderRadiusHorizontal = value));
 
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.cylinder_radius_vertical",
-                Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
+        this.addRenderableWidget(
+                new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.cylinder_radius_vertical",
+                        Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
 
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.cylinder_forward_shift",
+        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height,
+                "topdown_view.config.cylinder_forward_shift",
                 Config.cylinderForwardShift, 0, 10, (value) -> Config.cylinderForwardShift = value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
@@ -79,30 +82,37 @@ public class ConfigScreen extends Screen {
                             Config.clickToMoveEnabled ? "ON" : "OFF"));
                 }).bounds(x, startY, width, height).build());
 
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.arrival_threshold",
-                Config.arrivalThreshold, 0.5, 5.0, (value) -> Config.arrivalThreshold = value));
+        this.addRenderableWidget(
+                new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.arrival_threshold",
+                        Config.arrivalThreshold, 0.5, 5.0, (value) -> Config.arrivalThreshold = value));
 
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.attack_range",
-                Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
+        this.addRenderableWidget(
+                new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.attack_range",
+                        Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
 
         // Pathfinding UI disabled - straight-line movement only
         // this.addRenderableWidget(Button.builder(
-        //         Component.translatable("topdown_view.config.pathfinding",
-        //                 Config.pathfindingEnabled ? "ON" : "OFF"),
-        //         (button) -> {
-        //             Config.pathfindingEnabled = !Config.pathfindingEnabled;
-        //             button.setMessage(Component.translatable("topdown_view.config.pathfinding",
-        //                     Config.pathfindingEnabled ? "ON" : "OFF"));
-        //         }).bounds(x, startY + spacing * 3, width, height).build());
-        // 
-        // this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.avoidance_radius",
-        //         Config.avoidanceRadius, 1.0, 5.0, (value) -> Config.avoidanceRadius = value));
-        // 
-        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 5, width, height, "topdown_view.config.pathfinding_range",
-        //         Config.pathfindingRange, 8, 64, (value) -> Config.pathfindingRange = value));
-        // 
-        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 6, width, height, "topdown_view.config.path_recalc_cooldown",
-        //         Config.pathRecalcCooldown, 5, 100, (value) -> Config.pathRecalcCooldown = value));
+        // Component.translatable("topdown_view.config.pathfinding",
+        // Config.pathfindingEnabled ? "ON" : "OFF"),
+        // (button) -> {
+        // Config.pathfindingEnabled = !Config.pathfindingEnabled;
+        // button.setMessage(Component.translatable("topdown_view.config.pathfinding",
+        // Config.pathfindingEnabled ? "ON" : "OFF"));
+        // }).bounds(x, startY + spacing * 3, width, height).build());
+        //
+        // this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width,
+        // height, "topdown_view.config.avoidance_radius",
+        // Config.avoidanceRadius, 1.0, 5.0, (value) -> Config.avoidanceRadius =
+        // value));
+        //
+        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 5, width,
+        // height, "topdown_view.config.pathfinding_range",
+        // Config.pathfindingRange, 8, 64, (value) -> Config.pathfindingRange = value));
+        //
+        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 6, width,
+        // height, "topdown_view.config.path_recalc_cooldown",
+        // Config.pathRecalcCooldown, 5, 100, (value) -> Config.pathRecalcCooldown =
+        // value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
@@ -123,8 +133,9 @@ public class ConfigScreen extends Screen {
         this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.fade_start",
                 Config.fadeStart, 0.0, 0.9, (value) -> Config.fadeStart = value));
 
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.fade_min_alpha",
-                Config.fadeMinAlpha, 0.0, 0.5, (value) -> Config.fadeMinAlpha = value));
+        this.addRenderableWidget(
+                new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.fade_near_alpha",
+                        Config.fadeNearAlpha, 0.0, 1.0, (value) -> Config.fadeNearAlpha = value));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
@@ -160,7 +171,8 @@ public class ConfigScreen extends Screen {
         private final double max;
         private final java.util.function.Consumer<Double> setter;
 
-        public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min, double max,
+        public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min,
+                double max,
                 java.util.function.Consumer<Double> setter) {
             super(x, y, width, height, Component.empty(), (current - min) / (max - min));
             this.translationKey = translationKey;
@@ -189,7 +201,8 @@ public class ConfigScreen extends Screen {
         private final int max;
         private final java.util.function.Consumer<Integer> setter;
 
-        public IntConfigSlider(int x, int y, int width, int height, String translationKey, int current, int min, int max,
+        public IntConfigSlider(int x, int y, int width, int height, String translationKey, int current, int min,
+                int max,
                 java.util.function.Consumer<Integer> setter) {
             super(x, y, width, height, Component.empty(), (double) (current - min) / (max - min));
             this.translationKey = translationKey;

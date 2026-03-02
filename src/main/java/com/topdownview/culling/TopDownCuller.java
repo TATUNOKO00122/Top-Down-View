@@ -388,18 +388,18 @@ public final class TopDownCuller {
         }
 
         double fadeStart = Config.fadeStart;
-        double fadeMinAlpha = Config.fadeMinAlpha;
+        double fadeNearAlpha = Config.fadeNearAlpha;
 
         if (normalizedDistSq >= 1.0) {
-            return (float) fadeMinAlpha;
-        }
-
-        if (normalizedDistSq <= fadeStart) {
             return 1.0f;
         }
 
+        if (normalizedDistSq <= fadeStart) {
+            return (float) fadeNearAlpha;
+        }
+
         double t = (normalizedDistSq - fadeStart) / (1.0 - fadeStart);
-        return (float) (1.0 - t * (1.0 - fadeMinAlpha));
+        return (float) (fadeNearAlpha + t * (1.0 - fadeNearAlpha));
     }
 
     private boolean shouldCullTrapdoorForFade(BlockPos pos, BlockGetter level, BlockState state, Vec3 playerPos, Vec3 cameraPos) {
@@ -566,18 +566,18 @@ public final class TopDownCuller {
         }
 
         double fadeStart = Config.fadeStart;
-        double fadeMinAlpha = Config.fadeMinAlpha;
+        double fadeNearAlpha = Config.fadeNearAlpha;
 
         if (normalizedDistSq >= 1.0) {
-            return (float) fadeMinAlpha;
-        }
-
-        if (normalizedDistSq <= fadeStart) {
             return 1.0f;
         }
 
+        if (normalizedDistSq <= fadeStart) {
+            return (float) fadeNearAlpha;
+        }
+
         double t = (normalizedDistSq - fadeStart) / (1.0 - fadeStart);
-        return (float) (1.0 - t * (1.0 - fadeMinAlpha));
+        return (float) (fadeNearAlpha + t * (1.0 - fadeNearAlpha));
     }
 
     /**

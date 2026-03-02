@@ -16,5 +16,9 @@
   "topdown_view.config.attack_range": "攻撃範囲: %.1f",
   "topdown_view.config.fade_enabled": "境界フェード: %s",
   "topdown_view.config.fade_start": "フェード開始: %.2f",
-  "topdown_view.config.fade_min_alpha": "最小透明度: %.2f"
+  "topdown_view.config.fade_near_alpha": "近距離透明度: %.2f",
+  "topdown_view.config.fade_brightness_base": "明るさベース: %.2f",
+  "topdown_view.config.fade_brightness_alpha_factor": "明るさα係数: %.2f",
+  "topdown_view.config.fade_light_factor_min": "光係数最小: %.2f",
+  "topdown_view.config.fade_light_factor_max": "光係数最大: %.2f"
 }

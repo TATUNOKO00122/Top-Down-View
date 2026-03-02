@@ -16,5 +16,9 @@
   "topdown_view.config.attack_range": "Attack Range: %.1f",
   "topdown_view.config.fade_enabled": "Boundary Fade: %s",
   "topdown_view.config.fade_start": "Fade Start: %.2f",
-  "topdown_view.config.fade_min_alpha": "Min Alpha: %.2f"
+  "topdown_view.config.fade_near_alpha": "Near Alpha: %.2f",
+  "topdown_view.config.fade_brightness_base": "Brightness Base: %.2f",
+  "topdown_view.config.fade_brightness_alpha_factor": "Brightness Alpha Factor: %.2f",
+  "topdown_view.config.fade_light_factor_min": "Light Factor Min: %.2f",
+  "topdown_view.config.fade_light_factor_max": "Light Factor Max: %.2f"
 }

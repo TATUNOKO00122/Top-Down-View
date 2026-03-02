@@ -13,13 +13,11 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 import java.util.Map;
-import java.util.HashMap;
 
 /**
  * カリング境界フェード描画
@@ -28,7 +26,6 @@ import java.util.HashMap;
 public final class TranslucentBlockRenderer {
 
     private static final RandomSource RANDOM = RandomSource.create();
-    private static final int MAX_FADE_BLOCKS = 1000;
 
     private TranslucentBlockRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -74,8 +71,7 @@ public final class TranslucentBlockRenderer {
             MultiBufferSource bufferSource,
             BlockRenderDispatcher blockRenderer,
             float alpha,
-            Vec3 cameraPos
-    ) {
+            Vec3 cameraPos) {
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) {
             return;
@@ -88,44 +84,36 @@ public final class TranslucentBlockRenderer {
 
         poseStack.pushPose();
         poseStack.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
-        
+
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         VertexConsumer alphaConsumer = new AlphaOverrideVertexConsumer(baseConsumer, alpha);
-        
+
         long seed = state.getSeed(pos);
         RANDOM.setSeed(seed);
-        
-        int packedLight = getLightColor(level, pos);
 
-        int tint = Minecraft.getInstance().getBlockColors().getColor(state, level, pos, 0);
-        float red, green, blue;
-        if (tint == -1) {
-            red = green = blue = 1.0F;
-        } else {
-            red = ((tint >> 16) & 0xFF) / 255.0F;
-            green = ((tint >> 8) & 0xFF) / 255.0F;
-            blue = (tint & 0xFF) / 255.0F;
+        net.minecraftforge.client.model.data.ModelData modelData = net.minecraftforge.client.model.data.ModelData.EMPTY;
+        if (state.hasBlockEntity()) {
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
+            if (be != null) {
+                modelData = be.getModelData();
+            }
         }
 
-        blockRenderer.getModelRenderer().renderModel(
-            poseStack.last(),
-            alphaConsumer,
-            state,
-            model,
-            red,
-            green,
-            blue,
-            packedLight,
-            OverlayTexture.NO_OVERLAY
-        );
+        blockRenderer.getModelRenderer().tesselateBlock(
+                level,
+                model,
+                state,
+                pos,
+                poseStack,
+                alphaConsumer,
+                true, // checkSides
+                RANDOM,
+                seed,
+                OverlayTexture.NO_OVERLAY,
+                modelData,
+                RenderType.translucent());
 
         poseStack.popPose();
-    }
-
-    private static int getLightColor(BlockAndTintGetter level, BlockPos pos) {
-        int skyLight = level.getBrightness(LightLayer.SKY, pos);
-        int blockLight = level.getBrightness(LightLayer.BLOCK, pos);
-        return (skyLight << 20) | (blockLight << 4);
     }
 
     /**
@@ -134,7 +122,7 @@ public final class TranslucentBlockRenderer {
     private static class AlphaOverrideVertexConsumer implements VertexConsumer {
         private final VertexConsumer delegate;
         private final float alpha;
-        
+
         AlphaOverrideVertexConsumer(VertexConsumer delegate, float alpha) {
             this.delegate = delegate;
             this.alpha = alpha;
@@ -147,7 +135,7 @@ public final class TranslucentBlockRenderer {
 
         @Override
         public VertexConsumer color(int r, int g, int b, int a) {
-            return delegate.color(r, g, b, (int)(this.alpha * 255));
+            return delegate.color(r, g, b, (int) (this.alpha * 255));
         }
 
         @Override

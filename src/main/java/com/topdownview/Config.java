@@ -57,23 +57,24 @@ public class Config {
                         .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")
                         .defineInRange("fadeStart", 0.7, 0.0, 0.9);
 
-        private static final ForgeConfigSpec.DoubleValue FADE_MIN_ALPHA = BUILDER
-                        .comment("最小透明度（0.0=完全消去、1.0=不透明）")
-                        .defineInRange("fadeMinAlpha", 0.0, 0.0, 0.5);
+        private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
+                        .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
+                        .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
         // Pathfinding settings (DISABLED - straight-line movement only)
         // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
-        //                 .comment("経路探索の最大距離（ブロック数）")
-        //                 .defineInRange("pathfindingRange", 32, 8, 64);
+        // .comment("経路探索の最大距離（ブロック数）")
+        // .defineInRange("pathfindingRange", 32, 8, 64);
         // private static final ForgeConfigSpec.IntValue PATH_RECALC_COOLDOWN = BUILDER
-        //                 .comment("経路再計算のクールダウン（tick）")
-        //                 .defineInRange("pathRecalcCooldown", 20, 5, 100);
-        // private static final ForgeConfigSpec.BooleanValue PATHFINDING_ENABLED = BUILDER
-        //                 .comment("経路探索（A*）と動的回避の有効/無効")
-        //                 .define("pathfindingEnabled", true);
+        // .comment("経路再計算のクールダウン（tick）")
+        // .defineInRange("pathRecalcCooldown", 20, 5, 100);
+        // private static final ForgeConfigSpec.BooleanValue PATHFINDING_ENABLED =
+        // BUILDER
+        // .comment("経路探索（A*）と動的回避の有効/無効")
+        // .define("pathfindingEnabled", true);
         // private static final ForgeConfigSpec.DoubleValue AVOIDANCE_RADIUS = BUILDER
-        //                 .comment("回避判定の半径（ブロック数）")
-        //                 .defineInRange("avoidanceRadius", 2.0, 1.0, 5.0);
+        // .comment("回避判定の半径（ブロック数）")
+        // .defineInRange("avoidanceRadius", 2.0, 1.0, 5.0);
 
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -89,7 +90,8 @@ public class Config {
         public static double trapdoorTransparency;
         public static boolean fadeEnabled;
         public static double fadeStart;
-        public static double fadeMinAlpha;
+        public static double fadeNearAlpha;
+
         // public static int pathfindingRange;
         // public static int pathRecalcCooldown;
         // public static boolean pathfindingEnabled;
@@ -108,7 +110,7 @@ public class Config {
                 trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
-                fadeMinAlpha = FADE_MIN_ALPHA.get();
+                fadeNearAlpha = FADE_NEAR_ALPHA.get();
                 // pathfindingRange = PATHFINDING_RANGE.get();
                 // pathRecalcCooldown = PATH_RECALC_COOLDOWN.get();
                 // pathfindingEnabled = PATHFINDING_ENABLED.get();
@@ -127,7 +129,7 @@ public class Config {
                 TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
-                FADE_MIN_ALPHA.set(fadeMinAlpha);
+                FADE_NEAR_ALPHA.set(fadeNearAlpha);
                 // PATHFINDING_RANGE.set(pathfindingRange);
                 // PATH_RECALC_COOLDOWN.set(pathRecalcCooldown);
                 // PATHFINDING_ENABLED.set(pathfindingEnabled);
