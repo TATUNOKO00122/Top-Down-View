@@ -23,17 +23,27 @@ public final class InputHandler {
     public static void onKeyInput(InputEvent.Key event) {
         if (event.getAction() != GLFW.GLFW_PRESS)
             return;
+        handleInput(event.getKey());
+    }
 
+    @SubscribeEvent
+    public static void onMouseButton(InputEvent.MouseButton.Pre event) {
+        if (event.getAction() != GLFW.GLFW_PRESS)
+            return;
+        handleInput(event.getButton());
+    }
+
+    private static void handleInput(int keyCode) {
         Minecraft mc = Minecraft.getInstance();
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
         int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
         int jumpKeyCode = mc.options.keyJump.getKey().getValue();
 
-        if (event.getKey() == toggleKeyCode) {
+        if (keyCode == toggleKeyCode) {
             toggleTopDownView();
-        } else if (ModState.STATUS.isEnabled() && event.getKey() == rotateKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && keyCode == rotateKeyCode) {
             CameraController.rotateCamera();
-        } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && event.getKey() == jumpKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();
         }
     }
