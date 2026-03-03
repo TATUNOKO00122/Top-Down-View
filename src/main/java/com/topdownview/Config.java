@@ -4,10 +4,25 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
         private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
+
+        private static final List<Runnable> configChangeListeners = new ArrayList<>();
+
+        public static void registerConfigChangeListener(Runnable listener) {
+                configChangeListeners.add(listener);
+        }
+
+        private static void notifyConfigChanged() {
+                for (Runnable listener : configChangeListeners) {
+                        listener.run();
+                }
+        }
 
         // Culling settings
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_HORIZONTAL = BUILDER
@@ -125,10 +140,7 @@ public class Config {
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
-                // pathfindingRange = PATHFINDING_RANGE.get();
-                // pathRecalcCooldown = PATH_RECALC_COOLDOWN.get();
-                // pathfindingEnabled = PATHFINDING_ENABLED.get();
-                // avoidanceRadius = AVOIDANCE_RADIUS.get();
+                notifyConfigChanged();
         }
 
         public static void save() {
@@ -146,10 +158,7 @@ public class Config {
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
                 ROTATE_ANGLE_MODE.set(rotateAngleMode);
                 CAMERA_PITCH.set(cameraPitch);
-                // PATHFINDING_RANGE.set(pathfindingRange);
-                // PATH_RECALC_COOLDOWN.set(pathRecalcCooldown);
-                // PATHFINDING_ENABLED.set(pathfindingEnabled);
-                // AVOIDANCE_RADIUS.set(avoidanceRadius);
                 SPEC.save();
+                notifyConfigChanged();
         }
 }

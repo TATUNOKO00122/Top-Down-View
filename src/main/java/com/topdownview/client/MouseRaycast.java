@@ -15,6 +15,8 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
+import static com.topdownview.state.ModState.CAMERA;
+
 /**
  * トップダウン視点用のマウスレイキャスト処理
  * 使用パターン：
@@ -57,7 +59,7 @@ public final class MouseRaycast {
     }
 
     public static double getCustomReachDistance() {
-        double cameraDistance = CameraState.INSTANCE.getCameraDistance();
+        double cameraDistance = CAMERA.getCameraDistance();
         return Math.max(MIN_REACH_DISTANCE, cameraDistance * REACH_DISTANCE_MULTIPLIER);
     }
 
@@ -284,7 +286,10 @@ public final class MouseRaycast {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
         lastFov = fov;
-        lastAspectRatio = aspectRatio; lastYaw = yaw; lastPitch = pitch; return cachedDirection;
+        lastAspectRatio = aspectRatio;
+        lastYaw = yaw;
+        lastPitch = pitch;
+        return cachedDirection;
     }
 
     private void clearResults() {
@@ -293,7 +298,15 @@ public final class MouseRaycast {
         lastHitResult = null;
     }
 
-    public void clearCache() { cachedDirection = null; lastFov = -1; lastAspectRatio = -1; lastMouseX = -1; lastMouseY = -1; lastYaw = -1; lastPitch = -1; }
+    public void clearCache() {
+        cachedDirection = null;
+        lastFov = -1;
+        lastAspectRatio = -1;
+        lastMouseX = -1;
+        lastMouseY = -1;
+        lastYaw = -1;
+        lastPitch = -1;
+    }
 }
 
 

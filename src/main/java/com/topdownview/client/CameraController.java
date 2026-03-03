@@ -106,7 +106,32 @@ public final class CameraController {
         float baseYaw = ModState.CAMERA.isAnimating() ? ModState.CAMERA.getTargetYaw() : ModState.CAMERA.getYaw();
 
         // 目的地（nextYaw）の計算
-        double step = switch (com.topdownview.Config.rotateAngleMode) { case 1 -> 45.0; case 2 -> 15.0; default -> 90.0; }; float nextYaw; if (isBottomSide) { nextYaw = (float) (Math.round(baseYaw / step) * step + 180.0); } else if (isLeftSide) { nextYaw = (float) (Math.ceil(baseYaw / step) * step - step); if (nextYaw > baseYaw + 0.1f) { nextYaw -= step; } } else { nextYaw = (float) (Math.floor(baseYaw / step) * step + step); if (nextYaw < baseYaw - 0.1f) { nextYaw += step; } } ModState.CAMERA.setTargetYaw(nextYaw); ModState.CAMERA.setAnimating(true);
+        double step = switch (com.topdownview.Config.rotateAngleMode) {
+            case 1 -> 45.0;
+            case 2 -> 15.0;
+            default -> 90.0;
+        };
+
+        float nextYaw;
+        if (isBottomSide) {
+            // 画面下部: 180度回転
+            nextYaw = (float) (Math.round(baseYaw / step) * step + 180.0);
+        } else if (isLeftSide) {
+            // 左側: 反時計回り（-step）
+            nextYaw = (float) (Math.ceil(baseYaw / step) * step - step);
+            if (nextYaw > baseYaw + 0.1f) {
+                nextYaw -= step;
+            }
+        } else {
+            // 右側: 時計回り（+step）
+            nextYaw = (float) (Math.floor(baseYaw / step) * step + step);
+            if (nextYaw < baseYaw - 0.1f) {
+                nextYaw += step;
+            }
+        }
+
+        ModState.CAMERA.setTargetYaw(nextYaw);
+        ModState.CAMERA.setAnimating(true);
     }
 
     /**
