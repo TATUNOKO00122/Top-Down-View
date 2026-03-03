@@ -1,98 +1,72 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.ClickActionHandler;
 import com.topdownview.state.ModState;
-import com.topdownview.TopDownViewMod;
-import com.topdownview.api.MinecraftClientAccessor;
-import com.topdownview.client.ClientForgeEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * MinecraftClient Mixin
- * トップダウンビューの時間管理と状態更新
- */
 @Mixin(Minecraft.class)
-public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
-    
-    @Unique
-    private Vec3 originalLocation;
-    
-    @Unique
-    private HitResult location;
-    
-    @Unique
-    private int mouseCooldown = 40;
-    
-    @Override
-    public HitResult getLocation() {
-        return location;
-    }
-    
-    @Override
-    public void setLocation(HitResult location) {
-        this.location = location;
-    }
-    
-    @Override
-    public Vec3 getOriginalLocation() {
-        return originalLocation;
-    }
-    
-    @Override
-    public void setOriginalLocation(Vec3 location) {
-        this.originalLocation = location;
-    }
-    
-    @Override
-    public int getMouseCooldown() {
-        return mouseCooldown;
-    }
-    
-    @Override
-    public int setMouseCooldown(int cooldown) {
-        this.mouseCooldown = cooldown;
-        return this.mouseCooldown;
-    }
-    
-    @Inject(method = "tick", at = @At("HEAD"))
-    public void tickHead(CallbackInfo ci) {
-        Minecraft mc = Minecraft.getInstance();
+public abstract class MinecraftClientMixin {
 
-        // トップダウンモードが有効な場合
-        if (ClientForgeEvents.isTopDownView() && mc.player != null && mc.cameraEntity != null) {
-            // 時間管理
-            if (mc.level != null) {
-                if (ModState.TIME.getStartTime() == 0) {
-                    ModState.TIME.setStartTime(mc.level.getGameTime());
+    @Shadow
+    public HitResult hitResult;
+
+    @Shadow
+    protected int missTime;
+
+    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+    private void onContinueAttack(boolean leftClick, CallbackInfo ci) {
+        if (!ModState.STATUS.isEnabled())
+            return;
+
+        Minecraft mc = Minecraft.class.cast(this);
+        if (mc.player == null || mc.gameMode == null)
+            return;
+
+        // Baritoneの自動採掘や移動操作中、またはクリック移動が進行中の場合はバニラの処理に任せる
+        if (ModState.CLICK_TO_MOVE.isMoving() || com.topdownview.baritone.BaritoneIntegration.isPathing()) {
+            return;
+        }
+
+        // GLFWやVanillaのGUI判定に邪魔されず、マウスの左クリック状態を直接見る
+        if (ClickActionHandler.isLeftClickDown) {
+            this.missTime = 0;
+
+            if (mc.hitResult != null) {
+                if (mc.hitResult.getType() == HitResult.Type.BLOCK) {
+                    BlockHitResult blockHit = (BlockHitResult) mc.hitResult;
+                    BlockPos pos = blockHit.getBlockPos();
+                    if (!mc.level.getBlockState(pos).isAir()) {
+                        Direction dir = blockHit.getDirection();
+                        if (mc.gameMode.continueDestroyBlock(pos, dir)) {
+                            mc.particleEngine.crack(pos, dir);
+                            mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                        }
+                    }
+                } else if (mc.hitResult.getType() == HitResult.Type.ENTITY) {
+                    if (mc.player.isUsingItem()) {
+                        mc.player.stopUsingItem();
+                    }
                 }
             }
+            ci.cancel(); // Vanillaの不要なフラグチェック処理をスキップ
         }
     }
 
-    @Inject(method = "tick", at = @At("TAIL"))
-    public void tickTail(CallbackInfo ci) {
-        Minecraft mc = Minecraft.getInstance();
-
-        // トップダウンモードが有効な場合
-        if (ClientForgeEvents.isTopDownView() && mc.player != null) {
-            // クールダウン減少
-            mouseCooldown--;
-
-            // endTimeの管理
-            long endTime = ModState.TIME.getEndTime();
-            ModState.TIME.setEndTime(endTime + 1);
-
-            // ズームアウト時間
-            float zoomOutTime = ModState.TIME.getZoomOutTime();
-            if (zoomOutTime < 10) {
-                ModState.TIME.setZoomOutTime(zoomOutTime + 1);
-            }
-        }
+    @Inject(method = "startAttack", at = @At("HEAD"))
+    private void onStartAttack(CallbackInfoReturnable<Boolean> cir) {
+        if (!ModState.STATUS.isEnabled())
+            return;
+        this.missTime = 0;
     }
 }

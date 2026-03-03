@@ -1,5 +1,8 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.ClickActionHandler;
+import com.topdownview.state.ModState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -11,9 +14,18 @@ public class MouseHandlerMixin {
 
     @Inject(method = "grabMouse", at = @At("HEAD"), cancellable = true)
     private void onGrabMouse(CallbackInfo ci) {
-        if (com.topdownview.client.ClientForgeEvents.isTopDownView()) {
-            // トップダウンビュー時は常にマウスを解放した状態に保つため、キャプチャをキャンセルする
+        if (ModState.STATUS.isEnabled()) {
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
+    private void onMousePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen == null && ModState.STATUS.isEnabled()) {
+            if (ClickActionHandler.onInput(button, action, mc)) {
+                ci.cancel();
+            }
         }
     }
 }

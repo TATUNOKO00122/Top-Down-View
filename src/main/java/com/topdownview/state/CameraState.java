@@ -15,7 +15,6 @@ public final class CameraState {
     private static final float HALF_ANGLE_RANGE = 180.0f;
     private static final float MIN_PITCH = -90.0f;
     private static final float MAX_PITCH = 90.0f;
-    private static final int MAX_NORMALIZE_ITERATIONS = 100;
 
     // デフォルト値定数
     public static final float DEFAULT_PITCH = 45.0f;
@@ -202,14 +201,9 @@ public final class CameraState {
      * 最短距離での角度補間 (Lerp) を行う
      */
     public float getLerpYaw(float partialTicks) {
-        float f = this.yaw - this.prevYaw;
-        while (f < -180.0F) {
-            f += 360.0F;
-        }
-        while (f >= 180.0F) {
-            f -= 360.0F;
-        }
-        return this.prevYaw + partialTicks * f;
+        float diff = this.yaw - this.prevYaw;
+        diff = normalizeAngle(diff);
+        return this.prevYaw + partialTicks * diff;
     }
 
     /**
@@ -231,23 +225,11 @@ public final class CameraState {
             throw new IllegalArgumentException("Angle must be finite: " + angle);
         }
 
-        float result = angle;
-        int iterations = 0;
-
-        while (result > HALF_ANGLE_RANGE && iterations < MAX_NORMALIZE_ITERATIONS) {
+        float result = angle % ANGLE_RANGE;
+        if (result > HALF_ANGLE_RANGE) {
             result -= ANGLE_RANGE;
-            iterations++;
-        }
-        while (result < -HALF_ANGLE_RANGE && iterations < MAX_NORMALIZE_ITERATIONS) {
+        } else if (result < -HALF_ANGLE_RANGE) {
             result += ANGLE_RANGE;
-            iterations++;
-        }
-
-        if (iterations >= MAX_NORMALIZE_ITERATIONS) {
-            result = ((result + HALF_ANGLE_RANGE) % ANGLE_RANGE) - HALF_ANGLE_RANGE;
-            if (result < -HALF_ANGLE_RANGE) {
-                result += ANGLE_RANGE;
-            }
         }
 
         return result;

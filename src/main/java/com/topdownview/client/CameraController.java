@@ -22,24 +22,20 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class CameraController {
 
-    public static final float DEFAULT_CAMERA_YAW = 0.0f;
-
-    private static float cameraYaw = DEFAULT_CAMERA_YAW;
-
     private CameraController() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
     public static void onComputeFovModifier(ComputeFovModifierEvent event) {
-        if (ClientForgeEvents.isTopDownView()) {
+        if (ModState.STATUS.isEnabled()) {
             event.setNewFovModifier(1.0f);
         }
     }
@@ -48,7 +44,7 @@ public final class CameraController {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END)
             return;
-        if (!ClientForgeEvents.isTopDownView())
+        if (!ModState.STATUS.isEnabled())
             return;
 
         // 次のティックの計算前に、現在の角度を保存しておく
@@ -96,7 +92,7 @@ public final class CameraController {
     /**
      * マウスの位置に応じて、カメラを 90 度または 180 度回転させる
      */
-    public static void rotateCamera90Degrees() {
+    public static void rotateCamera() {
         Minecraft mc = Minecraft.getInstance();
         double mouseX = mc.mouseHandler.xpos();
         double mouseY = mc.mouseHandler.ypos();
@@ -110,25 +106,32 @@ public final class CameraController {
         float baseYaw = ModState.CAMERA.isAnimating() ? ModState.CAMERA.getTargetYaw() : ModState.CAMERA.getYaw();
 
         // 目的地（nextYaw）の計算
+        double step = switch (com.topdownview.Config.rotateAngleMode) {
+            case 1 -> 45.0;
+            case 2 -> 15.0;
+            default -> 90.0;
+        };
+
         float nextYaw;
         if (isBottomSide) {
-            // 下部：180度回転（反対側へスナップ）
-            // 現在の 90 度区切りから +180 度
-            nextYaw = (float) (Math.round(baseYaw / 90.0) * 90.0 + 180.0);
+            // 画面下部: 180度回転
+            nextYaw = (float) (Math.round(baseYaw / step) * step + 180.0);
         } else if (isLeftSide) {
-            // 左側：反時計回り
-            nextYaw = (float) (Math.ceil(baseYaw / 90.0) * 90.0 - 90.0);
+            // 左側: 反時計回り（-step）
+            nextYaw = (float) (Math.ceil(baseYaw / step) * step - step);
+            if (nextYaw > baseYaw + 0.1f) {
+                nextYaw -= step;
+            }
         } else {
-            // 右側：時計回り
-            nextYaw = (float) (Math.floor(baseYaw / 90.0) * 90.0 + 90.0);
+            // 右側: 時計回り（+step）
+            nextYaw = (float) (Math.floor(baseYaw / step) * step + step);
+            if (nextYaw < baseYaw - 0.1f) {
+                nextYaw += step;
+            }
         }
 
         ModState.CAMERA.setTargetYaw(nextYaw);
         ModState.CAMERA.setAnimating(true);
-    }
-
-    public static float getCameraYaw() {
-        return cameraYaw;
     }
 
     /**
@@ -152,7 +155,6 @@ public final class CameraController {
         double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
         float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
-        cameraYaw = yaw;
 
         float pitch = calculatePitch(mc, horizontalDist, dy);
 
@@ -169,3 +171,4 @@ public final class CameraController {
         return (float) -(Math.atan2(verticalDist, horizontalDist) * MathConstants.RADIANS_TO_DEGREES);
     }
 }
+
