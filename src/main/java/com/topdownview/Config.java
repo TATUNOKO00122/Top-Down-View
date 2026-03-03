@@ -12,7 +12,7 @@ public class Config {
         // Culling settings
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_HORIZONTAL = BUILDER
                         .comment("シリンダーの水平方向半径（ブロック数）")
-                        .defineInRange("cylinderRadiusHorizontal", 2, 1, 10);
+                        .defineInRange("cylinderRadiusHorizontal", 5, 1, 10);
 
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_VERTICAL = BUILDER
                         .comment("シリンダーの垂直方向半径（ブロック数）")
@@ -20,12 +20,12 @@ public class Config {
 
         private static final ForgeConfigSpec.IntValue CYLINDER_FORWARD_SHIFT = BUILDER
                         .comment("楕円柱の中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("cylinderForwardShift", 3, 0, 10);
+                        .defineInRange("cylinderForwardShift", 4, 0, 10);
 
         // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
                         .comment("クリックツームーブ機能の有効/無効")
-                        .define("clickToMoveEnabled", true);
+                        .define("clickToMoveEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue ARRIVAL_THRESHOLD = BUILDER
                         .comment("目的地到達判定の距離（ブロック数）")
@@ -61,6 +61,15 @@ public class Config {
                         .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
+        // Camera settings
+        private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
+                        .comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
+                        .defineInRange("rotateAngleMode", 0, 0, 2);
+
+        private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
+                        .comment("カメラが見下ろす垂直の角度（ピッチ）")
+                        .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+
         // Pathfinding settings (DISABLED - straight-line movement only)
         // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
         // .comment("経路探索の最大距離（ブロック数）")
@@ -92,6 +101,9 @@ public class Config {
         public static double fadeStart;
         public static double fadeNearAlpha;
 
+        public static int rotateAngleMode;
+        public static double cameraPitch;
+
         // public static int pathfindingRange;
         // public static int pathRecalcCooldown;
         // public static boolean pathfindingEnabled;
@@ -111,6 +123,8 @@ public class Config {
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
+                rotateAngleMode = ROTATE_ANGLE_MODE.get();
+                cameraPitch = CAMERA_PITCH.get();
                 // pathfindingRange = PATHFINDING_RANGE.get();
                 // pathRecalcCooldown = PATH_RECALC_COOLDOWN.get();
                 // pathfindingEnabled = PATHFINDING_ENABLED.get();
@@ -130,6 +144,8 @@ public class Config {
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
+                ROTATE_ANGLE_MODE.set(rotateAngleMode);
+                CAMERA_PITCH.set(cameraPitch);
                 // PATHFINDING_RANGE.set(pathfindingRange);
                 // PATH_RECALC_COOLDOWN.set(pathRecalcCooldown);
                 // PATHFINDING_ENABLED.set(pathfindingEnabled);

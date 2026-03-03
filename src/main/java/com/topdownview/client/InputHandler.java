@@ -21,7 +21,8 @@ public final class InputHandler {
 
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
-        if (event.getAction() != GLFW.GLFW_PRESS) return;
+        if (event.getAction() != GLFW.GLFW_PRESS)
+            return;
 
         Minecraft mc = Minecraft.getInstance();
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
@@ -31,7 +32,7 @@ public final class InputHandler {
         if (event.getKey() == toggleKeyCode) {
             toggleTopDownView();
         } else if (ModState.STATUS.isEnabled() && event.getKey() == rotateKeyCode) {
-            CameraController.rotateCamera90Degrees();
+            CameraController.rotateCamera();
         } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && event.getKey() == jumpKeyCode) {
             ClickToMoveController.reset();
         }

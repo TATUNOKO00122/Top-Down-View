@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.components.Tooltip;
 
 public class ConfigScreen extends Screen {
     private final Screen lastScreen;
@@ -80,7 +81,9 @@ public class ConfigScreen extends Screen {
                     Config.clickToMoveEnabled = !Config.clickToMoveEnabled;
                     button.setMessage(Component.translatable("topdown_view.config.click_to_move",
                             Config.clickToMoveEnabled ? "ON" : "OFF"));
-                }).bounds(x, startY, width, height).build());
+                }).bounds(x, startY, width, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.click_to_move.tooltip")))
+                .build());
 
         this.addRenderableWidget(
                 new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.arrival_threshold",
@@ -128,7 +131,9 @@ public class ConfigScreen extends Screen {
                     Config.fadeEnabled = !Config.fadeEnabled;
                     button.setMessage(Component.translatable("topdown_view.config.fade_enabled",
                             Config.fadeEnabled ? "ON" : "OFF"));
-                }).bounds(x, startY, width, height).build());
+                }).bounds(x, startY, width, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
+                .build());
 
         this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.fade_start",
                 Config.fadeStart, 0.0, 0.9, (value) -> Config.fadeStart = value));
@@ -137,10 +142,33 @@ public class ConfigScreen extends Screen {
                 new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.fade_near_alpha",
                         Config.fadeNearAlpha, 0.0, 1.0, (value) -> Config.fadeNearAlpha = value));
 
+        this.addRenderableWidget(Button.builder(
+                getRotateModeComponent(Config.rotateAngleMode),
+                (button) -> {
+                    Config.rotateAngleMode = (Config.rotateAngleMode + 1) % 3;
+                    button.setMessage(getRotateModeComponent(Config.rotateAngleMode));
+                }).bounds(x, startY + spacing * 3, width, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
+                .build());
+
+        this.addRenderableWidget(
+                new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.camera_pitch",
+                        Config.cameraPitch, 10.0, 90.0, (value) -> Config.cameraPitch = value));
+
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 4, width, height).build());
+        }).bounds(x, startY + spacing * 6, width, height).build());
+    }
+
+    private Component getRotateModeComponent(int mode) {
+        String modeKey = switch (mode) {
+            case 1 -> "mode_45";
+            case 2 -> "mode_15";
+            default -> "mode_90";
+        };
+        return Component.translatable("topdown_view.config.rotate_angle_mode",
+                Component.translatable("topdown_view.config.rotate_angle_mode." + modeKey).getString());
     }
 
     private void switchTab(int tab) {
@@ -179,6 +207,7 @@ public class ConfigScreen extends Screen {
             this.min = min;
             this.max = max;
             this.setter = setter;
+            this.setTooltip(Tooltip.create(Component.translatable(translationKey + ".tooltip")));
             this.updateMessage();
         }
 
@@ -191,6 +220,7 @@ public class ConfigScreen extends Screen {
         @Override
         protected void applyValue() {
             double newValue = min + (max - min) * this.value;
+            newValue = Math.round(newValue * 10.0) / 10.0;
             setter.accept(newValue);
         }
     }
@@ -209,6 +239,7 @@ public class ConfigScreen extends Screen {
             this.min = min;
             this.max = max;
             this.setter = setter;
+            this.setTooltip(Tooltip.create(Component.translatable(translationKey + ".tooltip")));
             this.updateMessage();
         }
 

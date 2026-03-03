@@ -11,11 +11,18 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.ColorResolver;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraft.world.level.lighting.LevelLightEngine;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
@@ -99,14 +106,16 @@ public final class TranslucentBlockRenderer {
             }
         }
 
+        FadeBlockGetter fadeLevel = new FadeBlockGetter(level, TopDownCuller.getInstance().getFadeBlocksCache());
+
         blockRenderer.getModelRenderer().tesselateBlock(
-                level,
+                fadeLevel,
                 model,
                 state,
                 pos,
                 poseStack,
                 alphaConsumer,
-                false, // checkSides
+                true, // checkSides
                 RANDOM,
                 seed,
                 OverlayTexture.NO_OVERLAY,
@@ -177,5 +186,72 @@ public final class TranslucentBlockRenderer {
         public void unsetDefaultColor() {
             delegate.unsetDefaultColor();
         }
+    }
+
+    /**
+     * フェードブロック描画用のカリング判定プロキシ。
+     * フェードブロック隣接面はカリングを許可し、それ以外（地下など）に対しては空気として振る舞い、強制的に蓋（面）を描画させる。
+     */
+    private static class FadeBlockGetter implements BlockAndTintGetter {
+        private final BlockAndTintGetter delegate;
+        private final Map<BlockPos, Float> fadeBlocks;
+
+        FadeBlockGetter(BlockAndTintGetter delegate, Map<BlockPos, Float> fadeBlocks) {
+            this.delegate = delegate;
+            this.fadeBlocks = fadeBlocks;
+        }
+
+        @Override
+        public float getShade(Direction direction, boolean shade) {
+            return delegate.getShade(direction, shade);
+        }
+
+        @Override
+        public LevelLightEngine getLightEngine() {
+            return delegate.getLightEngine();
+        }
+
+        @Override
+        public int getBlockTint(BlockPos pos, ColorResolver resolver) {
+            return delegate.getBlockTint(pos, resolver);
+        }
+
+        @Nullable
+        @Override
+        public BlockEntity getBlockEntity(BlockPos pos) {
+            return delegate.getBlockEntity(pos);
+        }
+
+        @Override
+        public BlockState getBlockState(BlockPos pos) {
+            BlockState originalState = delegate.getBlockState(pos);
+            if (originalState.isAir()) {
+                return originalState;
+            }
+            // 自身がフェードブロック群に含まれていない（完全にカリングされたブロックなど）場合は空気と偽装する
+            // これにより checkSides=true の時でも境界となる面が強制的に描画され、「底抜け現象」を防ぐことができる
+            if (!fadeBlocks.containsKey(pos)) {
+                return Blocks.AIR.defaultBlockState();
+            }
+            return originalState;
+        }
+
+        @Override
+        public net.minecraft.world.level.material.FluidState getFluidState(BlockPos pos) {
+            return delegate.getFluidState(pos);
+        }
+
+        @Override
+        public int getHeight() {
+            return delegate.getHeight();
+        }
+
+        @Override
+        public int getMinBuildHeight() {
+            return delegate.getMinBuildHeight();
+        }
+
+        // --- IForgeBlockAndTintGetter delegates (default methods will route to
+        // self/delegate where appropriate, but override explicitly if needed) ---
     }
 }

@@ -18,19 +18,20 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 /**
  * トップダウン視点用のマウスレイキャスト処理
  * 使用パターン：
- *   MouseRaycast.INSTANCE.update(mc, partialTick, reachDistance);
- *   HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
+ * MouseRaycast.INSTANCE.update(mc, partialTick, reachDistance);
+ * HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
  */
 public final class MouseRaycast {
 
-    private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {}
+    private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {
+    }
 
     private static final double RAYCAST_STEP = 0.5;
     private static final double MIN_RAYCAST_STEP = 0.25;
     private static final double MAX_RAYCAST_STEP = 1.0;
     private static final double FAR_DISTANCE_THRESHOLD = 50.0;
     private static final double MEDIUM_DISTANCE_THRESHOLD = 20.0;
-    private static final double FIXED_PITCH_DEG = 45.0;
+
     private static final double SCREEN_TO_NDC_FACTOR = 2.0;
     private static final double NDC_OFFSET = 1.0;
     private static final double MIN_SCREEN_DIMENSION = 1.0;
@@ -49,8 +50,11 @@ public final class MouseRaycast {
     private double lastAspectRatio = -1;
     private double lastMouseX = -1;
     private double lastMouseY = -1;
+    private double lastYaw = -1;
+    private double lastPitch = -1;
 
-    private MouseRaycast() {}
+    private MouseRaycast() {
+    }
 
     public static double getCustomReachDistance() {
         double cameraDistance = CameraState.INSTANCE.getCameraDistance();
@@ -84,21 +88,25 @@ public final class MouseRaycast {
     private RaycastResult performRaycast(Minecraft mc, double reachDistance) {
         Vec3 start = mc.gameRenderer.getMainCamera().getPosition();
         Vec3 direction = getMouseRayDirection(mc);
-        if (direction == null) return null;
+        if (direction == null)
+            return null;
 
         Vec3 end = start.add(direction.scale(reachDistance));
         BlockHitResult blockHit = rayTraceBlocks(mc, start, end);
-        if (blockHit == null) return null;
+        if (blockHit == null)
+            return null;
 
         return new RaycastResult(start, end, direction, blockHit);
     }
 
     private EntityHitResult performEntityRaycast(Minecraft mc, Vec3 start, BlockHitResult blockHit, Vec3 end) {
-        if (mc.player == null) return null;
+        if (mc.player == null)
+            return null;
 
         Vec3 mousePos = calculateGroundIntersection(mc, start, end);
         if (mousePos == null) {
-            mousePos = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? end : blockHit.getLocation();
+            mousePos = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? end
+                    : blockHit.getLocation();
         }
 
         Vec3 playerEyePos = mc.player.getEyePosition(1.0f);
@@ -114,9 +122,11 @@ public final class MouseRaycast {
         for (Entity entity : entities) {
             double dx = entity.getBoundingBox().getCenter().x - mousePos.x;
             double dz = entity.getBoundingBox().getCenter().z - mousePos.z;
-            if (Math.sqrt(dx * dx + dz * dz) > LINE_PROXIMITY_THRESHOLD) continue;
+            if (Math.sqrt(dx * dx + dz * dz) > LINE_PROXIMITY_THRESHOLD)
+                continue;
 
-            if (!hasLineOfSight(mc, playerEyePos, entity)) continue;
+            if (!hasLineOfSight(mc, playerEyePos, entity))
+                continue;
 
             double distToPlayerSq = entity.distanceToSqr(playerEyePos);
             if (distToPlayerSq < closestDistanceSq) {
@@ -130,16 +140,19 @@ public final class MouseRaycast {
     }
 
     private Vec3 calculateGroundIntersection(Minecraft mc, Vec3 start, Vec3 end) {
-        if (mc.player == null) return null;
+        if (mc.player == null)
+            return null;
 
         double targetY = mc.player.getEyePosition(1.0f).y - 1.0;
         Vec3 direction = end.subtract(start);
         double dy = direction.y;
 
-        if (Math.abs(dy) < 0.001) return null;
+        if (Math.abs(dy) < 0.001)
+            return null;
 
         double t = (targetY - start.y) / dy;
-        if (t < 0) return null;
+        if (t < 0)
+            return null;
 
         return new Vec3(start.x + t * direction.x, targetY, start.z + t * direction.z);
     }
@@ -153,7 +166,8 @@ public final class MouseRaycast {
 
     private BlockHitResult rayTraceBlocks(Minecraft mc, Vec3 start, Vec3 end) {
         if (!ModState.STATUS.isEnabled()) {
-            return mc.level.clip(new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
+            return mc.level
+                    .clip(new ClipContext(start, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
         }
 
         double distance = start.distanceTo(end);
@@ -169,18 +183,21 @@ public final class MouseRaycast {
             Vec3 currentPos = start.add(direction.scale(d));
             BlockPos blockPos = BlockPos.containing(currentPos);
 
-            if (blockPos.equals(lastCheckedPos)) continue;
+            if (blockPos.equals(lastCheckedPos))
+                continue;
             lastCheckedPos = blockPos;
 
             TopDownCuller culler = TopDownCuller.getInstance();
-            if (culler.isBlockCulled(blockPos, mc.level) && !culler.isHittableFadeBlock(blockPos, mc.level)) continue;
+            if (culler.isBlockCulled(blockPos, mc.level) && !culler.isHittableFadeBlock(blockPos, mc.level))
+                continue;
 
             BlockState state = mc.level.getBlockState(blockPos);
             if (!state.isAir()) {
                 var shape = state.getShape(mc.level, blockPos, CollisionContext.of(mc.player));
                 if (!shape.isEmpty()) {
                     var clipResult = shape.clip(start, end, blockPos);
-                    if (clipResult != null) return clipResult;
+                    if (clipResult != null)
+                        return clipResult;
                 }
             }
         }
@@ -189,31 +206,47 @@ public final class MouseRaycast {
     }
 
     private double calculateAdaptiveStep(double distance) {
-        if (!Double.isFinite(distance) || distance <= 0) return MIN_RAYCAST_STEP;
-        if (distance > FAR_DISTANCE_THRESHOLD) return MAX_RAYCAST_STEP;
-        if (distance > MEDIUM_DISTANCE_THRESHOLD) return RAYCAST_STEP;
+        if (!Double.isFinite(distance) || distance <= 0)
+            return MIN_RAYCAST_STEP;
+        if (distance > FAR_DISTANCE_THRESHOLD)
+            return MAX_RAYCAST_STEP;
+        if (distance > MEDIUM_DISTANCE_THRESHOLD)
+            return RAYCAST_STEP;
         return MIN_RAYCAST_STEP;
     }
 
-    public net.minecraft.world.phys.HitResult getLastHitResult() { return lastHitResult; }
-    public BlockHitResult getLastBlockHit() { return lastBlockHit; }
-    public EntityHitResult getLastEntityHit() { return lastEntityHit; }
+    public net.minecraft.world.phys.HitResult getLastHitResult() {
+        return lastHitResult;
+    }
+
+    public BlockHitResult getLastBlockHit() {
+        return lastBlockHit;
+    }
+
+    public EntityHitResult getLastEntityHit() {
+        return lastEntityHit;
+    }
 
     private Vec3 getMouseRayDirection(Minecraft mc) {
-        if (mc.mouseHandler == null || mc.options == null || mc.getWindow() == null) return null;
+        if (mc.mouseHandler == null || mc.options == null || mc.getWindow() == null)
+            return null;
 
         double mouseX = mc.mouseHandler.xpos();
         double mouseY = mc.mouseHandler.ypos();
         double screenWidth = mc.getWindow().getScreenWidth();
         double screenHeight = mc.getWindow().getScreenHeight();
 
-        if (screenWidth < MIN_SCREEN_DIMENSION || screenHeight < MIN_SCREEN_DIMENSION) return null;
+        if (screenWidth < MIN_SCREEN_DIMENSION || screenHeight < MIN_SCREEN_DIMENSION)
+            return null;
 
         double fov = mc.options.fov().get();
         double aspectRatio = screenWidth / screenHeight;
+        double pitch = com.topdownview.Config.cameraPitch;
+        double yaw = ModState.CAMERA.getYaw();
 
         if (cachedDirection != null && mouseX == lastMouseX && mouseY == lastMouseY
-                && fov == lastFov && aspectRatio == lastAspectRatio) {
+                && fov == lastFov && aspectRatio == lastAspectRatio
+                && yaw == lastYaw && pitch == lastPitch) {
             return cachedDirection;
         }
 
@@ -224,8 +257,8 @@ public final class MouseRaycast {
         double offsetX = ndcX * tanHalfFov * aspectRatio;
         double offsetY = ndcY * tanHalfFov;
 
-        double pitchRad = Math.toRadians(FIXED_PITCH_DEG);
-        double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
+        double pitchRad = Math.toRadians(pitch);
+        double yawRad = Math.toRadians(yaw);
 
         double forwardX = -Math.sin(yawRad) * Math.cos(pitchRad);
         double forwardY = -Math.sin(pitchRad);
@@ -241,12 +274,17 @@ public final class MouseRaycast {
         double dirZ = forwardZ + offsetX * rightZ - offsetY * upZ;
 
         double length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
-        if (length > 0) { dirX /= length; dirY /= length; dirZ /= length; }
+        if (length > 0) {
+            dirX /= length;
+            dirY /= length;
+            dirZ /= length;
+        }
 
         cachedDirection = new Vec3(dirX, dirY, dirZ);
-        lastMouseX = mouseX; lastMouseY = mouseY; lastFov = fov; lastAspectRatio = aspectRatio;
-
-        return cachedDirection;
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+        lastFov = fov;
+        lastAspectRatio = aspectRatio; lastYaw = yaw; lastPitch = pitch; return cachedDirection;
     }
 
     private void clearResults() {
@@ -255,8 +293,7 @@ public final class MouseRaycast {
         lastHitResult = null;
     }
 
-    public void clearCache() {
-        cachedDirection = null;
-        lastFov = -1; lastAspectRatio = -1; lastMouseX = -1; lastMouseY = -1;
-    }
+    public void clearCache() { cachedDirection = null; lastFov = -1; lastAspectRatio = -1; lastMouseX = -1; lastMouseY = -1; lastYaw = -1; lastPitch = -1; }
 }
+
+

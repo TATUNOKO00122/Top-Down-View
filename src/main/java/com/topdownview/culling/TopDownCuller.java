@@ -28,8 +28,8 @@ public final class TopDownCuller {
     private static final int MAX_FADE_CACHE_SIZE = 2000;
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
 
-    private Vec3 currentPlayerPos = Vec3.ZERO;
-    private Vec3 currentCameraPos = Vec3.ZERO;
+    private volatile Vec3 currentPlayerPos = Vec3.ZERO;
+    private volatile Vec3 currentCameraPos = Vec3.ZERO;
 
     private final Map<BlockPos, Boolean> cullingCache = new ConcurrentHashMap<>(1000);
     private final Set<BlockPos> translucentTrapdoorsCache = ConcurrentHashMap.newKeySet(100);
@@ -84,6 +84,16 @@ public final class TopDownCuller {
 
         if (InteractableBlocks.isInteractableSimple(state)) {
             if (pos.getY() <= Math.floor(currentPlayerPos.y)) {
+                cacheResult(pos, false);
+                return false;
+            }
+        }
+
+        int playerBlockX = (int) Math.floor(currentPlayerPos.x);
+        int playerBlockZ = (int) Math.floor(currentPlayerPos.z);
+        int playerFeetY = (int) Math.floor(currentPlayerPos.y) - 1;
+        if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
+            if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
                 cacheResult(pos, false);
                 return false;
             }
@@ -431,7 +441,7 @@ public final class TopDownCuller {
      */
     /**
      * フェードブロックが当たり判定を持つか判定
-     * 条件: フェード描画中 かつ プレイヤー中心半径3ブロック・高さ3ブロックの円柱内 かつ 足元ブロックでない
+     * 条件: フェード描画中 かつ プレイヤー前方180度・半径3ブロック・高さ3ブロックの円柱内 かつ 足元ブロックでない
      */
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !Config.fadeEnabled) {
@@ -457,6 +467,16 @@ public final class TopDownCuller {
 
         double dx = (pos.getX() + 0.5) - (playerBlockX + 0.5);
         double dz = (pos.getZ() + 0.5) - (playerBlockZ + 0.5);
+
+        float yaw = ModState.CAMERA.getYaw();
+        double yawRad = Math.toRadians(yaw);
+        double forwardX = -Math.sin(yawRad);
+        double forwardZ = Math.cos(yawRad);
+        double dot = dx * forwardX + dz * forwardZ;
+        if (dot < 0) {
+            return false;
+        }
+
         double distXZ = Math.sqrt(dx * dx + dz * dz);
         if (distXZ > 3.0) {
             return false;
@@ -528,6 +548,10 @@ public final class TopDownCuller {
 
     private float calculateFadeAlphaForBlock(BlockPos pos, BlockState state, BlockGetter level) {
         return calculateFadeAlpha(pos, level);
+    }
+
+    public Map<BlockPos, Float> getFadeBlocksCache() {
+        return fadeBlocksCache;
     }
 
     /**

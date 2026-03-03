@@ -1,0 +1,5 @@
+[1.3.1-beta] - 2026-03-03
+- Fixed a bug where blocks with hardness (like stone, dirt, wood) could not be mined/broken continuously in Survival mode.
+- Adjusted MinecraftClient mixin logic to prevent conflicts with vanilla attack and block-breaking processes.
+
+Note: This is a beta release. Some features may change before the final 1.3.1 release.

@@ -92,7 +92,7 @@ public final class CameraController {
     /**
      * マウスの位置に応じて、カメラを 90 度または 180 度回転させる
      */
-    public static void rotateCamera90Degrees() {
+    public static void rotateCamera() {
         Minecraft mc = Minecraft.getInstance();
         double mouseX = mc.mouseHandler.xpos();
         double mouseY = mc.mouseHandler.ypos();
@@ -106,21 +106,7 @@ public final class CameraController {
         float baseYaw = ModState.CAMERA.isAnimating() ? ModState.CAMERA.getTargetYaw() : ModState.CAMERA.getYaw();
 
         // 目的地（nextYaw）の計算
-        float nextYaw;
-        if (isBottomSide) {
-            // 下部：180度回転（反対側へスナップ）
-            // 現在の 90 度区切りから +180 度
-            nextYaw = (float) (Math.round(baseYaw / 90.0) * 90.0 + 180.0);
-        } else if (isLeftSide) {
-            // 左側：反時計回り
-            nextYaw = (float) (Math.ceil(baseYaw / 90.0) * 90.0 - 90.0);
-        } else {
-            // 右側：時計回り
-            nextYaw = (float) (Math.floor(baseYaw / 90.0) * 90.0 + 90.0);
-        }
-
-        ModState.CAMERA.setTargetYaw(nextYaw);
-        ModState.CAMERA.setAnimating(true);
+        double step = switch (com.topdownview.Config.rotateAngleMode) { case 1 -> 45.0; case 2 -> 15.0; default -> 90.0; }; float nextYaw; if (isBottomSide) { nextYaw = (float) (Math.round(baseYaw / step) * step + 180.0); } else if (isLeftSide) { nextYaw = (float) (Math.ceil(baseYaw / step) * step - step); if (nextYaw > baseYaw + 0.1f) { nextYaw -= step; } } else { nextYaw = (float) (Math.floor(baseYaw / step) * step + step); if (nextYaw < baseYaw - 0.1f) { nextYaw += step; } } ModState.CAMERA.setTargetYaw(nextYaw); ModState.CAMERA.setAnimating(true);
     }
 
     /**
@@ -160,3 +146,4 @@ public final class CameraController {
         return (float) -(Math.atan2(verticalDist, horizontalDist) * MathConstants.RADIANS_TO_DEGREES);
     }
 }
+

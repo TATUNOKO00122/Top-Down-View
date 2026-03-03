@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = Camera.class, priority = 1000)
 public abstract class CameraMixin {
 
-    private static final float FIXED_PITCH = 45.0f;
+    // FIXED_PITCH removed in favor of Config.cameraPitch
 
     @Shadow
     public abstract void setPosition(Vec3 pos);
@@ -48,8 +48,10 @@ public abstract class CameraMixin {
 
         double distance = ModState.CAMERA.getCameraDistance();
 
+        float pitch = (float) com.topdownview.Config.cameraPitch;
+
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
-        double radPitch = FIXED_PITCH * MathConstants.DEGREES_TO_RADIANS;
+        double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;
         double radYaw = yaw * MathConstants.DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
@@ -59,8 +61,9 @@ public abstract class CameraMixin {
         double cameraZ = targetZ - Math.cos(radYaw) * offsetH;
 
         this.setPosition(new Vec3(cameraX, cameraY, cameraZ));
-        this.setRotation(yaw, FIXED_PITCH);
+        this.setRotation(yaw, pitch);
 
+        ModState.CAMERA.setPitch(pitch);
         ModState.CAMERA.setCameraPosition(this.getPosition());
     }
 }

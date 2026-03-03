@@ -26,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class ClickActionHandler {
 
-    private static boolean isLeftClickDown = false;
+    public static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
     private static int leftClickHoldTicks = 0;
     private static int rightClickHoldTicks = 0;
@@ -37,14 +37,22 @@ public final class ClickActionHandler {
     }
 
     private static boolean isRangedWeapon(Item item) {
-        if (item instanceof ProjectileWeaponItem) return true;
-        if (item instanceof SnowballItem) return true;
-        if (item instanceof EnderpearlItem) return true;
-        if (item instanceof SplashPotionItem) return true;
-        if (item instanceof LingeringPotionItem) return true;
-        if (item instanceof EggItem) return true;
-        if (item instanceof ExperienceBottleItem) return true;
-        if (item instanceof FireChargeItem) return true;
+        if (item instanceof ProjectileWeaponItem)
+            return true;
+        if (item instanceof SnowballItem)
+            return true;
+        if (item instanceof EnderpearlItem)
+            return true;
+        if (item instanceof SplashPotionItem)
+            return true;
+        if (item instanceof LingeringPotionItem)
+            return true;
+        if (item instanceof EggItem)
+            return true;
+        if (item instanceof ExperienceBottleItem)
+            return true;
+        if (item instanceof FireChargeItem)
+            return true;
         return false;
     }
 
@@ -93,8 +101,10 @@ public final class ClickActionHandler {
     }
 
     private static boolean handleRightClick(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return false;
-        if (!ModState.STATUS.isEnabled()) return false;
+        if (mc.level == null || mc.player == null)
+            return false;
+        if (!ModState.STATUS.isEnabled())
+            return false;
 
         Item mainHandItem = mc.player.getMainHandItem().getItem();
         boolean hasRangedWeapon = isRangedWeapon(mainHandItem);
@@ -104,7 +114,8 @@ public final class ClickActionHandler {
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (result == null || result.getType() == HitResult.Type.MISS) return false;
+        if (result == null || result.getType() == HitResult.Type.MISS)
+            return false;
 
         if (result.getType() == HitResult.Type.ENTITY) {
             if (Config.clickToMoveEnabled && !hasRangedWeapon) {
@@ -147,8 +158,10 @@ public final class ClickActionHandler {
     }
 
     private static void handleRightClickLongPress(Minecraft mc) {
-        if (!ModState.STATUS.isEnabled()) return;
-        if (!Config.clickToMoveEnabled) return;
+        if (!ModState.STATUS.isEnabled())
+            return;
+        if (!Config.clickToMoveEnabled)
+            return;
 
         if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {
             ClickToMoveController.startLongPressFollow();
