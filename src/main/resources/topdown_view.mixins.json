@@ -14,7 +14,8 @@
     "EntityRenderDispatcherMixin",
     "LevelRendererMixin",
     "SoundSystemMixin",
-    "ClientLevelSoundMixin"
+    "ClientLevelSoundMixin",
+    "PauseScreenMixin"
   ],
   "mixins": [],
   "injectors": {
