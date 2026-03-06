@@ -16,6 +16,7 @@ public final class ModState {
     public static final TimeState TIME = TimeState.INSTANCE;
     public static final ModStatus STATUS = ModStatus.INSTANCE;
     public static final ClickToMoveState CLICK_TO_MOVE = ClickToMoveState.INSTANCE;
+    public static final TargetHighlightState TARGET_HIGHLIGHT = TargetHighlightState.INSTANCE;
     // public static final PathfindingState PATHFINDING = PathfindingState.INSTANCE;
 
     /**

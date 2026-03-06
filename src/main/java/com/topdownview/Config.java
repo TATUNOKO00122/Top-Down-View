@@ -46,10 +46,6 @@ public class Config {
                         .comment("目的地到達判定の距離（ブロック数）")
                         .defineInRange("arrivalThreshold", 1.5, 0.5, 5.0);
 
-        private static final ForgeConfigSpec.DoubleValue ATTACK_RANGE = BUILDER
-                        .comment("エンティティ攻撃実行距離（ブロック数）")
-                        .defineInRange("attackRange", 3.0, 1.0, 6.0);
-
         private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
                         .comment("クリックツームーブ中の自動ジャンプ強制")
                         .define("forceAutoJump", true);
@@ -100,6 +96,36 @@ public class Config {
                         .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
+        // Target highlight settings
+        private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
+                        .comment("射程外ターゲットを赤く表示する機能の有効/無効")
+                        .define("rangeIndicatorEnabled", false);
+
+        // Weapon type specific attack ranges
+        private static final ForgeConfigSpec.DoubleValue RANGE_EMPTY_HAND = BUILDER
+                        .comment("素手時の攻撃射程")
+                        .defineInRange("rangeEmptyHand", 3.0, 1.0, 10.0);
+
+        private static final ForgeConfigSpec.DoubleValue RANGE_SWORD = BUILDER
+                        .comment("剣装備時の攻撃射程")
+                        .defineInRange("rangeSword", 3.0, 1.0, 10.0);
+
+        private static final ForgeConfigSpec.DoubleValue RANGE_AXE = BUILDER
+                        .comment("斧装備時の攻撃射程")
+                        .defineInRange("rangeAxe", 3.0, 1.0, 10.0);
+
+        private static final ForgeConfigSpec.DoubleValue RANGE_PICKAXE = BUILDER
+                        .comment("ツルハシ装備時の攻撃射程")
+                        .defineInRange("rangePickaxe", 3.0, 1.0, 10.0);
+
+        private static final ForgeConfigSpec.DoubleValue RANGE_SHOVEL = BUILDER
+                        .comment("シャベル装備時の攻撃射程")
+                        .defineInRange("rangeShovel", 3.0, 1.0, 10.0);
+
+        private static final ForgeConfigSpec.DoubleValue RANGE_OTHER = BUILDER
+                        .comment("その他の武器/アイテム装備時の攻撃射程")
+                        .defineInRange("rangeOther", 3.0, 1.0, 10.0);
+
         // Default state
         private static final ForgeConfigSpec.BooleanValue DEFAULT_ENABLED = BUILDER
                         .comment("ゲーム起動時にトップダウン視点をデフォルトで有効にする")
@@ -113,6 +139,15 @@ public class Config {
         private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
                         .comment("カメラが見下ろす垂直の角度（ピッチ）")
                         .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+
+        // Drag rotation settings
+        private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
+                        .comment("マウスドラッグによるカメラ回転の有効/無効")
+                        .define("dragRotationEnabled", true);
+
+        private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
+                        .comment("ドラッグ回転の感度（値が大きいほど敏感）")
+                        .defineInRange("dragRotationSensitivity", 0.5, 0.1, 2.0);
 
         // Pathfinding settings (DISABLED - straight-line movement only)
         // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
@@ -137,7 +172,6 @@ public class Config {
         public static int cylinderForwardShift;
         public static boolean clickToMoveEnabled;
         public static double arrivalThreshold;
-        public static double attackRange;
         public static boolean forceAutoJump;
         public static boolean autoAlignToMovementEnabled;
         public static int autoAlignAngleThreshold;
@@ -151,12 +185,25 @@ public class Config {
         public static double fadeStart;
         public static double fadeNearAlpha;
 
+        public static boolean rangeIndicatorEnabled;
+
+        public static double rangeEmptyHand;
+        public static double rangeSword;
+        public static double rangeAxe;
+        public static double rangePickaxe;
+        public static double rangeShovel;
+        public static double rangeOther;
+
         public static boolean defaultEnabled;
 
         public static int rotateAngleMode;
         public static double cameraPitch;
 
-        // public static int pathfindingRange;
+	// Drag rotation settings
+	public static boolean dragRotationEnabled;
+	public static double dragRotationSensitivity;
+
+	// public static int pathfindingRange;
         // public static int pathRecalcCooldown;
         // public static boolean pathfindingEnabled;
         // public static double avoidanceRadius;
@@ -168,7 +215,6 @@ public class Config {
                 cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
                 clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
-                attackRange = ATTACK_RANGE.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
                 autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.get();
                 autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.get();
@@ -181,9 +227,18 @@ public class Config {
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
+                rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
+                rangeEmptyHand = RANGE_EMPTY_HAND.get();
+                rangeSword = RANGE_SWORD.get();
+                rangeAxe = RANGE_AXE.get();
+                rangePickaxe = RANGE_PICKAXE.get();
+                rangeShovel = RANGE_SHOVEL.get();
+                rangeOther = RANGE_OTHER.get();
                 defaultEnabled = DEFAULT_ENABLED.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
+		dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
+		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 
                 // ゲーム起動時にデフォルト状態を適用
                 com.topdownview.state.ModStatus.INSTANCE.setEnabled(defaultEnabled);
@@ -197,7 +252,6 @@ public class Config {
                 CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
                 CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
-                ATTACK_RANGE.set(attackRange);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
                 AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(autoAlignToMovementEnabled);
                 AUTO_ALIGN_ANGLE_THRESHOLD.set(autoAlignAngleThreshold);
@@ -210,10 +264,19 @@ public class Config {
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
+                RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
+                RANGE_EMPTY_HAND.set(rangeEmptyHand);
+                RANGE_SWORD.set(rangeSword);
+                RANGE_AXE.set(rangeAxe);
+                RANGE_PICKAXE.set(rangePickaxe);
+                RANGE_SHOVEL.set(rangeShovel);
+                RANGE_OTHER.set(rangeOther);
                 DEFAULT_ENABLED.set(defaultEnabled);
                 ROTATE_ANGLE_MODE.set(rotateAngleMode);
                 CAMERA_PITCH.set(cameraPitch);
-                SPEC.save();
+		DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
+		DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
+		SPEC.save();
                 notifyConfigChanged();
         }
 }
