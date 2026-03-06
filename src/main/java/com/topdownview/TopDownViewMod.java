@@ -1,6 +1,7 @@
 package com.topdownview;
 
 import com.mojang.logging.LogUtils;
+import com.topdownview.client.ClientForgeEvents;
 import com.topdownview.culling.TopDownCuller;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
@@ -42,6 +43,9 @@ public class TopDownViewMod {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             LOGGER.info("TopDownView mod client setup");
+            // ClientForgeEvents を明示的に登録（クラスロードを確実にする）
+            MinecraftForge.EVENT_BUS.register(ClientForgeEvents.class);
+            LOGGER.info("ClientForgeEvents registered");
         }
     }
 }
