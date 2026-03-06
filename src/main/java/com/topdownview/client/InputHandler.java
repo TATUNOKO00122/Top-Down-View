@@ -2,9 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
-import com.topdownview.culling.CullingManager;
 import com.topdownview.Config;
-import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -37,12 +35,15 @@ public final class InputHandler {
         Minecraft mc = Minecraft.getInstance();
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
         int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
+        int alignKeyCode = ClientModBusEvents.ALIGN_TO_MOVEMENT_KEY.getKey().getValue();
         int jumpKeyCode = mc.options.keyJump.getKey().getValue();
 
         if (keyCode == toggleKeyCode) {
             toggleTopDownView();
         } else if (ModState.STATUS.isEnabled() && keyCode == rotateKeyCode) {
             CameraController.rotateCamera();
+        } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
+            CameraController.alignCameraToMovement();
         } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();
         }
@@ -56,30 +57,10 @@ public final class InputHandler {
             return;
 
         if (newState) {
-            enableTopDownView(mc);
+            CameraController.initializeTopDownView(mc);
         } else {
-            disableTopDownView(mc);
+            CameraController.disableTopDownView(mc);
         }
-    }
-
-    private static void enableTopDownView(Minecraft mc) {
-        ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
-        mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-        mc.mouseHandler.releaseMouse();
-        if (mc.level != null) {
-            ModState.TIME.setStartTime(mc.level.getGameTime());
-        }
-    }
-
-    private static void disableTopDownView(Minecraft mc) {
-        CameraType restoreType = ModState.CAMERA.getPreviousCameraType();
-        if (restoreType == null) {
-            restoreType = CameraType.FIRST_PERSON;
-        }
-        mc.options.setCameraType(restoreType);
-        mc.mouseHandler.grabMouse();
-        ModState.resetAll();
-        CullingManager.forceChunkRebuild(mc);
     }
 
     @SubscribeEvent

@@ -12,9 +12,11 @@ import net.minecraft.client.gui.components.Tooltip;
 public class ConfigScreen extends Screen {
     private final Screen lastScreen;
     private int currentTab = 0;
-    private static final int TAB_CULLING = 0;
-    private static final int TAB_MOVEMENT = 1;
-    private static final int TAB_VISUAL = 2;
+    private static final int TAB_GENERAL = 0;
+    private static final int TAB_CULLING = 1;
+    private static final int TAB_MOVEMENT = 2;
+    private static final int TAB_CAMERA = 3;
+    private static final int TAB_VISUAL = 4;
 
     public ConfigScreen(Screen lastScreen) {
         super(Component.translatable("topdown_view.config.title"));
@@ -23,12 +25,19 @@ public class ConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int width = 200;
+        int contentWidth = 310;
+        int columnWidth = 150;
         int height = 20;
         int spacing = 24;
         int startY = 60;
-        int x = this.width / 2 - width / 2;
-        int tabWidth = 70;
+        int startX = this.width / 2 - contentWidth / 2;
+        int tabWidth = 60;
+
+        // タブボタンを5つ横並びに配置
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.tab.general"),
+                (button) -> switchTab(TAB_GENERAL))
+                .bounds(this.width / 2 - tabWidth * 5 / 2 - 4, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.culling"),
@@ -41,39 +50,74 @@ public class ConfigScreen extends Screen {
                 .bounds(this.width / 2 - tabWidth / 2, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
-                Component.translatable("topdown_view.config.tab.visual"),
-                (button) -> switchTab(TAB_VISUAL))
+                Component.translatable("topdown_view.config.tab.camera"),
+                (button) -> switchTab(TAB_CAMERA))
                 .bounds(this.width / 2 + tabWidth / 2 + 2, 25, tabWidth, height).build());
 
-        if (currentTab == TAB_CULLING) {
-            initCullingTab(x, startY, width, height, spacing);
-        } else if (currentTab == TAB_MOVEMENT) {
-            initMovementTab(x, startY, width, height, spacing);
-        } else {
-            initVisualTab(x, startY, width, height, spacing);
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.tab.visual"),
+                (button) -> switchTab(TAB_VISUAL))
+                .bounds(this.width / 2 + tabWidth * 3 / 2 + 4, 25, tabWidth, height).build());
+
+        switch (currentTab) {
+            case TAB_GENERAL -> initGeneralTab(startX, startY, columnWidth, height, spacing);
+            case TAB_CULLING -> initCullingTab(startX, startY, columnWidth, height, spacing);
+            case TAB_MOVEMENT -> initMovementTab(startX, startY, columnWidth, height, spacing);
+            case TAB_CAMERA -> initCameraTab(startX, startY, columnWidth, height, spacing);
+            case TAB_VISUAL -> initVisualTab(startX, startY, columnWidth, height, spacing);
         }
     }
 
-    private void initCullingTab(int x, int startY, int width, int height, int spacing) {
-        this.addRenderableWidget(
-                new IntConfigSlider(x, startY, width, height, "topdown_view.config.cylinder_radius_horizontal",
-                        Config.cylinderRadiusHorizontal, 1, 10, (value) -> Config.cylinderRadiusHorizontal = value));
+    private void initGeneralTab(int startX, int startY, int columnWidth, int height, int spacing) {
+        int y = startY;
 
-        this.addRenderableWidget(
-                new IntConfigSlider(x, startY + spacing, width, height, "topdown_view.config.cylinder_radius_vertical",
-                        Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
-
-        this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 2, width, height,
-                "topdown_view.config.cylinder_forward_shift",
-                Config.cylinderForwardShift, 0, 10, (value) -> Config.cylinderForwardShift = value));
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.default_enabled",
+                        Config.defaultEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.defaultEnabled = !Config.defaultEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.default_enabled",
+                            Config.defaultEnabled ? "ON" : "OFF"));
+                }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
+                .build());
+        y += spacing * 2;
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 4, width, height).build());
+        }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height).build());
     }
 
-    private void initMovementTab(int x, int startY, int width, int height, int spacing) {
+    private void initCullingTab(int startX, int startY, int columnWidth, int height, int spacing) {
+        int y = startY;
+        int col1 = startX;
+        int col2 = startX + columnWidth + 10;
+
+        this.addRenderableWidget(
+                new IntConfigSlider(col1, y, columnWidth, height, "topdown_view.config.cylinder_radius_horizontal",
+                        Config.cylinderRadiusHorizontal, 1, 10, (value) -> Config.cylinderRadiusHorizontal = value));
+        this.addRenderableWidget(
+                new IntConfigSlider(col2, y, columnWidth, height, "topdown_view.config.cylinder_radius_vertical",
+                        Config.cylinderRadiusVertical, 1, 10, (value) -> Config.cylinderRadiusVertical = value));
+        y += spacing;
+
+        this.addRenderableWidget(new IntConfigSlider(col1, y, columnWidth, height,
+                "topdown_view.config.cylinder_forward_shift",
+                Config.cylinderForwardShift, 0, 10, (value) -> Config.cylinderForwardShift = value));
+        y += spacing;
+
+        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
+            saveConfig();
+            this.minecraft.setScreen(this.lastScreen);
+        }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height).build());
+    }
+
+    private void initMovementTab(int startX, int startY, int columnWidth, int height, int spacing) {
+        int y = startY;
+        int col1 = startX;
+        int col2 = startX + columnWidth + 10;
+
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.click_to_move",
                         Config.clickToMoveEnabled ? "ON" : "OFF"),
@@ -81,49 +125,72 @@ public class ConfigScreen extends Screen {
                     Config.clickToMoveEnabled = !Config.clickToMoveEnabled;
                     button.setMessage(Component.translatable("topdown_view.config.click_to_move",
                             Config.clickToMoveEnabled ? "ON" : "OFF"));
-                }).bounds(x, startY, width, height)
+                }).bounds(col1, y, columnWidth, height)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.click_to_move.tooltip")))
                 .build());
-
         this.addRenderableWidget(
-                new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.arrival_threshold",
+                new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.arrival_threshold",
                         Config.arrivalThreshold, 0.5, 5.0, (value) -> Config.arrivalThreshold = value));
+        y += spacing;
 
         this.addRenderableWidget(
-                new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.attack_range",
+                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.attack_range",
                         Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
-
-        // Pathfinding UI disabled - straight-line movement only
-        // this.addRenderableWidget(Button.builder(
-        // Component.translatable("topdown_view.config.pathfinding",
-        // Config.pathfindingEnabled ? "ON" : "OFF"),
-        // (button) -> {
-        // Config.pathfindingEnabled = !Config.pathfindingEnabled;
-        // button.setMessage(Component.translatable("topdown_view.config.pathfinding",
-        // Config.pathfindingEnabled ? "ON" : "OFF"));
-        // }).bounds(x, startY + spacing * 3, width, height).build());
-        //
-        // this.addRenderableWidget(new ConfigSlider(x, startY + spacing * 4, width,
-        // height, "topdown_view.config.avoidance_radius",
-        // Config.avoidanceRadius, 1.0, 5.0, (value) -> Config.avoidanceRadius =
-        // value));
-        //
-        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 5, width,
-        // height, "topdown_view.config.pathfinding_range",
-        // Config.pathfindingRange, 8, 64, (value) -> Config.pathfindingRange = value));
-        //
-        // this.addRenderableWidget(new IntConfigSlider(x, startY + spacing * 6, width,
-        // height, "topdown_view.config.path_recalc_cooldown",
-        // Config.pathRecalcCooldown, 5, 100, (value) -> Config.pathRecalcCooldown =
-        // value));
+        y += spacing;
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 4, width, height).build());
+        }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height).build());
     }
 
-    private void initVisualTab(int x, int startY, int width, int height, int spacing) {
+    private void initCameraTab(int startX, int startY, int columnWidth, int height, int spacing) {
+        int y = startY;
+        int col1 = startX;
+        int col2 = startX + columnWidth + 10;
+
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.auto_align_to_movement",
+                        Config.autoAlignToMovementEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.autoAlignToMovementEnabled = !Config.autoAlignToMovementEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.auto_align_to_movement",
+                            Config.autoAlignToMovementEnabled ? "ON" : "OFF"));
+                }).bounds(col1, y, columnWidth, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.auto_align_to_movement.tooltip")))
+                .build());
+        this.addRenderableWidget(new IntConfigSlider(col2, y, columnWidth, height,
+                "topdown_view.config.auto_align_angle_threshold",
+                Config.autoAlignAngleThreshold, 0, 90, (value) -> Config.autoAlignAngleThreshold = value));
+        y += spacing;
+
+        this.addRenderableWidget(new IntConfigSlider(col1, y, columnWidth, height,
+                "topdown_view.config.auto_align_cooldown_ticks",
+                Config.autoAlignCooldownTicks, 0, 100, (value) -> Config.autoAlignCooldownTicks = value));
+        this.addRenderableWidget(new IntConfigSlider(col2, y, columnWidth, height,
+                "topdown_view.config.stable_direction_angle",
+                Config.stableDirectionAngle, 5, 60, (value) -> Config.stableDirectionAngle = value));
+        y += spacing;
+
+        this.addRenderableWidget(new IntConfigSlider(col1, y, columnWidth, height,
+                "topdown_view.config.stable_direction_ticks",
+                Config.stableDirectionTicks, 5, 60, (value) -> Config.stableDirectionTicks = value));
+        this.addRenderableWidget(new ConfigSlider(col2, y, columnWidth, height,
+                "topdown_view.config.auto_align_animation_speed",
+                Config.autoAlignAnimationSpeed, 0.05, 0.5, (value) -> Config.autoAlignAnimationSpeed = value));
+        y += spacing;
+
+        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
+            saveConfig();
+            this.minecraft.setScreen(this.lastScreen);
+        }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height).build());
+    }
+
+    private void initVisualTab(int startX, int startY, int columnWidth, int height, int spacing) {
+        int y = startY;
+        int col1 = startX;
+        int col2 = startX + columnWidth + 10;
+
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.fade_enabled",
                         Config.fadeEnabled ? "ON" : "OFF"),
@@ -131,34 +198,35 @@ public class ConfigScreen extends Screen {
                     Config.fadeEnabled = !Config.fadeEnabled;
                     button.setMessage(Component.translatable("topdown_view.config.fade_enabled",
                             Config.fadeEnabled ? "ON" : "OFF"));
-                }).bounds(x, startY, width, height)
+                }).bounds(col1, y, columnWidth, height)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
                 .build());
-
-        this.addRenderableWidget(new ConfigSlider(x, startY + spacing, width, height, "topdown_view.config.fade_start",
+        this.addRenderableWidget(new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.fade_start",
                 Config.fadeStart, 0.0, 0.9, (value) -> Config.fadeStart = value));
+        y += spacing;
 
         this.addRenderableWidget(
-                new ConfigSlider(x, startY + spacing * 2, width, height, "topdown_view.config.fade_near_alpha",
+                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.fade_near_alpha",
                         Config.fadeNearAlpha, 0.0, 1.0, (value) -> Config.fadeNearAlpha = value));
+        y += spacing;
 
         this.addRenderableWidget(Button.builder(
                 getRotateModeComponent(Config.rotateAngleMode),
                 (button) -> {
                     Config.rotateAngleMode = (Config.rotateAngleMode + 1) % 3;
                     button.setMessage(getRotateModeComponent(Config.rotateAngleMode));
-                }).bounds(x, startY + spacing * 3, width, height)
+                }).bounds(col1, y, columnWidth, height)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
                 .build());
-
         this.addRenderableWidget(
-                new ConfigSlider(x, startY + spacing * 4, width, height, "topdown_view.config.camera_pitch",
+                new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.camera_pitch",
                         Config.cameraPitch, 10.0, 90.0, (value) -> Config.cameraPitch = value));
+        y += spacing;
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
-        }).bounds(x, startY + spacing * 6, width, height).build());
+        }).bounds(this.width / 2 - columnWidth / 2, y, columnWidth, height).build());
     }
 
     private Component getRotateModeComponent(int mode) {

@@ -10,6 +10,7 @@ public final class ModStatus {
     public static final ModStatus INSTANCE = new ModStatus();
 
     private boolean enabled = false;
+    private boolean initialized = false;
 
     private ModStatus() {}
 
@@ -19,10 +20,18 @@ public final class ModStatus {
         return enabled;
     }
 
+    public boolean isInitialized() {
+        return initialized;
+    }
+
     // ==================== Setters ====================
 
     public void setEnabled(boolean value) {
         enabled = value;
+    }
+
+    public void setInitialized(boolean value) {
+        initialized = value;
     }
 
     /**
@@ -30,5 +39,6 @@ public final class ModStatus {
      */
     public void reset() {
         enabled = false;
+        initialized = false;
     }
 }

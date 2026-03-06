@@ -26,10 +26,16 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_LEFT_ALT,
             "key.categories.topdown_view");
 
+    public static final KeyMapping ALIGN_TO_MOVEMENT_KEY = new KeyMapping(
+            "key.topdown_view.align_to_movement",
+            GLFW.GLFW_KEY_V,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
         event.register(ROTATE_VIEW_KEY);
         event.register(ZOOM_MODIFIER_KEY);
+        event.register(ALIGN_TO_MOVEMENT_KEY);
     }
 }

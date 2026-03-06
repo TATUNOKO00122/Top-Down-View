@@ -54,6 +54,30 @@ public class Config {
                         .comment("クリックツームーブ中の自動ジャンプ強制")
                         .define("forceAutoJump", true);
 
+        private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_TO_MOVEMENT_ENABLED = BUILDER
+                        .comment("移動中にカメラを進行方向へ自動回転")
+                        .define("autoAlignToMovementEnabled", false);
+
+        private static final ForgeConfigSpec.IntValue AUTO_ALIGN_ANGLE_THRESHOLD = BUILDER
+                        .comment("自動回転を開始する角度差の閾値（度）")
+                        .defineInRange("autoAlignAngleThreshold", 15, 0, 90);
+
+        private static final ForgeConfigSpec.IntValue AUTO_ALIGN_COOLDOWN_TICKS = BUILDER
+                        .comment("自動回転後のクールダウン時間（tick、20tick=1秒）")
+                        .defineInRange("autoAlignCooldownTicks", 30, 0, 100);
+
+        private static final ForgeConfigSpec.IntValue STABLE_DIRECTION_ANGLE = BUILDER
+                        .comment("同じ方向と見なす許容角度差（度）")
+                        .defineInRange("stableDirectionAngle", 15, 5, 60);
+
+        private static final ForgeConfigSpec.IntValue STABLE_DIRECTION_TICKS = BUILDER
+                        .comment("反応に必要な方向安定時間（tick）")
+                        .defineInRange("stableDirectionTicks", 20, 5, 60);
+
+        private static final ForgeConfigSpec.DoubleValue AUTO_ALIGN_ANIMATION_SPEED = BUILDER
+                        .comment("自動回転のアニメーション速度（0.05=遅い、0.5=速い）")
+                        .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
+
         // Translucent trapdoor settings
         private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
                         .comment("遮蔽トラップドアの半透明化の有効/無効")
@@ -75,6 +99,11 @@ public class Config {
         private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
                         .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
+
+        // Default state
+        private static final ForgeConfigSpec.BooleanValue DEFAULT_ENABLED = BUILDER
+                        .comment("ゲーム起動時にトップダウン視点をデフォルトで有効にする")
+                        .define("defaultEnabled", true);
 
         // Camera settings
         private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
@@ -110,11 +139,19 @@ public class Config {
         public static double arrivalThreshold;
         public static double attackRange;
         public static boolean forceAutoJump;
+        public static boolean autoAlignToMovementEnabled;
+        public static int autoAlignAngleThreshold;
+        public static int autoAlignCooldownTicks;
+        public static int stableDirectionAngle;
+        public static int stableDirectionTicks;
+        public static double autoAlignAnimationSpeed;
         public static boolean trapdoorTranslucencyEnabled;
         public static double trapdoorTransparency;
         public static boolean fadeEnabled;
         public static double fadeStart;
         public static double fadeNearAlpha;
+
+        public static boolean defaultEnabled;
 
         public static int rotateAngleMode;
         public static double cameraPitch;
@@ -133,13 +170,24 @@ public class Config {
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 attackRange = ATTACK_RANGE.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
+                autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.get();
+                autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.get();
+                autoAlignCooldownTicks = AUTO_ALIGN_COOLDOWN_TICKS.get();
+                stableDirectionAngle = STABLE_DIRECTION_ANGLE.get();
+                stableDirectionTicks = STABLE_DIRECTION_TICKS.get();
+                autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.get();
                 trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
                 trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
+                defaultEnabled = DEFAULT_ENABLED.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
+
+                // ゲーム起動時にデフォルト状態を適用
+                com.topdownview.state.ModStatus.INSTANCE.setEnabled(defaultEnabled);
+
                 notifyConfigChanged();
         }
 
@@ -151,11 +199,18 @@ public class Config {
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 ATTACK_RANGE.set(attackRange);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
+                AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(autoAlignToMovementEnabled);
+                AUTO_ALIGN_ANGLE_THRESHOLD.set(autoAlignAngleThreshold);
+                AUTO_ALIGN_COOLDOWN_TICKS.set(autoAlignCooldownTicks);
+                STABLE_DIRECTION_ANGLE.set(stableDirectionAngle);
+                STABLE_DIRECTION_TICKS.set(stableDirectionTicks);
+                AUTO_ALIGN_ANIMATION_SPEED.set(autoAlignAnimationSpeed);
                 TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
                 TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
+                DEFAULT_ENABLED.set(defaultEnabled);
                 ROTATE_ANGLE_MODE.set(rotateAngleMode);
                 CAMERA_PITCH.set(cameraPitch);
                 SPEC.save();
