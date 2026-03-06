@@ -67,10 +67,15 @@ public final class CameraController {
         if (mc.isPaused())
             return;
 
+        // ドラッグ回転の処理
+        InputHandler.updateDragRotation(mc);
+
         // アニメーションの更新
         updateAnimation();
-        // 通常のマウス位置への回転
+
+        // プレイヤー回転制御
         updatePlayerRotationToMouse(mc);
+
         // 動的カメラ回転（アニメーション中でない場合のみ）
         if (com.topdownview.Config.autoAlignToMovementEnabled && !ModState.CAMERA.isAnimating()) {
             alignCameraToMovement();

@@ -29,8 +29,8 @@ public class GameRendererMixin {
                     com.topdownview.client.MouseRaycast.getCustomReachDistance());
             mc.hitResult = com.topdownview.client.MouseRaycast.INSTANCE.getLastHitResult();
 
-            net.minecraft.world.phys.HitResult result = mc.hitResult;
-            if (result instanceof net.minecraft.world.phys.EntityHitResult entityHit) {
+            HitResult result = mc.hitResult;
+            if (result instanceof EntityHitResult entityHit) {
                 mc.crosshairPickEntity = entityHit.getEntity();
             } else {
                 mc.crosshairPickEntity = null;

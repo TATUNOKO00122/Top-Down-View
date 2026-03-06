@@ -19,8 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = Camera.class, priority = 1000)
 public abstract class CameraMixin {
 
-    // FIXED_PITCH removed in favor of Config.cameraPitch
-
     @Shadow
     public abstract void setPosition(Vec3 pos);
 
@@ -31,13 +29,14 @@ public abstract class CameraMixin {
     public abstract Vec3 getPosition();
 
     /**
-     * カメラ位置と回転を設定する
-     * TAILで実行することで、他MODの変更を上書きする
+     * TAILでカメラを上書き
      */
-    @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
-    private void onSetup(BlockGetter level, Entity entity, boolean detached,
+    @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", 
+            at = @At("TAIL"))
+    private void onSetupTail(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
             CallbackInfo ci) {
+        
         if (!ModState.STATUS.isEnabled()) {
             return;
         }
@@ -47,10 +46,9 @@ public abstract class CameraMixin {
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
         double distance = ModState.CAMERA.getCameraDistance();
-
         float pitch = (float) com.topdownview.Config.cameraPitch;
-
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
+        
         double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;
         double radYaw = yaw * MathConstants.DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;

@@ -299,7 +299,8 @@ public final class ClickToMoveController {
 
         ModState.CLICK_TO_MOVE.setTargetPosition(targetEntity.position());
 
-        double attackRange = Config.attackRange;
+        // プレイヤーの装備に基づく動的射程を取得
+        double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
         if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
             tryAttackEntity(mc, targetEntity);
         }
