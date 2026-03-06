@@ -42,6 +42,10 @@ public final class CameraState {
     private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
     private Vec3 cameraPosition = DEFAULT_POSITION;
     private CameraType previousCameraType = null;
+    private long lastAutoAlignTick = 0;
+    private float lastMovementDirection = 0.0f;
+    private int stableDirectionTicks = 0;
+    private boolean isAutoAlignAnimation = false;
 
     private CameraState() {
     }
@@ -90,6 +94,22 @@ public final class CameraState {
 
     public CameraType getPreviousCameraType() {
         return previousCameraType;
+    }
+
+    public long getLastAutoAlignTick() {
+        return lastAutoAlignTick;
+    }
+
+    public float getLastMovementDirection() {
+        return lastMovementDirection;
+    }
+
+    public int getStableDirectionTicks() {
+        return stableDirectionTicks;
+    }
+
+    public boolean isAutoAlignAnimation() {
+        return isAutoAlignAnimation;
     }
 
     // ==================== Setters with Validation ====================
@@ -153,6 +173,22 @@ public final class CameraState {
         previousCameraType = type;
     }
 
+    public void setLastAutoAlignTick(long tick) {
+        lastAutoAlignTick = tick;
+    }
+
+    public void setLastMovementDirection(float direction) {
+        lastMovementDirection = normalizeAngle(direction);
+    }
+
+    public void setStableDirectionTicks(int ticks) {
+        stableDirectionTicks = ticks;
+    }
+
+    public void setAutoAlignAnimation(boolean value) {
+        isAutoAlignAnimation = value;
+    }
+
     /**
      * カメラ距離を増加
      */
@@ -186,6 +222,10 @@ public final class CameraState {
         cameraDistance = DEFAULT_CAMERA_DISTANCE;
         cameraPosition = DEFAULT_POSITION;
         previousCameraType = null;
+        lastAutoAlignTick = 0;
+        lastMovementDirection = 0.0f;
+        stableDirectionTicks = 0;
+        isAutoAlignAnimation = false;
     }
 
     // ==================== Utility Methods ====================

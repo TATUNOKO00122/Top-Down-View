@@ -60,6 +60,10 @@ public final class CameraController {
         updateAnimation();
         // 通常のマウス位置への回転
         updatePlayerRotationToMouse(mc);
+        // 動的カメラ回転（アニメーション中でない場合のみ）
+        if (com.topdownview.Config.autoAlignToMovementEnabled && !ModState.CAMERA.isAnimating()) {
+            alignCameraToMovement();
+        }
     }
 
     /**
@@ -82,9 +86,12 @@ public final class CameraController {
         if (Math.abs(diff) < 0.1f) {
             ModState.CAMERA.setYaw(targetYaw);
             ModState.CAMERA.setAnimating(false);
+            ModState.CAMERA.setAutoAlignAnimation(false);
         } else {
             // 線形補間（Lerp）による滑らかな回転
-            float lerpStrength = 0.2f;
+            float lerpStrength = ModState.CAMERA.isAutoAlignAnimation()
+                    ? (float) com.topdownview.Config.autoAlignAnimationSpeed
+                    : 0.2f;
             ModState.CAMERA.setYaw(currentYaw + diff * lerpStrength);
         }
     }
@@ -131,7 +138,63 @@ public final class CameraController {
         }
 
         ModState.CAMERA.setTargetYaw(nextYaw);
+        ModState.CAMERA.setAutoAlignAnimation(false);
         ModState.CAMERA.setAnimating(true);
+    }
+
+    private static final double MOVEMENT_THRESHOLD = 0.01;
+
+    public static void alignCameraToMovement() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+
+        // クールダウンチェック
+        long currentTick = mc.level.getGameTime();
+        long ticksSinceLastAlign = currentTick - ModState.CAMERA.getLastAutoAlignTick();
+        if (ticksSinceLastAlign < com.topdownview.Config.autoAlignCooldownTicks) return;
+
+        Vec3 velocity = mc.player.getDeltaMovement();
+        double dx = velocity.x;
+        double dz = velocity.z;
+        double horizontalSpeed = Math.sqrt(dx * dx + dz * dz);
+
+        // 移動速度チェック
+        if (horizontalSpeed < MOVEMENT_THRESHOLD) {
+            ModState.CAMERA.setStableDirectionTicks(0);
+            return;
+        }
+
+        float currentDirection = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES);
+
+        // 方向安定性チェック
+        float directionDiff = currentDirection - ModState.CAMERA.getLastMovementDirection();
+        while (directionDiff < -180.0f) directionDiff += 360.0f;
+        while (directionDiff > 180.0f) directionDiff -= 360.0f;
+
+        if (Math.abs(directionDiff) <= com.topdownview.Config.stableDirectionAngle) {
+            ModState.CAMERA.setStableDirectionTicks(ModState.CAMERA.getStableDirectionTicks() + 1);
+        } else {
+            ModState.CAMERA.setStableDirectionTicks(0);
+        }
+        ModState.CAMERA.setLastMovementDirection(currentDirection);
+
+        if (ModState.CAMERA.getStableDirectionTicks() < com.topdownview.Config.stableDirectionTicks) return;
+
+        float targetYaw = currentDirection - 90.0f;
+
+        // 角度差チェック
+        float currentYaw = ModState.CAMERA.getYaw();
+        float angleDiff = targetYaw - currentYaw;
+        while (angleDiff < -180.0f) angleDiff += 360.0f;
+        while (angleDiff > 180.0f) angleDiff -= 360.0f;
+
+        if (Math.abs(angleDiff) < com.topdownview.Config.autoAlignAngleThreshold) return;
+
+        ModState.CAMERA.setTargetYaw(targetYaw);
+        ModState.CAMERA.setAutoAlignAnimation(true);
+        ModState.CAMERA.setAnimating(true);
+        ModState.CAMERA.setLastAutoAlignTick(currentTick);
+        ModState.CAMERA.setStableDirectionTicks(0);
     }
 
     /**
