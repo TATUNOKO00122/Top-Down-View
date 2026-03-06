@@ -15,7 +15,8 @@
     "LevelRendererMixin",
     "SoundSystemMixin",
     "ClientLevelSoundMixin",
-    "PauseScreenMixin"
+    "PauseScreenMixin",
+    "MinecraftMixin"
   ],
   "mixins": [],
   "injectors": {

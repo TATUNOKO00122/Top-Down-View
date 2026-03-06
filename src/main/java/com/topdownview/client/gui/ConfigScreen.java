@@ -31,33 +31,36 @@ public class ConfigScreen extends Screen {
         int spacing = 24;
         int startY = 60;
         int startX = this.width / 2 - contentWidth / 2;
+        int tabCount = 5;
         int tabWidth = 60;
 
-        // タブボタンを5つ横並びに配置
+        // タブボタンを横並びに配置
+        int tabStartX = this.width / 2 - (tabWidth * tabCount + (tabCount - 1) * 2) / 2;
+
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.general"),
                 (button) -> switchTab(TAB_GENERAL))
-                .bounds(this.width / 2 - tabWidth * 5 / 2 - 4, 25, tabWidth, height).build());
+                .bounds(tabStartX, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.culling"),
                 (button) -> switchTab(TAB_CULLING))
-                .bounds(this.width / 2 - tabWidth * 3 / 2 - 2, 25, tabWidth, height).build());
+                .bounds(tabStartX + tabWidth + 2, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.movement"),
                 (button) -> switchTab(TAB_MOVEMENT))
-                .bounds(this.width / 2 - tabWidth / 2, 25, tabWidth, height).build());
+                .bounds(tabStartX + (tabWidth + 2) * 2, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.camera"),
                 (button) -> switchTab(TAB_CAMERA))
-                .bounds(this.width / 2 + tabWidth / 2 + 2, 25, tabWidth, height).build());
+                .bounds(tabStartX + (tabWidth + 2) * 3, 25, tabWidth, height).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("topdown_view.config.tab.visual"),
                 (button) -> switchTab(TAB_VISUAL))
-                .bounds(this.width / 2 + tabWidth * 3 / 2 + 4, 25, tabWidth, height).build());
+                .bounds(tabStartX + (tabWidth + 2) * 4, 25, tabWidth, height).build());
 
         switch (currentTab) {
             case TAB_GENERAL -> initGeneralTab(startX, startY, columnWidth, height, spacing);
@@ -133,9 +136,29 @@ public class ConfigScreen extends Screen {
                         Config.arrivalThreshold, 0.5, 5.0, (value) -> Config.arrivalThreshold = value));
         y += spacing;
 
+        // 武器種別射程設定
         this.addRenderableWidget(
-                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.attack_range",
-                        Config.attackRange, 1.0, 6.0, (value) -> Config.attackRange = value));
+                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.range_empty_hand",
+                        Config.rangeEmptyHand, 1.0, 10.0, (value) -> Config.rangeEmptyHand = value));
+        this.addRenderableWidget(
+                new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.range_sword",
+                        Config.rangeSword, 1.0, 10.0, (value) -> Config.rangeSword = value));
+        y += spacing;
+
+        this.addRenderableWidget(
+                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.range_axe",
+                        Config.rangeAxe, 1.0, 10.0, (value) -> Config.rangeAxe = value));
+        this.addRenderableWidget(
+                new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.range_pickaxe",
+                        Config.rangePickaxe, 1.0, 10.0, (value) -> Config.rangePickaxe = value));
+        y += spacing;
+
+        this.addRenderableWidget(
+                new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.range_shovel",
+                        Config.rangeShovel, 1.0, 10.0, (value) -> Config.rangeShovel = value));
+        this.addRenderableWidget(
+                new ConfigSlider(col2, y, columnWidth, height, "topdown_view.config.range_other",
+                        Config.rangeOther, 1.0, 10.0, (value) -> Config.rangeOther = value));
         y += spacing;
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
@@ -180,6 +203,22 @@ public class ConfigScreen extends Screen {
                 Config.autoAlignAnimationSpeed, 0.05, 0.5, (value) -> Config.autoAlignAnimationSpeed = value));
         y += spacing;
 
+        // ドラッグ回転設定
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.drag_rotation_enabled",
+                        Config.dragRotationEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.dragRotationEnabled = !Config.dragRotationEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.drag_rotation_enabled",
+                            Config.dragRotationEnabled ? "ON" : "OFF"));
+                }).bounds(col1, y, columnWidth, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.drag_rotation_enabled.tooltip")))
+                .build());
+        this.addRenderableWidget(new ConfigSlider(col2, y, columnWidth, height,
+                "topdown_view.config.drag_rotation_sensitivity",
+                Config.dragRotationSensitivity, 0.1, 2.0, (value) -> Config.dragRotationSensitivity = value));
+        y += spacing;
+
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (button) -> {
             saveConfig();
             this.minecraft.setScreen(this.lastScreen);
@@ -208,6 +247,19 @@ public class ConfigScreen extends Screen {
         this.addRenderableWidget(
                 new ConfigSlider(col1, y, columnWidth, height, "topdown_view.config.fade_near_alpha",
                         Config.fadeNearAlpha, 0.0, 1.0, (value) -> Config.fadeNearAlpha = value));
+        y += spacing;
+
+        // 射程外ターゲット赤表示設定
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("topdown_view.config.range_indicator_enabled",
+                        Config.rangeIndicatorEnabled ? "ON" : "OFF"),
+                (button) -> {
+                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
+                    button.setMessage(Component.translatable("topdown_view.config.range_indicator_enabled",
+                            Config.rangeIndicatorEnabled ? "ON" : "OFF"));
+                }).bounds(col1, y, columnWidth, height)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
+                .build());
         y += spacing;
 
         this.addRenderableWidget(Button.builder(
