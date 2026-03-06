@@ -100,6 +100,11 @@ public class Config {
                         .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
+        // Default state
+        private static final ForgeConfigSpec.BooleanValue DEFAULT_ENABLED = BUILDER
+                        .comment("ゲーム起動時にトップダウン視点をデフォルトで有効にする")
+                        .define("defaultEnabled", true);
+
         // Camera settings
         private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
                         .comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
@@ -146,6 +151,8 @@ public class Config {
         public static double fadeStart;
         public static double fadeNearAlpha;
 
+        public static boolean defaultEnabled;
+
         public static int rotateAngleMode;
         public static double cameraPitch;
 
@@ -174,8 +181,13 @@ public class Config {
                 fadeEnabled = FADE_ENABLED.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
+                defaultEnabled = DEFAULT_ENABLED.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
+
+                // ゲーム起動時にデフォルト状態を適用
+                com.topdownview.state.ModStatus.INSTANCE.setEnabled(defaultEnabled);
+
                 notifyConfigChanged();
         }
 
@@ -198,6 +210,7 @@ public class Config {
                 FADE_ENABLED.set(fadeEnabled);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
+                DEFAULT_ENABLED.set(defaultEnabled);
                 ROTATE_ANGLE_MODE.set(rotateAngleMode);
                 CAMERA_PITCH.set(cameraPitch);
                 SPEC.save();

@@ -2,7 +2,9 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.culling.CullingManager;
 import com.topdownview.util.MathConstants;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BowItem;
@@ -44,13 +46,22 @@ public final class CameraController {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END)
             return;
+
+        Minecraft mc = Minecraft.getInstance();
+
+        // 初回初期化処理（設定でdefaultEnabled=trueの場合）
+        if (ModState.STATUS.isEnabled() && !ModState.STATUS.isInitialized()) {
+            if (mc.player != null && mc.level != null) {
+                initializeTopDownView(mc);
+            }
+        }
+
         if (!ModState.STATUS.isEnabled())
             return;
 
         // 次のティックの計算前に、現在の角度を保存しておく
         ModState.CAMERA.updatePrevYaw();
 
-        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;
         if (mc.isPaused())
@@ -140,6 +151,33 @@ public final class CameraController {
         ModState.CAMERA.setTargetYaw(nextYaw);
         ModState.CAMERA.setAutoAlignAnimation(false);
         ModState.CAMERA.setAnimating(true);
+    }
+
+    /**
+     * トップダウンビューの初期化（カメラタイプ、マウス、時刻設定）
+     */
+    public static void initializeTopDownView(Minecraft mc) {
+        ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
+        mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        mc.mouseHandler.releaseMouse();
+        if (mc.level != null) {
+            ModState.TIME.setStartTime(mc.level.getGameTime());
+        }
+        ModState.STATUS.setInitialized(true);
+    }
+
+    /**
+     * トップダウンビューを無効化
+     */
+    public static void disableTopDownView(Minecraft mc) {
+        CameraType restoreType = ModState.CAMERA.getPreviousCameraType();
+        if (restoreType == null) {
+            restoreType = CameraType.FIRST_PERSON;
+        }
+        mc.options.setCameraType(restoreType);
+        mc.mouseHandler.grabMouse();
+        ModState.resetAll();
+        CullingManager.forceChunkRebuild(mc);
     }
 
     private static final double MOVEMENT_THRESHOLD = 0.01;
