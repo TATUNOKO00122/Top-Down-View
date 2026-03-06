@@ -47,6 +47,11 @@ public final class CameraState {
     private int stableDirectionTicks = 0;
     private boolean isAutoAlignAnimation = false;
 
+    // ドラッグ回転用状態
+    private boolean isDragging = false;
+    private float dragStartYaw = DEFAULT_YAW;
+    private double dragStartMouseX = 0.0;
+
     private CameraState() {
     }
 
@@ -189,6 +194,37 @@ public final class CameraState {
         isAutoAlignAnimation = value;
     }
 
+    // ==================== Drag Rotation Getters ====================
+
+    public boolean isDragging() {
+        return isDragging;
+    }
+
+    public float getDragStartYaw() {
+        return dragStartYaw;
+    }
+
+    public double getDragStartMouseX() {
+        return dragStartMouseX;
+    }
+
+    // ==================== Drag Rotation Setters ====================
+
+    public void setDragging(boolean value) {
+        isDragging = value;
+    }
+
+    public void setDragStartYaw(float value) {
+        dragStartYaw = normalizeAngle(value);
+    }
+
+    public void setDragStartMouseX(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Mouse X must be finite: " + value);
+        }
+        dragStartMouseX = value;
+    }
+
     /**
      * カメラ距離を増加
      */
@@ -226,6 +262,9 @@ public final class CameraState {
         lastMovementDirection = 0.0f;
         stableDirectionTicks = 0;
         isAutoAlignAnimation = false;
+        isDragging = false;
+        dragStartYaw = DEFAULT_YAW;
+        dragStartMouseX = 0.0;
     }
 
     // ==================== Utility Methods ====================

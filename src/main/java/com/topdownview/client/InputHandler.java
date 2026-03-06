@@ -26,9 +26,62 @@ public final class InputHandler {
 
     @SubscribeEvent
     public static void onMouseButton(InputEvent.MouseButton.Pre event) {
-        if (event.getAction() != GLFW.GLFW_PRESS)
+        Minecraft mc = Minecraft.getInstance();
+
+        // ドラッグ回転の処理
+        if (ModState.STATUS.isEnabled() && Config.dragRotationEnabled) {
+            int dragButton = ClientModBusEvents.DRAG_ROTATE_KEY.getKey().getValue();
+
+            if (event.getButton() == dragButton) {
+                if (event.getAction() == GLFW.GLFW_PRESS) {
+                    startDragRotation(mc);
+                } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                    stopDragRotation();
+                }
+                // ドラッグボタンのイベントはキャンセルしない（他の機能との競合を避ける）
+            }
+        }
+
+        // 既存のボタン処理
+        if (event.getAction() == GLFW.GLFW_PRESS) {
+            handleInput(event.getButton());
+        }
+    }
+
+    /**
+     * ドラッグ回転の更新処理（ClientTickEventから呼び出し）
+     */
+    public static void updateDragRotation(Minecraft mc) {
+        if (!ModState.STATUS.isEnabled())
             return;
-        handleInput(event.getButton());
+        if (!Config.dragRotationEnabled)
+            return;
+        if (!ModState.CAMERA.isDragging())
+            return;
+
+        double currentMouseX = mc.mouseHandler.xpos();
+        double deltaX = currentMouseX - ModState.CAMERA.getDragStartMouseX();
+
+        // 感度を適用して回転角度を計算
+        double sensitivity = Config.dragRotationSensitivity;
+        double rotationDelta = deltaX * sensitivity;
+
+        float newYaw = ModState.CAMERA.getDragStartYaw() + (float) rotationDelta;
+        ModState.CAMERA.setYaw(newYaw);
+
+        // 継続的なドラッグのため、開始位置を更新
+        ModState.CAMERA.setDragStartYaw(newYaw);
+        ModState.CAMERA.setDragStartMouseX(currentMouseX);
+    }
+
+    private static void startDragRotation(Minecraft mc) {
+        ModState.CAMERA.setDragging(true);
+        ModState.CAMERA.setDragStartYaw(ModState.CAMERA.getYaw());
+        ModState.CAMERA.setDragStartMouseX(mc.mouseHandler.xpos());
+    }
+
+    private static void stopDragRotation() {
+        ModState.CAMERA.setDragging(false);
     }
 
     private static void handleInput(int keyCode) {
