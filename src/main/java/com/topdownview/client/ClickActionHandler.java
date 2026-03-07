@@ -61,7 +61,11 @@ public final class ClickActionHandler {
     }
 
     public static boolean onInput(int button, int action, Minecraft mc) {
-        if (button == 0) {
+        // キー設定に基づいて攻撃/使用ボタンを判定
+        int attackButton = mc.options.keyAttack.getKey().getValue();
+        int useButton = mc.options.keyUse.getKey().getValue();
+
+        if (button == attackButton) {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
 
@@ -71,7 +75,7 @@ public final class ClickActionHandler {
                 leftClickHoldTicks = 0;
             }
             return false;
-        } else if (button == 1) {
+        } else if (button == useButton) {
             boolean wasDown = isRightClickDown;
             isRightClickDown = (action != 0);
 
