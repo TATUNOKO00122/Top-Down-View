@@ -41,6 +41,11 @@ public abstract class CameraMixin {
             return;
         }
 
+        // entityがnullの場合は早期リターン
+        if (entity == null) {
+            return;
+        }
+
         double targetX = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());

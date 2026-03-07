@@ -96,10 +96,25 @@ public final class ClickToMoveState {
         if (targetPosition == null || originalLocation == null) return true;
         if (!isMoving) return true;
 
-        double distFromOriginalSq = playerPos.distanceToSqr(originalLocation);
-        double totalDistSq = originalLocation.distanceToSqr(targetPosition);
+        // 目的地への距離が閾値以内かチェック
+        double distToTargetSq = playerPos.distanceToSqr(targetPosition);
+        if (distToTargetSq <= threshold * threshold) {
+            return true;
+        }
 
-        return distFromOriginalSq >= totalDistSq - (threshold * threshold);
+        // 出発点から目的地への距離
+        double totalDistSq = originalLocation.distanceToSqr(targetPosition);
+        // 出発点から現在位置への距離
+        double distFromOriginalSq = playerPos.distanceToSqr(originalLocation);
+
+        // オーバーシュート検出：現在位置が目的地を通り過ぎているか
+        // totalDistSqが小さい場合（短距離移動）はオーバーシュート検出を緩和
+        double overshootThreshold = Math.max(threshold * threshold, totalDistSq * 0.25);
+        if (distFromOriginalSq >= totalDistSq + overshootThreshold) {
+            return true;
+        }
+
+        return false;
     }
 
     public boolean hasArrivedAtEntity(Vec3 playerPos, double threshold) {

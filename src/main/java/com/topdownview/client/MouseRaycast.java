@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import com.topdownview.Config;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
 import com.topdownview.state.CameraState;
@@ -180,8 +181,11 @@ public final class MouseRaycast {
         Vec3 direction = end.subtract(start).normalize();
         double step = calculateAdaptiveStep(distance);
         BlockPos lastCheckedPos = null;
+        int maxIterations = (int) (distance / Math.max(step, MIN_RAYCAST_STEP)) + 10;
+        int iterations = 0;
 
-        for (double d = 0; d < distance; d += step) {
+        for (double d = 0; d < distance && iterations < maxIterations; d += step) {
+            iterations++;
             Vec3 currentPos = start.add(direction.scale(d));
             BlockPos blockPos = BlockPos.containing(currentPos);
 
@@ -190,8 +194,14 @@ public final class MouseRaycast {
             lastCheckedPos = blockPos;
 
             TopDownCuller culler = TopDownCuller.getInstance();
-            if (culler.isBlockCulled(blockPos, mc.level) && !culler.isHittableFadeBlock(blockPos, mc.level))
-                continue;
+            if (culler.isBlockCulled(blockPos, mc.level)) {
+                if (Config.fadeBlockRaycastProtection && !culler.isHittableFadeBlock(blockPos, mc.level)) {
+                    continue;
+                }
+                if (!Config.fadeBlockRaycastProtection) {
+                    continue;
+                }
+            }
 
             BlockState state = mc.level.getBlockState(blockPos);
             if (!state.isAir()) {

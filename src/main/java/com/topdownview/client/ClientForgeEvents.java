@@ -38,6 +38,12 @@ public final class ClientForgeEvents {
         
         LOGGER.info("PauseScreen initialized, screen size: {}x{}", screen.width, screen.height);
         
+        // renderablesがnullの場合は処理をスキップ
+        if (screen.renderables == null) {
+            LOGGER.warn("Renderables is null, skipping button addition");
+            return;
+        }
+        
         // デバッグ: すべてのボタンをログ出力（childrenとrenderablesの両方を確認）
         LOGGER.info("Children count: {}", screen.children().size());
         LOGGER.info("Renderables count: {}", screen.renderables.size());

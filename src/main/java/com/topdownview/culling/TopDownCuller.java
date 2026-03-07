@@ -6,18 +6,14 @@ import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
-import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 public final class TopDownCuller {
 
@@ -25,7 +21,6 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
-    private static final int MAX_TRANSLUCENT_CACHE_SIZE = 500;
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
     private static final int INTERACTION_RANGE_VERTICAL = 2;
 
@@ -34,7 +29,6 @@ public final class TopDownCuller {
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
-    private final Set<BlockPos> translucentTrapdoorsCache = new HashSet<>(100);
 
     private TopDownCuller() {
     }
@@ -50,7 +44,6 @@ public final class TopDownCuller {
     public void clearCache() {
         cullingCache.clear();
         fadeCache.clear();
-        translucentTrapdoorsCache.clear();
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -82,30 +75,26 @@ public final class TopDownCuller {
             return false;
         }
 
-        if (state.getBlock() instanceof TrapDoorBlock) {
-            boolean shouldCull = TrapdoorHelper.shouldCull(pos, level, state, currentPlayerPos, currentCameraPos);
-            cullingCache.put(pos, shouldCull);
-            return shouldCull;
-        }
+        // ローカル変数にコピーして一貫性を確保
+        Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
 
         if (InteractableBlocks.isInteractableSimple(state)) {
-            if (pos.getY() <= Math.floor(currentPlayerPos.y)) {
+            if (pos.getY() <= Math.floor(pPos.y)) {
                 cullingCache.put(pos, false);
                 return false;
             }
         }
 
-        int playerBlockX = (int) Math.floor(currentPlayerPos.x);
-        int playerBlockZ = (int) Math.floor(currentPlayerPos.z);
-        int playerFeetY = (int) Math.floor(currentPlayerPos.y) - 1;
+        int playerBlockX = (int) Math.floor(pPos.x);
+        int playerBlockZ = (int) Math.floor(pPos.z);
+        int playerFeetY = (int) Math.floor(pPos.y) - 1;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
             if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
                 cullingCache.put(pos, false);
                 return false;
             }
         }
-
-        Vec3 cPos = this.currentCameraPos;
 
         if (cPos == Vec3.ZERO) {
             cullingCache.put(pos, false);
@@ -127,12 +116,16 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        if (isProtectedBlock(pos, state, level)) {
+        // ローカル変数にコピーして一貫性を確保
+        Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
+
+        if (isProtectedBlock(pos, state, level, pPos, cPos)) {
             return 1.0f;
         }
 
-        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos, this.currentPlayerPos, this.currentCameraPos);
-        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, this.currentPlayerPos);
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos, pPos, cPos);
+        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, pPos);
 
         double fadeStart = Config.fadeStart;
         double fadeNearAlpha = Config.fadeNearAlpha;
@@ -151,10 +144,8 @@ public final class TopDownCuller {
         return (float) Math.max(cylinderAlpha, pyramidFactor);
     }
 
-    private boolean isProtectedBlock(BlockPos pos, BlockState state, BlockGetter level) {
+    private boolean isProtectedBlock(BlockPos pos, BlockState state, BlockGetter level, Vec3 pPos, Vec3 cPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        Vec3 pPos = this.currentPlayerPos;
-        Vec3 cPos = this.currentCameraPos;
 
         if (cPos == Vec3.ZERO) {
             return true;
@@ -166,12 +157,6 @@ public final class TopDownCuller {
 
         if (InteractableBlocks.isInteractableSimple(state)) {
             if (pos.getY() <= Math.floor(pPos.y)) {
-                return true;
-            }
-        }
-
-        if (state.getBlock() instanceof TrapDoorBlock) {
-            if (!TrapdoorHelper.shouldCullForFade(pos, level, state, pPos, cPos)) {
                 return true;
             }
         }
@@ -261,9 +246,11 @@ public final class TopDownCuller {
             return false;
         }
 
-        int playerBlockX = (int) Math.floor(currentPlayerPos.x);
-        int playerBlockY = (int) Math.floor(currentPlayerPos.y);
-        int playerBlockZ = (int) Math.floor(currentPlayerPos.z);
+        // ローカル変数にコピー
+        Vec3 pPos = this.currentPlayerPos;
+        int playerBlockX = (int) Math.floor(pPos.x);
+        int playerBlockY = (int) Math.floor(pPos.y);
+        int playerBlockZ = (int) Math.floor(pPos.z);
 
         if (pos.getX() == playerBlockX && pos.getY() == playerBlockY - 1 && pos.getZ() == playerBlockZ) {
             return false;
@@ -305,7 +292,11 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        if (level == null || currentCameraPos == Vec3.ZERO) {
+        // ローカル変数にコピーして一貫性を確保
+        Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
+
+        if (level == null || cPos == Vec3.ZERO) {
             return fadeCache.getFadeBlocksCache();
         }
 
@@ -314,12 +305,12 @@ public final class TopDownCuller {
 
         int scanRangeXZ = Math.max(rangeH, 4);
 
-        int minX = (int) Math.floor(currentPlayerPos.x) - scanRangeXZ;
-        int maxX = (int) Math.floor(currentPlayerPos.x) + scanRangeXZ;
-        int minY = (int) Math.floor(currentPlayerPos.y) - 1;
-        int maxY = (int) Math.floor(currentPlayerPos.y) + rangeV;
-        int minZ = (int) Math.floor(currentPlayerPos.z) - scanRangeXZ;
-        int maxZ = (int) Math.floor(currentPlayerPos.z) + scanRangeXZ;
+        int minX = (int) Math.floor(pPos.x) - scanRangeXZ;
+        int maxX = (int) Math.floor(pPos.x) + scanRangeXZ;
+        int minY = (int) Math.floor(pPos.y) - 1;
+        int maxY = (int) Math.floor(pPos.y) + rangeV;
+        int minZ = (int) Math.floor(pPos.z) - scanRangeXZ;
+        int maxZ = (int) Math.floor(pPos.z) + scanRangeXZ;
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -350,58 +341,5 @@ public final class TopDownCuller {
 
     public Map<BlockPos, Float> getFadeBlocksCache() {
         return fadeCache.getFadeBlocksCache();
-    }
-
-    public Set<BlockPos> getTranslucentTrapdoors(BlockGetter level) {
-        translucentTrapdoorsCache.clear();
-
-        if (!ModState.STATUS.isEnabled()) {
-            return translucentTrapdoorsCache;
-        }
-
-        if (!Config.trapdoorTranslucencyEnabled) {
-            return translucentTrapdoorsCache;
-        }
-
-        if (level == null || currentCameraPos == Vec3.ZERO) {
-            return translucentTrapdoorsCache;
-        }
-
-        int rangeH = Config.cylinderRadiusHorizontal + 2;
-        int rangeV = Config.cylinderRadiusVertical + 2;
-
-        int minX = (int) Math.floor(currentPlayerPos.x) - rangeH;
-        int maxX = (int) Math.floor(currentPlayerPos.x) + rangeH;
-        int minY = (int) Math.floor(currentPlayerPos.y);
-        int maxY = (int) Math.floor(currentPlayerPos.y) + rangeV;
-        int minZ = (int) Math.floor(currentPlayerPos.z) - rangeH;
-        int maxZ = (int) Math.floor(currentPlayerPos.z) + rangeH;
-
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    mutablePos.set(x, y, z);
-                    BlockState state = level.getBlockState(mutablePos);
-
-                    if (state.getBlock() instanceof TrapDoorBlock) {
-                        if (TrapdoorHelper.hasLadderOrScaffoldingBelow(mutablePos, level)) {
-                            continue;
-                        }
-
-                        if (TrapdoorHelper.shouldMakeTranslucent(mutablePos, currentPlayerPos, currentCameraPos)) {
-                            translucentTrapdoorsCache.add(mutablePos.immutable());
-
-                            if (translucentTrapdoorsCache.size() >= MAX_TRANSLUCENT_CACHE_SIZE) {
-                                return translucentTrapdoorsCache;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return translucentTrapdoorsCache;
     }
 }
