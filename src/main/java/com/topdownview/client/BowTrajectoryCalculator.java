@@ -17,7 +17,15 @@ public final class BowTrajectoryCalculator {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    // 水平距離が極めて小さい場合の除算エラーを防ぐ閾値
+    private static final double MIN_HORIZONTAL_DIST = 0.001;
+
     public static float calculateBowPitch(double horizontalDist, double verticalDist) {
+        // ゼロ除算防止：水平距離が極めて小さい場合は直接角度を計算
+        if (horizontalDist < MIN_HORIZONTAL_DIST) {
+            return (float) -(Math.atan2(verticalDist, MIN_HORIZONTAL_DIST) * MathConstants.RADIANS_TO_DEGREES);
+        }
+
         double v2 = ARROW_SPEED * ARROW_SPEED;
         double v4 = v2 * v2;
         double gx = GRAVITY * horizontalDist;
