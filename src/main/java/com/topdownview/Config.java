@@ -284,6 +284,8 @@ public class Config {
         }
 
         public static void save() {
+                com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Saving values - maxCameraDistance: {}, defaultCameraDistance: {}",
+                        maxCameraDistance, defaultCameraDistance);
                 CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
                 CYLINDER_RADIUS_VERTICAL.set(cylinderRadiusVertical);
                 CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
@@ -320,6 +322,7 @@ public class Config {
 	DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
 	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
 	SPEC.save();
+                com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
                 notifyConfigChanged();
         }
 

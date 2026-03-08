@@ -211,7 +211,10 @@ public class ConfigScreen extends Screen {
                 val -> Config.miningModePitch = val));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.maxCameraDistance, 10.0, 200.0,
-                val -> Config.maxCameraDistance = val));
+                val -> {
+                    com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] maxCameraDistance slider changed to: {}", val);
+                    Config.maxCameraDistance = val;
+                }));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.defaultCameraDistance, 5.0, 100.0,
                 val -> Config.defaultCameraDistance = val));
@@ -316,7 +319,10 @@ public class ConfigScreen extends Screen {
     }
 
     private void saveConfig() {
+        com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] Saving config - maxCameraDistance: {}, defaultCameraDistance: {}", 
+                Config.maxCameraDistance, Config.defaultCameraDistance);
         Config.save();
+        com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] Config saved");
     }
 
     private void resetToDefaults() {
