@@ -1,0 +1,25 @@
+{
+  "required": true,
+  "package": "com.topdownview.mixin",
+  "refmap": "topdown_view.refmap.json",
+  "compatibilityLevel": "JAVA_17",
+  "minVersion": "0.8",
+  "client": [
+    "CameraMixin",
+    "GameRendererMixin",
+    "MouseHandlerMixin",
+    "EntityAccessor",
+    "MinecraftClientMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "EntityRenderDispatcherMixin",
+    "LevelRendererMixin",
+    "SoundSystemMixin",
+    "ClientLevelSoundMixin",
+    "PauseScreenMixin",
+    "MinecraftMixin"
+  ],
+  "mixins": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

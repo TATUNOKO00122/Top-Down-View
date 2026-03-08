@@ -136,17 +136,7 @@ public class ConfigScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
                         .build());
         y += sp;
-        y = addSection(y, "topdown_view.config.section.weapon_range", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.rangeIndicatorEnabled),
-                btn -> {
-                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
-                            Config.rangeIndicatorEnabled));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
-                .build());
-        contentHeight = (y += sp) - (30 - (int) scrollOffset) + sp;
+        contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
@@ -176,7 +166,35 @@ public class ConfigScreen extends Screen {
                 Config.arrivalThreshold, 0.5, 5.0, val -> Config.arrivalThreshold = val));
         y += sp;
 
-        y = addSection(y, "topdown_view.config.section.auto_jump", tx);
+        y = addSection(y, "topdown_view.config.section.weapon_range", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.rangeIndicatorEnabled),
+                btn -> {
+                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
+                    btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
+                            Config.rangeIndicatorEnabled));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_empty_hand",
+                Config.rangeEmptyHand, 1.0, 10.0, val -> Config.rangeEmptyHand = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_sword",
+                Config.rangeSword, 1.0, 10.0, val -> Config.rangeSword = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_axe",
+                Config.rangeAxe, 1.0, 10.0, val -> Config.rangeAxe = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_pickaxe",
+                Config.rangePickaxe, 1.0, 10.0, val -> Config.rangePickaxe = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_shovel",
+                Config.rangeShovel, 1.0, 10.0, val -> Config.rangeShovel = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_other",
+                Config.rangeOther, 1.0, 10.0, val -> Config.rangeOther = val));
+        y += sp;
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.forceAutoJump), btn -> {
                     Config.forceAutoJump = !Config.forceAutoJump;
@@ -184,22 +202,11 @@ public class ConfigScreen extends Screen {
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.force_auto_jump.tooltip")))
                         .build());
-        contentHeight = (y += sp) - (30 - (int) scrollOffset) + sp;
+        y += sp;
+        contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
     private void buildCameraTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.camera_angle", tx);
-        addRightWidget(Button.builder(getRotateModeComponent(Config.rotateAngleMode), btn -> {
-            Config.rotateAngleMode = (Config.rotateAngleMode + 1) % 3;
-            btn.setMessage(getRotateModeComponent(Config.rotateAngleMode));
-        }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
-                .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.cameraPitch, 10.0, 90.0,
-                val -> Config.cameraPitch = val));
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.drag_rotation_enabled", Config.dragRotationEnabled),
@@ -212,7 +219,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.drag_rotation_sensitivity",
-                Config.dragRotationSensitivity, 0.01, 1.0, val -> Config.dragRotationSensitivity = val));
+                Config.dragRotationSensitivity, 0.1, 2.0, val -> Config.dragRotationSensitivity = val));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
@@ -254,19 +261,38 @@ public class ConfigScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
                         .build());
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.fadeBlockRaycastProtection), btn -> {
-                    Config.fadeBlockRaycastProtection = !Config.fadeBlockRaycastProtection;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.fadeBlockRaycastProtection));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_block_raycast_protection.tooltip")))
-                        .build());
-        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.fadeStart, 0.0, 0.9,
                 val -> Config.fadeStart = val));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.fadeNearAlpha, 0.0,
                 1.0, val -> Config.fadeNearAlpha = val));
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.trapdoor", tx);
+        addRightWidget(Button.builder(getOnOffComponent("topdown_view.config.trapdoor_translucency_enabled",
+                Config.trapdoorTranslucencyEnabled), btn -> {
+                    Config.trapdoorTranslucencyEnabled = !Config.trapdoorTranslucencyEnabled;
+                    btn.setMessage(getOnOffComponent("topdown_view.config.trapdoor_translucency_enabled",
+                            Config.trapdoorTranslucencyEnabled));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip
+                        .create(Component.translatable("topdown_view.config.trapdoor_translucency_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.trapdoor_transparency",
+                Config.trapdoorTransparency, 0.0, 1.0, val -> Config.trapdoorTransparency = val));
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.camera_angle", tx);
+        addRightWidget(Button.builder(getRotateModeComponent(Config.rotateAngleMode), btn -> {
+            Config.rotateAngleMode = (Config.rotateAngleMode + 1) % 3;
+            btn.setMessage(getRotateModeComponent(Config.rotateAngleMode));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.cameraPitch, 10.0, 90.0,
+                val -> Config.cameraPitch = val));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
@@ -322,10 +348,10 @@ public class ConfigScreen extends Screen {
         Config.rangeOther = 3.0;
 
         Config.dragRotationEnabled = true;
-        Config.dragRotationSensitivity = 0.11;
+        Config.dragRotationSensitivity = 0.5;
 
         Config.autoAlignToMovementEnabled = false;
-        Config.autoAlignAngleThreshold = 45;
+        Config.autoAlignAngleThreshold = 15;
         Config.autoAlignCooldownTicks = 30;
         Config.stableDirectionAngle = 15;
         Config.stableDirectionTicks = 20;
@@ -335,9 +361,9 @@ public class ConfigScreen extends Screen {
         Config.trapdoorTransparency = 0.3;
 
         Config.fadeEnabled = true;
-        Config.fadeBlockRaycastProtection = true;
         Config.fadeStart = 0.7;
         Config.fadeNearAlpha = 0.0;
+        Config.fadeBlockRaycastProtection = true;
 
         Config.rotateAngleMode = 0;
         Config.cameraPitch = 45.0;

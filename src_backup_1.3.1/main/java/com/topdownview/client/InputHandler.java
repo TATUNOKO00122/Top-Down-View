@@ -96,7 +96,7 @@ public final class InputHandler {
         } else if (ModState.STATUS.isEnabled() && keyCode == rotateKeyCode) {
             CameraController.rotateCamera();
         } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
-            CameraController.alignCameraToMovementImmediate();
+            CameraController.alignCameraToMovement();
         } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();
         }

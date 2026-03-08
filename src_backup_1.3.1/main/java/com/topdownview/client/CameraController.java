@@ -185,41 +185,6 @@ public final class CameraController {
         CullingManager.forceChunkRebuild(mc);
     }
 
-    /**
-     * 移動方向にカメラを即座に整列（キー押下時用）
-     */
-    public static void alignCameraToMovementImmediate() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) {
-            return;
-        }
-        Vec3 velocity = mc.player.getDeltaMovement();
-        double dx = velocity.x;
-        double dz = velocity.z;
-        double horizontalSpeed = Math.sqrt(dx * dx + dz * dz);
-        if (horizontalSpeed < MOVEMENT_THRESHOLD) {
-            return;
-        }
-        float moveDirection = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES);
-        float targetYaw = moveDirection - 90.0f;
-        alignToYaw(targetYaw);
-    }
-
-    private static void alignToYaw(float targetYaw) {
-        float currentYaw = ModState.CAMERA.getYaw();
-        float angleDiff = targetYaw - currentYaw;
-        while (angleDiff < -180.0f) angleDiff += 360.0f;
-        while (angleDiff > 180.0f) angleDiff -= 360.0f;
-        
-        if (Math.abs(angleDiff) < 5.0f) {
-            ModState.CAMERA.setYaw(targetYaw);
-        } else {
-            ModState.CAMERA.setTargetYaw(targetYaw);
-            ModState.CAMERA.setAutoAlignAnimation(true);
-            ModState.CAMERA.setAnimating(true);
-        }
-    }
-
     private static final double MOVEMENT_THRESHOLD = 0.01;
 
     public static void alignCameraToMovement() {

@@ -56,7 +56,7 @@ public class Config {
 
         private static final ForgeConfigSpec.IntValue AUTO_ALIGN_ANGLE_THRESHOLD = BUILDER
                         .comment("自動回転を開始する角度差の閾値（度）")
-                        .defineInRange("autoAlignAngleThreshold", 45, 0, 90);
+                        .defineInRange("autoAlignAngleThreshold", 15, 0, 90);
 
         private static final ForgeConfigSpec.IntValue AUTO_ALIGN_COOLDOWN_TICKS = BUILDER
                         .comment("自動回転後のクールダウン時間（tick、20tick=1秒）")
@@ -88,10 +88,6 @@ public class Config {
                         .comment("カリング境界の距離フェードの有効/無効")
                         .define("fadeEnabled", true);
 
-        private static final ForgeConfigSpec.BooleanValue FADE_BLOCK_RAYCAST_PROTECTION = BUILDER
-                        .comment("半透明化したブロックにマウスレイキャスト判定を付ける保護機能の有効/無効")
-                        .define("fadeBlockRaycastProtection", false);
-
         private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
                         .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")
                         .defineInRange("fadeStart", 0.7, 0.0, 0.9);
@@ -99,6 +95,10 @@ public class Config {
         private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
                         .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
+
+        private static final ForgeConfigSpec.BooleanValue FADE_BLOCK_RAYCAST_PROTECTION = BUILDER
+                        .comment("半透明化したブロックにマウスレイキャスト判定を付ける保護機能の有効/無効")
+                        .define("fadeBlockRaycastProtection", true);
 
         // Target highlight settings
         private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
@@ -151,7 +151,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
                         .comment("ドラッグ回転の感度（値が大きいほど敏感）")
-                        .defineInRange("dragRotationSensitivity", 0.11, 0.01, 1.0);
+                        .defineInRange("dragRotationSensitivity", 0.5, 0.1, 2.0);
 
         // Pathfinding settings (DISABLED - straight-line movement only)
         // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
@@ -186,9 +186,9 @@ public class Config {
         public static boolean trapdoorTranslucencyEnabled;
         public static double trapdoorTransparency;
         public static boolean fadeEnabled;
-        public static boolean fadeBlockRaycastProtection;
         public static double fadeStart;
         public static double fadeNearAlpha;
+        public static boolean fadeBlockRaycastProtection;
 
         public static boolean rangeIndicatorEnabled;
 
@@ -230,9 +230,9 @@ public class Config {
                 trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
                 trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
                 fadeEnabled = FADE_ENABLED.get();
-                fadeBlockRaycastProtection = FADE_BLOCK_RAYCAST_PROTECTION.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
+                fadeBlockRaycastProtection = FADE_BLOCK_RAYCAST_PROTECTION.get();
                 rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
                 rangeEmptyHand = RANGE_EMPTY_HAND.get();
                 rangeSword = RANGE_SWORD.get();
@@ -268,9 +268,9 @@ public class Config {
                 TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
                 TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
                 FADE_ENABLED.set(fadeEnabled);
-                FADE_BLOCK_RAYCAST_PROTECTION.set(fadeBlockRaycastProtection);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
+                FADE_BLOCK_RAYCAST_PROTECTION.set(fadeBlockRaycastProtection);
                 RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
                 RANGE_EMPTY_HAND.set(rangeEmptyHand);
                 RANGE_SWORD.set(rangeSword);
