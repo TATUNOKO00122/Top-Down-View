@@ -156,9 +156,7 @@ public final class CameraState {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException("Camera distance must be finite: " + value);
         }
-        double maxDistance = com.topdownview.Config.maxCameraDistance > 0
-                ? com.topdownview.Config.maxCameraDistance
-                : MAX_CAMERA_DISTANCE;
+        double maxDistance = getEffectiveMaxCameraDistance();
         if (value < MIN_CAMERA_DISTANCE || value > maxDistance) {
             throw new IllegalArgumentException(
                     String.format("Camera distance must be between %.1f and %.1f: %.1f",
@@ -232,9 +230,7 @@ public final class CameraState {
      * カメラ距離を増加
      */
     public double increaseCameraDistance(double delta) {
-        double maxDistance = com.topdownview.Config.maxCameraDistance > 0
-                ? com.topdownview.Config.maxCameraDistance
-                : MAX_CAMERA_DISTANCE;
+        double maxDistance = getEffectiveMaxCameraDistance();
         double newDistance = Math.min(maxDistance, cameraDistance + delta);
         setCameraDistance(newDistance);
         return newDistance;
@@ -274,18 +270,75 @@ public final class CameraState {
     }
 
     /**
-     * 有効なデフォルトカメラ距離を取得（Config値またはフォールバック値）
+     * 有効なデフォルトカメラ距離を取得（設定ファイルから直接読み込み）
      */
     public static double getEffectiveDefaultCameraDistance() {
-        double configValue = com.topdownview.Config.defaultCameraDistance;
-        double maxDistance = com.topdownview.Config.maxCameraDistance > 0
-                ? com.topdownview.Config.maxCameraDistance
-                : MAX_CAMERA_DISTANCE;
+        // 設定ファイルから直接読み込み（ForgeConfigSpecのキャッシュを回避）
+        double configValue = readDoubleFromConfig("defaultCameraDistance", DEFAULT_CAMERA_DISTANCE);
+        double maxDistance = readDoubleFromConfig("maxCameraDistance", MAX_CAMERA_DISTANCE);
+        com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraState] getEffectiveDefaultCameraDistance: configValue={}, maxDistance={}, min={}", configValue, maxDistance, MIN_CAMERA_DISTANCE);
         // Config値が範囲外の場合はフォールバック
         if (configValue < MIN_CAMERA_DISTANCE || configValue > maxDistance) {
+            com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraState] Config defaultCameraDistance out of range, using fallback: {}", DEFAULT_CAMERA_DISTANCE);
             return DEFAULT_CAMERA_DISTANCE;
         }
         return configValue;
+    }
+    
+    /**
+     * 有効な最大カメラ距離を取得（設定ファイルから直接読み込み）
+     */
+    public static double getEffectiveMaxCameraDistance() {
+        return readDoubleFromConfig("maxCameraDistance", MAX_CAMERA_DISTANCE);
+    }
+    
+    /**
+     * 設定ファイルからdouble値を直接読み込み
+     */
+    private static double readDoubleFromConfig(String key, double defaultValue) {
+        try {
+            // 正しいファイル名: topdown_view-common.toml
+            java.nio.file.Path[] possiblePaths = {
+                java.nio.file.Paths.get("config", "topdown_view-common.toml"),
+                java.nio.file.Paths.get(System.getProperty("user.dir"), "config", "topdown_view-common.toml")
+            };
+            
+            java.nio.file.Path configPath = null;
+            for (java.nio.file.Path path : possiblePaths) {
+                com.topdownview.TopDownViewMod.getLogger().debug("[TopDownView][CameraState] Checking config path: {}", path.toAbsolutePath());
+                if (java.nio.file.Files.exists(path)) {
+                    configPath = path;
+                    break;
+                }
+            }
+            
+            if (configPath == null) {
+                com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraState] Config file not found, using default value {} for {}", defaultValue, key);
+                return defaultValue;
+            }
+            
+            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraState] Reading config from: {}", configPath.toAbsolutePath());
+            String content = new String(java.nio.file.Files.readAllBytes(configPath), java.nio.charset.StandardCharsets.UTF_8);
+            
+            // デバッグ: ファイル内容の一部を出力
+            com.topdownview.TopDownViewMod.getLogger().debug("[TopDownView][CameraState] Config file content (first 500 chars): {}", content.substring(0, Math.min(500, content.length())));
+            
+            // キーを探す: key = value（小数点あり/なし、コメントあり）
+            // 例: defaultCameraDistance = 17.0 または defaultCameraDistance = 17.0 # コメント
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("^\\s*" + java.util.regex.Pattern.quote(key) + "\\s*=\\s*(\\d+(?:\\.\\d+)?)", java.util.regex.Pattern.MULTILINE);
+            java.util.regex.Matcher matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                double value = Double.parseDouble(matcher.group(1));
+                com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraState] Found config value for {}: {}", key, value);
+                return value;
+            } else {
+                com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraState] Config key '{}' not found in file, using default: {}", key, defaultValue);
+            }
+        } catch (Exception e) {
+            com.topdownview.TopDownViewMod.getLogger().error("[TopDownView][CameraState] Failed to read config value for {}: {}", key, e.getMessage());
+            e.printStackTrace();
+        }
+        return defaultValue;
     }
 
     // ==================== Utility Methods ====================
