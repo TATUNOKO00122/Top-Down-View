@@ -14,6 +14,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ComputeFovModifierEvent;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -42,6 +43,20 @@ public final class CameraController {
         }
     }
 
+    /**
+     * ワールド参加時に状態をリセット
+     * 前のセッションのinitializedフラグが残っているのを防ぐ
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity().level().isClientSide()) {
+            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Player logged in, resetting state");
+            ModState.resetAll();
+            // 設定に基づいて有効/無効を再設定
+            ModState.STATUS.setEnabled(com.topdownview.Config.defaultEnabled);
+        }
+    }
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END)
@@ -52,6 +67,7 @@ public final class CameraController {
         // 初回初期化処理（設定でdefaultEnabled=trueの場合）
         if (ModState.STATUS.isEnabled() && !ModState.STATUS.isInitialized()) {
             if (mc.player != null && mc.level != null) {
+                com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Auto-initializing top-down view");
                 initializeTopDownView(mc);
             }
         }
@@ -171,9 +187,12 @@ public final class CameraController {
         // カメラ距離をデフォルト値で初期化
         try {
             double defaultDistance = com.topdownview.state.CameraState.getEffectiveDefaultCameraDistance();
+            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Setting camera distance to: {}", defaultDistance);
             ModState.CAMERA.setCameraDistance(defaultDistance);
+            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Camera distance set successfully. Current value: {}", ModState.CAMERA.getCameraDistance());
         } catch (IllegalArgumentException e) {
             // 設定値が無効な場合はフォールバック
+            com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraController] Failed to set default camera distance, using fallback: {}", e.getMessage());
             ModState.CAMERA.setCameraDistance(com.topdownview.state.CameraState.DEFAULT_CAMERA_DISTANCE);
         }
         ModState.STATUS.setInitialized(true);
