@@ -6,7 +6,8 @@
     "minVersion": "0.8",
     "client": [
         "BlockRendererMixin",
-        "BlockOcclusionCacheMixin"
+        "BlockOcclusionCacheMixin",
+        "RenderSectionManagerMixin"
     ],
     "mixins": [],
     "injectors": {

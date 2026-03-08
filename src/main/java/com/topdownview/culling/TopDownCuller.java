@@ -192,6 +192,7 @@ public final class TopDownCuller {
             return;
         }
 
+        // カメラ位置を正確に使用（スナップしない）
         Vec3 cPos = new Vec3(
                 Math.floor(rawCameraPos.x) + 0.5,
                 Math.floor(rawCameraPos.y) + 0.5,

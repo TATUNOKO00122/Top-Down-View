@@ -3,6 +3,7 @@ package com.topdownview.mixin;
 import com.topdownview.state.ModState;
 import com.topdownview.util.MathConstants;
 import net.minecraft.client.Camera;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
@@ -11,6 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * CameraMixin
@@ -29,14 +31,27 @@ public abstract class CameraMixin {
     public abstract Vec3 getPosition();
 
     /**
+     * カメラがブロックに埋もれた際に起こるチャンクのOcclusion Cullingバグを防止するため、
+     * カメラのブロック位置としてプレイヤーの位置を返すよう偽装する。
+     */
+    @Inject(method = "getBlockPosition", at = @At("HEAD"), cancellable = true)
+    private void onGetBlockPosition(CallbackInfoReturnable<BlockPos> cir) {
+        if (ModState.STATUS.isEnabled()) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player != null) {
+                cir.setReturnValue(mc.player.blockPosition());
+            }
+        }
+    }
+
+    /**
      * TAILでカメラを上書き
      */
-    @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", 
-            at = @At("TAIL"))
+    @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
     private void onSetupTail(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
             CallbackInfo ci) {
-        
+
         if (!ModState.STATUS.isEnabled()) {
             return;
         }
@@ -54,7 +69,7 @@ public abstract class CameraMixin {
         // マイニングモード時は90度（真上から見下ろす）
         float pitch = ModState.STATUS.isMiningMode() ? 90.0f : (float) com.topdownview.Config.cameraPitch;
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
-        
+
         double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;
         double radYaw = yaw * MathConstants.DEGREES_TO_RADIANS;
         double offsetY = Math.sin(radPitch) * distance;
