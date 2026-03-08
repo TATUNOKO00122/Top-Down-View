@@ -135,14 +135,18 @@ public class Config {
                         .comment("ゲーム起動時にトップダウン視点をデフォルトで有効にする")
                         .define("defaultEnabled", true);
 
-        // Camera settings
-        private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
-                        .comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
-                        .defineInRange("rotateAngleMode", 0, 0, 2);
+	// Camera settings
+	private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
+			.comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
+			.defineInRange("rotateAngleMode", 0, 0, 2);
 
-        private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-                        .comment("カメラが見下ろす垂直の角度（ピッチ）")
-                        .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+	private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
+			.comment("カメラが見下ろす垂直の角度（ピッチ）")
+			.defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+
+	private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
+			.comment("マイニングモード時のカメラ角度（ピッチ）")
+			.defineInRange("miningModePitch", 90.0, 10.0, 90.0);
 
         // Drag rotation settings
         private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
@@ -203,6 +207,7 @@ public class Config {
 
         public static int rotateAngleMode;
         public static double cameraPitch;
+        public static double miningModePitch;
 
 	// Drag rotation settings
 	public static boolean dragRotationEnabled;
@@ -243,6 +248,7 @@ public class Config {
                 defaultEnabled = DEFAULT_ENABLED.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
+                miningModePitch = MINING_MODE_PITCH.get();
 		dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
 		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 
@@ -279,11 +285,12 @@ public class Config {
                 RANGE_SHOVEL.set(rangeShovel);
                 RANGE_OTHER.set(rangeOther);
                 DEFAULT_ENABLED.set(defaultEnabled);
-                ROTATE_ANGLE_MODE.set(rotateAngleMode);
-                CAMERA_PITCH.set(cameraPitch);
-		DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
-		DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
-		SPEC.save();
+        ROTATE_ANGLE_MODE.set(rotateAngleMode);
+        CAMERA_PITCH.set(cameraPitch);
+        MINING_MODE_PITCH.set(miningModePitch);
+	DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
+	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
+	SPEC.save();
                 notifyConfigChanged();
         }
 }

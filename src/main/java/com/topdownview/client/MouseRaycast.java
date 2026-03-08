@@ -253,8 +253,8 @@ public final class MouseRaycast {
 
         double fov = mc.options.fov().get();
         double aspectRatio = screenWidth / screenHeight;
-        // マイニングモード時は90度（真下向き）、通常時はConfigの値
-        double pitch = ModState.STATUS.isMiningMode() ? 90.0 : com.topdownview.Config.cameraPitch;
+        // マイニングモード時はminingModePitch、通常時はConfigのcameraPitch
+        double pitch = ModState.STATUS.isMiningMode() ? com.topdownview.Config.miningModePitch : com.topdownview.Config.cameraPitch;
         double yaw = ModState.CAMERA.getYaw();
 
         if (cachedDirection != null && mouseX == lastMouseX && mouseY == lastMouseY

@@ -199,6 +199,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.cameraPitch, 10.0, 90.0,
                 val -> Config.cameraPitch = val));
         y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.miningModePitch, 10.0, 90.0,
+                val -> Config.miningModePitch = val));
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
         addRightWidget(Button.builder(
@@ -341,6 +344,7 @@ public class ConfigScreen extends Screen {
 
         Config.rotateAngleMode = 0;
         Config.cameraPitch = 45.0;
+        Config.miningModePitch = 90.0;
 
         this.init();
     }
