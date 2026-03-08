@@ -10,7 +10,6 @@ import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.Map;
@@ -23,10 +22,10 @@ public final class TopDownCuller {
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
     private static final int INTERACTION_RANGE_VERTICAL = 2;
-    
+
     // マイニングモード用スライス設定：足元より下も含めて保護
-    private static final int MINING_MODE_SLICE_OFFSET = -3;  // 足元より3ブロック下から
-    private static final int MINING_MODE_SLICE_HEIGHT = 5;   // 合計5層（y-3からy+1まで）
+    private static final int MINING_MODE_SLICE_OFFSET = -3; // 足元より3ブロック下から
+    private static final int MINING_MODE_SLICE_HEIGHT = 5; // 合計5層（y-3からy+1まで）
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
     private Vec3 currentCameraPos = Vec3.ZERO;
@@ -68,8 +67,9 @@ public final class TopDownCuller {
             return false;
         }
 
-        // マイニングモード時はカリング無効、代わりにスライス表示
+        // マイニングモード時はカリング無効、代わりにスライス表示（キャッシュを使用しない）
         if (ModState.STATUS.isMiningMode()) {
+            cullingCache.clear(); // マイニングモード時はキャッシュをクリア
             return isBlockCulledInMiningMode(pos);
         }
 
@@ -192,7 +192,7 @@ public final class TopDownCuller {
             return;
         }
 
-        // カメラ位置を正確に使用（スナップしない）
+        // カメラ位置をブロック座標にスナップ（判定の安定化のため）
         Vec3 cPos = new Vec3(
                 Math.floor(rawCameraPos.x) + 0.5,
                 Math.floor(rawCameraPos.y) + 0.5,
@@ -215,18 +215,55 @@ public final class TopDownCuller {
 
     /**
      * マイニングモード時のスライス方式カリング
-     * 足元から+1層を保護し、それより上を非表示
+     * プレイヤー側（手前）：保護2段、カメラ側（奥）：保護1段
      */
     private boolean isBlockCulledInMiningMode(BlockPos pos) {
+        Vec3 pPos = this.currentPlayerPos;
+
         // プレイヤーの足元Y座標を取得
-        int playerFeetY = (int) Math.floor(this.currentPlayerPos.y) - 1;
-        
-        // 保護範囲：足元から+1層（playerFeetYとplayerFeetY+1）
+        int playerFeetY = (int) Math.floor(pPos.y) - 1;
+
+        // 保護範囲の基本設定
         int protectedMinY = playerFeetY + MINING_MODE_SLICE_OFFSET;
         int protectedMaxY = protectedMinY + MINING_MODE_SLICE_HEIGHT - 1;
-        
+
+        // カメラ側（奥）では保護を1段減らす
+        if (isCameraSide(pos, pPos)) {
+            protectedMaxY -= 1;
+        }
+
         // 保護範囲内なら表示、それ以外は非表示
         return pos.getY() < protectedMinY || pos.getY() > protectedMaxY;
+    }
+
+    /**
+     * ブロックがカメラ側（奥）にあるか判定
+     * カメラのYawとPitchを使用して正確な方向を計算
+     */
+    private boolean isCameraSide(BlockPos pos, Vec3 playerPos) {
+        float pitch = ModState.CAMERA.getPitch();
+
+        // ピッチ角がほぼ90度（真上）なら、水平方向のオフセットが存在しないため false
+        if (pitch >= 89.9f) {
+            return false;
+        }
+
+        float yaw = ModState.CAMERA.getYaw();
+        double radYaw = Math.toRadians(yaw);
+
+        // プレイヤー→カメラの水平方向ベクトル（yawから計算することで、座標計算の丸め誤差やチャンク境界での揺らぎを排除）
+        double dxToCamera = Math.sin(radYaw);
+        double dzToCamera = -Math.cos(radYaw);
+
+        // プレイヤー→ブロックの水平方向ベクトル
+        double dxBlock = (pos.getX() + 0.5) - playerPos.x;
+        double dzBlock = (pos.getZ() + 0.5) - playerPos.z;
+
+        // プレイヤー→カメラ方向との内積
+        double dot = dxBlock * dxToCamera + dzBlock * dzToCamera;
+
+        // 内積 > 0.1 で明確にカメラ側（奥）にあると判定（微小な誤差を無視）
+        return dot > 0.1;
     }
 
     public int getCulledBlockCount() {
