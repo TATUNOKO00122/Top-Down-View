@@ -216,12 +216,27 @@ public final class TopDownCuller {
 
     /**
      * マイニングモード時のスライス方式カリング
-     * プレイヤー側（手前）：保護2段、カメラ側（奥）：保護1段
+     * 真円柱範囲内だけスライス方式を適用、円柱外は表示
      */
     private boolean isBlockCulledInMiningMode(BlockPos pos) {
         Vec3 pPos = this.currentPlayerPos;
+        Vec3 cPos = this.currentCameraPos;
 
-        // プレイヤーの足元Y座標を取得
+        // カメラ位置が未初期化の場合は表示
+        if (cPos == Vec3.ZERO) {
+            return false;
+        }
+
+        // マイニングモード用の真円柱範囲内かチェック
+        double radius = Config.miningCylinderRadius;
+        double forwardShift = Config.miningCylinderForwardShift;
+        float yaw = ModState.CAMERA.getYaw();
+        if (!CylinderCalculator.isInMiningCylinder(pos, pPos, cPos, radius, yaw, forwardShift)) {
+            // 円柱外は表示（カリングしない）
+            return false;
+        }
+
+        // 円柱内はスライス方式でカリング
         int playerFeetY = (int) Math.floor(pPos.y) - 1;
 
         // 保護範囲の基本設定

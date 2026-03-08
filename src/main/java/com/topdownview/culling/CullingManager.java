@@ -123,9 +123,17 @@ public final class CullingManager {
             return;
         }
 
-        AABB box = new AABB(playerPos, cameraPos).inflate(1, 0, 1);
-        double distance = playerPos.distanceTo(cameraPos);
-        box = box.inflate(distance, distance, distance);
+        // モードに応じて円柱のサイズを選択
+        int radiusH;
+        int radiusV;
+        if (ModState.STATUS.isMiningMode()) {
+            radiusH = com.topdownview.Config.miningCylinderRadius;
+            radiusV = com.topdownview.Config.miningCylinderRadius;
+        } else {
+            radiusH = com.topdownview.Config.cylinderRadiusHorizontal;
+            radiusV = com.topdownview.Config.cylinderRadiusVertical;
+        }
+        AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
 
         if (scheduleChunkRebuildInternal(box)) {
             lastChunkRebuildTime = currentTime;

@@ -156,10 +156,13 @@ public final class CameraState {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException("Camera distance must be finite: " + value);
         }
-        if (value < MIN_CAMERA_DISTANCE || value > MAX_CAMERA_DISTANCE) {
+        double maxDistance = com.topdownview.Config.maxCameraDistance > 0
+                ? com.topdownview.Config.maxCameraDistance
+                : MAX_CAMERA_DISTANCE;
+        if (value < MIN_CAMERA_DISTANCE || value > maxDistance) {
             throw new IllegalArgumentException(
                     String.format("Camera distance must be between %.1f and %.1f: %.1f",
-                            MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE, value));
+                            MIN_CAMERA_DISTANCE, maxDistance, value));
         }
         cameraDistance = value;
     }
@@ -229,7 +232,10 @@ public final class CameraState {
      * カメラ距離を増加
      */
     public double increaseCameraDistance(double delta) {
-        double newDistance = Math.min(MAX_CAMERA_DISTANCE, cameraDistance + delta);
+        double maxDistance = com.topdownview.Config.maxCameraDistance > 0
+                ? com.topdownview.Config.maxCameraDistance
+                : MAX_CAMERA_DISTANCE;
+        double newDistance = Math.min(maxDistance, cameraDistance + delta);
         setCameraDistance(newDistance);
         return newDistance;
     }
@@ -255,7 +261,7 @@ public final class CameraState {
         x = 0.0;
         z = 0.0;
         zoom = DEFAULT_ZOOM;
-        cameraDistance = DEFAULT_CAMERA_DISTANCE;
+        cameraDistance = getEffectiveDefaultCameraDistance();
         cameraPosition = DEFAULT_POSITION;
         previousCameraType = null;
         lastAutoAlignTick = 0;
@@ -265,6 +271,18 @@ public final class CameraState {
         isDragging = false;
         dragStartYaw = DEFAULT_YAW;
         dragStartMouseX = 0.0;
+    }
+
+    /**
+     * 有効なデフォルトカメラ距離を取得（Config値またはフォールバック値）
+     */
+    public static double getEffectiveDefaultCameraDistance() {
+        double configValue = com.topdownview.Config.defaultCameraDistance;
+        // Config値が範囲外の場合はフォールバック
+        if (configValue < MIN_CAMERA_DISTANCE || configValue > MAX_CAMERA_DISTANCE) {
+            return DEFAULT_CAMERA_DISTANCE;
+        }
+        return configValue;
     }
 
     // ==================== Utility Methods ====================

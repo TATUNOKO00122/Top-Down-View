@@ -58,6 +58,8 @@ public final class InputHandler {
             return;
         if (!ModState.CAMERA.isDragging())
             return;
+        if (mc.screen != null)
+            return;
 
         double currentMouseX = mc.mouseHandler.xpos();
         double deltaX = currentMouseX - ModState.CAMERA.getDragStartMouseX();
@@ -86,6 +88,9 @@ public final class InputHandler {
 
     private static void handleInput(int keyCode) {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null) {
+            return;
+        }
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
         int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
         int alignKeyCode = ClientModBusEvents.ALIGN_TO_MOVEMENT_KEY.getKey().getValue();
@@ -131,17 +136,23 @@ public final class InputHandler {
         if (!ModState.STATUS.isEnabled())
             return;
 
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null)
+            return;
+
         double scroll = event.getScrollDelta();
         if (scroll == 0)
             return;
 
-        Minecraft mc = Minecraft.getInstance();
         boolean isZoomModifierDown = ClientModBusEvents.ZOOM_MODIFIER_KEY.isDown();
 
         if (isZoomModifierDown) {
             double newDistance = ModState.CAMERA.getCameraDistance() - scroll * 1.5;
+            double maxDistance = Config.maxCameraDistance > 0
+                    ? Config.maxCameraDistance
+                    : com.topdownview.state.CameraState.MAX_CAMERA_DISTANCE;
             double clampedDistance = Math.max(com.topdownview.state.CameraState.MIN_CAMERA_DISTANCE,
-                    Math.min(newDistance, com.topdownview.state.CameraState.MAX_CAMERA_DISTANCE));
+                    Math.min(newDistance, maxDistance));
             ModState.CAMERA.setCameraDistance(clampedDistance);
             event.setCanceled(true);
         }

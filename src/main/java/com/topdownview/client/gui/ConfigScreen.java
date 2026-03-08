@@ -160,6 +160,14 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
                 Config.cylinderForwardShift, 0, 10, val -> Config.cylinderForwardShift = val));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.mining_cylinder", tx);
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_radius",
+                Config.miningCylinderRadius, 1, 16, val -> Config.miningCylinderRadius = val));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_forward_shift",
+                Config.miningCylinderForwardShift, 0, 10, val -> Config.miningCylinderForwardShift = val));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -201,6 +209,12 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.miningModePitch, 10.0, 90.0,
                 val -> Config.miningModePitch = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.maxCameraDistance, 10.0, 200.0,
+                val -> Config.maxCameraDistance = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.defaultCameraDistance, 5.0, 100.0,
+                val -> Config.defaultCameraDistance = val));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
@@ -312,6 +326,9 @@ public class ConfigScreen extends Screen {
         Config.cylinderRadiusVertical = 4;
         Config.cylinderForwardShift = 4;
 
+        Config.miningCylinderRadius = 3;
+        Config.miningCylinderForwardShift = 2;
+
         Config.clickToMoveEnabled = false;
         Config.arrivalThreshold = 1.5;
         Config.forceAutoJump = true;
@@ -345,6 +362,8 @@ public class ConfigScreen extends Screen {
         Config.rotateAngleMode = 0;
         Config.cameraPitch = 45.0;
         Config.miningModePitch = 90.0;
+        Config.maxCameraDistance = 50.0;
+        Config.defaultCameraDistance = 9.0;
 
         this.init();
     }

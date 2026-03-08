@@ -98,4 +98,63 @@ public final class CylinderCalculator {
         }
         return metrics.isInside();
     }
+
+    /**
+     * マイニングモード用の真円柱判定
+     * 水平・垂直ともに同じ半径の真円柱
+     * 
+     * @param pos ブロック位置
+     * @param playerPos プレイヤー位置
+     * @param cameraPos カメラ位置
+     * @param radius 円柱の半径（ブロック数）
+     * @param yaw 前方シフト用のヨー角度（度）
+     * @param forwardShift 前方シフト距離（ブロック数）
+     * @return 円柱内ならtrue
+     */
+    public static boolean isInMiningCylinder(BlockPos pos, Vec3 playerPos, Vec3 cameraPos, 
+            double radius, double yaw, double forwardShift) {
+        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+
+        // 前方シフトを適用したプレイヤー位置を計算
+        Vec3 shiftedPlayerPos;
+        if (forwardShift != 0.0) {
+            double yawRad = Math.toRadians(yaw);
+            shiftedPlayerPos = new Vec3(
+                    playerPos.x + forwardShift * (-Math.sin(yawRad)),
+                    playerPos.y,
+                    playerPos.z + forwardShift * Math.cos(yawRad));
+        } else {
+            shiftedPlayerPos = playerPos;
+        }
+
+        // カメラ→シフト後プレイヤーのベクトル（円柱の軸）
+        Vec3 axis = shiftedPlayerPos.subtract(cameraPos);
+        double axisLengthSq = axis.lengthSqr();
+        if (axisLengthSq < 1.0E-8) {
+            return false;
+        }
+
+        // 軸に沿った位置を計算（t=0がカメラ、t=1がシフト後プレイヤー）
+        Vec3 toBlock = blockCenter.subtract(cameraPos);
+        double t = toBlock.dot(axis) / axisLengthSq;
+
+        // 軸の範囲外（カメラより後ろ、またはシフト後プレイヤーより先）は円柱外
+        double axisLength = Math.sqrt(axisLengthSq);
+        double extensionT = 3.0 / axisLength;
+        if (t < -extensionT || t > 1.0 + extensionT) {
+            return false;
+        }
+
+        // 軸上の最近傍点
+        Vec3 closestPoint = cameraPos.add(axis.scale(Math.max(0, Math.min(1.0, t))));
+
+        // 3D距離（軸からの距離）
+        double dx = blockCenter.x - closestPoint.x;
+        double dy = blockCenter.y - closestPoint.y;
+        double dz = blockCenter.z - closestPoint.z;
+        double distFromAxis = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // 真円柱判定：軸からの3D距離が半径以内
+        return distFromAxis <= radius;
+    }
 }

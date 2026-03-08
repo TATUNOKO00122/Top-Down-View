@@ -37,6 +37,15 @@ public class Config {
                         .comment("楕円柱の中心を前方にシフトする距離（ブロック数）")
                         .defineInRange("cylinderForwardShift", 4, 0, 10);
 
+        // Mining mode cylinder settings (true cylinder, not elliptical)
+        private static final ForgeConfigSpec.IntValue MINING_CYLINDER_RADIUS = BUILDER
+                        .comment("マイニングモード用円柱の半径（ブロック数）")
+                        .defineInRange("miningCylinderRadius", 3, 1, 16);
+
+        private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
+                        .comment("マイニングモード時の円柱中心を前方にシフトする距離（ブロック数）")
+                        .defineInRange("miningCylinderForwardShift", 2, 0, 10);
+
         // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
                         .comment("クリックツームーブ機能の有効/無効")
@@ -148,6 +157,14 @@ public class Config {
 			.comment("マイニングモード時のカメラ角度（ピッチ）")
 			.defineInRange("miningModePitch", 90.0, 10.0, 90.0);
 
+	private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
+			.comment("最大カメラ距離（ズームアウト限界）")
+			.defineInRange("maxCameraDistance", 50.0, 10.0, 200.0);
+
+	private static final ForgeConfigSpec.DoubleValue DEFAULT_CAMERA_DISTANCE = BUILDER
+			.comment("デフォルトカメラ距離（初期ズーム位置）")
+			.defineInRange("defaultCameraDistance", 9.0, 5.0, 100.0);
+
         // Drag rotation settings
         private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
                         .comment("マウスドラッグによるカメラ回転の有効/無効")
@@ -178,6 +195,8 @@ public class Config {
         public static int cylinderRadiusHorizontal;
         public static int cylinderRadiusVertical;
         public static int cylinderForwardShift;
+        public static int miningCylinderRadius;
+        public static int miningCylinderForwardShift;
         public static boolean clickToMoveEnabled;
         public static double arrivalThreshold;
         public static boolean forceAutoJump;
@@ -205,9 +224,11 @@ public class Config {
 
         public static boolean defaultEnabled;
 
-        public static int rotateAngleMode;
-        public static double cameraPitch;
-        public static double miningModePitch;
+	public static int rotateAngleMode;
+	public static double cameraPitch;
+	public static double miningModePitch;
+	public static double maxCameraDistance;
+	public static double defaultCameraDistance;
 
 	// Drag rotation settings
 	public static boolean dragRotationEnabled;
@@ -220,10 +241,12 @@ public class Config {
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
-                cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
-                cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
-                cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
-                clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
+	cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
+			cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
+			cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
+			miningCylinderRadius = MINING_CYLINDER_RADIUS.get();
+			miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.get();
+			clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
                 autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.get();
@@ -249,6 +272,8 @@ public class Config {
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
                 cameraPitch = CAMERA_PITCH.get();
                 miningModePitch = MINING_MODE_PITCH.get();
+                maxCameraDistance = MAX_CAMERA_DISTANCE.get();
+                defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.get();
 		dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
 		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 
@@ -262,7 +287,9 @@ public class Config {
                 CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
                 CYLINDER_RADIUS_VERTICAL.set(cylinderRadiusVertical);
                 CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
-                CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
+            MINING_CYLINDER_RADIUS.set(miningCylinderRadius);
+            MINING_CYLINDER_FORWARD_SHIFT.set(miningCylinderForwardShift);
+            CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
                 AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(autoAlignToMovementEnabled);
@@ -288,6 +315,8 @@ public class Config {
         ROTATE_ANGLE_MODE.set(rotateAngleMode);
         CAMERA_PITCH.set(cameraPitch);
         MINING_MODE_PITCH.set(miningModePitch);
+        MAX_CAMERA_DISTANCE.set(maxCameraDistance);
+        DEFAULT_CAMERA_DISTANCE.set(defaultCameraDistance);
 	DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
 	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
 	SPEC.save();
