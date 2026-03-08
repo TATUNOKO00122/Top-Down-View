@@ -80,10 +80,17 @@ public final class InputHandler {
         ModState.CAMERA.setDragging(true);
         ModState.CAMERA.setDragStartYaw(ModState.CAMERA.getYaw());
         ModState.CAMERA.setDragStartMouseX(mc.mouseHandler.xpos());
+        // ドラッグ中はカーソルを非表示にする
+        org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_HIDDEN);
     }
 
     private static void stopDragRotation() {
         ModState.CAMERA.setDragging(false);
+        // カーソルを通常モードに戻す
+        Minecraft mc = Minecraft.getInstance();
+        org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
     }
 
     private static void handleInput(int keyCode) {
@@ -103,7 +110,7 @@ public final class InputHandler {
             CameraController.rotateCamera();
         } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
             CameraController.alignCameraToMovementImmediate();
-        } else if (ModState.STATUS.isEnabled() && keyCode == miningModeKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.miningModeEnabled && keyCode == miningModeKeyCode) {
             toggleMiningMode();
         } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();

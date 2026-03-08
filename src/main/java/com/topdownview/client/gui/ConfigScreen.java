@@ -51,7 +51,7 @@ public class ConfigScreen extends Screen {
 
         // --- タブの生成 (左パネル) ---
         int tabY = leftPanelY + 10;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             final int index = i;
             Button btn = Button.builder(getTabComponent(i), b -> switchTab(index))
                     .bounds(leftPanelX + 10, tabY, leftPanelW - 20, 20)
@@ -96,6 +96,7 @@ public class ConfigScreen extends Screen {
             case 2 -> Component.translatable("topdown_view.config.tab.movement");
             case 3 -> Component.translatable("topdown_view.config.tab.camera");
             case 4 -> Component.translatable("topdown_view.config.tab.visual");
+            case 5 -> Component.translatable("topdown_view.config.tab.experimental");
             default -> Component.empty();
         };
     }
@@ -112,6 +113,7 @@ public class ConfigScreen extends Screen {
             case 2 -> buildMovementTab(colX, y, colW, btnH, spacing, titleX);
             case 3 -> buildCameraTab(colX, y, colW, btnH, spacing, titleX);
             case 4 -> buildVisualTab(colX, y, colW, btnH, spacing, titleX);
+            case 5 -> buildExperimentalTab(colX, y, colW, btnH, spacing, titleX);
         }
     }
 
@@ -135,18 +137,7 @@ public class ConfigScreen extends Screen {
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
                         .build());
-        y += sp;
-        y = addSection(y, "topdown_view.config.section.weapon_range", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.rangeIndicatorEnabled),
-                btn -> {
-                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
-                            Config.rangeIndicatorEnabled));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
-                .build());
-        contentHeight = (y += sp) - (30 - (int) scrollOffset) + sp;
+        contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
@@ -159,14 +150,6 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
                 Config.cylinderForwardShift, 0, 10, val -> Config.cylinderForwardShift = val));
-        y += sp;
-
-        y = addSection(y, "topdown_view.config.section.mining_cylinder", tx);
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_radius",
-                Config.miningCylinderRadius, 1, 16, val -> Config.miningCylinderRadius = val));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_forward_shift",
-                Config.miningCylinderForwardShift, 0, 10, val -> Config.miningCylinderForwardShift = val));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
@@ -206,9 +189,6 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.cameraPitch, 10.0, 90.0,
                 val -> Config.cameraPitch = val));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.miningModePitch, 10.0, 90.0,
-                val -> Config.miningModePitch = val));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.maxCameraDistance, 10.0, 200.0,
                 val -> {
@@ -261,6 +241,67 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.auto_align_animation_speed",
                 Config.autoAlignAnimationSpeed, 0.05, 0.5, val -> Config.autoAlignAnimationSpeed = val));
         y += sp;
+        contentHeight = y - (30 - (int) scrollOffset) + sp;
+    }
+
+    private void buildExperimentalTab(int x, int y, int w, int h, int sp, int tx) {
+        // 警告ヘッダー
+        y = addSection(y, "topdown_view.config.section.experimental_warning", tx);
+        y += sp;
+
+        // マイニングモード設定
+        y = addSection(y, "topdown_view.config.section.mining_mode", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.mining_mode_enabled", Config.miningModeEnabled),
+                btn -> {
+                    Config.miningModeEnabled = !Config.miningModeEnabled;
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mining_mode_enabled",
+                            Config.miningModeEnabled));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mining_mode_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.miningModePitch, 10.0, 90.0,
+                val -> Config.miningModePitch = val));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_radius",
+                Config.miningCylinderRadius, 1, 16, val -> Config.miningCylinderRadius = val));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_forward_shift",
+                Config.miningCylinderForwardShift, 0, 10, val -> Config.miningCylinderForwardShift = val));
+        y += sp;
+
+        // 射程設定
+        y = addSection(y, "topdown_view.config.section.weapon_range", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.rangeIndicatorEnabled),
+                btn -> {
+                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
+                    btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
+                            Config.rangeIndicatorEnabled));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_empty_hand",
+                Config.rangeEmptyHand, 1.0, 10.0, val -> Config.rangeEmptyHand = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_sword",
+                Config.rangeSword, 1.0, 10.0, val -> Config.rangeSword = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_axe",
+                Config.rangeAxe, 1.0, 10.0, val -> Config.rangeAxe = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_pickaxe",
+                Config.rangePickaxe, 1.0, 10.0, val -> Config.rangePickaxe = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_shovel",
+                Config.rangeShovel, 1.0, 10.0, val -> Config.rangeShovel = val));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_other",
+                Config.rangeOther, 1.0, 10.0, val -> Config.rangeOther = val));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -334,6 +375,7 @@ public class ConfigScreen extends Screen {
 
         Config.miningCylinderRadius = 3;
         Config.miningCylinderForwardShift = 2;
+        Config.miningModeEnabled = false;
 
         Config.clickToMoveEnabled = false;
         Config.arrivalThreshold = 1.5;

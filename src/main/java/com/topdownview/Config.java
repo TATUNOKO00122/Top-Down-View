@@ -44,7 +44,11 @@ public class Config {
 
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
                         .comment("マイニングモード時の円柱中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("miningCylinderForwardShift", 2, 0, 10);
+                        .defineInRange("miningCylinderForwardShift", 1, 0, 10);
+
+        private static final ForgeConfigSpec.BooleanValue MINING_MODE_ENABLED = BUILDER
+                        .comment("マイニングモード機能の有効/無効（無効時はキー入力を無視）")
+                        .define("miningModeEnabled", false);
 
         // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
@@ -57,7 +61,7 @@ public class Config {
 
         private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
                         .comment("クリックツームーブ中の自動ジャンプ強制")
-                        .define("forceAutoJump", true);
+                        .define("forceAutoJump", false);
 
         private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_TO_MOVEMENT_ENABLED = BUILDER
                         .comment("移動中にカメラを進行方向へ自動回転")
@@ -155,7 +159,7 @@ public class Config {
 
 	private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
 			.comment("マイニングモード時のカメラ角度（ピッチ）")
-			.defineInRange("miningModePitch", 90.0, 10.0, 90.0);
+			.defineInRange("miningModePitch", 60.0, 10.0, 90.0);
 
 	private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
 			.comment("最大カメラ距離（ズームアウト限界）")
@@ -172,7 +176,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
                         .comment("ドラッグ回転の感度（値が大きいほど敏感）")
-                        .defineInRange("dragRotationSensitivity", 0.11, 0.01, 1.0);
+                        .defineInRange("dragRotationSensitivity", 0.1, 0.01, 1.0);
 
         // Pathfinding settings (DISABLED - straight-line movement only)
         // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
@@ -197,6 +201,7 @@ public class Config {
         public static int cylinderForwardShift;
         public static int miningCylinderRadius;
         public static int miningCylinderForwardShift;
+        public static boolean miningModeEnabled;
         public static boolean clickToMoveEnabled;
         public static double arrivalThreshold;
         public static boolean forceAutoJump;
@@ -246,6 +251,7 @@ public class Config {
 			cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
 			miningCylinderRadius = MINING_CYLINDER_RADIUS.get();
 			miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.get();
+			miningModeEnabled = MINING_MODE_ENABLED.get();
 			clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
@@ -291,6 +297,7 @@ public class Config {
                 CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
             MINING_CYLINDER_RADIUS.set(miningCylinderRadius);
             MINING_CYLINDER_FORWARD_SHIFT.set(miningCylinderForwardShift);
+            MINING_MODE_ENABLED.set(miningModeEnabled);
             CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
