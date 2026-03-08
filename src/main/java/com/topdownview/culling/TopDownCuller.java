@@ -67,15 +67,16 @@ public final class TopDownCuller {
             return false;
         }
 
-        // マイニングモード時はカリング無効、代わりにスライス表示（キャッシュを使用しない）
-        if (ModState.STATUS.isMiningMode()) {
-            cullingCache.clear(); // マイニングモード時はキャッシュをクリア
-            return isBlockCulledInMiningMode(pos);
-        }
-
         Boolean cached = cullingCache.get(pos);
         if (cached != null) {
             return cached;
+        }
+
+        // マイニングモード時はカリング無効、代わりにスライス表示
+        if (ModState.STATUS.isMiningMode()) {
+            boolean cull = isBlockCulledInMiningMode(pos);
+            cullingCache.put(pos, cull);
+            return cull;
         }
 
         BlockState state = level.getBlockState(pos);
@@ -251,7 +252,7 @@ public final class TopDownCuller {
         float yaw = ModState.CAMERA.getYaw();
         double radYaw = Math.toRadians(yaw);
 
-        // プレイヤー→カメラの水平方向ベクトル（yawから計算することで、座標計算の丸め誤差やチャンク境界での揺らぎを排除）
+        // プレイヤー→カメラの水平方向ベクトル
         double dxToCamera = Math.sin(radYaw);
         double dzToCamera = -Math.cos(radYaw);
 

@@ -27,7 +27,6 @@ public class EntityRenderDispatcherMixin {
     private <E extends Entity> void onRender(E pEntity, double pX, double pY, double pZ, float pRotationYaw,
             float pPartialTicks, PoseStack pMatrixStack, MultiBufferSource pBuffer, int pPackedLight, CallbackInfo ci) {
         if (ModState.STATUS.isEnabled()) {
-
             if (CULLER.isBlockCulled(pEntity.blockPosition(), pEntity.level())) {
                 ci.cancel();
             }

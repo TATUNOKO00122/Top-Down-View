@@ -15,7 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
-import net.minecraft.world.level.LightLayer;
+
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 
 /**
- * カリング境界フェード描画
+ * カリング境界フェード描画 & マイニングモード動的描画
  * RenderLevelStageEvent.AFTER_TRANSLUCENT_BLOCKSで描画
  */
 public final class TranslucentBlockRenderer {
@@ -44,11 +44,12 @@ public final class TranslucentBlockRenderer {
             return;
         }
 
+        TopDownCuller culler = TopDownCuller.getInstance();
+
         if (!Config.fadeEnabled) {
             return;
         }
 
-        TopDownCuller culler = TopDownCuller.getInstance();
         Map<BlockPos, Float> fadeBlocks = culler.getFadeBlocks(mc.level);
 
         if (fadeBlocks.isEmpty()) {
