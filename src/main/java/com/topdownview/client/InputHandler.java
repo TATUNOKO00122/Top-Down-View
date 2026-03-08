@@ -148,9 +148,7 @@ public final class InputHandler {
 
         if (isZoomModifierDown) {
             double newDistance = ModState.CAMERA.getCameraDistance() - scroll * 1.5;
-            double maxDistance = Config.maxCameraDistance > 0
-                    ? Config.maxCameraDistance
-                    : com.topdownview.state.CameraState.MAX_CAMERA_DISTANCE;
+            double maxDistance = com.topdownview.state.CameraState.getEffectiveMaxCameraDistance();
             double clampedDistance = Math.max(com.topdownview.state.CameraState.MIN_CAMERA_DISTANCE,
                     Math.min(newDistance, maxDistance));
             ModState.CAMERA.setCameraDistance(clampedDistance);
