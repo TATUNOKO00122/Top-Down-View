@@ -169,8 +169,13 @@ public final class CameraController {
             ModState.TIME.setStartTime(mc.level.getGameTime());
         }
         // カメラ距離をデフォルト値で初期化
-        double defaultDistance = com.topdownview.state.CameraState.getEffectiveDefaultCameraDistance();
-        ModState.CAMERA.setCameraDistance(defaultDistance);
+        try {
+            double defaultDistance = com.topdownview.state.CameraState.getEffectiveDefaultCameraDistance();
+            ModState.CAMERA.setCameraDistance(defaultDistance);
+        } catch (IllegalArgumentException e) {
+            // 設定値が無効な場合はフォールバック
+            ModState.CAMERA.setCameraDistance(com.topdownview.state.CameraState.DEFAULT_CAMERA_DISTANCE);
+        }
         ModState.STATUS.setInitialized(true);
     }
 
