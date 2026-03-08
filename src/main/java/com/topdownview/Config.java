@@ -322,4 +322,13 @@ public class Config {
 	SPEC.save();
                 notifyConfigChanged();
         }
+
+        // ForgeConfigSpecへのアクセス用ゲッター
+        public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {
+                return MAX_CAMERA_DISTANCE;
+        }
+
+        public static ForgeConfigSpec.DoubleValue getDefaultCameraDistanceSpec() {
+                return DEFAULT_CAMERA_DISTANCE;
+        }
 }

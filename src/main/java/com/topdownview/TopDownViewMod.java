@@ -17,6 +17,10 @@ import org.slf4j.Logger;
 public class TopDownViewMod {
     public static final String MODID = "topdown_view";
     private static final Logger LOGGER = LogUtils.getLogger();
+    
+    public static Logger getLogger() {
+        return LOGGER;
+    }
 
     public TopDownViewMod(FMLJavaModLoadingContext context) {
         MinecraftForge.EVENT_BUS.register(this);
