@@ -97,7 +97,7 @@ public class Config {
                         .defineInRange("fadeStart", 0.7, 0.0, 0.9);
 
         private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
-                        .comment("プレイヤー付近の透明度（0.0=透明、1.0=不透明）")
+                        .comment("カメラ付近の不透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
         // Target highlight settings

@@ -23,6 +23,10 @@ public final class TopDownCuller {
     private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
     private static final int INTERACTION_RANGE_VERTICAL = 2;
+    
+    // マイニングモード用スライス設定：足元より下も含めて保護
+    private static final int MINING_MODE_SLICE_OFFSET = -3;  // 足元より3ブロック下から
+    private static final int MINING_MODE_SLICE_HEIGHT = 5;   // 合計5層（y-3からy+1まで）
 
     private Vec3 currentPlayerPos = Vec3.ZERO;
     private Vec3 currentCameraPos = Vec3.ZERO;
@@ -62,6 +66,11 @@ public final class TopDownCuller {
 
         if (level == null) {
             return false;
+        }
+
+        // マイニングモード時はカリング無効、代わりにスライス表示
+        if (ModState.STATUS.isMiningMode()) {
+            return isBlockCulledInMiningMode(pos);
         }
 
         Boolean cached = cullingCache.get(pos);
@@ -203,6 +212,22 @@ public final class TopDownCuller {
         this.currentCameraPos = Vec3.ZERO;
     }
 
+    /**
+     * マイニングモード時のスライス方式カリング
+     * 足元から+1層を保護し、それより上を非表示
+     */
+    private boolean isBlockCulledInMiningMode(BlockPos pos) {
+        // プレイヤーの足元Y座標を取得
+        int playerFeetY = (int) Math.floor(this.currentPlayerPos.y) - 1;
+        
+        // 保護範囲：足元から+1層（playerFeetYとplayerFeetY+1）
+        int protectedMinY = playerFeetY + MINING_MODE_SLICE_OFFSET;
+        int protectedMaxY = protectedMinY + MINING_MODE_SLICE_HEIGHT - 1;
+        
+        // 保護範囲内なら表示、それ以外は非表示
+        return pos.getY() < protectedMinY || pos.getY() > protectedMaxY;
+    }
+
     public int getCulledBlockCount() {
         return cullingCache.getCulledCount();
     }
@@ -213,6 +238,11 @@ public final class TopDownCuller {
 
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled()) {
+            return 1.0f;
+        }
+
+        // マイニングモード時はフェード無効（通常表示）
+        if (ModState.STATUS.isMiningMode()) {
             return 1.0f;
         }
 
@@ -234,6 +264,11 @@ public final class TopDownCuller {
 
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !Config.fadeEnabled) {
+            return false;
+        }
+
+        // マイニングモード時はフェードブロックとして扱わない
+        if (ModState.STATUS.isMiningMode()) {
             return false;
         }
 
@@ -285,6 +320,11 @@ public final class TopDownCuller {
         fadeCache.clearFadeBlocks();
 
         if (!ModState.STATUS.isEnabled()) {
+            return fadeCache.getFadeBlocksCache();
+        }
+
+        // マイニングモード時はフェードブロックを返さない
+        if (ModState.STATUS.isMiningMode()) {
             return fadeCache.getFadeBlocksCache();
         }
 

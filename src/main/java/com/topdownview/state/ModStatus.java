@@ -11,6 +11,7 @@ public final class ModStatus {
 
     private boolean enabled = false;
     private boolean initialized = false;
+    private boolean miningMode = false;
 
     private ModStatus() {}
 
@@ -24,6 +25,10 @@ public final class ModStatus {
         return initialized;
     }
 
+    public boolean isMiningMode() {
+        return miningMode;
+    }
+
     // ==================== Setters ====================
 
     public void setEnabled(boolean value) {
@@ -34,11 +39,16 @@ public final class ModStatus {
         initialized = value;
     }
 
+    public void setMiningMode(boolean value) {
+        miningMode = value;
+    }
+
     /**
      * 状態をリセット
      */
     public void reset() {
         enabled = false;
         initialized = false;
+        miningMode = false;
     }
 }

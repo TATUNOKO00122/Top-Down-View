@@ -38,6 +38,11 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_LEFT_ALT, // Default to Left Alt key, can be rebound to mouse button in controls
             "key.categories.topdown_view");
 
+    public static final KeyMapping MINING_MODE_KEY = new KeyMapping(
+            "key.topdown_view.mining_mode",
+            GLFW.GLFW_KEY_M,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
@@ -45,6 +50,7 @@ public class ClientModBusEvents {
         event.register(ZOOM_MODIFIER_KEY);
         event.register(ALIGN_TO_MOVEMENT_KEY);
         event.register(DRAG_ROTATE_KEY);
+        event.register(MINING_MODE_KEY);
     }
 
 

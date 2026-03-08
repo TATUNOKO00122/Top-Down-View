@@ -89,6 +89,7 @@ public final class InputHandler {
         int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
         int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
         int alignKeyCode = ClientModBusEvents.ALIGN_TO_MOVEMENT_KEY.getKey().getValue();
+        int miningModeKeyCode = ClientModBusEvents.MINING_MODE_KEY.getKey().getValue();
         int jumpKeyCode = mc.options.keyJump.getKey().getValue();
 
         if (keyCode == toggleKeyCode) {
@@ -97,6 +98,8 @@ public final class InputHandler {
             CameraController.rotateCamera();
         } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
             CameraController.alignCameraToMovementImmediate();
+        } else if (ModState.STATUS.isEnabled() && keyCode == miningModeKeyCode) {
+            toggleMiningMode();
         } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();
         }
@@ -114,6 +117,13 @@ public final class InputHandler {
         } else {
             CameraController.disableTopDownView(mc);
         }
+    }
+
+    private static void toggleMiningMode() {
+        boolean newState = !ModState.STATUS.isMiningMode();
+        ModState.STATUS.setMiningMode(newState);
+        // カリングキャッシュをクリアして表示を更新
+        com.topdownview.culling.CullingManager.reset();
     }
 
     @SubscribeEvent

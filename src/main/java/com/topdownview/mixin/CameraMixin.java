@@ -51,7 +51,8 @@ public abstract class CameraMixin {
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
         double distance = ModState.CAMERA.getCameraDistance();
-        float pitch = (float) com.topdownview.Config.cameraPitch;
+        // マイニングモード時は90度（真上から見下ろす）
+        float pitch = ModState.STATUS.isMiningMode() ? 90.0f : (float) com.topdownview.Config.cameraPitch;
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
         
         double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;
