@@ -63,10 +63,15 @@ public final class TranslucentBlockRenderer {
 
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
+        // パフォーマンス最適化: ラッパーオブジェクトを再利用
+        VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
+        ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
+        FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
+
         for (Map.Entry<BlockPos, Float> entry : fadeBlocks.entrySet()) {
             BlockPos pos = entry.getKey();
             float alpha = entry.getValue();
-            renderFadeBlock(mc.level, pos, poseStack, bufferSource, blockRenderer, alpha, cameraPos);
+            renderFadeBlock(mc.level, pos, poseStack, blockRenderer, alphaConsumer, fadeLevel, alpha, cameraPos);
         }
 
         bufferSource.endBatch(RenderType.translucent());
@@ -76,8 +81,9 @@ public final class TranslucentBlockRenderer {
             BlockAndTintGetter level,
             BlockPos pos,
             PoseStack poseStack,
-            MultiBufferSource bufferSource,
             BlockRenderDispatcher blockRenderer,
+            ReusableAlphaVertexConsumer alphaConsumer,
+            FadeBlockGetter fadeLevel,
             float alpha,
             Vec3 cameraPos) {
         BlockState state = level.getBlockState(pos);
@@ -93,8 +99,8 @@ public final class TranslucentBlockRenderer {
         poseStack.pushPose();
         poseStack.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
 
-        VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
-        VertexConsumer alphaConsumer = new AlphaOverrideVertexConsumer(baseConsumer, alpha);
+        // 再利用可能なラッパーのalpha値を更新
+        alphaConsumer.setAlpha(alpha);
 
         long seed = state.getSeed(pos);
         RANDOM.setSeed(seed);
@@ -106,8 +112,6 @@ public final class TranslucentBlockRenderer {
                 modelData = be.getModelData();
             }
         }
-
-        FadeBlockGetter fadeLevel = new FadeBlockGetter(level, TopDownCuller.getInstance().getFadeBlocksCache());
 
         blockRenderer.getModelRenderer().tesselateBlock(
                 fadeLevel,
@@ -128,13 +132,18 @@ public final class TranslucentBlockRenderer {
 
     /**
      * 頂点カラーのアルファ値を強制的に上書きするVertexConsumerラッパー
+     * パフォーマンス最適化: alpha値を更新して再利用可能
      */
-    private static class AlphaOverrideVertexConsumer implements VertexConsumer {
+    private static class ReusableAlphaVertexConsumer implements VertexConsumer {
         private final VertexConsumer delegate;
-        private final float alpha;
+        private float alpha;
 
-        AlphaOverrideVertexConsumer(VertexConsumer delegate, float alpha) {
+        ReusableAlphaVertexConsumer(VertexConsumer delegate) {
             this.delegate = delegate;
+            this.alpha = 1.0f;
+        }
+
+        void setAlpha(float alpha) {
             this.alpha = alpha;
         }
 

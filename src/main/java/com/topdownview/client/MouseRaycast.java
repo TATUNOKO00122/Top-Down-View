@@ -180,22 +180,37 @@ public final class MouseRaycast {
 
         Vec3 direction = end.subtract(start).normalize();
         double step = calculateAdaptiveStep(distance);
-        BlockPos lastCheckedPos = null;
+
+        // パフォーマンス最適化: ループ内オブジェクト生成を回避
+        double dx = direction.x;
+        double dy = direction.y;
+        double dz = direction.z;
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        int lastX = Integer.MIN_VALUE;
+        int lastY = Integer.MIN_VALUE;
+        int lastZ = Integer.MIN_VALUE;
+
         int maxIterations = (int) (distance / Math.max(step, MIN_RAYCAST_STEP)) + 10;
         int iterations = 0;
 
         for (double d = 0; d < distance && iterations < maxIterations; d += step) {
             iterations++;
-            Vec3 currentPos = start.add(direction.scale(d));
-            BlockPos blockPos = BlockPos.containing(currentPos);
+            // 直接計算でオブジェクト生成を回避
+            int bx = (int) Math.floor(start.x + dx * d);
+            int by = (int) Math.floor(start.y + dy * d);
+            int bz = (int) Math.floor(start.z + dz * d);
 
-            if (blockPos.equals(lastCheckedPos))
+            if (bx == lastX && by == lastY && bz == lastZ)
                 continue;
-            lastCheckedPos = blockPos;
+            lastX = bx;
+            lastY = by;
+            lastZ = bz;
+
+            mutablePos.set(bx, by, bz);
 
             TopDownCuller culler = TopDownCuller.getInstance();
-            if (culler.isBlockCulled(blockPos, mc.level)) {
-                if (Config.fadeBlockRaycastProtection && !culler.isHittableFadeBlock(blockPos, mc.level)) {
+            if (culler.isBlockCulled(mutablePos, mc.level)) {
+                if (Config.fadeBlockRaycastProtection && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
                     continue;
                 }
                 if (!Config.fadeBlockRaycastProtection) {
@@ -203,11 +218,11 @@ public final class MouseRaycast {
                 }
             }
 
-            BlockState state = mc.level.getBlockState(blockPos);
+            BlockState state = mc.level.getBlockState(mutablePos);
             if (!state.isAir()) {
-                var shape = state.getShape(mc.level, blockPos, CollisionContext.of(mc.player));
+                var shape = state.getShape(mc.level, mutablePos, CollisionContext.of(mc.player));
                 if (!shape.isEmpty()) {
-                    var clipResult = shape.clip(start, end, blockPos);
+                    var clipResult = shape.clip(start, end, mutablePos);
                     if (clipResult != null)
                         return clipResult;
                 }

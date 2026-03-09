@@ -26,7 +26,6 @@ public final class TopDownCuller {
     }
 
     private static final int UPDATE_FREQUENCY = 1;
-    // 毎tickキャッシュクリア（dungeons-perspective方式：キャッシュを使わず常に最新位置で計算）
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
     private static final int INTERACTION_RANGE_VERTICAL = 2;
 
@@ -36,6 +35,11 @@ public final class TopDownCuller {
 
     // マイニングモード時の鉱石除外範囲（プレイヤーからの距離）
     private static final double ORE_EXCLUDE_RADIUS = 2.0;
+
+    // キャッシュクリア判定用の前回位置（ブロック座標）
+    private int lastPlayerBlockX = Integer.MIN_VALUE;
+    private int lastPlayerBlockY = Integer.MIN_VALUE;
+    private int lastPlayerBlockZ = Integer.MIN_VALUE;
 
     private volatile CullingContext context = CullingContext.EMPTY;
 
@@ -212,8 +216,20 @@ public final class TopDownCuller {
                 Math.floor(rawCameraPos.y) + 0.5,
                 Math.floor(rawCameraPos.z) + 0.5);
 
-        // 毎tickキャッシュクリア（キャッシュキーがBlockPosのみのため、位置変更を反映するにはクリアが必要）
-        cullingCache.clear();
+        // プレイヤーのブロック座標を計算
+        int playerBlockX = (int) Math.floor(eyePos.x);
+        int playerBlockY = (int) Math.floor(eyePos.y);
+        int playerBlockZ = (int) Math.floor(eyePos.z);
+
+        // 位置が変わった場合のみキャッシュクリア（パフォーマンス最適化）
+        if (playerBlockX != lastPlayerBlockX
+                || playerBlockY != lastPlayerBlockY
+                || playerBlockZ != lastPlayerBlockZ) {
+            cullingCache.clear();
+            lastPlayerBlockX = playerBlockX;
+            lastPlayerBlockY = playerBlockY;
+            lastPlayerBlockZ = playerBlockZ;
+        }
 
         // 不変オブジェクトでアトミック更新（synchronized不要）
         this.context = new CullingContext(candidatePos, cPos);
@@ -223,6 +239,10 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         this.context = CullingContext.EMPTY;
+        // 前回位置もリセット
+        lastPlayerBlockX = Integer.MIN_VALUE;
+        lastPlayerBlockY = Integer.MIN_VALUE;
+        lastPlayerBlockZ = Integer.MIN_VALUE;
     }
 
     /**
