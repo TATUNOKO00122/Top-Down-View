@@ -3,13 +3,8 @@ package com.topdownview.client;
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.baritone.BaritoneIntegration;
-// import com.topdownview.pathfinding.CollisionDetector;
-// import com.topdownview.pathfinding.LocalAvoidanceEngine;
-// import com.topdownview.pathfinding.Path;
-// import com.topdownview.pathfinding.PathfindingEngine;
 import com.topdownview.state.ModState;
 import com.mojang.logging.LogUtils;
-// import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -46,15 +41,11 @@ public final class ClickToMoveController {
 
         ClickActionHandler.onClientTick(mc);
 
-        // ModState.PATHFINDING.tickCooldown();
-
-        if (!Config.clickToMoveEnabled) return;
+        if (!Config.isClickToMoveEnabled()) return;
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
         ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
         ModState.CLICK_TO_MOVE.tickBaritone();
-
-        // updateNearbyEntities(mc);
 
         if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
             updateLongPressFollow(mc);
@@ -112,7 +103,6 @@ public final class ClickToMoveController {
 
     public static void startLongPressFollow() {
         ModState.CLICK_TO_MOVE.setLongPressFollow(true);
-        // ModState.PATHFINDING.clearPath();
     }
 
     public static void stopLongPressFollow() {
@@ -178,81 +168,6 @@ public final class ClickToMoveController {
         return direction.normalize();
     }
 
-    // private static Vec3 calculateDirectionWithAvoidance(Minecraft mc, Vec3 playerPos, Vec3 finalDestination) {
-    //     Vec3 targetWaypoint = getTargetWaypoint(mc, playerPos, finalDestination);
-    //     if (targetWaypoint == null) return null;
-    // 
-    //     Vec3 baseDirection = targetWaypoint.subtract(playerPos);
-    //     double horizontalDist = Math.sqrt(baseDirection.x * baseDirection.x + baseDirection.z * baseDirection.z);
-    //     if (horizontalDist < 0.1) return null;
-    // 
-    //     baseDirection = baseDirection.normalize();
-    // 
-    //     if (Config.pathfindingEnabled) {
-    //         List<Entity> nearbyEntities = ModState.PATHFINDING.getNearbyEntities();
-    //         if (!nearbyEntities.isEmpty()) {
-    //             Vec3 avoidanceVec = LocalAvoidanceEngine.calculateAvoidanceVectorSimple(
-    //                 playerPos,
-    //                 targetWaypoint,
-    //                 nearbyEntities
-    //             );
-    // 
-    //             Vec3 adjustedDir = baseDirection.scale(0.7).add(avoidanceVec.scale(0.3));
-    //             return adjustedDir.normalize();
-    //         }
-    //     }
-    // 
-    //     return baseDirection;
-    // }
-
-    // private static Vec3 getTargetWaypoint(Minecraft mc, Vec3 playerPos, Vec3 finalDestination) {
-    //     if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
-    //         return finalDestination;
-    //     }
-    // 
-    //     if (ModState.CLICK_TO_MOVE.getTargetEntity() != null) {
-    //         return finalDestination;
-    //     }
-    // 
-    //     Path path = ModState.PATHFINDING.getCurrentPath();
-    //     if (path != null && !path.isEmpty() && !path.isFinished()) {
-    //         Vec3 currentWaypoint = path.getCurrentNodePosition();
-    //         if (currentWaypoint != null) {
-    //             double distToWaypoint = playerPos.distanceTo(currentWaypoint);
-    // 
-    //             if (distToWaypoint < WAYPOINT_THRESHOLD) {
-    //                 int prevIndex = path.getCurrentNodeIndex();
-    //                 path.advance();
-    //                 Vec3 nextWaypoint = path.getCurrentNodePosition();
-    //                 if (nextWaypoint != null) {
-    //                     LOGGER.debug("[ClickToMove] ウェイポイント進行: {} -> {}", prevIndex, path.getCurrentNodeIndex());
-    //                     return nextWaypoint;
-    //                 }
-    //             } else {
-    //                 return currentWaypoint;
-    //             }
-    //         }
-    // 
-    //         if (path.isFinished()) {
-    //             LOGGER.info("[ClickToMove] パス完了");
-    //             ModState.PATHFINDING.clearPath();
-    //         }
-    //     }
-    // 
-    //     return finalDestination;
-    // }
-
-    // private static void updateNearbyEntities(Minecraft mc) {
-    //     if (mc.player == null) return;
-    // 
-    //     List<Entity> nearby = CollisionDetector.getNearbyEntities(
-    //         mc,
-    //         mc.player.position(),
-    //         Config.avoidanceRadius + 1.0
-    //     );
-    //     ModState.PATHFINDING.setNearbyEntities(nearby);
-    // }
-
     private static Vec3 getEffectiveDestination(Minecraft mc) {
         if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
             double reach = MouseRaycast.getCustomReachDistance();
@@ -272,7 +187,7 @@ public final class ClickToMoveController {
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         var hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (hitResult == null || hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+        if (hitResult == null || hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
             return;
         }
 
@@ -282,7 +197,7 @@ public final class ClickToMoveController {
     private static void checkArrival(Minecraft mc) {
         if (mc.player == null) return;
 
-        double threshold = Config.arrivalThreshold;
+        double threshold = Config.getArrivalThreshold();
         if (ModState.CLICK_TO_MOVE.hasArrived(mc.player.position(), threshold)) {
             stop();
         }
