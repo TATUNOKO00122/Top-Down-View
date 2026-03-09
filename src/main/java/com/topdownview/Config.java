@@ -178,71 +178,129 @@ public class Config {
                         .comment("ドラッグ回転の感度（値が大きいほど敏感）")
                         .defineInRange("dragRotationSensitivity", 0.1, 0.01, 1.0);
 
-        // Pathfinding settings (DISABLED - straight-line movement only)
-        // private static final ForgeConfigSpec.IntValue PATHFINDING_RANGE = BUILDER
-        // .comment("経路探索の最大距離（ブロック数）")
-        // .defineInRange("pathfindingRange", 32, 8, 64);
-        // private static final ForgeConfigSpec.IntValue PATH_RECALC_COOLDOWN = BUILDER
-        // .comment("経路再計算のクールダウン（tick）")
-        // .defineInRange("pathRecalcCooldown", 20, 5, 100);
-        // private static final ForgeConfigSpec.BooleanValue PATHFINDING_ENABLED =
-        // BUILDER
-        // .comment("経路探索（A*）と動的回避の有効/無効")
-        // .define("pathfindingEnabled", true);
-        // private static final ForgeConfigSpec.DoubleValue AVOIDANCE_RADIUS = BUILDER
-        // .comment("回避判定の半径（ブロック数）")
-        // .defineInRange("avoidanceRadius", 2.0, 1.0, 5.0);
-
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
-        // Runtime values
-        public static int cylinderRadiusHorizontal;
-        public static int cylinderRadiusVertical;
-        public static int cylinderForwardShift;
-        public static int miningCylinderRadius;
-        public static int miningCylinderForwardShift;
-        public static boolean miningModeEnabled;
-        public static boolean clickToMoveEnabled;
-        public static double arrivalThreshold;
-        public static boolean forceAutoJump;
-        public static boolean autoAlignToMovementEnabled;
-        public static int autoAlignAngleThreshold;
-        public static int autoAlignCooldownTicks;
-        public static int stableDirectionAngle;
-        public static int stableDirectionTicks;
-        public static double autoAlignAnimationSpeed;
-        public static boolean trapdoorTranslucencyEnabled;
-        public static double trapdoorTransparency;
-        public static boolean fadeEnabled;
-        public static boolean fadeBlockRaycastProtection;
-        public static double fadeStart;
-        public static double fadeNearAlpha;
+        // Runtime values (private with getters for encapsulation)
+        private static int cylinderRadiusHorizontal;
+        private static int cylinderRadiusVertical;
+        private static int cylinderForwardShift;
+        private static int miningCylinderRadius;
+        private static int miningCylinderForwardShift;
+        private static boolean miningModeEnabled;
+        private static boolean clickToMoveEnabled;
+        private static double arrivalThreshold;
+        private static boolean forceAutoJump;
+        private static boolean autoAlignToMovementEnabled;
+        private static int autoAlignAngleThreshold;
+        private static int autoAlignCooldownTicks;
+        private static int stableDirectionAngle;
+        private static int stableDirectionTicks;
+        private static double autoAlignAnimationSpeed;
+        private static boolean trapdoorTranslucencyEnabled;
+        private static double trapdoorTransparency;
+        private static boolean fadeEnabled;
+        private static boolean fadeBlockRaycastProtection;
+        private static double fadeStart;
+        private static double fadeNearAlpha;
 
-        public static boolean rangeIndicatorEnabled;
+        private static boolean rangeIndicatorEnabled;
 
-        public static double rangeEmptyHand;
-        public static double rangeSword;
-        public static double rangeAxe;
-        public static double rangePickaxe;
-        public static double rangeShovel;
-        public static double rangeOther;
+        private static double rangeEmptyHand;
+        private static double rangeSword;
+        private static double rangeAxe;
+        private static double rangePickaxe;
+        private static double rangeShovel;
+        private static double rangeOther;
 
-        public static boolean defaultEnabled;
+        private static boolean defaultEnabled;
 
-	public static int rotateAngleMode;
-	public static double cameraPitch;
-	public static double miningModePitch;
-	public static double maxCameraDistance;
-	public static double defaultCameraDistance;
+	private static int rotateAngleMode;
+	private static double cameraPitch;
+	private static double miningModePitch;
+	private static double maxCameraDistance;
+	private static double defaultCameraDistance;
 
 	// Drag rotation settings
-	public static boolean dragRotationEnabled;
-	public static double dragRotationSensitivity;
+	private static boolean dragRotationEnabled;
+	private static double dragRotationSensitivity;
 
-	// public static int pathfindingRange;
-        // public static int pathRecalcCooldown;
-        // public static boolean pathfindingEnabled;
-        // public static double avoidanceRadius;
+        // ==================== Getters ====================
+        
+        public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
+        public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
+        public static int getCylinderForwardShift() { return cylinderForwardShift; }
+        public static int getMiningCylinderRadius() { return miningCylinderRadius; }
+        public static int getMiningCylinderForwardShift() { return miningCylinderForwardShift; }
+        public static boolean isMiningModeEnabled() { return miningModeEnabled; }
+        public static boolean isClickToMoveEnabled() { return clickToMoveEnabled; }
+        public static double getArrivalThreshold() { return arrivalThreshold; }
+        public static boolean isForceAutoJump() { return forceAutoJump; }
+        public static boolean isAutoAlignToMovementEnabled() { return autoAlignToMovementEnabled; }
+        public static int getAutoAlignAngleThreshold() { return autoAlignAngleThreshold; }
+        public static int getAutoAlignCooldownTicks() { return autoAlignCooldownTicks; }
+        public static int getStableDirectionAngle() { return stableDirectionAngle; }
+        public static int getStableDirectionTicks() { return stableDirectionTicks; }
+        public static double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
+        public static boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
+        public static double getTrapdoorTransparency() { return trapdoorTransparency; }
+        public static boolean isFadeEnabled() { return fadeEnabled; }
+        public static boolean isFadeBlockRaycastProtection() { return fadeBlockRaycastProtection; }
+        public static double getFadeStart() { return fadeStart; }
+        public static double getFadeNearAlpha() { return fadeNearAlpha; }
+        public static boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
+        public static double getRangeEmptyHand() { return rangeEmptyHand; }
+        public static double getRangeSword() { return rangeSword; }
+        public static double getRangeAxe() { return rangeAxe; }
+        public static double getRangePickaxe() { return rangePickaxe; }
+        public static double getRangeShovel() { return rangeShovel; }
+        public static double getRangeOther() { return rangeOther; }
+        public static boolean isDefaultEnabled() { return defaultEnabled; }
+	public static int getRotateAngleMode() { return rotateAngleMode; }
+	public static double getCameraPitch() { return cameraPitch; }
+	public static double getMiningModePitch() { return miningModePitch; }
+	public static double getMaxCameraDistance() { return maxCameraDistance; }
+	public static double getDefaultCameraDistance() { return defaultCameraDistance; }
+	public static boolean isDragRotationEnabled() { return dragRotationEnabled; }
+	public static double getDragRotationSensitivity() { return dragRotationSensitivity; }
+
+        // ==================== Setters (for GUI) ====================
+        
+        public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = value; }
+        public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = value; }
+        public static void setCylinderForwardShift(int value) { cylinderForwardShift = value; }
+        public static void setMiningCylinderRadius(int value) { miningCylinderRadius = value; }
+        public static void setMiningCylinderForwardShift(int value) { miningCylinderForwardShift = value; }
+        public static void setMiningModeEnabled(boolean value) { miningModeEnabled = value; }
+        public static void setClickToMoveEnabled(boolean value) { clickToMoveEnabled = value; }
+        public static void setArrivalThreshold(double value) { arrivalThreshold = value; }
+        public static void setForceAutoJump(boolean value) { forceAutoJump = value; }
+        public static void setAutoAlignToMovementEnabled(boolean value) { autoAlignToMovementEnabled = value; }
+        public static void setAutoAlignAngleThreshold(int value) { autoAlignAngleThreshold = value; }
+        public static void setAutoAlignCooldownTicks(int value) { autoAlignCooldownTicks = value; }
+        public static void setStableDirectionAngle(int value) { stableDirectionAngle = value; }
+        public static void setStableDirectionTicks(int value) { stableDirectionTicks = value; }
+        public static void setAutoAlignAnimationSpeed(double value) { autoAlignAnimationSpeed = value; }
+        public static void setTrapdoorTranslucencyEnabled(boolean value) { trapdoorTranslucencyEnabled = value; }
+        public static void setTrapdoorTransparency(double value) { trapdoorTransparency = value; }
+        public static void setFadeEnabled(boolean value) { fadeEnabled = value; }
+        public static void setFadeBlockRaycastProtection(boolean value) { fadeBlockRaycastProtection = value; }
+        public static void setFadeStart(double value) { fadeStart = value; }
+        public static void setFadeNearAlpha(double value) { fadeNearAlpha = value; }
+        public static void setRangeIndicatorEnabled(boolean value) { rangeIndicatorEnabled = value; }
+        public static void setRangeEmptyHand(double value) { rangeEmptyHand = value; }
+        public static void setRangeSword(double value) { rangeSword = value; }
+        public static void setRangeAxe(double value) { rangeAxe = value; }
+        public static void setRangePickaxe(double value) { rangePickaxe = value; }
+        public static void setRangeShovel(double value) { rangeShovel = value; }
+        public static void setRangeOther(double value) { rangeOther = value; }
+        public static void setDefaultEnabled(boolean value) { defaultEnabled = value; }
+	public static void setRotateAngleMode(int value) { rotateAngleMode = value; }
+	public static void setCameraPitch(double value) { cameraPitch = value; }
+	public static void setMiningModePitch(double value) { miningModePitch = value; }
+	public static void setMaxCameraDistance(double value) { maxCameraDistance = value; }
+	public static void setDefaultCameraDistance(double value) { defaultCameraDistance = value; }
+	public static void setDragRotationEnabled(boolean value) { dragRotationEnabled = value; }
+	public static void setDragRotationSensitivity(double value) { dragRotationSensitivity = value; }
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -284,7 +342,7 @@ public class Config {
 		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 
                 // ゲーム起動時にデフォルト状態を適用
-                com.topdownview.state.ModStatus.INSTANCE.setEnabled(defaultEnabled);
+                com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
 
                 notifyConfigChanged();
         }
