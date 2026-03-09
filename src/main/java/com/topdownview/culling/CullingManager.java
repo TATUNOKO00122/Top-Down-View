@@ -34,7 +34,6 @@ public final class CullingManager {
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
     private static Class<?> rendererClass = null;
-    private static boolean reflectionInitialized = false;
 
     private CullingManager() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -55,8 +54,9 @@ public final class CullingManager {
     }
 
     private static boolean initializeReflection() {
-        if (reflectionInitialized) {
-            return instanceMethod != null && rebuildMethod != null;
+        // 成功時のみキャッシュ（再試行を許可）
+        if (instanceMethod != null && rebuildMethod != null) {
+            return true;
         }
 
         try {
@@ -69,18 +69,17 @@ public final class CullingManager {
                     boolean.class);
 
             LOGGER.info("Embeddium reflection initialized successfully");
-            reflectionInitialized = true;
             return true;
 
         } catch (ClassNotFoundException e) {
-            LOGGER.debug("SodiumWorldRenderer class not found: {}", e.getMessage());
+            LOGGER.debug("SodiumWorldRenderer class not found (may load later): {}", e.getMessage());
         } catch (NoSuchMethodException e) {
             LOGGER.warn("Required method not found in SodiumWorldRenderer: {}", e.getMessage());
         } catch (Exception e) {
             LOGGER.warn("Failed to initialize Embeddium reflection: {}", e.getMessage());
         }
 
-        reflectionInitialized = true;
+        // 失敗時も再試行可能（フラグを設定しない）
         return false;
     }
 

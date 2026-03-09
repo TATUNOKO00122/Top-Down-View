@@ -20,6 +20,11 @@ public final class TopDownCuller {
 
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
+    // 不変オブジェクトでアトミック更新（volatileで可視性確保）
+    private static final record CullingContext(Vec3 playerPos, Vec3 cameraPos) {
+        static final CullingContext EMPTY = new CullingContext(Vec3.ZERO, Vec3.ZERO);
+    }
+
     private static final int UPDATE_FREQUENCY = 1;
     // 毎tickキャッシュクリア（dungeons-perspective方式：キャッシュを使わず常に最新位置で計算）
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
@@ -32,8 +37,7 @@ public final class TopDownCuller {
     // マイニングモード時の鉱石除外範囲（プレイヤーからの距離）
     private static final double ORE_EXCLUDE_RADIUS = 2.0;
 
-    private Vec3 currentPlayerPos = Vec3.ZERO;
-    private Vec3 currentCameraPos = Vec3.ZERO;
+    private volatile CullingContext context = CullingContext.EMPTY;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -90,13 +94,10 @@ public final class TopDownCuller {
             return false;
         }
 
-        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
-        Vec3 pPos;
-        Vec3 cPos;
-        synchronized (this) {
-            pPos = this.currentPlayerPos;
-            cPos = this.currentCameraPos;
-        }
+        // 不変オブジェクトでアトミックに読み取り
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
+        Vec3 cPos = ctx.cameraPos();
 
         if (InteractableBlocks.isInteractableSimple(state)) {
             if (pos.getY() <= Math.floor(pPos.y)) {
@@ -135,13 +136,10 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
-        Vec3 pPos;
-        Vec3 cPos;
-        synchronized (this) {
-            pPos = this.currentPlayerPos;
-            cPos = this.currentCameraPos;
-        }
+        // 不変オブジェクトでアトミックに読み取り
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
+        Vec3 cPos = ctx.cameraPos();
 
         if (isProtectedBlock(pos, state, level, pPos, cPos)) {
             return 1.0f;
@@ -203,10 +201,8 @@ public final class TopDownCuller {
         // カメラ位置が未初期化の場合、プレイヤー位置のみ更新して早期リターン
         // 次のフレームでカメラ位置が設定された後にカリングが有効になる
         if (rawCameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
-            // プレイヤー位置は更新（次回の比較用）
-            this.currentPlayerPos = candidatePos;
-            // カメラ位置はZEROのまま（カリング無効状態を示す）
-            this.currentCameraPos = Vec3.ZERO;
+            // プレイヤー位置のみ更新（カメラ位置はZERO）
+            this.context = new CullingContext(candidatePos, Vec3.ZERO);
             return;
         }
 
@@ -219,21 +215,14 @@ public final class TopDownCuller {
         // 毎tickキャッシュクリア（キャッシュキーがBlockPosのみのため、位置変更を反映するにはクリアが必要）
         cullingCache.clear();
 
-        // アトミック更新: 2つのフィールドを同時に更新して一貫性を確保
-        // 中間状態（プレイヤー位置のみ更新、カメラ位置が古い）での読み取りを防ぐ
-        synchronized (this) {
-            this.currentPlayerPos = candidatePos;
-            this.currentCameraPos = cPos;
-        }
+        // 不変オブジェクトでアトミック更新（synchronized不要）
+        this.context = new CullingContext(candidatePos, cPos);
     }
 
     public void reset() {
         cullingCache.clear();
         fadeCache.clear();
-        synchronized (this) {
-            this.currentPlayerPos = Vec3.ZERO;
-            this.currentCameraPos = Vec3.ZERO;
-        }
+        this.context = CullingContext.EMPTY;
     }
 
     /**
@@ -243,13 +232,10 @@ public final class TopDownCuller {
      * 階段は無条件でカリング除外
      */
     private boolean isBlockCulledInMiningMode(BlockPos pos, BlockGetter level) {
-        // synchronizedでアトミックに読み取り
-        Vec3 pPos;
-        Vec3 cPos;
-        synchronized (this) {
-            pPos = this.currentPlayerPos;
-            cPos = this.currentCameraPos;
-        }
+        // 不変オブジェクトでアトミックに読み取り
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
+        Vec3 cPos = ctx.cameraPos();
 
         // カメラ位置が未初期化の場合は表示
         if (cPos == Vec3.ZERO) {
@@ -427,11 +413,9 @@ public final class TopDownCuller {
             return false;
         }
 
-        // ローカル変数にコピー（synchronizedでアトミックに読み取り）
-        Vec3 pPos;
-        synchronized (this) {
-            pPos = this.currentPlayerPos;
-        }
+        // 不変オブジェクトでアトミックに読み取り
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
         int playerBlockX = (int) Math.floor(pPos.x);
         int playerBlockY = (int) Math.floor(pPos.y);
         int playerBlockZ = (int) Math.floor(pPos.z);
@@ -481,13 +465,10 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
-        Vec3 pPos;
-        Vec3 cPos;
-        synchronized (this) {
-            pPos = this.currentPlayerPos;
-            cPos = this.currentCameraPos;
-        }
+        // 不変オブジェクトでアトミックに読み取り
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
+        Vec3 cPos = ctx.cameraPos();
 
         if (level == null || cPos == Vec3.ZERO) {
             return fadeCache.getFadeBlocksCache();
