@@ -90,9 +90,13 @@ public final class TopDownCuller {
             return false;
         }
 
-        // ローカル変数にコピーして一貫性を確保
-        Vec3 pPos = this.currentPlayerPos;
-        Vec3 cPos = this.currentCameraPos;
+        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
+        Vec3 pPos;
+        Vec3 cPos;
+        synchronized (this) {
+            pPos = this.currentPlayerPos;
+            cPos = this.currentCameraPos;
+        }
 
         if (InteractableBlocks.isInteractableSimple(state)) {
             if (pos.getY() <= Math.floor(pPos.y)) {
@@ -131,9 +135,13 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        // ローカル変数にコピーして一貫性を確保
-        Vec3 pPos = this.currentPlayerPos;
-        Vec3 cPos = this.currentCameraPos;
+        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
+        Vec3 pPos;
+        Vec3 cPos;
+        synchronized (this) {
+            pPos = this.currentPlayerPos;
+            cPos = this.currentCameraPos;
+        }
 
         if (isProtectedBlock(pos, state, level, pPos, cPos)) {
             return 1.0f;
@@ -192,8 +200,12 @@ public final class TopDownCuller {
                 Math.floor(eyePos.z) + 0.5);
         Vec3 rawCameraPos = ModState.CAMERA.getCameraPosition();
 
+        // カメラ位置が未初期化の場合、プレイヤー位置のみ更新して早期リターン
+        // 次のフレームでカメラ位置が設定された後にカリングが有効になる
         if (rawCameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
+            // プレイヤー位置は更新（次回の比較用）
             this.currentPlayerPos = candidatePos;
+            // カメラ位置はZEROのまま（カリング無効状態を示す）
             this.currentCameraPos = Vec3.ZERO;
             return;
         }
@@ -204,19 +216,26 @@ public final class TopDownCuller {
                 Math.floor(rawCameraPos.y) + 0.5,
                 Math.floor(rawCameraPos.z) + 0.5);
 
+        // 距離移動時にキャッシュクリア（アトミック更新前に実施）
         if (candidatePos.distanceToSqr(this.currentPlayerPos) > CACHE_CLEAR_DISTANCE_SQ) {
             cullingCache.clear();
         }
 
-        this.currentPlayerPos = candidatePos;
-        this.currentCameraPos = cPos;
+        // アトミック更新: 2つのフィールドを同時に更新して一貫性を確保
+        // 中間状態（プレイヤー位置のみ更新、カメラ位置が古い）での読み取りを防ぐ
+        synchronized (this) {
+            this.currentPlayerPos = candidatePos;
+            this.currentCameraPos = cPos;
+        }
     }
 
     public void reset() {
         cullingCache.clear();
         fadeCache.clear();
-        this.currentPlayerPos = Vec3.ZERO;
-        this.currentCameraPos = Vec3.ZERO;
+        synchronized (this) {
+            this.currentPlayerPos = Vec3.ZERO;
+            this.currentCameraPos = Vec3.ZERO;
+        }
     }
 
     /**
@@ -226,8 +245,13 @@ public final class TopDownCuller {
      * 階段は無条件でカリング除外
      */
     private boolean isBlockCulledInMiningMode(BlockPos pos, BlockGetter level) {
-        Vec3 pPos = this.currentPlayerPos;
-        Vec3 cPos = this.currentCameraPos;
+        // synchronizedでアトミックに読み取り
+        Vec3 pPos;
+        Vec3 cPos;
+        synchronized (this) {
+            pPos = this.currentPlayerPos;
+            cPos = this.currentCameraPos;
+        }
 
         // カメラ位置が未初期化の場合は表示
         if (cPos == Vec3.ZERO) {
@@ -405,8 +429,11 @@ public final class TopDownCuller {
             return false;
         }
 
-        // ローカル変数にコピー
-        Vec3 pPos = this.currentPlayerPos;
+        // ローカル変数にコピー（synchronizedでアトミックに読み取り）
+        Vec3 pPos;
+        synchronized (this) {
+            pPos = this.currentPlayerPos;
+        }
         int playerBlockX = (int) Math.floor(pPos.x);
         int playerBlockY = (int) Math.floor(pPos.y);
         int playerBlockZ = (int) Math.floor(pPos.z);
@@ -456,9 +483,13 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        // ローカル変数にコピーして一貫性を確保
-        Vec3 pPos = this.currentPlayerPos;
-        Vec3 cPos = this.currentCameraPos;
+        // ローカル変数にコピーして一貫性を確保（synchronizedでアトミックに読み取り）
+        Vec3 pPos;
+        Vec3 cPos;
+        synchronized (this) {
+            pPos = this.currentPlayerPos;
+            cPos = this.currentCameraPos;
+        }
 
         if (level == null || cPos == Vec3.ZERO) {
             return fadeCache.getFadeBlocksCache();
