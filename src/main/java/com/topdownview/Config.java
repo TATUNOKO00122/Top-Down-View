@@ -40,11 +40,11 @@ public class Config {
         // Mining mode cylinder settings (true cylinder, not elliptical)
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_RADIUS = BUILDER
                         .comment("マイニングモード用円柱の半径（ブロック数）")
-                        .defineInRange("miningCylinderRadius", 3, 1, 16);
+                        .defineInRange("miningCylinderRadius", 5, 1, 16);
 
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
                         .comment("マイニングモード時の円柱中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("miningCylinderForwardShift", 1, 0, 10);
+                        .defineInRange("miningCylinderForwardShift", 0, 0, 10);
 
         private static final ForgeConfigSpec.BooleanValue MINING_MODE_ENABLED = BUILDER
                         .comment("マイニングモード機能の有効/無効（無効時はキー入力を無視）")
@@ -159,7 +159,7 @@ public class Config {
 
 	private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
 			.comment("マイニングモード時のカメラ角度（ピッチ）")
-			.defineInRange("miningModePitch", 60.0, 10.0, 90.0);
+			.defineInRange("miningModePitch", 45.0, 10.0, 90.0);
 
 	private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
 			.comment("最大カメラ距離（ズームアウト限界）")
