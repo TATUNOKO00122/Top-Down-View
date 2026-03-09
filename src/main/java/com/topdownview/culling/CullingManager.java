@@ -1,5 +1,6 @@
 package com.topdownview.culling;
 
+import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
@@ -126,11 +127,11 @@ public final class CullingManager {
         int radiusH;
         int radiusV;
         if (ModState.STATUS.isMiningMode()) {
-            radiusH = com.topdownview.Config.miningCylinderRadius;
-            radiusV = com.topdownview.Config.miningCylinderRadius;
+            radiusH = Config.getMiningCylinderRadius();
+            radiusV = Config.getMiningCylinderRadius();
         } else {
-            radiusH = com.topdownview.Config.cylinderRadiusHorizontal;
-            radiusV = com.topdownview.Config.cylinderRadiusVertical;
+            radiusH = Config.getCylinderRadiusHorizontal();
+            radiusV = Config.getCylinderRadiusVertical();
         }
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
 

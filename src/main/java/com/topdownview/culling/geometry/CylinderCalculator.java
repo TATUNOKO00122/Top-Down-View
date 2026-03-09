@@ -29,7 +29,7 @@ public final class CylinderCalculator {
         if (useShift) {
             double yaw = explicitYaw;
             double yawRad = Math.toRadians(yaw);
-            double shift = Config.cylinderForwardShift;
+            double shift = Config.getCylinderForwardShift();
             shiftedPlayerPos = new Vec3(
                     playerPos.x + shift * (-Math.sin(yawRad)),
                     playerPos.y,
@@ -46,8 +46,8 @@ public final class CylinderCalculator {
 
         Vec3 normDir = dir.normalize();
 
-        double radiusH = Config.cylinderRadiusHorizontal;
-        double radiusV = Config.cylinderRadiusVertical;
+        double radiusH = Config.getCylinderRadiusHorizontal();
+        double radiusV = Config.getCylinderRadiusVertical();
 
         Vec3 segVec = shiftedPlayerPos.subtract(cameraPos);
         double segLengthSq = segVec.lengthSqr();

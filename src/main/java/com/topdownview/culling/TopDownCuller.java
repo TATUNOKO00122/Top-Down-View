@@ -8,6 +8,7 @@ import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.state.ModState;
+import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
@@ -152,8 +153,8 @@ public final class TopDownCuller {
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos, pPos, cPos);
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, pPos);
 
-        double fadeStart = Config.fadeStart;
-        double fadeNearAlpha = Config.fadeNearAlpha;
+        double fadeStart = Config.getFadeStart();
+        double fadeNearAlpha = Config.getFadeNearAlpha();
 
         float cylinderAlpha;
 
@@ -285,8 +286,8 @@ public final class TopDownCuller {
         }
 
         // マイニングモード用の真円柱範囲内かチェック
-        double radius = Config.miningCylinderRadius;
-        double forwardShift = Config.miningCylinderForwardShift;
+        double radius = Config.getMiningCylinderRadius();
+        double forwardShift = Config.getMiningCylinderForwardShift();
         float yaw = ModState.CAMERA.getYaw();
         if (!CylinderCalculator.isInMiningCylinder(pos, pPos, cPos, radius, yaw, forwardShift)) {
             // 円柱外は表示（カリングしない）
@@ -322,7 +323,7 @@ public final class TopDownCuller {
         float pitch = ModState.CAMERA.getPitch();
 
         // ピッチ角がほぼ90度（真上）なら、水平方向のオフセットが存在しないため false
-        if (pitch >= 89.9f) {
+        if (pitch >= MathConstants.PITCH_NEAR_VERTICAL) {
             return false;
         }
 
@@ -340,8 +341,8 @@ public final class TopDownCuller {
         // プレイヤー→カメラ方向との内積
         double dot = dxBlock * dxToCamera + dzBlock * dzToCamera;
 
-        // 内積 > 0.1 で明確にカメラ側（手前）にあると判定（微小な誤差を無視）
-        return dot > 0.1;
+        // 内積 > DOT_PRODUCT_THRESHOLD で明確にカメラ側（手前）にあると判定（微小な誤差を無視）
+        return dot > MathConstants.DOT_PRODUCT_THRESHOLD;
     }
 
     /**
@@ -371,12 +372,12 @@ public final class TopDownCuller {
         double dot = dxBlock * dxBackward + dzBlock * dzBackward;
 
         // 奥側でない場合は0
-        if (dot <= 0.1) {
+        if (dot <= MathConstants.DOT_PRODUCT_THRESHOLD) {
             return 0.0;
         }
 
         // 円柱の半径に対する割合（最大1.0）
-        double radius = Config.miningCylinderRadius;
+        double radius = Config.getMiningCylinderRadius();
         return Math.min(dot / radius, 1.0);
     }
 
@@ -398,7 +399,7 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        if (!Config.fadeEnabled) {
+        if (!Config.isFadeEnabled()) {
             return 1.0f;
         }
 
@@ -415,7 +416,7 @@ public final class TopDownCuller {
     }
 
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || !Config.fadeEnabled) {
+        if (!ModState.STATUS.isEnabled() || !Config.isFadeEnabled()) {
             return false;
         }
 
@@ -481,7 +482,7 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        if (!Config.fadeEnabled) {
+        if (!Config.isFadeEnabled()) {
             return fadeCache.getFadeBlocksCache();
         }
 
@@ -494,8 +495,8 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        int rangeH = Config.cylinderRadiusHorizontal + 2;
-        int rangeV = Config.cylinderRadiusVertical + 3;
+        int rangeH = Config.getCylinderRadiusHorizontal() + 2;
+        int rangeV = Config.getCylinderRadiusVertical() + 3;
 
         int scanRangeXZ = Math.max(rangeH, 4);
 

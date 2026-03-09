@@ -47,7 +47,7 @@ public final class PyramidProtectionCalc {
         double fadeThickness = FADE_BOUNDARY_THICKNESS;
         if (diff >= -fadeThickness) {
             double t = (fadeThickness + diff) / fadeThickness;
-            double fadeNearAlpha = Config.fadeNearAlpha;
+            double fadeNearAlpha = Config.getFadeNearAlpha();
             return fadeNearAlpha + t * (1.0 - fadeNearAlpha);
         }
 
