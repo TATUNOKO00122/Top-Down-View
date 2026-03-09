@@ -243,9 +243,9 @@ public final class TopDownCuller {
         int protectedMinY = playerFeetY + MINING_MODE_SLICE_OFFSET;
         int protectedMaxY = protectedMinY + MINING_MODE_SLICE_HEIGHT - 1;
 
-        // カメラ側（奥）では保護を1段減らす
+        // カメラ側（奥）では保護を5段減らす（断面表示・アリの巣観察キット風）
         if (isCameraSide(pos, pPos)) {
-            protectedMaxY -= 1;
+            protectedMaxY -= 5;
         }
 
         // 保護範囲内なら表示、それ以外は非表示
