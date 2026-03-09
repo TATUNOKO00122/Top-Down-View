@@ -21,7 +21,7 @@ public final class TopDownCuller {
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
     private static final int UPDATE_FREQUENCY = 1;
-    private static final double CACHE_CLEAR_DISTANCE_SQ = 100.0;
+    // 毎tickキャッシュクリア（dungeons-perspective方式：キャッシュを使わず常に最新位置で計算）
     private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
     private static final int INTERACTION_RANGE_VERTICAL = 2;
 
@@ -216,10 +216,8 @@ public final class TopDownCuller {
                 Math.floor(rawCameraPos.y) + 0.5,
                 Math.floor(rawCameraPos.z) + 0.5);
 
-        // 距離移動時にキャッシュクリア（アトミック更新前に実施）
-        if (candidatePos.distanceToSqr(this.currentPlayerPos) > CACHE_CLEAR_DISTANCE_SQ) {
-            cullingCache.clear();
-        }
+        // 毎tickキャッシュクリア（キャッシュキーがBlockPosのみのため、位置変更を反映するにはクリアが必要）
+        cullingCache.clear();
 
         // アトミック更新: 2つのフィールドを同時に更新して一貫性を確保
         // 中間状態（プレイヤー位置のみ更新、カメラ位置が古い）での読み取りを防ぐ
