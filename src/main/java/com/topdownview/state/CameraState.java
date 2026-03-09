@@ -273,8 +273,8 @@ public final class CameraState {
      * 有効なデフォルトカメラ距離を取得（Configからキャッシュ済み値を取得）
      */
     public static double getEffectiveDefaultCameraDistance() {
-        double configValue = com.topdownview.Config.defaultCameraDistance;
-        double maxDistance = com.topdownview.Config.maxCameraDistance;
+        double configValue = com.topdownview.Config.getDefaultCameraDistance();
+        double maxDistance = com.topdownview.Config.getMaxCameraDistance();
         // Config値が範囲外の場合はフォールバック
         if (configValue < MIN_CAMERA_DISTANCE || configValue > maxDistance) {
             return DEFAULT_CAMERA_DISTANCE;
@@ -286,7 +286,7 @@ public final class CameraState {
      * 有効な最大カメラ距離を取得（Configからキャッシュ済み値を取得）
      */
     public static double getEffectiveMaxCameraDistance() {
-        return com.topdownview.Config.maxCameraDistance;
+        return com.topdownview.Config.getMaxCameraDistance();
     }
 
     // ==================== Utility Methods ====================

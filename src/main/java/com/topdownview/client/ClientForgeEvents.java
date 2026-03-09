@@ -37,7 +37,7 @@ public final class ClientForgeEvents {
         LOGGER.info("[TopDownView] Player joined world, resetting state");
         ModState.resetAll();
         // コンフィグのデフォルト有効設定を適用
-        ModState.STATUS.setEnabled(Config.defaultEnabled);
+        ModState.STATUS.setEnabled(Config.isDefaultEnabled());
     }
 
     @SubscribeEvent

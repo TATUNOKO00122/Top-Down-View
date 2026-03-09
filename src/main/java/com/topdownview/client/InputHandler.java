@@ -29,7 +29,7 @@ public final class InputHandler {
         Minecraft mc = Minecraft.getInstance();
 
         // ドラッグ回転の処理
-        if (ModState.STATUS.isEnabled() && Config.dragRotationEnabled) {
+        if (ModState.STATUS.isEnabled() && Config.isDragRotationEnabled()) {
             int dragButton = ClientModBusEvents.DRAG_ROTATE_KEY.getKey().getValue();
 
             if (event.getButton() == dragButton) {
@@ -54,7 +54,7 @@ public final class InputHandler {
     public static void updateDragRotation(Minecraft mc) {
         if (!ModState.STATUS.isEnabled())
             return;
-        if (!Config.dragRotationEnabled)
+        if (!Config.isDragRotationEnabled())
             return;
         if (!ModState.CAMERA.isDragging())
             return;
@@ -65,7 +65,7 @@ public final class InputHandler {
         double deltaX = currentMouseX - ModState.CAMERA.getDragStartMouseX();
 
         // 感度を適用して回転角度を計算
-        double sensitivity = Config.dragRotationSensitivity;
+        double sensitivity = Config.getDragRotationSensitivity();
         double rotationDelta = deltaX * sensitivity;
 
         float newYaw = ModState.CAMERA.getDragStartYaw() + (float) rotationDelta;
@@ -110,9 +110,9 @@ public final class InputHandler {
             CameraController.rotateCamera();
         } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
             CameraController.alignCameraToMovementImmediate();
-        } else if (ModState.STATUS.isEnabled() && Config.miningModeEnabled && keyCode == miningModeKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.isMiningModeEnabled() && keyCode == miningModeKeyCode) {
             toggleMiningMode();
-        } else if (ModState.STATUS.isEnabled() && Config.clickToMoveEnabled && keyCode == jumpKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled() && keyCode == jumpKeyCode) {
             ClickToMoveController.reset();
         }
     }

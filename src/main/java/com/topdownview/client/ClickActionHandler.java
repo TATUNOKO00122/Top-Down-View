@@ -122,7 +122,7 @@ public final class ClickActionHandler {
             return false;
 
         if (result.getType() == HitResult.Type.ENTITY) {
-            if (Config.clickToMoveEnabled && !hasRangedWeapon) {
+            if (Config.isClickToMoveEnabled() && !hasRangedWeapon) {
                 EntityHitResult entityHit = (EntityHitResult) result;
                 Entity entity = entityHit.getEntity();
                 if (entity instanceof LivingEntity && !(entity instanceof Player)) {
@@ -153,7 +153,7 @@ public final class ClickActionHandler {
                 return false;
             }
 
-            if (Config.clickToMoveEnabled) {
+            if (Config.isClickToMoveEnabled()) {
                 Vec3 destination = blockHit.getLocation();
                 ClickToMoveController.setDestination(destination);
             }
@@ -164,7 +164,7 @@ public final class ClickActionHandler {
     private static void handleRightClickLongPress(Minecraft mc) {
         if (!ModState.STATUS.isEnabled())
             return;
-        if (!Config.clickToMoveEnabled)
+        if (!Config.isClickToMoveEnabled())
             return;
 
         if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {

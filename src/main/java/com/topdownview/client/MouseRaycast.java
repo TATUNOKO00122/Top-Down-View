@@ -210,10 +210,10 @@ public final class MouseRaycast {
 
             TopDownCuller culler = TopDownCuller.getInstance();
             if (culler.isBlockCulled(mutablePos, mc.level)) {
-                if (Config.fadeBlockRaycastProtection && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
+                if (Config.isFadeBlockRaycastProtection() && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
                     continue;
                 }
-                if (!Config.fadeBlockRaycastProtection) {
+                if (!Config.isFadeBlockRaycastProtection()) {
                     continue;
                 }
             }
@@ -269,7 +269,7 @@ public final class MouseRaycast {
         double fov = mc.options.fov().get();
         double aspectRatio = screenWidth / screenHeight;
         // マイニングモード時はminingModePitch、通常時はConfigのcameraPitch
-        double pitch = ModState.STATUS.isMiningMode() ? com.topdownview.Config.miningModePitch : com.topdownview.Config.cameraPitch;
+        double pitch = ModState.STATUS.isMiningMode() ? com.topdownview.Config.getMiningModePitch() : com.topdownview.Config.getCameraPitch();
         double yaw = ModState.CAMERA.getYaw();
 
         if (cachedDirection != null && mouseX == lastMouseX && mouseY == lastMouseY

@@ -46,7 +46,7 @@ public final class TranslucentBlockRenderer {
 
         TopDownCuller culler = TopDownCuller.getInstance();
 
-        if (!Config.fadeEnabled) {
+        if (!Config.isFadeEnabled()) {
             return;
         }
 

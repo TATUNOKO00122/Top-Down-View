@@ -67,7 +67,7 @@ public abstract class CameraMixin {
 
         double distance = ModState.CAMERA.getCameraDistance();
         // マイニングモード時はminingModePitch、通常時はcameraPitch
-        float pitch = ModState.STATUS.isMiningMode() ? (float) com.topdownview.Config.miningModePitch : (float) com.topdownview.Config.cameraPitch;
+        float pitch = ModState.STATUS.isMiningMode() ? (float) com.topdownview.Config.getMiningModePitch() : (float) com.topdownview.Config.getCameraPitch();
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
 
         double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;

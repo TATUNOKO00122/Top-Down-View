@@ -81,7 +81,7 @@ public final class TargetHighlightState {
      */
     public int[] getOutlineColor() {
         // 射程外赤表示が無効の場合は常に白色
-        if (!Config.rangeIndicatorEnabled) {
+        if (!Config.isRangeIndicatorEnabled()) {
             return new int[]{255, 255, 255, 255};
         }
         
@@ -101,29 +101,29 @@ public final class TargetHighlightState {
      */
     public static double getAttackRange(Player player) {
         if (player == null) {
-            return Config.rangeEmptyHand;
+            return Config.getRangeEmptyHand();
         }
         
         ItemStack mainHand = player.getMainHandItem();
         
         // 素手チェック
         if (mainHand.isEmpty()) {
-            return Config.rangeEmptyHand;
+            return Config.getRangeEmptyHand();
         }
         
         Item item = mainHand.getItem();
         
         // 武器種別に応じた射程を返す
         if (item instanceof SwordItem) {
-            return Config.rangeSword;
+            return Config.getRangeSword();
         } else if (item instanceof AxeItem) {
-            return Config.rangeAxe;
+            return Config.getRangeAxe();
         } else if (item instanceof PickaxeItem) {
-            return Config.rangePickaxe;
+            return Config.getRangePickaxe();
         } else if (item instanceof ShovelItem) {
-            return Config.rangeShovel;
+            return Config.getRangeShovel();
         } else {
-            return Config.rangeOther;
+            return Config.getRangeOther();
         }
     }
 

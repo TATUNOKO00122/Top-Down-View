@@ -40,7 +40,7 @@ public final class MovementController {
         float originalStrafe = event.getInput().leftImpulse;
         boolean hasManualInput = Math.abs(originalForward) > 0.01f || Math.abs(originalStrafe) > 0.01f;
 
-        if (Config.clickToMoveEnabled && ModState.CLICK_TO_MOVE.isMoving()) {
+        if (Config.isClickToMoveEnabled() && ModState.CLICK_TO_MOVE.isMoving()) {
             if (hasManualInput) {
                 ClickToMoveController.stop();
             } else {
@@ -49,7 +49,7 @@ public final class MovementController {
                     event.getInput().forwardImpulse = moveInput[0];
                     event.getInput().leftImpulse = moveInput[1];
 
-                    if (Config.forceAutoJump && shouldAutoJump(mc, moveInput[0], moveInput[1])) {
+                    if (Config.isForceAutoJump() && shouldAutoJump(mc, moveInput[0], moveInput[1])) {
                         event.getInput().jumping = true;
                     }
                     return;

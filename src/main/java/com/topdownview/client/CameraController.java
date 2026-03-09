@@ -53,7 +53,7 @@ public final class CameraController {
             com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Player logged in, resetting state");
             ModState.resetAll();
             // 設定に基づいて有効/無効を再設定
-            ModState.STATUS.setEnabled(com.topdownview.Config.defaultEnabled);
+            ModState.STATUS.setEnabled(com.topdownview.Config.isDefaultEnabled());
         }
     }
 
@@ -93,7 +93,7 @@ public final class CameraController {
         updatePlayerRotationToMouse(mc);
 
         // 動的カメラ回転（アニメーション中でない場合のみ）
-        if (com.topdownview.Config.autoAlignToMovementEnabled && !ModState.CAMERA.isAnimating()) {
+        if (com.topdownview.Config.isAutoAlignToMovementEnabled() && !ModState.CAMERA.isAnimating()) {
             alignCameraToMovement();
         }
     }
@@ -122,7 +122,7 @@ public final class CameraController {
         } else {
             // 線形補間（Lerp）による滑らかな回転
             float lerpStrength = ModState.CAMERA.isAutoAlignAnimation()
-                    ? (float) com.topdownview.Config.autoAlignAnimationSpeed
+                    ? (float) com.topdownview.Config.getAutoAlignAnimationSpeed()
                     : 0.2f;
             ModState.CAMERA.setYaw(currentYaw + diff * lerpStrength);
         }
@@ -145,7 +145,7 @@ public final class CameraController {
         float baseYaw = ModState.CAMERA.isAnimating() ? ModState.CAMERA.getTargetYaw() : ModState.CAMERA.getYaw();
 
         // 目的地（nextYaw）の計算
-        double step = switch (com.topdownview.Config.rotateAngleMode) {
+        double step = switch (com.topdownview.Config.getRotateAngleMode()) {
             case 1 -> 45.0;
             case 2 -> 15.0;
             default -> 90.0;
@@ -256,7 +256,7 @@ public final class CameraController {
         // クールダウンチェック
         long currentTick = mc.level.getGameTime();
         long ticksSinceLastAlign = currentTick - ModState.CAMERA.getLastAutoAlignTick();
-        if (ticksSinceLastAlign < com.topdownview.Config.autoAlignCooldownTicks) return;
+        if (ticksSinceLastAlign < com.topdownview.Config.getAutoAlignCooldownTicks()) return;
 
         Vec3 velocity = mc.player.getDeltaMovement();
         double dx = velocity.x;
@@ -276,14 +276,14 @@ public final class CameraController {
         while (directionDiff < -180.0f) directionDiff += 360.0f;
         while (directionDiff > 180.0f) directionDiff -= 360.0f;
 
-        if (Math.abs(directionDiff) <= com.topdownview.Config.stableDirectionAngle) {
+        if (Math.abs(directionDiff) <= com.topdownview.Config.getStableDirectionAngle()) {
             ModState.CAMERA.setStableDirectionTicks(ModState.CAMERA.getStableDirectionTicks() + 1);
         } else {
             ModState.CAMERA.setStableDirectionTicks(0);
         }
         ModState.CAMERA.setLastMovementDirection(currentDirection);
 
-        if (ModState.CAMERA.getStableDirectionTicks() < com.topdownview.Config.stableDirectionTicks) return;
+        if (ModState.CAMERA.getStableDirectionTicks() < com.topdownview.Config.getStableDirectionTicks()) return;
 
         float targetYaw = currentDirection - 90.0f;
 
@@ -293,7 +293,7 @@ public final class CameraController {
         while (angleDiff < -180.0f) angleDiff += 360.0f;
         while (angleDiff > 180.0f) angleDiff -= 360.0f;
 
-        if (Math.abs(angleDiff) < com.topdownview.Config.autoAlignAngleThreshold) return;
+        if (Math.abs(angleDiff) < com.topdownview.Config.getAutoAlignAngleThreshold()) return;
 
         ModState.CAMERA.setTargetYaw(targetYaw);
         ModState.CAMERA.setAutoAlignAnimation(true);
