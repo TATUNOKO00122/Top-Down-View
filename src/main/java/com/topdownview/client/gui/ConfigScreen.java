@@ -131,9 +131,9 @@ public class ConfigScreen extends Screen {
     private void buildGeneralTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.basic", tx);
         addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.default_enabled", Config.defaultEnabled), btn -> {
-                    Config.defaultEnabled = !Config.defaultEnabled;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.default_enabled", Config.defaultEnabled));
+                Button.builder(getOnOffComponent("topdown_view.config.default_enabled", Config.isDefaultEnabled()), btn -> {
+                    Config.setDefaultEnabled(!Config.isDefaultEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.default_enabled", Config.isDefaultEnabled()));
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
                         .build());
@@ -143,13 +143,13 @@ public class ConfigScreen extends Screen {
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.culling", tx);
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
-                Config.cylinderRadiusHorizontal, 1, 10, val -> Config.cylinderRadiusHorizontal = val));
+                Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_vertical",
-                Config.cylinderRadiusVertical, 1, 10, val -> Config.cylinderRadiusVertical = val));
+                Config.getCylinderRadiusVertical(), 1, 10, val -> Config.setCylinderRadiusVertical(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
-                Config.cylinderForwardShift, 0, 10, val -> Config.cylinderForwardShift = val));
+                Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
@@ -157,21 +157,21 @@ public class ConfigScreen extends Screen {
     private void buildMovementTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.click_to_move", tx);
         addRightWidget(Button
-                .builder(getOnOffComponent("topdown_view.config.click_to_move", Config.clickToMoveEnabled), btn -> {
-                    Config.clickToMoveEnabled = !Config.clickToMoveEnabled;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.click_to_move", Config.clickToMoveEnabled));
+                .builder(getOnOffComponent("topdown_view.config.click_to_move", Config.isClickToMoveEnabled()), btn -> {
+                    Config.setClickToMoveEnabled(!Config.isClickToMoveEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.click_to_move", Config.isClickToMoveEnabled()));
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.click_to_move.tooltip"))).build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.arrival_threshold",
-                Config.arrivalThreshold, 0.5, 5.0, val -> Config.arrivalThreshold = val));
+                Config.getArrivalThreshold(), 0.5, 5.0, val -> Config.setArrivalThreshold(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
         addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.forceAutoJump), btn -> {
-                    Config.forceAutoJump = !Config.forceAutoJump;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.force_auto_jump", Config.forceAutoJump));
+                Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()), btn -> {
+                    Config.setForceAutoJump(!Config.isForceAutoJump());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()));
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.force_auto_jump.tooltip")))
                         .build());
@@ -180,66 +180,66 @@ public class ConfigScreen extends Screen {
 
     private void buildCameraTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.camera_angle", tx);
-        addRightWidget(Button.builder(getRotateModeComponent(Config.rotateAngleMode), btn -> {
-            Config.rotateAngleMode = (Config.rotateAngleMode + 1) % 3;
-            btn.setMessage(getRotateModeComponent(Config.rotateAngleMode));
+        addRightWidget(Button.builder(getRotateModeComponent(Config.getRotateAngleMode()), btn -> {
+            Config.setRotateAngleMode((Config.getRotateAngleMode() + 1) % 3);
+            btn.setMessage(getRotateModeComponent(Config.getRotateAngleMode()));
         }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
                 .build());
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.cameraPitch, 10.0, 90.0,
-                val -> Config.cameraPitch = val));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
+                val -> Config.setCameraPitch(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.maxCameraDistance, 10.0, 200.0,
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.getMaxCameraDistance(), 10.0, 200.0,
                 val -> {
                     com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] maxCameraDistance slider changed to: {}", val);
-                    Config.maxCameraDistance = val;
+                    Config.setMaxCameraDistance(val);
                 }));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.defaultCameraDistance, 5.0, 100.0,
-                val -> Config.defaultCameraDistance = val));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.getDefaultCameraDistance(), 5.0, 100.0,
+                val -> Config.setDefaultCameraDistance(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
         addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.drag_rotation_enabled", Config.dragRotationEnabled),
+                getOnOffComponent("topdown_view.config.drag_rotation_enabled", Config.isDragRotationEnabled()),
                 btn -> {
-                    Config.dragRotationEnabled = !Config.dragRotationEnabled;
+                    Config.setDragRotationEnabled(!Config.isDragRotationEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.drag_rotation_enabled",
-                            Config.dragRotationEnabled));
+                            Config.isDragRotationEnabled()));
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.drag_rotation_enabled.tooltip")))
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.drag_rotation_sensitivity",
-                Config.dragRotationSensitivity, 0.01, 1.0, val -> Config.dragRotationSensitivity = val));
+                Config.getDragRotationSensitivity(), 0.01, 1.0, val -> Config.setDragRotationSensitivity(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
         addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.auto_align_to_movement", Config.autoAlignToMovementEnabled),
+                getOnOffComponent("topdown_view.config.auto_align_to_movement", Config.isAutoAlignToMovementEnabled()),
                 btn -> {
-                    Config.autoAlignToMovementEnabled = !Config.autoAlignToMovementEnabled;
+                    Config.setAutoAlignToMovementEnabled(!Config.isAutoAlignToMovementEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.auto_align_to_movement",
-                            Config.autoAlignToMovementEnabled));
+                            Config.isAutoAlignToMovementEnabled()));
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.auto_align_to_movement.tooltip")))
                 .build());
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.auto_align_angle_threshold",
-                Config.autoAlignAngleThreshold, 0, 90, val -> Config.autoAlignAngleThreshold = val));
+                Config.getAutoAlignAngleThreshold(), 0, 90, val -> Config.setAutoAlignAngleThreshold(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.auto_align_cooldown_ticks",
-                Config.autoAlignCooldownTicks, 0, 100, val -> Config.autoAlignCooldownTicks = val));
+                Config.getAutoAlignCooldownTicks(), 0, 100, val -> Config.setAutoAlignCooldownTicks(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.stable_direction_angle",
-                Config.stableDirectionAngle, 5, 60, val -> Config.stableDirectionAngle = val));
+                Config.getStableDirectionAngle(), 5, 60, val -> Config.setStableDirectionAngle(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.stable_direction_ticks",
-                Config.stableDirectionTicks, 5, 60, val -> Config.stableDirectionTicks = val));
+                Config.getStableDirectionTicks(), 5, 60, val -> Config.setStableDirectionTicks(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.auto_align_animation_speed",
-                Config.autoAlignAnimationSpeed, 0.05, 0.5, val -> Config.autoAlignAnimationSpeed = val));
+                Config.getAutoAlignAnimationSpeed(), 0.05, 0.5, val -> Config.setAutoAlignAnimationSpeed(val)));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
@@ -252,54 +252,54 @@ public class ConfigScreen extends Screen {
         // マイニングモード設定
         y = addSection(y, "topdown_view.config.section.mining_mode", tx);
         addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.mining_mode_enabled", Config.miningModeEnabled),
+                getOnOffComponent("topdown_view.config.mining_mode_enabled", Config.isMiningModeEnabled()),
                 btn -> {
-                    Config.miningModeEnabled = !Config.miningModeEnabled;
+                    Config.setMiningModeEnabled(!Config.isMiningModeEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.mining_mode_enabled",
-                            Config.miningModeEnabled));
+                            Config.isMiningModeEnabled()));
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mining_mode_enabled.tooltip")))
                 .build());
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.miningModePitch, 10.0, 90.0,
-                val -> Config.miningModePitch = val));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.getMiningModePitch(), 10.0, 90.0,
+                val -> Config.setMiningModePitch(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_radius",
-                Config.miningCylinderRadius, 1, 16, val -> Config.miningCylinderRadius = val));
+                Config.getMiningCylinderRadius(), 1, 16, val -> Config.setMiningCylinderRadius(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_forward_shift",
-                Config.miningCylinderForwardShift, 0, 10, val -> Config.miningCylinderForwardShift = val));
+                Config.getMiningCylinderForwardShift(), 0, 10, val -> Config.setMiningCylinderForwardShift(val)));
         y += sp;
 
         // 射程設定
         y = addSection(y, "topdown_view.config.section.weapon_range", tx);
         addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.rangeIndicatorEnabled),
+                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.isRangeIndicatorEnabled()),
                 btn -> {
-                    Config.rangeIndicatorEnabled = !Config.rangeIndicatorEnabled;
+                    Config.setRangeIndicatorEnabled(!Config.isRangeIndicatorEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
-                            Config.rangeIndicatorEnabled));
+                            Config.isRangeIndicatorEnabled()));
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_empty_hand",
-                Config.rangeEmptyHand, 1.0, 10.0, val -> Config.rangeEmptyHand = val));
+                Config.getRangeEmptyHand(), 1.0, 10.0, val -> Config.setRangeEmptyHand(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_sword",
-                Config.rangeSword, 1.0, 10.0, val -> Config.rangeSword = val));
+                Config.getRangeSword(), 1.0, 10.0, val -> Config.setRangeSword(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_axe",
-                Config.rangeAxe, 1.0, 10.0, val -> Config.rangeAxe = val));
+                Config.getRangeAxe(), 1.0, 10.0, val -> Config.setRangeAxe(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_pickaxe",
-                Config.rangePickaxe, 1.0, 10.0, val -> Config.rangePickaxe = val));
+                Config.getRangePickaxe(), 1.0, 10.0, val -> Config.setRangePickaxe(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_shovel",
-                Config.rangeShovel, 1.0, 10.0, val -> Config.rangeShovel = val));
+                Config.getRangeShovel(), 1.0, 10.0, val -> Config.setRangeShovel(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_other",
-                Config.rangeOther, 1.0, 10.0, val -> Config.rangeOther = val));
+                Config.getRangeOther(), 1.0, 10.0, val -> Config.setRangeOther(val)));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -308,26 +308,26 @@ public class ConfigScreen extends Screen {
     private void buildVisualTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_enabled", Config.fadeEnabled), btn -> {
-                    Config.fadeEnabled = !Config.fadeEnabled;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_enabled", Config.fadeEnabled));
+                Button.builder(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()), btn -> {
+                    Config.setFadeEnabled(!Config.isFadeEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()));
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
                         .build());
         y += sp;
         addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.fadeBlockRaycastProtection), btn -> {
-                    Config.fadeBlockRaycastProtection = !Config.fadeBlockRaycastProtection;
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.fadeBlockRaycastProtection));
+                Button.builder(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.isFadeBlockRaycastProtection()), btn -> {
+                    Config.setFadeBlockRaycastProtection(!Config.isFadeBlockRaycastProtection());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.isFadeBlockRaycastProtection()));
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_block_raycast_protection.tooltip")))
                         .build());
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.fadeStart, 0.0, 0.9,
-                val -> Config.fadeStart = val));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.getFadeStart(), 0.0, 0.9,
+                val -> Config.setFadeStart(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.fadeNearAlpha, 0.0,
-                1.0, val -> Config.fadeNearAlpha = val));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
+                1.0, val -> Config.setFadeNearAlpha(val)));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
@@ -361,57 +361,57 @@ public class ConfigScreen extends Screen {
 
     private void saveConfig() {
         com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] Saving config - maxCameraDistance: {}, defaultCameraDistance: {}", 
-                Config.maxCameraDistance, Config.defaultCameraDistance);
+                Config.getMaxCameraDistance(), Config.getDefaultCameraDistance());
         Config.save();
         com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] Config saved");
     }
 
     private void resetToDefaults() {
-        Config.defaultEnabled = true;
+        Config.setDefaultEnabled(true);
 
-        Config.cylinderRadiusHorizontal = 5;
-        Config.cylinderRadiusVertical = 4;
-        Config.cylinderForwardShift = 4;
+        Config.setCylinderRadiusHorizontal(5);
+        Config.setCylinderRadiusVertical(4);
+        Config.setCylinderForwardShift(4);
 
-        Config.miningCylinderRadius = 3;
-        Config.miningCylinderForwardShift = 2;
-        Config.miningModeEnabled = false;
+        Config.setMiningCylinderRadius(3);
+        Config.setMiningCylinderForwardShift(2);
+        Config.setMiningModeEnabled(false);
 
-        Config.clickToMoveEnabled = false;
-        Config.arrivalThreshold = 1.5;
-        Config.forceAutoJump = true;
+        Config.setClickToMoveEnabled(false);
+        Config.setArrivalThreshold(1.5);
+        Config.setForceAutoJump(true);
 
-        Config.rangeIndicatorEnabled = false;
-        Config.rangeEmptyHand = 3.0;
-        Config.rangeSword = 3.0;
-        Config.rangeAxe = 3.0;
-        Config.rangePickaxe = 3.0;
-        Config.rangeShovel = 3.0;
-        Config.rangeOther = 3.0;
+        Config.setRangeIndicatorEnabled(false);
+        Config.setRangeEmptyHand(3.0);
+        Config.setRangeSword(3.0);
+        Config.setRangeAxe(3.0);
+        Config.setRangePickaxe(3.0);
+        Config.setRangeShovel(3.0);
+        Config.setRangeOther(3.0);
 
-        Config.dragRotationEnabled = true;
-        Config.dragRotationSensitivity = 0.11;
+        Config.setDragRotationEnabled(true);
+        Config.setDragRotationSensitivity(0.11);
 
-        Config.autoAlignToMovementEnabled = false;
-        Config.autoAlignAngleThreshold = 45;
-        Config.autoAlignCooldownTicks = 30;
-        Config.stableDirectionAngle = 15;
-        Config.stableDirectionTicks = 20;
-        Config.autoAlignAnimationSpeed = 0.1;
+        Config.setAutoAlignToMovementEnabled(false);
+        Config.setAutoAlignAngleThreshold(45);
+        Config.setAutoAlignCooldownTicks(30);
+        Config.setStableDirectionAngle(15);
+        Config.setStableDirectionTicks(20);
+        Config.setAutoAlignAnimationSpeed(0.1);
 
-        Config.trapdoorTranslucencyEnabled = false;
-        Config.trapdoorTransparency = 0.3;
+        Config.setTrapdoorTranslucencyEnabled(false);
+        Config.setTrapdoorTransparency(0.3);
 
-        Config.fadeEnabled = true;
-        Config.fadeBlockRaycastProtection = true;
-        Config.fadeStart = 0.7;
-        Config.fadeNearAlpha = 0.0;
+        Config.setFadeEnabled(true);
+        Config.setFadeBlockRaycastProtection(true);
+        Config.setFadeStart(0.7);
+        Config.setFadeNearAlpha(0.0);
 
-        Config.rotateAngleMode = 0;
-        Config.cameraPitch = 45.0;
-        Config.miningModePitch = 90.0;
-        Config.maxCameraDistance = 50.0;
-        Config.defaultCameraDistance = 9.0;
+        Config.setRotateAngleMode(0);
+        Config.setCameraPitch(45.0);
+        Config.setMiningModePitch(90.0);
+        Config.setMaxCameraDistance(50.0);
+        Config.setDefaultCameraDistance(9.0);
 
         this.init();
     }
