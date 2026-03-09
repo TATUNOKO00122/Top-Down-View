@@ -1,6 +1,5 @@
 package com.topdownview.state;
 
-// import com.topdownview.Config;
 import com.topdownview.pathfinding.Path;
 import java.util.List;
 import javax.annotation.Nullable;
