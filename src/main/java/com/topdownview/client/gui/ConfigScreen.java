@@ -373,13 +373,13 @@ public class ConfigScreen extends Screen {
         Config.setCylinderRadiusVertical(4);
         Config.setCylinderForwardShift(4);
 
-        Config.setMiningCylinderRadius(3);
-        Config.setMiningCylinderForwardShift(2);
+        Config.setMiningCylinderRadius(5);
+        Config.setMiningCylinderForwardShift(0);
         Config.setMiningModeEnabled(false);
 
         Config.setClickToMoveEnabled(false);
         Config.setArrivalThreshold(1.5);
-        Config.setForceAutoJump(true);
+        Config.setForceAutoJump(false);
 
         Config.setRangeIndicatorEnabled(false);
         Config.setRangeEmptyHand(3.0);
@@ -390,7 +390,7 @@ public class ConfigScreen extends Screen {
         Config.setRangeOther(3.0);
 
         Config.setDragRotationEnabled(true);
-        Config.setDragRotationSensitivity(0.11);
+        Config.setDragRotationSensitivity(0.1);
 
         Config.setAutoAlignToMovementEnabled(false);
         Config.setAutoAlignAngleThreshold(45);
@@ -403,13 +403,13 @@ public class ConfigScreen extends Screen {
         Config.setTrapdoorTransparency(0.3);
 
         Config.setFadeEnabled(true);
-        Config.setFadeBlockRaycastProtection(true);
+        Config.setFadeBlockRaycastProtection(false);
         Config.setFadeStart(0.7);
         Config.setFadeNearAlpha(0.0);
 
         Config.setRotateAngleMode(0);
         Config.setCameraPitch(45.0);
-        Config.setMiningModePitch(90.0);
+        Config.setMiningModePitch(45.0);
         Config.setMaxCameraDistance(50.0);
         Config.setDefaultCameraDistance(9.0);
 
