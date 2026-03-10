@@ -103,7 +103,7 @@
   "topdown_view.config.section.fade": "Boundary Fade",
   "topdown_view.config.fade_block_raycast_protection": "Translucent Block Interaction: %s",
   "topdown_view.config.fade_block_raycast_protection.tooltip": "Allow mouse interaction (mining, placing, using) with translucent blocks within 3 horizontal and 2 vertical blocks around the player. When disabled, you can click through translucent blocks to interact with blocks behind them.",
-  "topdown_view.config.section.camera_angle": "Camera Angle",
+  "topdown_view.config.section.camera_angle": "Camera Basic Settings",
   "topdown_view.config.reset": "Reset",
   "topdown_view.config.reset.tooltip": "Reset all settings to default values.",
   "topdown_view.pause.config_button.tooltip": "Open Top-Down View Settings"

@@ -105,7 +105,7 @@
   "topdown_view.config.section.fade": "境界フェード",
   "topdown_view.config.fade_block_raycast_protection": "半透明ブロックの操作: %s",
   "topdown_view.config.fade_block_raycast_protection.tooltip": "プレイヤー周囲3ブロック・高さ2ブロック以内の半透明化したブロックにマウス操作（採掘・設置・使用）を可能にします。無効にすると半透明ブロックを通り抜けて奥のブロックを操作できます。",
-  "topdown_view.config.section.camera_angle": "カメラ角度",
+  "topdown_view.config.section.camera_angle": "カメラ基本設定",
   "topdown_view.config.reset": "初期化",
   "topdown_view.config.reset.tooltip": "すべての設定をデフォルトに戻します。",
   "topdown_view.pause.config_button.tooltip": "トップダウンビュー設定を開く"
