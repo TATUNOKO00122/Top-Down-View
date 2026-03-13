@@ -254,7 +254,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_y_follow_delay",
-                Config.getCameraYFollowDelay(), 0.0, 1.0, val -> Config.setCameraYFollowDelay(val)));
+                Config.getCameraYFollowDelay(), 0.0, 4.0, val -> Config.setCameraYFollowDelay(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.camera_x_follow", tx);
@@ -269,7 +269,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_x_follow_delay",
-                Config.getCameraXFollowDelay(), 0.0, 1.0, val -> Config.setCameraXFollowDelay(val)));
+                Config.getCameraXFollowDelay(), 0.0, 4.0, val -> Config.setCameraXFollowDelay(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.camera_z_follow", tx);
@@ -284,7 +284,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_z_follow_delay",
-                Config.getCameraZFollowDelay(), 0.0, 1.0, val -> Config.setCameraZFollowDelay(val)));
+                Config.getCameraZFollowDelay(), 0.0, 4.0, val -> Config.setCameraZFollowDelay(val)));
         y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }

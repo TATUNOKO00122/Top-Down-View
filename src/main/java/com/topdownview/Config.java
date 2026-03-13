@@ -185,7 +185,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_Y_FOLLOW_DELAY = BUILDER
                         .comment("カメラY軸追従の遅延時間（秒）、大きいほど遅れる")
-                        .defineInRange("cameraYFollowDelay", 0.15, 0.0, 1.0);
+                        .defineInRange("cameraYFollowDelay", 0.15, 0.0, 4.0);
 
         // Camera X follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_X_FOLLOW_DELAY_ENABLED = BUILDER
@@ -194,7 +194,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_X_FOLLOW_DELAY = BUILDER
                         .comment("カメラX軸追従の遅延時間（秒）、大きいほど遅れる")
-                        .defineInRange("cameraXFollowDelay", 0.1, 0.0, 1.0);
+                        .defineInRange("cameraXFollowDelay", 0.1, 0.0, 4.0);
 
         // Camera Z follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_Z_FOLLOW_DELAY_ENABLED = BUILDER
@@ -203,7 +203,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_Z_FOLLOW_DELAY = BUILDER
                         .comment("カメラZ軸追従の遅延時間（秒）、大きいほど遅れる")
-                        .defineInRange("cameraZFollowDelay", 0.1, 0.0, 1.0);
+                        .defineInRange("cameraZFollowDelay", 0.1, 0.0, 4.0);
 
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
