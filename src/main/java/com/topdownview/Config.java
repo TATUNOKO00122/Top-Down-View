@@ -122,6 +122,11 @@ public class Config {
                         .comment("射程外ターゲットを赤く表示する機能の有効/無効")
                         .define("rangeIndicatorEnabled", false);
 
+        // Destination highlight settings
+        private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
+                        .comment("クリック移動先のハイライト表示の有効/無効")
+                        .define("destinationHighlightEnabled", true);
+
         // Weapon type specific attack ranges
         private static final ForgeConfigSpec.DoubleValue RANGE_EMPTY_HAND = BUILDER
                         .comment("素手時の攻撃射程")
@@ -236,6 +241,7 @@ public class Config {
         private static double fadeNearAlpha;
 
         private static boolean rangeIndicatorEnabled;
+        private static boolean destinationHighlightEnabled;
 
         private static double rangeEmptyHand;
         private static double rangeSword;
@@ -293,6 +299,7 @@ public class Config {
         public static double getFadeStart() { return fadeStart; }
         public static double getFadeNearAlpha() { return fadeNearAlpha; }
         public static boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
+        public static boolean isDestinationHighlightEnabled() { return destinationHighlightEnabled; }
         public static double getRangeEmptyHand() { return rangeEmptyHand; }
         public static double getRangeSword() { return rangeSword; }
         public static double getRangeAxe() { return rangeAxe; }
@@ -339,6 +346,7 @@ public class Config {
         public static void setFadeStart(double value) { fadeStart = value; }
         public static void setFadeNearAlpha(double value) { fadeNearAlpha = value; }
         public static void setRangeIndicatorEnabled(boolean value) { rangeIndicatorEnabled = value; }
+        public static void setDestinationHighlightEnabled(boolean value) { destinationHighlightEnabled = value; }
         public static void setRangeEmptyHand(double value) { rangeEmptyHand = value; }
         public static void setRangeSword(double value) { rangeSword = value; }
         public static void setRangeAxe(double value) { rangeAxe = value; }
@@ -385,6 +393,7 @@ public class Config {
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
                 rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
+                destinationHighlightEnabled = DESTINATION_HIGHLIGHT_ENABLED.get();
                 rangeEmptyHand = RANGE_EMPTY_HAND.get();
                 rangeSword = RANGE_SWORD.get();
                 rangeAxe = RANGE_AXE.get();
@@ -438,6 +447,7 @@ public class Config {
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
                 RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
+                DESTINATION_HIGHLIGHT_ENABLED.set(destinationHighlightEnabled);
                 RANGE_EMPTY_HAND.set(rangeEmptyHand);
                 RANGE_SWORD.set(rangeSword);
                 RANGE_AXE.set(rangeAxe);

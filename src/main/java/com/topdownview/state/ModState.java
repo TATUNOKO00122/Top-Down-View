@@ -17,6 +17,7 @@ public final class ModState {
     public static final ModStatus STATUS = ModStatus.INSTANCE;
     public static final ClickToMoveState CLICK_TO_MOVE = ClickToMoveState.INSTANCE;
     public static final TargetHighlightState TARGET_HIGHLIGHT = TargetHighlightState.INSTANCE;
+    public static final DestinationHighlightState DESTINATION_HIGHLIGHT = DestinationHighlightState.INSTANCE;
 
     /**
      * 全状態をリセット
@@ -26,5 +27,6 @@ public final class ModState {
         TIME.reset();
         STATUS.reset();
         CLICK_TO_MOVE.reset();
+        DESTINATION_HIGHLIGHT.reset();
     }
 }

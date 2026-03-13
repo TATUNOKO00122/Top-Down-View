@@ -163,6 +163,13 @@ public class ConfigScreen extends Screen {
                 }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.click_to_move.tooltip"))).build());
         y += sp;
+        addRightWidget(Button
+                .builder(getOnOffComponent("topdown_view.config.destination_highlight", Config.isDestinationHighlightEnabled()), btn -> {
+                    Config.setDestinationHighlightEnabled(!Config.isDestinationHighlightEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.destination_highlight", Config.isDestinationHighlightEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.destination_highlight.tooltip"))).build());
+        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.arrival_threshold",
                 Config.getArrivalThreshold(), 0.5, 5.0, val -> Config.setArrivalThreshold(val)));
         y += sp;
@@ -426,6 +433,7 @@ public class ConfigScreen extends Screen {
         Config.setMiningModeEnabled(false);
 
         Config.setClickToMoveEnabled(false);
+        Config.setDestinationHighlightEnabled(true);
         Config.setArrivalThreshold(1.5);
         Config.setSprintDistanceThreshold(5.0);
         Config.setForceAutoJump(false);

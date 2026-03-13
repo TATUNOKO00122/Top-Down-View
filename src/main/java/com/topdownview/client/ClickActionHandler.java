@@ -156,6 +156,9 @@ public final class ClickActionHandler {
             if (Config.isClickToMoveEnabled()) {
                 Vec3 destination = blockHit.getLocation();
                 ClickToMoveController.setDestination(destination);
+                if (Config.isDestinationHighlightEnabled()) {
+                    ModState.DESTINATION_HIGHLIGHT.startAnimation();
+                }
             }
         }
         return false;

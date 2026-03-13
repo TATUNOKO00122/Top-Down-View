@@ -18,6 +18,7 @@ public class RenderEventHandler {
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             TranslucentBlockRenderer.renderFadeBlocks(event);
+            DestinationHighlightRenderer.onRenderLevelStage(event);
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {

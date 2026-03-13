@@ -48,6 +48,8 @@
   "topdown_view.config.cylinder_radius_vertical.tooltip": "Sets the vertical culling range from the camera.",
   "topdown_view.config.cylinder_forward_shift.tooltip": "Shifts the culling center forward relative to the camera.",
   "topdown_view.config.click_to_move.tooltip": "Toggles right-click to move and auto-attack functionality.",
+  "topdown_view.config.destination_highlight": "Destination Highlight: %s",
+  "topdown_view.config.destination_highlight.tooltip": "Display a visual effect at the destination when clicking to move.",
   "topdown_view.config.arrival_threshold.tooltip": "Sets how close you need to get to consider the destination reached.\nSmaller values require more precision.",
   "topdown_view.config.attack_range.tooltip": "Sets the distance at which automatic attacks trigger when chasing an enemy.",
   "topdown_view.config.fade_enabled.tooltip": "Toggles visual fading for blocks at the culling boundary.",

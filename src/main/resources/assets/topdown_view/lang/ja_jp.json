@@ -48,6 +48,8 @@
   "topdown_view.config.cylinder_radius_vertical.tooltip": "カメラから見て縦方向のカリング（透明化）範囲を設定します。",
   "topdown_view.config.cylinder_forward_shift.tooltip": "カリングの中心位置を前方にずらします。",
   "topdown_view.config.click_to_move.tooltip": "右クリックでの目的地移動や、敵クリック時の自動追跡攻撃を有効にします。",
+  "topdown_view.config.destination_highlight": "移動先ハイライト: %s",
+  "topdown_view.config.destination_highlight.tooltip": "クリック移動時に目的地を示すエフェクトを表示します。",
   "topdown_view.config.arrival_threshold.tooltip": "クリックした地点に到達したと判定する距離（ブロック数）です。\n小さすぎると止まりにくくなります。",
   "topdown_view.config.attack_range.tooltip": "対象の敵にどれくらい近づいたら自動攻撃を行うか（リーチ距離）を設定します。",
   "topdown_view.config.fade_enabled.tooltip": "カリング境界のブロックを徐々に半透明にして自然に見せる機能を切り替えます。",
