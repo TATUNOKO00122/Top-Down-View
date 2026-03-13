@@ -62,7 +62,8 @@ public final class CameraState {
     private double currentCameraZ = 0.0;
     private double targetCameraX = 0.0;
     private double targetCameraZ = 0.0;
-    private boolean cameraXZInitialized = false;
+    private boolean cameraXInitialized = false;
+    private boolean cameraZInitialized = false;
 
     private CameraState() {
     }
@@ -253,8 +254,12 @@ public final class CameraState {
         return targetCameraZ;
     }
 
-    public boolean isCameraXZInitialized() {
-        return cameraXZInitialized;
+    public boolean isCameraXInitialized() {
+        return cameraXInitialized;
+    }
+
+    public boolean isCameraZInitialized() {
+        return cameraZInitialized;
     }
 
     // ==================== Drag Rotation Setters ====================
@@ -324,8 +329,12 @@ public final class CameraState {
         targetCameraZ = value;
     }
 
-    public void setCameraXZInitialized(boolean value) {
-        cameraXZInitialized = value;
+    public void setCameraXInitialized(boolean value) {
+        cameraXInitialized = value;
+    }
+
+    public void setCameraZInitialized(boolean value) {
+        cameraZInitialized = value;
     }
 
     /**
@@ -376,7 +385,8 @@ public final class CameraState {
         currentCameraZ = 0.0;
         targetCameraX = 0.0;
         targetCameraZ = 0.0;
-        cameraXZInitialized = false;
+        cameraXInitialized = false;
+        cameraZInitialized = false;
     }
 
     /**
