@@ -241,6 +241,21 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.auto_align_animation_speed",
                 Config.getAutoAlignAnimationSpeed(), 0.05, 0.5, val -> Config.setAutoAlignAnimationSpeed(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.camera_y_follow", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled", Config.isCameraYFollowDelayEnabled()),
+                btn -> {
+                    Config.setCameraYFollowDelayEnabled(!Config.isCameraYFollowDelayEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled",
+                            Config.isCameraYFollowDelayEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_y_follow_delay_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_y_follow_delay",
+                Config.getCameraYFollowDelay(), 0.0, 1.0, val -> Config.setCameraYFollowDelay(val)));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -412,6 +427,9 @@ public class ConfigScreen extends Screen {
         Config.setMiningModePitch(45.0);
         Config.setMaxCameraDistance(50.0);
         Config.setDefaultCameraDistance(9.0);
+
+        Config.setCameraYFollowDelayEnabled(false);
+        Config.setCameraYFollowDelay(0.15);
 
         this.init();
     }

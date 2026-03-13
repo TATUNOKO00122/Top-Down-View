@@ -178,6 +178,15 @@ public class Config {
                         .comment("ドラッグ回転の感度（値が大きいほど敏感）")
                         .defineInRange("dragRotationSensitivity", 0.1, 0.01, 1.0);
 
+        // Camera Y follow delay (motion sickness prevention)
+        private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER
+                        .comment("カメラY軸追従遅延の有効/無効（3D酔い対策）")
+                        .define("cameraYFollowDelayEnabled", false);
+
+        private static final ForgeConfigSpec.DoubleValue CAMERA_Y_FOLLOW_DELAY = BUILDER
+                        .comment("カメラY軸追従の遅延時間（秒）、大きいほど遅れる")
+                        .defineInRange("cameraYFollowDelay", 0.15, 0.0, 1.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values (private with getters for encapsulation)
@@ -224,6 +233,10 @@ public class Config {
 	private static boolean dragRotationEnabled;
 	private static double dragRotationSensitivity;
 
+	// Camera Y follow delay
+	private static boolean cameraYFollowDelayEnabled;
+	private static double cameraYFollowDelay;
+
         // ==================== Getters ====================
         
         public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
@@ -262,6 +275,8 @@ public class Config {
 	public static double getDefaultCameraDistance() { return defaultCameraDistance; }
 	public static boolean isDragRotationEnabled() { return dragRotationEnabled; }
 	public static double getDragRotationSensitivity() { return dragRotationSensitivity; }
+	public static boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
+	public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
 
         // ==================== Setters (for GUI) ====================
         
@@ -301,6 +316,8 @@ public class Config {
 	public static void setDefaultCameraDistance(double value) { defaultCameraDistance = value; }
 	public static void setDragRotationEnabled(boolean value) { dragRotationEnabled = value; }
 	public static void setDragRotationSensitivity(double value) { dragRotationSensitivity = value; }
+	public static void setCameraYFollowDelayEnabled(boolean value) { cameraYFollowDelayEnabled = value; }
+	public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = value; }
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -340,6 +357,8 @@ public class Config {
                 defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.get();
 		dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
 		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
+		cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.get();
+		cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.get();
 
                 // ゲーム起動時にデフォルト状態を適用
                 com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
@@ -386,6 +405,8 @@ public class Config {
         DEFAULT_CAMERA_DISTANCE.set(defaultCameraDistance);
 	DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
 	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
+	CAMERA_Y_FOLLOW_DELAY_ENABLED.set(cameraYFollowDelayEnabled);
+	CAMERA_Y_FOLLOW_DELAY.set(cameraYFollowDelay);
 	SPEC.save();
                 com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
                 notifyConfigChanged();

@@ -52,6 +52,11 @@ public final class CameraState {
     private float dragStartYaw = DEFAULT_YAW;
     private double dragStartMouseX = 0.0;
 
+    // カメラY軸遅延追従用状態
+    private double currentCameraY = 0.0;
+    private double targetCameraY = 0.0;
+    private boolean cameraYInitialized = false;
+
     private CameraState() {
     }
 
@@ -209,6 +214,20 @@ public final class CameraState {
         return dragStartMouseX;
     }
 
+    // ==================== Camera Y Follow Delay Getters ====================
+
+    public double getCurrentCameraY() {
+        return currentCameraY;
+    }
+
+    public double getTargetCameraY() {
+        return targetCameraY;
+    }
+
+    public boolean isCameraYInitialized() {
+        return cameraYInitialized;
+    }
+
     // ==================== Drag Rotation Setters ====================
 
     public void setDragging(boolean value) {
@@ -224,6 +243,26 @@ public final class CameraState {
             throw new IllegalArgumentException("Mouse X must be finite: " + value);
         }
         dragStartMouseX = value;
+    }
+
+    // ==================== Camera Y Follow Delay Setters ====================
+
+    public void setCurrentCameraY(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Camera Y must be finite: " + value);
+        }
+        currentCameraY = value;
+    }
+
+    public void setTargetCameraY(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Target Camera Y must be finite: " + value);
+        }
+        targetCameraY = value;
+    }
+
+    public void setCameraYInitialized(boolean value) {
+        cameraYInitialized = value;
     }
 
     /**
@@ -267,6 +306,9 @@ public final class CameraState {
         isDragging = false;
         dragStartYaw = DEFAULT_YAW;
         dragStartMouseX = 0.0;
+        currentCameraY = 0.0;
+        targetCameraY = 0.0;
+        cameraYInitialized = false;
     }
 
     /**

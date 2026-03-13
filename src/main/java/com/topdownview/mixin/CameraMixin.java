@@ -56,7 +56,6 @@ public abstract class CameraMixin {
             return;
         }
 
-        // entityがnullの場合は早期リターン
         if (entity == null) {
             return;
         }
@@ -65,8 +64,10 @@ public abstract class CameraMixin {
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
+        // Y軸遅延追従処理
+        double cameraY = calculateCameraY(targetY, partialTick);
+
         double distance = ModState.CAMERA.getCameraDistance();
-        // マイニングモード時はminingModePitch、通常時はcameraPitch
         float pitch = ModState.STATUS.isMiningMode() ? (float) com.topdownview.Config.getMiningModePitch() : (float) com.topdownview.Config.getCameraPitch();
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
 
@@ -76,13 +77,52 @@ public abstract class CameraMixin {
         double offsetH = Math.cos(radPitch) * distance;
 
         double cameraX = targetX + Math.sin(radYaw) * offsetH;
-        double cameraY = targetY + offsetY;
         double cameraZ = targetZ - Math.cos(radYaw) * offsetH;
 
-        this.setPosition(new Vec3(cameraX, cameraY, cameraZ));
+        this.setPosition(new Vec3(cameraX, cameraY + offsetY, cameraZ));
         this.setRotation(yaw, pitch);
 
         ModState.CAMERA.setPitch(pitch);
         ModState.CAMERA.setCameraPosition(this.getPosition());
+    }
+
+    /**
+     * Y軸の遅延追従を計算
+     * 遅延時間に基づいて指数減衰で滑らかに追従
+     */
+    private double calculateCameraY(double targetY, float partialTick) {
+        if (!com.topdownview.Config.isCameraYFollowDelayEnabled()) {
+            ModState.CAMERA.setTargetCameraY(targetY);
+            ModState.CAMERA.setCurrentCameraY(targetY);
+            ModState.CAMERA.setCameraYInitialized(true);
+            return targetY;
+        }
+
+        if (!ModState.CAMERA.isCameraYInitialized()) {
+            ModState.CAMERA.setTargetCameraY(targetY);
+            ModState.CAMERA.setCurrentCameraY(targetY);
+            ModState.CAMERA.setCameraYInitialized(true);
+            return targetY;
+        }
+
+        ModState.CAMERA.setTargetCameraY(targetY);
+
+        double currentY = ModState.CAMERA.getCurrentCameraY();
+        double delaySeconds = com.topdownview.Config.getCameraYFollowDelay();
+
+        if (delaySeconds <= 0.0) {
+            ModState.CAMERA.setCurrentCameraY(targetY);
+            return targetY;
+        }
+
+        // 指数減衰による遅延追従
+        // dtは約0.05秒（20TPS）、フレームレートに依存しないよう固定値を使用
+        double dt = 0.05;
+        double lerpFactor = 1.0 - Math.exp(-dt / delaySeconds);
+
+        double newY = currentY + (targetY - currentY) * lerpFactor;
+        ModState.CAMERA.setCurrentCameraY(newY);
+
+        return newY;
     }
 }
