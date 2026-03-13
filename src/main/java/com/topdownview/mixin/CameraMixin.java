@@ -67,6 +67,11 @@ public abstract class CameraMixin {
         // Y軸遅延追従処理
         double cameraY = calculateCameraY(targetY, partialTick);
 
+        // XZ軸遅延追従処理
+        double[] cameraXZ = calculateCameraXZ(targetX, targetZ, partialTick);
+        double cameraBaseX = cameraXZ[0];
+        double cameraBaseZ = cameraXZ[1];
+
         double distance = ModState.CAMERA.getCameraDistance();
         float pitch = ModState.STATUS.isMiningMode() ? (float) com.topdownview.Config.getMiningModePitch() : (float) com.topdownview.Config.getCameraPitch();
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
@@ -76,8 +81,8 @@ public abstract class CameraMixin {
         double offsetY = Math.sin(radPitch) * distance;
         double offsetH = Math.cos(radPitch) * distance;
 
-        double cameraX = targetX + Math.sin(radYaw) * offsetH;
-        double cameraZ = targetZ - Math.cos(radYaw) * offsetH;
+        double cameraX = cameraBaseX + Math.sin(radYaw) * offsetH;
+        double cameraZ = cameraBaseZ - Math.cos(radYaw) * offsetH;
 
         this.setPosition(new Vec3(cameraX, cameraY + offsetY, cameraZ));
         this.setRotation(yaw, pitch);
@@ -124,5 +129,53 @@ public abstract class CameraMixin {
         ModState.CAMERA.setCurrentCameraY(newY);
 
         return newY;
+    }
+
+    /**
+     * XZ軸の遅延追従を計算
+     * 遅延時間に基づいて指数減衰で滑らかに追従
+     */
+    private double[] calculateCameraXZ(double targetX, double targetZ, float partialTick) {
+        if (!com.topdownview.Config.isCameraXZFollowDelayEnabled()) {
+            ModState.CAMERA.setTargetCameraX(targetX);
+            ModState.CAMERA.setTargetCameraZ(targetZ);
+            ModState.CAMERA.setCurrentCameraX(targetX);
+            ModState.CAMERA.setCurrentCameraZ(targetZ);
+            ModState.CAMERA.setCameraXZInitialized(true);
+            return new double[]{targetX, targetZ};
+        }
+
+        if (!ModState.CAMERA.isCameraXZInitialized()) {
+            ModState.CAMERA.setTargetCameraX(targetX);
+            ModState.CAMERA.setTargetCameraZ(targetZ);
+            ModState.CAMERA.setCurrentCameraX(targetX);
+            ModState.CAMERA.setCurrentCameraZ(targetZ);
+            ModState.CAMERA.setCameraXZInitialized(true);
+            return new double[]{targetX, targetZ};
+        }
+
+        ModState.CAMERA.setTargetCameraX(targetX);
+        ModState.CAMERA.setTargetCameraZ(targetZ);
+
+        double currentX = ModState.CAMERA.getCurrentCameraX();
+        double currentZ = ModState.CAMERA.getCurrentCameraZ();
+        double delaySeconds = com.topdownview.Config.getCameraXZFollowDelay();
+
+        if (delaySeconds <= 0.0) {
+            ModState.CAMERA.setCurrentCameraX(targetX);
+            ModState.CAMERA.setCurrentCameraZ(targetZ);
+            return new double[]{targetX, targetZ};
+        }
+
+        // 指数減衰による遅延追従
+        double dt = 0.05;
+        double lerpFactor = 1.0 - Math.exp(-dt / delaySeconds);
+
+        double newX = currentX + (targetX - currentX) * lerpFactor;
+        double newZ = currentZ + (targetZ - currentZ) * lerpFactor;
+        ModState.CAMERA.setCurrentCameraX(newX);
+        ModState.CAMERA.setCurrentCameraZ(newZ);
+
+        return new double[]{newX, newZ};
     }
 }

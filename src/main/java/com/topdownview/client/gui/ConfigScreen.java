@@ -256,6 +256,21 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_y_follow_delay",
                 Config.getCameraYFollowDelay(), 0.0, 1.0, val -> Config.setCameraYFollowDelay(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.camera_xz_follow", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.camera_xz_follow_delay_enabled", Config.isCameraXZFollowDelayEnabled()),
+                btn -> {
+                    Config.setCameraXZFollowDelayEnabled(!Config.isCameraXZFollowDelayEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.camera_xz_follow_delay_enabled",
+                            Config.isCameraXZFollowDelayEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_xz_follow_delay_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_xz_follow_delay",
+                Config.getCameraXZFollowDelay(), 0.0, 1.0, val -> Config.setCameraXZFollowDelay(val)));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -430,6 +445,9 @@ public class ConfigScreen extends Screen {
 
         Config.setCameraYFollowDelayEnabled(false);
         Config.setCameraYFollowDelay(0.15);
+
+        Config.setCameraXZFollowDelayEnabled(false);
+        Config.setCameraXZFollowDelay(0.1);
 
         this.init();
     }

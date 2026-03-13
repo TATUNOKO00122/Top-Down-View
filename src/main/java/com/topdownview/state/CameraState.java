@@ -57,6 +57,13 @@ public final class CameraState {
     private double targetCameraY = 0.0;
     private boolean cameraYInitialized = false;
 
+    // カメラXZ軸遅延追従用状態
+    private double currentCameraX = 0.0;
+    private double currentCameraZ = 0.0;
+    private double targetCameraX = 0.0;
+    private double targetCameraZ = 0.0;
+    private boolean cameraXZInitialized = false;
+
     private CameraState() {
     }
 
@@ -228,6 +235,28 @@ public final class CameraState {
         return cameraYInitialized;
     }
 
+    // ==================== Camera XZ Follow Delay Getters ====================
+
+    public double getCurrentCameraX() {
+        return currentCameraX;
+    }
+
+    public double getCurrentCameraZ() {
+        return currentCameraZ;
+    }
+
+    public double getTargetCameraX() {
+        return targetCameraX;
+    }
+
+    public double getTargetCameraZ() {
+        return targetCameraZ;
+    }
+
+    public boolean isCameraXZInitialized() {
+        return cameraXZInitialized;
+    }
+
     // ==================== Drag Rotation Setters ====================
 
     public void setDragging(boolean value) {
@@ -263,6 +292,40 @@ public final class CameraState {
 
     public void setCameraYInitialized(boolean value) {
         cameraYInitialized = value;
+    }
+
+    // ==================== Camera XZ Follow Delay Setters ====================
+
+    public void setCurrentCameraX(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Camera X must be finite: " + value);
+        }
+        currentCameraX = value;
+    }
+
+    public void setCurrentCameraZ(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Camera Z must be finite: " + value);
+        }
+        currentCameraZ = value;
+    }
+
+    public void setTargetCameraX(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Target Camera X must be finite: " + value);
+        }
+        targetCameraX = value;
+    }
+
+    public void setTargetCameraZ(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Target Camera Z must be finite: " + value);
+        }
+        targetCameraZ = value;
+    }
+
+    public void setCameraXZInitialized(boolean value) {
+        cameraXZInitialized = value;
     }
 
     /**
@@ -309,6 +372,11 @@ public final class CameraState {
         currentCameraY = 0.0;
         targetCameraY = 0.0;
         cameraYInitialized = false;
+        currentCameraX = 0.0;
+        currentCameraZ = 0.0;
+        targetCameraX = 0.0;
+        targetCameraZ = 0.0;
+        cameraXZInitialized = false;
     }
 
     /**

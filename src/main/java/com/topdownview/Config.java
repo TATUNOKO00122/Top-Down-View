@@ -187,6 +187,15 @@ public class Config {
                         .comment("カメラY軸追従の遅延時間（秒）、大きいほど遅れる")
                         .defineInRange("cameraYFollowDelay", 0.15, 0.0, 1.0);
 
+        // Camera XZ follow delay (motion sickness prevention)
+        private static final ForgeConfigSpec.BooleanValue CAMERA_XZ_FOLLOW_DELAY_ENABLED = BUILDER
+                        .comment("カメラXZ軸追従遅延の有効/無効（3D酔い対策）")
+                        .define("cameraXZFollowDelayEnabled", false);
+
+        private static final ForgeConfigSpec.DoubleValue CAMERA_XZ_FOLLOW_DELAY = BUILDER
+                        .comment("カメラXZ軸追従の遅延時間（秒）、大きいほど遅れる")
+                        .defineInRange("cameraXZFollowDelay", 0.1, 0.0, 1.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         // Runtime values (private with getters for encapsulation)
@@ -237,6 +246,10 @@ public class Config {
 	private static boolean cameraYFollowDelayEnabled;
 	private static double cameraYFollowDelay;
 
+	// Camera XZ follow delay
+	private static boolean cameraXZFollowDelayEnabled;
+	private static double cameraXZFollowDelay;
+
         // ==================== Getters ====================
         
         public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
@@ -277,6 +290,8 @@ public class Config {
 	public static double getDragRotationSensitivity() { return dragRotationSensitivity; }
 	public static boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
 	public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
+	public static boolean isCameraXZFollowDelayEnabled() { return cameraXZFollowDelayEnabled; }
+	public static double getCameraXZFollowDelay() { return cameraXZFollowDelay; }
 
         // ==================== Setters (for GUI) ====================
         
@@ -318,6 +333,8 @@ public class Config {
 	public static void setDragRotationSensitivity(double value) { dragRotationSensitivity = value; }
 	public static void setCameraYFollowDelayEnabled(boolean value) { cameraYFollowDelayEnabled = value; }
 	public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = value; }
+	public static void setCameraXZFollowDelayEnabled(boolean value) { cameraXZFollowDelayEnabled = value; }
+	public static void setCameraXZFollowDelay(double value) { cameraXZFollowDelay = value; }
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -359,6 +376,8 @@ public class Config {
 		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 		cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.get();
 		cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.get();
+		cameraXZFollowDelayEnabled = CAMERA_XZ_FOLLOW_DELAY_ENABLED.get();
+		cameraXZFollowDelay = CAMERA_XZ_FOLLOW_DELAY.get();
 
                 // ゲーム起動時にデフォルト状態を適用
                 com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
@@ -407,6 +426,8 @@ public class Config {
 	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
 	CAMERA_Y_FOLLOW_DELAY_ENABLED.set(cameraYFollowDelayEnabled);
 	CAMERA_Y_FOLLOW_DELAY.set(cameraYFollowDelay);
+	CAMERA_XZ_FOLLOW_DELAY_ENABLED.set(cameraXZFollowDelayEnabled);
+	CAMERA_XZ_FOLLOW_DELAY.set(cameraXZFollowDelay);
 	SPEC.save();
                 com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
                 notifyConfigChanged();

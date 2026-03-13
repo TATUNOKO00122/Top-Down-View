@@ -109,6 +109,11 @@
   "topdown_view.config.camera_y_follow_delay_enabled.tooltip": "Enable delayed camera Y-axis follow. Reduces motion sickness during jumps.",
   "topdown_view.config.camera_y_follow_delay": "Delay Time: %.2fs",
   "topdown_view.config.camera_y_follow_delay.tooltip": "Camera Y-axis follow delay in seconds. Higher values make the camera lag more when jumping.",
+  "topdown_view.config.section.camera_xz_follow": "Camera XZ Follow Delay",
+  "topdown_view.config.camera_xz_follow_delay_enabled": "XZ Follow Delay: %s",
+  "topdown_view.config.camera_xz_follow_delay_enabled.tooltip": "Enable delayed camera XZ-axis (horizontal) follow. Reduces motion sickness during movement.",
+  "topdown_view.config.camera_xz_follow_delay": "Delay Time: %.2fs",
+  "topdown_view.config.camera_xz_follow_delay.tooltip": "Camera XZ-axis follow delay in seconds. Higher values make the camera lag more when moving.",
   "topdown_view.config.reset": "Reset",
   "topdown_view.config.reset.tooltip": "Reset all settings to default values.",
   "topdown_view.pause.config_button.tooltip": "Open Top-Down View Settings"
