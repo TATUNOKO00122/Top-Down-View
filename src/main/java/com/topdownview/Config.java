@@ -63,6 +63,10 @@ public class Config {
                         .comment("クリックツームーブ中の自動ジャンプ強制")
                         .define("forceAutoJump", false);
 
+        private static final ForgeConfigSpec.DoubleValue SPRINT_DISTANCE_THRESHOLD = BUILDER
+                        .comment("クリックツームーブ中にダッシュを開始する距離（ブロック数）")
+                        .defineInRange("sprintDistanceThreshold", 5.0, 1.0, 50.0);
+
         private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_TO_MOVEMENT_ENABLED = BUILDER
                         .comment("移動中にカメラを進行方向へ自動回転")
                         .define("autoAlignToMovementEnabled", false);
@@ -217,6 +221,7 @@ public class Config {
         private static boolean clickToMoveEnabled;
         private static double arrivalThreshold;
         private static boolean forceAutoJump;
+        private static double sprintDistanceThreshold;
         private static boolean autoAlignToMovementEnabled;
         private static int autoAlignAngleThreshold;
         private static int autoAlignCooldownTicks;
@@ -274,6 +279,7 @@ public class Config {
         public static boolean isClickToMoveEnabled() { return clickToMoveEnabled; }
         public static double getArrivalThreshold() { return arrivalThreshold; }
         public static boolean isForceAutoJump() { return forceAutoJump; }
+        public static double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
         public static boolean isAutoAlignToMovementEnabled() { return autoAlignToMovementEnabled; }
         public static int getAutoAlignAngleThreshold() { return autoAlignAngleThreshold; }
         public static int getAutoAlignCooldownTicks() { return autoAlignCooldownTicks; }
@@ -319,6 +325,7 @@ public class Config {
         public static void setClickToMoveEnabled(boolean value) { clickToMoveEnabled = value; }
         public static void setArrivalThreshold(double value) { arrivalThreshold = value; }
         public static void setForceAutoJump(boolean value) { forceAutoJump = value; }
+        public static void setSprintDistanceThreshold(double value) { sprintDistanceThreshold = value; }
         public static void setAutoAlignToMovementEnabled(boolean value) { autoAlignToMovementEnabled = value; }
         public static void setAutoAlignAngleThreshold(int value) { autoAlignAngleThreshold = value; }
         public static void setAutoAlignCooldownTicks(int value) { autoAlignCooldownTicks = value; }
@@ -364,6 +371,7 @@ public class Config {
 			clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
                 arrivalThreshold = ARRIVAL_THRESHOLD.get();
                 forceAutoJump = FORCE_AUTO_JUMP.get();
+                sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.get();
                 autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.get();
                 autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.get();
                 autoAlignCooldownTicks = AUTO_ALIGN_COOLDOWN_TICKS.get();
@@ -416,6 +424,7 @@ public class Config {
             CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
                 ARRIVAL_THRESHOLD.set(arrivalThreshold);
                 FORCE_AUTO_JUMP.set(forceAutoJump);
+                SPRINT_DISTANCE_THRESHOLD.set(sprintDistanceThreshold);
                 AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(autoAlignToMovementEnabled);
                 AUTO_ALIGN_ANGLE_THRESHOLD.set(autoAlignAngleThreshold);
                 AUTO_ALIGN_COOLDOWN_TICKS.set(autoAlignCooldownTicks);

@@ -168,7 +168,7 @@ public final class ClickToMoveController {
         return direction.normalize();
     }
 
-    private static Vec3 getEffectiveDestination(Minecraft mc) {
+    public static Vec3 getEffectiveDestination(Minecraft mc) {
         if (ModState.CLICK_TO_MOVE.isLongPressFollow()) {
             double reach = MouseRaycast.getCustomReachDistance();
             MouseRaycast.INSTANCE.update(mc, 1.0f, reach);

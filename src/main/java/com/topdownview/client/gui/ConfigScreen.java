@@ -166,6 +166,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.arrival_threshold",
                 Config.getArrivalThreshold(), 0.5, 5.0, val -> Config.setArrivalThreshold(val)));
         y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.sprint_distance_threshold",
+                Config.getSprintDistanceThreshold(), 1.0, 50.0, val -> Config.setSprintDistanceThreshold(val)));
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
         addRightWidget(
@@ -424,6 +427,7 @@ public class ConfigScreen extends Screen {
 
         Config.setClickToMoveEnabled(false);
         Config.setArrivalThreshold(1.5);
+        Config.setSprintDistanceThreshold(5.0);
         Config.setForceAutoJump(false);
 
         Config.setRangeIndicatorEnabled(false);

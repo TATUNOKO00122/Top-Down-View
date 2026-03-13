@@ -43,6 +43,7 @@ public final class MovementController {
         if (Config.isClickToMoveEnabled() && ModState.CLICK_TO_MOVE.isMoving()) {
             if (hasManualInput) {
                 ClickToMoveController.stop();
+                mc.player.setSprinting(false);
             } else {
                 float[] moveInput = ClickToMoveController.calculateMovementInput(mc);
                 if (moveInput != null) {
@@ -52,9 +53,15 @@ public final class MovementController {
                     if (Config.isForceAutoJump() && shouldAutoJump(mc, moveInput[0], moveInput[1])) {
                         event.getInput().jumping = true;
                     }
+
+                    updateSprint(mc);
                     return;
                 }
             }
+        }
+
+        if (mc.player.isSprinting() && !hasManualInput) {
+            mc.player.setSprinting(false);
         }
 
         float cameraYaw = ModState.CAMERA.getYaw();
@@ -111,5 +118,24 @@ public final class MovementController {
         }
 
         return false;
+    }
+
+    private static void updateSprint(Minecraft mc) {
+        if (mc.player == null) return;
+
+        Vec3 destination = ClickToMoveController.getEffectiveDestination(mc);
+        if (destination == null) {
+            mc.player.setSprinting(false);
+            return;
+        }
+
+        double distance = mc.player.position().distanceTo(destination);
+        double threshold = Config.getSprintDistanceThreshold();
+
+        if (distance >= threshold && mc.player.getFoodData().getFoodLevel() > 6) {
+            mc.player.setSprinting(true);
+        } else {
+            mc.player.setSprinting(false);
+        }
     }
 }
