@@ -8,6 +8,8 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -324,17 +326,30 @@ public final class CameraController {
 
         float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
 
-        float pitch = calculatePitch(mc, horizontalDist, dy);
-
         mc.player.setYRot(yaw);
-        mc.player.setXRot(pitch);
         mc.player.yHeadRot = yaw;
         mc.player.yBodyRot = yaw;
+
+        Float pitch = calculatePitch(mc, horizontalDist, dy);
+        if (pitch != null) {
+            mc.player.setXRot(pitch);
+        }
     }
 
-    private static float calculatePitch(Minecraft mc, double horizontalDist, double verticalDist) {
-        if (mc.player.isUsingItem() && mc.player.getUseItem().getItem() instanceof BowItem) {
-            return BowTrajectoryCalculator.calculateBowPitch(horizontalDist, verticalDist);
+    private static final double MIN_PULL_FACTOR = 0.65;
+
+    private static Float calculatePitch(Minecraft mc, double horizontalDist, double verticalDist) {
+        ItemStack useItem = mc.player.getUseItem();
+        Item item = useItem.getItem();
+        ProjectilePhysics physics = ProjectilePhysics.fromItem(item);
+        
+        if (physics != null && mc.player.isUsingItem()) {
+            int useTicks = mc.player.getTicksUsingItem();
+            double pullFactor = TrajectoryCalculator.calculatePullFactor(item, useTicks);
+            if (pullFactor >= MIN_PULL_FACTOR) {
+                return TrajectoryCalculator.calculatePitch(physics, horizontalDist, verticalDist, pullFactor);
+            }
+            return null;
         }
         return (float) -(Math.atan2(verticalDist, horizontalDist) * MathConstants.RADIANS_TO_DEGREES);
     }
