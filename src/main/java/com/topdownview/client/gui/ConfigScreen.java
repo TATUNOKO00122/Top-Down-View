@@ -252,7 +252,7 @@ public class ConfigScreen extends Screen {
                 Config.getAutoAlignAnimationSpeed(), 0.05, 0.5, val -> Config.setAutoAlignAnimationSpeed(val)));
         y += sp;
 
-        y = addSection(y, "topdown_view.config.section.camera_y_follow", tx);
+        y = addSection(y, "topdown_view.config.section.camera_follow_delay", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled", Config.isCameraYFollowDelayEnabled()),
                 btn -> {
@@ -266,8 +266,6 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_y_follow_delay",
                 Config.getCameraYFollowDelay(), 0.0, 4.0, val -> Config.setCameraYFollowDelay(val)));
         y += sp;
-
-        y = addSection(y, "topdown_view.config.section.camera_x_follow", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.camera_x_follow_delay_enabled", Config.isCameraXFollowDelayEnabled()),
                 btn -> {
@@ -281,8 +279,6 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_x_follow_delay",
                 Config.getCameraXFollowDelay(), 0.0, 4.0, val -> Config.setCameraXFollowDelay(val)));
         y += sp;
-
-        y = addSection(y, "topdown_view.config.section.camera_z_follow", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.camera_z_follow_delay_enabled", Config.isCameraZFollowDelayEnabled()),
                 btn -> {

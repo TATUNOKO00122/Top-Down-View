@@ -1,12 +1,12 @@
 package com.topdownview.client;
 
 import com.topdownview.TopDownViewMod;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -35,7 +35,8 @@ public class ClientModBusEvents {
 
     public static final KeyMapping DRAG_ROTATE_KEY = new KeyMapping(
             "key.topdown_view.drag_rotate",
-            GLFW.GLFW_KEY_LEFT_ALT, // Default to Left Alt key, can be rebound to mouse button in controls
+            InputConstants.Type.MOUSE,
+            GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
             "key.categories.topdown_view");
 
     public static final KeyMapping MINING_MODE_KEY = new KeyMapping(
