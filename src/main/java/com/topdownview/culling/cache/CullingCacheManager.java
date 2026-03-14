@@ -21,10 +21,14 @@ public final class CullingCacheManager {
             culledCount = 0;
         }
         Boolean oldValue = cache.put(pos.immutable(), result);
-        if (result) {
+        if (oldValue != null) {
+            if (oldValue && !result) {
+                culledCount--;
+            } else if (!oldValue && result) {
+                culledCount++;
+            }
+        } else if (result) {
             culledCount++;
-        } else if (oldValue != null && oldValue) {
-            culledCount--;
         }
     }
 

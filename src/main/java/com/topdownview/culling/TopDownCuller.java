@@ -121,7 +121,7 @@ public final class TopDownCuller {
             }
         }
 
-        if (cPos == Vec3.ZERO) {
+        if (cPos.equals(Vec3.ZERO)) {
             cullingCache.put(pos, false);
             return false;
         }
@@ -173,7 +173,7 @@ public final class TopDownCuller {
     private boolean isProtectedBlock(BlockPos pos, BlockState state, BlockGetter level, Vec3 pPos, Vec3 cPos) {
         Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
 
-        if (cPos == Vec3.ZERO) {
+        if (cPos.equals(Vec3.ZERO)) {
             return true;
         }
 
@@ -205,7 +205,7 @@ public final class TopDownCuller {
 
         // カメラ位置が未初期化の場合、プレイヤー位置のみ更新して早期リターン
         // 次のフレームでカメラ位置が設定された後にカリングが有効になる
-        if (rawCameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
+        if (rawCameraPos.equals(com.topdownview.state.CameraState.DEFAULT_POSITION)) {
             // プレイヤー位置のみ更新（カメラ位置はZERO）
             this.context = new CullingContext(candidatePos, Vec3.ZERO);
             return;
@@ -259,7 +259,7 @@ public final class TopDownCuller {
         Vec3 cPos = ctx.cameraPos();
 
         // カメラ位置が未初期化の場合は表示
-        if (cPos == Vec3.ZERO) {
+        if (cPos.equals(Vec3.ZERO)) {
             return false;
         }
 
@@ -491,7 +491,7 @@ public final class TopDownCuller {
         Vec3 pPos = ctx.playerPos();
         Vec3 cPos = ctx.cameraPos();
 
-        if (level == null || cPos == Vec3.ZERO) {
+        if (level == null || cPos.equals(Vec3.ZERO)) {
             return fadeCache.getFadeBlocksCache();
         }
 

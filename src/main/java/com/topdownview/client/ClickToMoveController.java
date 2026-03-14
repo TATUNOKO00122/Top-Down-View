@@ -426,7 +426,7 @@ public final class ClickToMoveController {
             ModState.CLICK_TO_MOVE.setAttackCooldown(Math.max(5, cooldown));
 
             LOGGER.info("[ClickToMove] 攻撃後クールダウン設定: {} ticks ({:.2f}秒, attacksPerSecond: {:.2f})", 
-                cooldown, delayInSeconds, attacksPerSecond);
+                cooldown, String.format("%.2f", delayInSeconds), String.format("%.2f", attacksPerSecond));
 
             // ホールドモードでなければ停止
             if (!ModState.CLICK_TO_MOVE.isHoldMode()) {

@@ -19,8 +19,8 @@ import net.minecraftforge.fml.common.Mod;
 public class ClientEventHandler {
 
     // Configボタン用のアイコンテクスチャ（バニラのアクセシビリティアイコンを流用）
-    private static final ResourceLocation CONFIG_ICON = new ResourceLocation("minecraft",
-            "textures/gui/accessibility.png");
+    private static final ResourceLocation CONFIG_ICON = new ResourceLocation(
+            "minecraft", "textures/gui/accessibility.png");
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {

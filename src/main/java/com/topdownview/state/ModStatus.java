@@ -9,9 +9,9 @@ public final class ModStatus {
     // シングルトンインスタンス
     public static final ModStatus INSTANCE = new ModStatus();
 
-    private boolean enabled = false;
-    private boolean initialized = false;
-    private boolean miningMode = false;
+    private volatile boolean enabled = false;
+    private volatile boolean initialized = false;
+    private volatile boolean miningMode = false;
 
     private ModStatus() {}
 
