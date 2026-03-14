@@ -46,7 +46,6 @@ public final class ClickActionHandler {
     private static void handleLeftClickPress(Minecraft mc) {
         if (mc.level == null || mc.player == null) return;
 
-        boolean forceMove = ClientModBusEvents.FORCE_MOVE_KEY.isDown();
         boolean destroyMode = ClientModBusEvents.DESTROY_KEY.isDown();
 
         double reach = MouseRaycast.getCustomReachDistance();
@@ -59,18 +58,6 @@ public final class ClickActionHandler {
 
         if (destroyMode) {
             handleDestroyMode(mc, result);
-            return;
-        }
-
-        if (forceMove) {
-            if (result.getType() == HitResult.Type.BLOCK) {
-                BlockHitResult blockHit = (BlockHitResult) result;
-                Vec3 destination = blockHit.getLocation();
-                ClickToMoveController.setDestination(destination);
-                if (Config.isDestinationHighlightEnabled()) {
-                    ModState.DESTINATION_HIGHLIGHT.startAnimation();
-                }
-            }
             return;
         }
 

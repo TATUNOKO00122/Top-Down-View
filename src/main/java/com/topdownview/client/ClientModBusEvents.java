@@ -43,11 +43,6 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_M,
             "key.categories.topdown_view");
 
-    public static final KeyMapping FORCE_MOVE_KEY = new KeyMapping(
-            "key.topdown_view.force_move",
-            GLFW.GLFW_KEY_UNKNOWN,
-            "key.categories.topdown_view");
-
     public static final KeyMapping DESTROY_KEY = new KeyMapping(
             "key.topdown_view.destroy",
             GLFW.GLFW_KEY_UNKNOWN,
@@ -61,7 +56,6 @@ public class ClientModBusEvents {
         event.register(ALIGN_TO_MOVEMENT_KEY);
         event.register(DRAG_ROTATE_KEY);
         event.register(MINING_MODE_KEY);
-        event.register(FORCE_MOVE_KEY);
         event.register(DESTROY_KEY);
     }
 
