@@ -5,6 +5,7 @@
   "key.topdown_view.align_to_movement": "Align Camera to Movement",
   "key.topdown_view.drag_rotate": "Rotate Camera (Drag)",
   "key.topdown_view.mining_mode": "Toggle Mining Mode",
+  "key.topdown_view.destroy": "Destroy Mode",
   "key.categories.topdown_view": "Top-Down View",
   "topdown_view.config.title": "Top-Down View Settings",
   "topdown_view.config.tab.culling": "Culling",

@@ -5,6 +5,7 @@
   "key.topdown_view.align_to_movement": "カメラを移動方向に向ける",
   "key.topdown_view.drag_rotate": "カメラ回転（ドラッグ）",
   "key.topdown_view.mining_mode": "マイニングモード切替",
+  "key.topdown_view.destroy": "破壊モード",
   "key.categories.topdown_view": "トップダウンビュー",
   "topdown_view.config.title": "トップダウンビュー設定",
   "topdown_view.config.tab.culling": "カリング",
