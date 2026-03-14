@@ -27,6 +27,7 @@ public final class ModState {
         TIME.reset();
         STATUS.reset();
         CLICK_TO_MOVE.reset();
+        TARGET_HIGHLIGHT.reset();
         DESTINATION_HIGHLIGHT.reset();
     }
 }

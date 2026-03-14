@@ -1,6 +1,6 @@
 package com.topdownview.state;
 
-import com.topdownview.Config;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -12,14 +12,26 @@ public final class ClickToMoveState {
     private Vec3 originalLocation = null;
     private Entity targetEntity = null;
     private boolean isMoving = false;
-    private boolean isLongPressFollow = false;
     private boolean useBaritone = false;
     private int baritoneStartTick = 0;
     private boolean baritonePathStarted = false;
     private static final int BARITONE_MIN_TICKS = 10;
 
+    private boolean isAttacking = false;
+    private int attackCooldown = 0;
+
+    private boolean isDestroying = false;
+    private BlockPos destroyTargetBlock = null;
+
+    private boolean isInteracting = false;
+    private BlockPos interactTargetBlock = null;
+
+    private boolean isHoldMode = false;
+
     public static final double DEFAULT_ARRIVAL_THRESHOLD = 1.5;
     public static final double DEFAULT_ATTACK_RANGE = 3.0;
+    public static final double DEFAULT_INTERACT_RANGE = 2.5;
+    public static final double DEFAULT_DESTROY_RANGE = 4.5;
 
     private ClickToMoveState() {}
 
@@ -27,24 +39,30 @@ public final class ClickToMoveState {
     public Vec3 getOriginalLocation() { return originalLocation; }
     public Entity getTargetEntity() { return targetEntity; }
     public boolean isMoving() { return isMoving; }
-    public boolean isLongPressFollow() { return isLongPressFollow; }
     public boolean useBaritone() { return useBaritone; }
     public int getBaritoneStartTick() { return baritoneStartTick; }
-    
-    public void setUseBaritone(boolean use) { 
+    public boolean isAttacking() { return isAttacking; }
+    public int getAttackCooldown() { return attackCooldown; }
+    public boolean isDestroying() { return isDestroying; }
+    public BlockPos getDestroyTargetBlock() { return destroyTargetBlock; }
+    public boolean isInteracting() { return isInteracting; }
+    public BlockPos getInteractTargetBlock() { return interactTargetBlock; }
+    public boolean isHoldMode() { return isHoldMode; }
+
+    public void setUseBaritone(boolean use) {
         if (use && !baritonePathStarted) {
             this.baritoneStartTick = 0;
             this.baritonePathStarted = true;
         }
-        this.useBaritone = use; 
+        this.useBaritone = use;
     }
-    
+
     public void tickBaritone() {
         if (useBaritone && baritoneStartTick < BARITONE_MIN_TICKS) {
             baritoneStartTick++;
         }
     }
-    
+
     public boolean canCheckBaritoneArrival() {
         return baritoneStartTick >= BARITONE_MIN_TICKS;
     }
@@ -71,44 +89,123 @@ public final class ClickToMoveState {
         }
     }
 
-    public void setLongPressFollow(boolean follow) {
-        this.isLongPressFollow = follow;
-        if (follow) {
-            this.isMoving = true;
+    public void setAttacking(boolean attacking) {
+        this.isAttacking = attacking;
+    }
+
+    public void setAttackCooldown(int cooldown) {
+        this.attackCooldown = Math.max(0, cooldown);
+    }
+
+    public void tickAttackCooldown() {
+        if (attackCooldown > 0) {
+            attackCooldown--;
         }
     }
 
+    public boolean canAttack() {
+        return attackCooldown == 0;
+    }
+
+    public void setDestroying(boolean destroying) {
+        this.isDestroying = destroying;
+    }
+
+    public void setDestroyTargetBlock(BlockPos pos) {
+        this.destroyTargetBlock = pos;
+    }
+
+    public void setInteracting(boolean interacting) {
+        this.isInteracting = interacting;
+    }
+
+    public void setInteractTargetBlock(BlockPos pos) {
+        this.interactTargetBlock = pos;
+    }
+
+    public void setHoldMode(boolean holdMode) {
+        this.isHoldMode = holdMode;
+    }
+
+    public void startFollowAndAttack(Entity entity, Vec3 playerPos) {
+        clearAllTargets();
+        this.targetEntity = entity;
+        this.targetPosition = entity.position();
+        this.originalLocation = playerPos;
+        this.isMoving = true;
+        this.isAttacking = true;
+        this.isHoldMode = true;
+    }
+
     public void startMoveTo(Vec3 destination, Vec3 playerPos) {
+        clearAllTargets();
         this.targetPosition = destination;
         this.originalLocation = playerPos;
-        this.targetEntity = null;
         this.isMoving = true;
+        this.isHoldMode = true;
     }
 
     public void startFollowEntity(Entity entity, Vec3 playerPos) {
+        clearAllTargets();
         this.targetEntity = entity;
         this.targetPosition = entity.position();
         this.originalLocation = playerPos;
         this.isMoving = true;
     }
 
+    public void startDestroyBlock(BlockPos blockPos, Vec3 playerPos) {
+        clearAllTargets();
+        this.destroyTargetBlock = blockPos;
+        this.targetPosition = Vec3.atCenterOf(blockPos);
+        this.originalLocation = playerPos;
+        this.isMoving = true;
+        this.isDestroying = true;
+        this.isHoldMode = true;
+    }
+
+    public void startInteractBlock(BlockPos blockPos, Vec3 playerPos) {
+        clearAllTargets();
+        this.interactTargetBlock = blockPos;
+        this.targetPosition = Vec3.atCenterOf(blockPos);
+        this.originalLocation = playerPos;
+        this.isMoving = true;
+        this.isInteracting = true;
+        this.isHoldMode = true;
+    }
+
+    public void startInteractEntity(Entity entity, Vec3 playerPos) {
+        clearAllTargets();
+        this.targetEntity = entity;
+        this.targetPosition = entity.position();
+        this.originalLocation = playerPos;
+        this.isMoving = true;
+        this.isInteracting = true;
+        this.isHoldMode = true;
+    }
+
+    private void clearAllTargets() {
+        this.targetEntity = null;
+        this.destroyTargetBlock = null;
+        this.interactTargetBlock = null;
+        this.isAttacking = false;
+        this.isDestroying = false;
+        this.isInteracting = false;
+        this.attackCooldown = 0;
+        this.isHoldMode = false;
+    }
+
     public boolean hasArrived(Vec3 playerPos, double threshold) {
         if (targetPosition == null || originalLocation == null) return true;
         if (!isMoving) return true;
 
-        // 目的地への距離が閾値以内かチェック
         double distToTargetSq = playerPos.distanceToSqr(targetPosition);
         if (distToTargetSq <= threshold * threshold) {
             return true;
         }
 
-        // 出発点から目的地への距離
         double totalDistSq = originalLocation.distanceToSqr(targetPosition);
-        // 出発点から現在位置への距離
         double distFromOriginalSq = playerPos.distanceToSqr(originalLocation);
 
-        // オーバーシュート検出：現在位置が目的地を通り過ぎているか
-        // totalDistSqが小さい場合（短距離移動）はオーバーシュート検出を緩和
         double overshootThreshold = Math.max(threshold * threshold, totalDistSq * 0.25);
         if (distFromOriginalSq >= totalDistSq + overshootThreshold) {
             return true;
@@ -125,6 +222,15 @@ public final class ClickToMoveState {
         return distSq < threshold * threshold;
     }
 
+    public boolean hasArrivedAtBlock(Vec3 playerPos, BlockPos blockPos, double threshold) {
+        if (blockPos == null) return true;
+        if (!isMoving) return true;
+
+        Vec3 blockCenter = Vec3.atCenterOf(blockPos);
+        double distSq = playerPos.distanceToSqr(blockCenter);
+        return distSq < threshold * threshold;
+    }
+
     public void updateEntityTargetPosition() {
         if (targetEntity != null && targetEntity.isAlive()) {
             this.targetPosition = targetEntity.position();
@@ -136,10 +242,16 @@ public final class ClickToMoveState {
         originalLocation = null;
         targetEntity = null;
         isMoving = false;
-        isLongPressFollow = false;
         useBaritone = false;
         baritoneStartTick = 0;
         baritonePathStarted = false;
+        isAttacking = false;
+        attackCooldown = 0;
+        isDestroying = false;
+        destroyTargetBlock = null;
+        isInteracting = false;
+        interactTargetBlock = null;
+        isHoldMode = false;
     }
 
     public void stopMovement() {
@@ -150,5 +262,12 @@ public final class ClickToMoveState {
         useBaritone = false;
         baritoneStartTick = 0;
         baritonePathStarted = false;
+        isAttacking = false;
+        attackCooldown = 0;
+        isDestroying = false;
+        destroyTargetBlock = null;
+        isInteracting = false;
+        interactTargetBlock = null;
+        isHoldMode = false;
     }
 }

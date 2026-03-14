@@ -29,6 +29,12 @@ public abstract class MinecraftClientMixin {
         if (!ModState.STATUS.isEnabled())
             return;
 
+        // トップダウン視点かつクリック移動が有効な場合はバニラ破壊を無効化
+        if (com.topdownview.Config.isClickToMoveEnabled()) {
+            ci.cancel();
+            return;
+        }
+
         Minecraft mc = Minecraft.class.cast(this);
         if (mc.player == null || mc.gameMode == null)
             return;

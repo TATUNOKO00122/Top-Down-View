@@ -44,17 +44,19 @@ public final class MouseRaycast {
 
     public static final MouseRaycast INSTANCE = new MouseRaycast();
 
-    private BlockHitResult lastBlockHit = null;
-    private EntityHitResult lastEntityHit = null;
-    private net.minecraft.world.phys.HitResult lastHitResult = null;
+    // 結果キャッシュ（volatileでスレッド安全性を確保）
+    private volatile BlockHitResult lastBlockHit = null;
+    private volatile EntityHitResult lastEntityHit = null;
+    private volatile net.minecraft.world.phys.HitResult lastHitResult = null;
 
-    private Vec3 cachedDirection = null;
-    private double lastFov = -1;
-    private double lastAspectRatio = -1;
-    private double lastMouseX = -1;
-    private double lastMouseY = -1;
-    private double lastYaw = -1;
-    private double lastPitch = -1;
+    // 方向キャッシュ（volatileでスレッド安全性を確保）
+    private volatile Vec3 cachedDirection = null;
+    private volatile double lastFov = -1;
+    private volatile double lastAspectRatio = -1;
+    private volatile double lastMouseX = -1;
+    private volatile double lastMouseY = -1;
+    private volatile double lastYaw = -1;
+    private volatile double lastPitch = -1;
 
     private MouseRaycast() {
     }

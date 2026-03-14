@@ -30,40 +30,40 @@ public final class CameraState {
     // シングルトンインスタンス
     public static final CameraState INSTANCE = new CameraState();
 
-    // カメラ制御
-    private float yaw = DEFAULT_YAW;
-    private float prevYaw = DEFAULT_YAW;
-    private float targetYaw = DEFAULT_YAW;
-    private boolean isAnimating = false;
-    private float pitch = DEFAULT_PITCH;
-    private double x = 0.0;
-    private double z = 0.0;
-    private float zoom = DEFAULT_ZOOM;
-    private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
-    private Vec3 cameraPosition = DEFAULT_POSITION;
-    private CameraType previousCameraType = null;
-    private long lastAutoAlignTick = 0;
-    private float lastMovementDirection = 0.0f;
-    private int stableDirectionTicks = 0;
-    private boolean isAutoAlignAnimation = false;
+    // カメラ制御（volatileでスレッド安全性を確保：Render/Game Thread間の可視性保証）
+    private volatile float yaw = DEFAULT_YAW;
+    private volatile float prevYaw = DEFAULT_YAW;
+    private volatile float targetYaw = DEFAULT_YAW;
+    private volatile boolean isAnimating = false;
+    private volatile float pitch = DEFAULT_PITCH;
+    private volatile double x = 0.0;
+    private volatile double z = 0.0;
+    private volatile float zoom = DEFAULT_ZOOM;
+    private volatile double cameraDistance = DEFAULT_CAMERA_DISTANCE;
+    private volatile Vec3 cameraPosition = DEFAULT_POSITION;
+    private volatile CameraType previousCameraType = null;
+    private volatile long lastAutoAlignTick = 0;
+    private volatile float lastMovementDirection = 0.0f;
+    private volatile int stableDirectionTicks = 0;
+    private volatile boolean isAutoAlignAnimation = false;
 
     // ドラッグ回転用状態
-    private boolean isDragging = false;
-    private float dragStartYaw = DEFAULT_YAW;
-    private double dragStartMouseX = 0.0;
+    private volatile boolean isDragging = false;
+    private volatile float dragStartYaw = DEFAULT_YAW;
+    private volatile double dragStartMouseX = 0.0;
 
     // カメラY軸遅延追従用状態
-    private double currentCameraY = 0.0;
-    private double targetCameraY = 0.0;
-    private boolean cameraYInitialized = false;
+    private volatile double currentCameraY = 0.0;
+    private volatile double targetCameraY = 0.0;
+    private volatile boolean cameraYInitialized = false;
 
     // カメラXZ軸遅延追従用状態
-    private double currentCameraX = 0.0;
-    private double currentCameraZ = 0.0;
-    private double targetCameraX = 0.0;
-    private double targetCameraZ = 0.0;
-    private boolean cameraXInitialized = false;
-    private boolean cameraZInitialized = false;
+    private volatile double currentCameraX = 0.0;
+    private volatile double currentCameraZ = 0.0;
+    private volatile double targetCameraX = 0.0;
+    private volatile double targetCameraZ = 0.0;
+    private volatile boolean cameraXInitialized = false;
+    private volatile boolean cameraZInitialized = false;
 
     private CameraState() {
     }

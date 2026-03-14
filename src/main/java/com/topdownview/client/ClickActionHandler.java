@@ -6,19 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.EggItem;
-import net.minecraft.world.item.EnderpearlItem;
-import net.minecraft.world.item.ExperienceBottleItem;
-import net.minecraft.world.item.FireChargeItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.LingeringPotionItem;
-import net.minecraft.world.item.ProjectileWeaponItem;
-import net.minecraft.world.item.SnowballItem;
-import net.minecraft.world.item.SplashPotionItem;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -28,40 +16,12 @@ public final class ClickActionHandler {
 
     public static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
-    private static int leftClickHoldTicks = 0;
-    private static int rightClickHoldTicks = 0;
-    private static final int LONG_PRESS_THRESHOLD = 5;
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    private static boolean isRangedWeapon(Item item) {
-        if (item instanceof ProjectileWeaponItem)
-            return true;
-        if (item instanceof SnowballItem)
-            return true;
-        if (item instanceof EnderpearlItem)
-            return true;
-        if (item instanceof SplashPotionItem)
-            return true;
-        if (item instanceof LingeringPotionItem)
-            return true;
-        if (item instanceof EggItem)
-            return true;
-        if (item instanceof ExperienceBottleItem)
-            return true;
-        if (item instanceof FireChargeItem)
-            return true;
-        return false;
-    }
-
-    private static boolean isBlockItem(Item item) {
-        return item instanceof BlockItem;
-    }
-
     public static boolean onInput(int button, int action, Minecraft mc) {
-        // キー設定に基づいて攻撃/使用ボタンを判定
         int attackButton = mc.options.keyAttack.getKey().getValue();
         int useButton = mc.options.keyUse.getKey().getValue();
 
@@ -69,67 +29,69 @@ public final class ClickActionHandler {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
 
-            if (isLeftClickDown && !wasDown) {
-                leftClickHoldTicks = 0;
-            } else if (!isLeftClickDown && wasDown) {
-                leftClickHoldTicks = 0;
+            if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
+                if (isLeftClickDown && !wasDown) {
+                    handleLeftClickPress(mc);
+                }
+                return true;
             }
             return false;
         } else if (button == useButton) {
             boolean wasDown = isRightClickDown;
             isRightClickDown = (action != 0);
-
-            if (isRightClickDown && !wasDown) {
-                rightClickHoldTicks = 0;
-                boolean handled = handleRightClick(mc);
-                return handled;
-            } else if (!isRightClickDown && wasDown) {
-                onRightClickRelease(mc);
-                rightClickHoldTicks = 0;
-            }
         }
         return false;
     }
 
-    public static void onClientTick(Minecraft mc) {
-        if (isLeftClickDown) {
-            leftClickHoldTicks++;
-        }
+    private static void handleLeftClickPress(Minecraft mc) {
+        if (mc.level == null || mc.player == null) return;
 
-        if (isRightClickDown) {
-            rightClickHoldTicks++;
-            if (rightClickHoldTicks >= LONG_PRESS_THRESHOLD) {
-                handleRightClickLongPress(mc);
-            }
-        }
-    }
-
-    private static boolean handleRightClick(Minecraft mc) {
-        if (mc.level == null || mc.player == null)
-            return false;
-        if (!ModState.STATUS.isEnabled())
-            return false;
-
-        Item mainHandItem = mc.player.getMainHandItem().getItem();
-        boolean hasRangedWeapon = isRangedWeapon(mainHandItem);
-        boolean hasBlockItem = isBlockItem(mainHandItem);
+        boolean forceMove = ClientModBusEvents.FORCE_MOVE_KEY.isDown();
+        boolean destroyMode = ClientModBusEvents.DESTROY_KEY.isDown();
 
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (result == null || result.getType() == HitResult.Type.MISS)
-            return false;
+        if (result == null || result.getType() == HitResult.Type.MISS) {
+            return;
+        }
 
-        if (result.getType() == HitResult.Type.ENTITY) {
-            if (Config.isClickToMoveEnabled() && !hasRangedWeapon) {
-                EntityHitResult entityHit = (EntityHitResult) result;
-                Entity entity = entityHit.getEntity();
-                if (entity instanceof LivingEntity && !(entity instanceof Player)) {
-                    ClickToMoveController.setTargetEntity(entity);
+        if (destroyMode) {
+            handleDestroyMode(mc, result);
+            return;
+        }
+
+        if (forceMove) {
+            if (result.getType() == HitResult.Type.BLOCK) {
+                BlockHitResult blockHit = (BlockHitResult) result;
+                Vec3 destination = blockHit.getLocation();
+                ClickToMoveController.setDestination(destination);
+                if (Config.isDestinationHighlightEnabled()) {
+                    ModState.DESTINATION_HIGHLIGHT.startAnimation();
                 }
             }
-            return false;
+            return;
+        }
+
+        if (result.getType() == HitResult.Type.ENTITY) {
+            EntityHitResult entityHit = (EntityHitResult) result;
+            Entity entity = entityHit.getEntity();
+
+            ClickToMoveController.EntityAction action = ClickToMoveController.getEntityAction(entity);
+
+            switch (action) {
+                case ATTACK -> {
+                    ClickToMoveController.startFollowAndAttack(entity);
+                    return;
+                }
+                case INTERACT -> {
+                    ClickToMoveController.startInteractEntity(entity);
+                    return;
+                }
+                case IGNORE -> {
+                }
+            }
         }
 
         if (result.getType() == HitResult.Type.BLOCK) {
@@ -140,42 +102,66 @@ public final class ClickActionHandler {
                     mc.level.getBlockState(blockPos), mc.level, blockPos);
 
             if (isInteractable) {
-                mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, blockHit);
-                mc.player.swing(InteractionHand.MAIN_HAND);
-                return true;
+                ClickToMoveController.startInteractBlock(blockPos);
+                return;
             }
 
-            if (hasRangedWeapon) {
-                return false;
+            Vec3 destination = blockHit.getLocation();
+            ClickToMoveController.setDestination(destination);
+            if (Config.isDestinationHighlightEnabled()) {
+                ModState.DESTINATION_HIGHLIGHT.startAnimation();
             }
-
-            if (hasBlockItem) {
-                return false;
-            }
-
-            if (Config.isClickToMoveEnabled()) {
-                Vec3 destination = blockHit.getLocation();
-                ClickToMoveController.setDestination(destination);
-                if (Config.isDestinationHighlightEnabled()) {
-                    ModState.DESTINATION_HIGHLIGHT.startAnimation();
-                }
-            }
-        }
-        return false;
-    }
-
-    private static void handleRightClickLongPress(Minecraft mc) {
-        if (!ModState.STATUS.isEnabled())
-            return;
-        if (!Config.isClickToMoveEnabled())
-            return;
-
-        if (!ModState.CLICK_TO_MOVE.isLongPressFollow()) {
-            ClickToMoveController.startLongPressFollow();
         }
     }
 
-    private static void onRightClickRelease(Minecraft mc) {
-        ClickToMoveController.stopLongPressFollow();
+    private static void handleDestroyMode(Minecraft mc, HitResult result) {
+        if (mc.level == null || mc.player == null) return;
+
+        if (result.getType() == HitResult.Type.ENTITY) {
+            EntityHitResult entityHit = (EntityHitResult) result;
+            Entity entity = entityHit.getEntity();
+
+            ClickToMoveController.EntityAction action = ClickToMoveController.getEntityAction(entity);
+
+            if (action == ClickToMoveController.EntityAction.ATTACK) {
+                ClickToMoveController.startFollowAndAttack(entity);
+                return;
+            } else if (action == ClickToMoveController.EntityAction.INTERACT) {
+                ClickToMoveController.startInteractEntity(entity);
+                return;
+            }
+        }
+
+        if (result.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult blockHit = (BlockHitResult) result;
+            BlockPos blockPos = blockHit.getBlockPos();
+            ClickToMoveController.startDestroyBlock(blockPos);
+        }
+    }
+
+    public static void onClientTick(Minecraft mc) {
+        ModState.CLICK_TO_MOVE.tickAttackCooldown();
+
+        // ホールド離したらホールドモード解除
+        if (!isLeftClickDown) {
+            ModState.CLICK_TO_MOVE.setHoldMode(false);
+        }
+
+        if (isLeftClickDown && ModState.CLICK_TO_MOVE.isMoving()) {
+            // 地形ホールド追従
+            if (!ModState.CLICK_TO_MOVE.isAttacking() &&
+                !ModState.CLICK_TO_MOVE.isDestroying() &&
+                !ModState.CLICK_TO_MOVE.isInteracting()) {
+                ClickToMoveController.tickTerrainFollow(mc);
+            }
+        }
+
+        if (isLeftClickDown) {
+            if (ModState.CLICK_TO_MOVE.isAttacking()) {
+                ClickToMoveController.tickAttackFollow(mc);
+            } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
+                ClickToMoveController.tickDestroyFollow(mc);
+            }
+        }
     }
 }

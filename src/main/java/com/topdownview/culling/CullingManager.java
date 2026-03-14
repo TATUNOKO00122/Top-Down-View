@@ -185,7 +185,7 @@ public final class CullingManager {
     }
 
     public static void forceChunkRebuild(Minecraft mc) {
-        if (mc.player == null || mc.level == null) {
+        if (mc.player == null || mc.level == null || mc.options == null) {
             return;
         }
 

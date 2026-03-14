@@ -16,7 +16,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ComputeFovModifierEvent;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -42,20 +41,6 @@ public final class CameraController {
     public static void onComputeFovModifier(ComputeFovModifierEvent event) {
         if (ModState.STATUS.isEnabled()) {
             event.setNewFovModifier(1.0f);
-        }
-    }
-
-    /**
-     * ワールド参加時に状態をリセット
-     * 前のセッションのinitializedフラグが残っているのを防ぐ
-     */
-    @SubscribeEvent
-    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity().level().isClientSide()) {
-            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Player logged in, resetting state");
-            ModState.resetAll();
-            // 設定に基づいて有効/無効を再設定
-            ModState.STATUS.setEnabled(com.topdownview.Config.isDefaultEnabled());
         }
     }
 
@@ -135,6 +120,9 @@ public final class CameraController {
      */
     public static void rotateCamera() {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.mouseHandler == null || mc.getWindow() == null) {
+            return;
+        }
         double mouseX = mc.mouseHandler.xpos();
         double mouseY = mc.mouseHandler.ypos();
         double screenWidth = mc.getWindow().getScreenWidth();
@@ -180,6 +168,10 @@ public final class CameraController {
      * トップダウンビューの初期化（カメラタイプ、マウス、時刻設定）
      */
     public static void initializeTopDownView(Minecraft mc) {
+        if (mc.options == null || mc.mouseHandler == null) {
+            com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraController] Cannot initialize: options or mouseHandler is null");
+            return;
+        }
         ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         mc.mouseHandler.releaseMouse();
@@ -204,6 +196,11 @@ public final class CameraController {
      * トップダウンビューを無効化
      */
     public static void disableTopDownView(Minecraft mc) {
+        if (mc.options == null || mc.mouseHandler == null) {
+            com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraController] Cannot disable: options or mouseHandler is null");
+            ModState.resetAll();
+            return;
+        }
         CameraType restoreType = ModState.CAMERA.getPreviousCameraType();
         if (restoreType == null) {
             restoreType = CameraType.FIRST_PERSON;
