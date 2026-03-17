@@ -443,7 +443,7 @@ public class ConfigScreen extends Screen {
         Config.setRangeOther(3.0);
 
         Config.setDragRotationEnabled(true);
-        Config.setDragRotationSensitivity(0.1);
+        Config.setDragRotationSensitivity(0.05);
 
         Config.setAutoAlignToMovementEnabled(false);
         Config.setAutoAlignAngleThreshold(45);
