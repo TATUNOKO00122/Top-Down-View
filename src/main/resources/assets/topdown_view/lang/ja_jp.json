@@ -35,7 +35,7 @@
   "topdown_view.config.stable_direction_angle.tooltip": "同じ方向と見なす許容角度差です。小さいほど厳密に判定します。",
   "topdown_view.config.stable_direction_ticks": "回転判定時間: %d tick",
   "topdown_view.config.stable_direction_ticks.tooltip": "自動回転が発動するまでに同じ方向を保つ必要がある時間です。",
-  "topdown_view.config.auto_align_animation_speed": "回転アニメ速度: %.2f",
+  "topdown_view.config.auto_align_animation_speed": "回転アニメーション速度: %.2f",
   "topdown_view.config.auto_align_animation_speed.tooltip": "自動回転時のカメラ回転速度です。小さいほどゆっくり、大きいほど素早く向きます。",
   "topdown_view.config.attack_range": "攻撃範囲: %.1f",
   "topdown_view.config.fade_enabled": "境界フェード: %s",

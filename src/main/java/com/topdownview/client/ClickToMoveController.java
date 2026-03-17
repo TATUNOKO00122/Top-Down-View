@@ -13,16 +13,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.animal.Bee;
-import net.minecraft.world.entity.animal.Dolphin;
-import net.minecraft.world.entity.animal.Fox;
-import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.entity.animal.Panda;
-import net.minecraft.world.entity.animal.PolarBear;
-import net.minecraft.world.entity.animal.Wolf;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
-import net.minecraft.world.entity.animal.horse.Llama;
-import net.minecraft.world.entity.animal.horse.TraderLlama;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.npc.Villager;
@@ -68,22 +60,18 @@ public final class ClickToMoveController {
         if (entity instanceof AbstractHorse || entity instanceof Boat)
             return EntityAction.INTERACT;
 
-        // 中立Mob → 無視
-        if (entity instanceof IronGolem) return EntityAction.IGNORE;
-        if (entity instanceof Wolf) return EntityAction.IGNORE;
-        if (entity instanceof PolarBear) return EntityAction.IGNORE;
-        if (entity instanceof Panda) return EntityAction.IGNORE;
-        if (entity instanceof Fox) return EntityAction.IGNORE;
-        if (entity instanceof Bee) return EntityAction.IGNORE;
-        if (entity instanceof Dolphin) return EntityAction.IGNORE;
-        if (entity instanceof Llama) return EntityAction.IGNORE;
-        if (entity instanceof TraderLlama) return EntityAction.IGNORE;
+        // NeutralMob + Enemy以外 + 怒っていない → 無視
+        if (entity instanceof NeutralMob && !(entity instanceof Enemy)) {
+            if (!((NeutralMob) entity).isAngry()) {
+                return EntityAction.IGNORE;
+            }
+        }
 
         // 敵対Mob → 攻撃
         if (entity instanceof Enemy) return EntityAction.ATTACK;
 
-        // その他 → 無視
-        return EntityAction.IGNORE;
+        // その他 → 攻撃
+        return EntityAction.ATTACK;
     }
 
     @SubscribeEvent
