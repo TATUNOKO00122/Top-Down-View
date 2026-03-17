@@ -185,7 +185,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
                         .comment("ドラッグ回転の感度（値が大きいほど敏感）")
-                        .defineInRange("dragRotationSensitivity", 0.1, 0.01, 1.0);
+                        .defineInRange("dragRotationSensitivity", 0.05, 0.01, 0.1);
 
         // Camera Y follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER

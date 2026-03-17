@@ -222,7 +222,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.drag_rotation_sensitivity",
-                Config.getDragRotationSensitivity(), 0.01, 1.0, val -> Config.setDragRotationSensitivity(val)));
+                Config.getDragRotationSensitivity(), 0.01, 0.1, val -> Config.setDragRotationSensitivity(val), 2));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
@@ -595,14 +595,21 @@ public class ConfigScreen extends Screen {
         private final double min;
         private final double max;
         private final java.util.function.Consumer<Double> setter;
+        private final int decimalPlaces;
 
         public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min,
                 double max, java.util.function.Consumer<Double> setter) {
+            this(x, y, width, height, translationKey, current, min, max, setter, 1);
+        }
+
+        public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min,
+                double max, java.util.function.Consumer<Double> setter, int decimalPlaces) {
             super(x, y, width, height, Component.empty(), (current - min) / (max - min));
             this.translationKey = translationKey;
             this.min = min;
             this.max = max;
             this.setter = setter;
+            this.decimalPlaces = decimalPlaces;
             this.setTooltip(Tooltip.create(Component.translatable(translationKey + ".tooltip")));
             this.updateMessage();
         }
@@ -610,13 +617,15 @@ public class ConfigScreen extends Screen {
         @Override
         protected void updateMessage() {
             double value = min + (max - min) * this.value;
-            this.setMessage(Component.translatable(translationKey, String.format("%.1f", value)));
+            String format = "%." + decimalPlaces + "f";
+            this.setMessage(Component.translatable(translationKey, String.format(format, value)));
         }
 
         @Override
         protected void applyValue() {
             double newValue = min + (max - min) * this.value;
-            newValue = Math.round(newValue * 100.0) / 100.0;
+            double factor = Math.pow(10, decimalPlaces);
+            newValue = Math.round(newValue * factor) / factor;
             setter.accept(newValue);
         }
     }

@@ -438,36 +438,54 @@ public final class ClickToMoveController {
     public static void tickDestroyFollow(Minecraft mc) {
         if (mc.player == null || mc.level == null) return;
 
-        BlockPos targetBlock = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
-        if (targetBlock == null) {
+        if (!ClientModBusEvents.DESTROY_KEY.isDown()) {
             stop();
             return;
         }
 
-        BlockState state = mc.level.getBlockState(targetBlock);
+        double reach = MouseRaycast.getCustomReachDistance();
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+
+        BlockPos newTargetBlock = null;
+        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult blockHit = (BlockHitResult) hitResult;
+            newTargetBlock = blockHit.getBlockPos();
+        }
+
+        BlockPos currentTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
+
+        if (newTargetBlock == null) {
+            if (currentTarget != null) {
+                mc.gameMode.stopDestroyBlock();
+                ModState.CLICK_TO_MOVE.setDestroying(false);
+                ModState.CLICK_TO_MOVE.setDestroyTargetBlock(null);
+            }
+            return;
+        }
+
+        if (!newTargetBlock.equals(currentTarget)) {
+            mc.gameMode.stopDestroyBlock();
+            ModState.CLICK_TO_MOVE.setDestroying(false);
+            currentTarget = newTargetBlock;
+            ModState.CLICK_TO_MOVE.setDestroyTargetBlock(currentTarget);
+        }
+
+        BlockState state = mc.level.getBlockState(currentTarget);
         if (state.isAir()) {
-            stop();
             return;
         }
 
         double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
-        Vec3 blockCenter = Vec3.atCenterOf(targetBlock);
+        Vec3 blockCenter = Vec3.atCenterOf(currentTarget);
         double distSq = mc.player.distanceToSqr(blockCenter);
 
         if (distSq <= destroyRange * destroyRange) {
             if (!ModState.CLICK_TO_MOVE.isDestroying()) {
-                startDestroying(mc, targetBlock);
+                startDestroying(mc, currentTarget);
             }
-            mc.gameMode.continueDestroyBlock(targetBlock, Direction.UP);
+            mc.gameMode.continueDestroyBlock(currentTarget, Direction.UP);
             mc.player.swing(InteractionHand.MAIN_HAND);
-
-            BlockState newState = mc.level.getBlockState(targetBlock);
-            if (newState.isAir()) {
-                // ホールドモードでなければ停止
-                if (!ModState.CLICK_TO_MOVE.isHoldMode()) {
-                    stop();
-                }
-            }
         }
     }
 
