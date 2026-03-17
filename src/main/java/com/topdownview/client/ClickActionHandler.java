@@ -129,9 +129,14 @@ public final class ClickActionHandler {
     public static void onClientTick(Minecraft mc) {
         ModState.CLICK_TO_MOVE.tickAttackCooldown();
 
-        // ホールド離したらホールドモード解除
+        // 左クリック離上時にアクション状態をクリア
         if (!isLeftClickDown) {
             ModState.CLICK_TO_MOVE.setHoldMode(false);
+            if (ModState.CLICK_TO_MOVE.isDestroying() ||
+                ModState.CLICK_TO_MOVE.isAttacking() ||
+                ModState.CLICK_TO_MOVE.isInteracting()) {
+                ClickToMoveController.stop();
+            }
         }
 
         if (isLeftClickDown && ModState.CLICK_TO_MOVE.isMoving()) {
