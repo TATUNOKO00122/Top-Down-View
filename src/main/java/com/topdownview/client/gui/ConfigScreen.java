@@ -198,7 +198,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
-                val -> Config.setCameraPitch(val)));
+                val -> Config.setCameraPitch(val), 0));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.getMaxCameraDistance(), 0.0, 200.0,
                 val -> {
@@ -206,7 +206,7 @@ public class ConfigScreen extends Screen {
                     if (Config.getDefaultCameraDistance() > val) {
                         Config.setDefaultCameraDistance(val);
                     }
-                }));
+                }, 0));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.getDefaultCameraDistance(), 0.0, 200.0,
                 val -> {
@@ -215,7 +215,7 @@ public class ConfigScreen extends Screen {
                     } else {
                         Config.setDefaultCameraDistance(val);
                     }
-                }));
+                }, 0));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
@@ -321,7 +321,7 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.getMiningModePitch(), 10.0, 90.0,
-                val -> Config.setMiningModePitch(val)));
+                val -> Config.setMiningModePitch(val), 0));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mining_cylinder_radius",
                 Config.getMiningCylinderRadius(), 1, 16, val -> Config.setMiningCylinderRadius(val)));
