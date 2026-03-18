@@ -200,14 +200,22 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
                 val -> Config.setCameraPitch(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.getMaxCameraDistance(), 10.0, 200.0,
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.getMaxCameraDistance(), 0.0, 200.0,
                 val -> {
-                    com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][ConfigScreen] maxCameraDistance slider changed to: {}", val);
                     Config.setMaxCameraDistance(val);
+                    if (Config.getDefaultCameraDistance() > val) {
+                        Config.setDefaultCameraDistance(val);
+                    }
                 }));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.getDefaultCameraDistance(), 5.0, 100.0,
-                val -> Config.setDefaultCameraDistance(val)));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.default_camera_distance", Config.getDefaultCameraDistance(), 0.0, 200.0,
+                val -> {
+                    if (val > Config.getMaxCameraDistance()) {
+                        Config.setDefaultCameraDistance(Config.getMaxCameraDistance());
+                    } else {
+                        Config.setDefaultCameraDistance(val);
+                    }
+                }));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.drag_rotation", tx);

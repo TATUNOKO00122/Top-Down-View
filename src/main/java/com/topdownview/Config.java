@@ -172,11 +172,11 @@ public class Config {
 
 	private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
 			.comment("最大カメラ距離（ズームアウト限界）")
-			.defineInRange("maxCameraDistance", 50.0, 10.0, 200.0);
+			.defineInRange("maxCameraDistance", 50.0, 0.0, 200.0);
 
 	private static final ForgeConfigSpec.DoubleValue DEFAULT_CAMERA_DISTANCE = BUILDER
 			.comment("デフォルトカメラ距離（初期ズーム位置）")
-			.defineInRange("defaultCameraDistance", 9.0, 5.0, 100.0);
+			.defineInRange("defaultCameraDistance", 9.0, 0.0, 100.0);
 
         // Drag rotation settings
         private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER

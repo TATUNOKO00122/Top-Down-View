@@ -23,7 +23,7 @@ public final class CameraState {
     public static final Vec3 DEFAULT_POSITION = Vec3.ZERO;
 
     // カメラ距離定数（Single Source of Truth）
-    public static final double MIN_CAMERA_DISTANCE = 5.0;
+    public static final double MIN_CAMERA_DISTANCE = 0.0;
     public static final double MAX_CAMERA_DISTANCE = 50.0;
     public static final double DEFAULT_CAMERA_DISTANCE = 9.0;
 
