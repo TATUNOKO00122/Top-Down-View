@@ -16,7 +16,7 @@ public abstract class GameOptionsMixin {
 
     @Inject(method = "autoJump", at = @At("HEAD"), cancellable = true)
     public void topdownview$getAutoJump(CallbackInfoReturnable<OptionInstance<Boolean>> cir) {
-        if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled() && Config.isForceAutoJump()) {
+        if (ModState.STATUS.isEnabled() && Config.isForceAutoJump() && ModState.CLICK_TO_MOVE.isMoving()) {
             cir.setReturnValue(FORCE_AUTO_JUMP);
         }
     }

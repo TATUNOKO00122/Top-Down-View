@@ -467,13 +467,13 @@ public class ConfigScreen extends Screen {
         Config.setDefaultCameraDistance(9.0);
 
         Config.setCameraYFollowDelayEnabled(false);
-        Config.setCameraYFollowDelay(0.15);
+        Config.setCameraYFollowDelay(1.0);
 
         Config.setCameraXFollowDelayEnabled(false);
-        Config.setCameraXFollowDelay(0.1);
+        Config.setCameraXFollowDelay(1.0);
 
         Config.setCameraZFollowDelayEnabled(false);
-        Config.setCameraZFollowDelay(0.1);
+        Config.setCameraZFollowDelay(1.0);
 
         this.init();
     }
