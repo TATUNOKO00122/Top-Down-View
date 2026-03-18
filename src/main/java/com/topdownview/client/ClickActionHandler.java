@@ -16,6 +16,8 @@ public final class ClickActionHandler {
 
     public static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
+    private static int leftClickHoldTicks = 0;
+    private static final int HOLD_THRESHOLD_TICKS = 5;
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -28,6 +30,10 @@ public final class ClickActionHandler {
         if (button == attackButton) {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
+
+            if (isLeftClickDown && !wasDown) {
+                leftClickHoldTicks = 0;
+            }
 
             if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
                 if (isLeftClickDown && !wasDown) {
@@ -129,14 +135,30 @@ public final class ClickActionHandler {
     public static void onClientTick(Minecraft mc) {
         ModState.CLICK_TO_MOVE.tickAttackCooldown();
 
-        // 左クリック離上時にアクション状態をクリア
-        if (!isLeftClickDown) {
-            ModState.CLICK_TO_MOVE.setHoldMode(false);
-            if (ModState.CLICK_TO_MOVE.isDestroying() ||
-                ModState.CLICK_TO_MOVE.isAttacking() ||
-                ModState.CLICK_TO_MOVE.isInteracting()) {
-                ClickToMoveController.stop();
+        if (isLeftClickDown) {
+            leftClickHoldTicks++;
+        }
+
+        // 左クリック離上時の処理
+        if (!isLeftClickDown && leftClickHoldTicks > 0) {
+            boolean wasHold = leftClickHoldTicks >= HOLD_THRESHOLD_TICKS;
+
+            if (wasHold) {
+                // ホールド離上時の処理
+                if (ModState.CLICK_TO_MOVE.isInteracting()) {
+                    // 商人・村人/インタラクト可能ブロック: 停止
+                    ClickToMoveController.stop();
+                } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
+                    // 破壊: 停止
+                    ClickToMoveController.stop();
+                }
+                // 敵攻撃ホールド: 追従継続
+                // 通常ブロック移動: 追従継続
+            } else {
+                // 単発クリック離上時: 移動継続、到達時に自動実行
+                ModState.CLICK_TO_MOVE.setHoldMode(false);
             }
+            leftClickHoldTicks = 0;
         }
 
         if (isLeftClickDown && ModState.CLICK_TO_MOVE.isMoving()) {
