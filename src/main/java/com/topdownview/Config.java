@@ -31,11 +31,11 @@ public class Config {
 
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_VERTICAL = BUILDER
                         .comment("シリンダーの垂直方向半径（ブロック数）")
-                        .defineInRange("cylinderRadiusVertical", 4, 1, 10);
+                        .defineInRange("cylinderRadiusVertical", 5, 1, 10);
 
         private static final ForgeConfigSpec.IntValue CYLINDER_FORWARD_SHIFT = BUILDER
                         .comment("楕円柱の中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("cylinderForwardShift", 4, 0, 10);
+                        .defineInRange("cylinderForwardShift", 1, 0, 10);
 
         // Mining mode cylinder settings (true cylinder, not elliptical)
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_RADIUS = BUILDER
@@ -44,7 +44,7 @@ public class Config {
 
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
                         .comment("マイニングモード時の円柱中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("miningCylinderForwardShift", 0, 0, 10);
+                        .defineInRange("miningCylinderForwardShift", 1, 0, 10);
 
         private static final ForgeConfigSpec.BooleanValue MINING_MODE_ENABLED = BUILDER
                         .comment("マイニングモード機能の有効/無効（無効時はキー入力を無視）")
@@ -107,7 +107,7 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue FADE_BLOCK_HIT_THRESHOLD = BUILDER
                         .comment("透明ブロック判定閾値（0=オフ/全て触れる、1=完全に不透明なもののみ触れる）")
-                        .defineInRange("fadeBlockHitThreshold", 0.0, 0.0, 1.0);
+                        .defineInRange("fadeBlockHitThreshold", 0.7, 0.0, 1.0);
 
         private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
                         .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")

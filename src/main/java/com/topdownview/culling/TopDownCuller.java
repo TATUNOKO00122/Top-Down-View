@@ -136,7 +136,7 @@ public final class TopDownCuller {
         }
 
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos, pPos, cPos);
-        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, pPos);
+        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, pPos, cPos);
 
         double fadeStart = Config.getFadeStart();
         double fadeNearAlpha = Config.getFadeNearAlpha();

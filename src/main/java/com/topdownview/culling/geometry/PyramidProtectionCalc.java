@@ -1,7 +1,6 @@
 package com.topdownview.culling.geometry;
 
 import com.topdownview.Config;
-import com.topdownview.state.ModState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -14,19 +13,22 @@ public final class PyramidProtectionCalc {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    public static double calculateProtectionFactor(BlockPos pos, Vec3 playerPos) {
-        float yaw = ModState.CAMERA.getYaw();
-        double yawRad = Math.toRadians(yaw);
-
-        double forwardX = -Math.sin(yawRad);
-        double forwardZ = Math.cos(yawRad);
+    public static double calculateProtectionFactor(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
+        double dirX = playerPos.x - cameraPos.x;
+        double dirZ = playerPos.z - cameraPos.z;
+        double dirLengthXZ = Math.sqrt(dirX * dirX + dirZ * dirZ);
 
         double dx = pos.getX() + 0.5 - playerPos.x;
         double dz = pos.getZ() + 0.5 - playerPos.z;
 
-        double dot = dx * forwardX + dz * forwardZ;
-        if (dot < 0) {
-            return 0.0;
+        if (dirLengthXZ > 1.0E-8) {
+            double forwardX = dirX / dirLengthXZ;
+            double forwardZ = dirZ / dirLengthXZ;
+
+            double dot = dx * forwardX + dz * forwardZ;
+            if (dot < 0) {
+                return 0.0;
+            }
         }
 
         double distXZ = Math.sqrt(dx * dx + dz * dz);
