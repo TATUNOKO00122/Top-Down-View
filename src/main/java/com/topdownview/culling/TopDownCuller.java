@@ -27,8 +27,6 @@ public final class TopDownCuller {
     }
 
     private static final int UPDATE_FREQUENCY = 1;
-    private static final double INTERACTION_RANGE_HORIZONTAL = 3.0;
-    private static final int INTERACTION_RANGE_VERTICAL = 2;
 
     // マイニングモード用スライス設定：足元より下も含めて保護
     private static final int MINING_MODE_SLICE_OFFSET = -3; // 足元より3ブロック下から
@@ -227,6 +225,7 @@ public final class TopDownCuller {
                 || playerBlockY != lastPlayerBlockY
                 || playerBlockZ != lastPlayerBlockZ) {
             cullingCache.clear();
+            fadeCache.clear();
             lastPlayerBlockX = playerBlockX;
             lastPlayerBlockY = playerBlockY;
             lastPlayerBlockZ = playerBlockZ;
@@ -420,7 +419,6 @@ public final class TopDownCuller {
             return false;
         }
 
-        // マイニングモード時はフェードブロックとして扱わない
         if (ModState.STATUS.isMiningMode()) {
             return false;
         }
@@ -430,44 +428,7 @@ public final class TopDownCuller {
         }
 
         float alpha = getFadeAlpha(pos, level);
-        if (alpha >= 1.0f) {
-            return false;
-        }
-
-        // 不変オブジェクトでアトミックに読み取り
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        int playerBlockX = (int) Math.floor(pPos.x);
-        int playerBlockY = (int) Math.floor(pPos.y);
-        int playerBlockZ = (int) Math.floor(pPos.z);
-
-        if (pos.getX() == playerBlockX && pos.getY() == playerBlockY - 1 && pos.getZ() == playerBlockZ) {
-            return false;
-        }
-
-        double dx = (pos.getX() + 0.5) - (playerBlockX + 0.5);
-        double dz = (pos.getZ() + 0.5) - (playerBlockZ + 0.5);
-
-        float yaw = ModState.CAMERA.getYaw();
-        double yawRad = Math.toRadians(yaw);
-        double forwardX = -Math.sin(yawRad);
-        double forwardZ = Math.cos(yawRad);
-        double dot = dx * forwardX + dz * forwardZ;
-        if (dot < 0) {
-            return false;
-        }
-
-        double distXZ = Math.sqrt(dx * dx + dz * dz);
-        if (distXZ > INTERACTION_RANGE_HORIZONTAL) {
-            return false;
-        }
-
-        int relY = pos.getY() - playerBlockY;
-        if (relY < 0 || relY > INTERACTION_RANGE_VERTICAL) {
-            return false;
-        }
-
-        return true;
+        return alpha > Config.getFadeBlockHitThreshold();
     }
 
     public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {

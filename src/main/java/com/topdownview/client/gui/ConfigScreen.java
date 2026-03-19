@@ -374,13 +374,8 @@ public class ConfigScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
                         .build());
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.isFadeBlockRaycastProtection()), btn -> {
-                    Config.setFadeBlockRaycastProtection(!Config.isFadeBlockRaycastProtection());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_block_raycast_protection", Config.isFadeBlockRaycastProtection()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_block_raycast_protection.tooltip")))
-                        .build());
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_block_hit_threshold", Config.getFadeBlockHitThreshold(), 0.0,
+                1.0, val -> Config.setFadeBlockHitThreshold(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.getFadeStart(), 0.0, 0.9,
                 val -> Config.setFadeStart(val)));
@@ -464,7 +459,7 @@ public class ConfigScreen extends Screen {
         Config.setTrapdoorTransparency(0.3);
 
         Config.setFadeEnabled(true);
-        Config.setFadeBlockRaycastProtection(false);
+        Config.setFadeBlockHitThreshold(0.0);
         Config.setFadeStart(0.7);
         Config.setFadeNearAlpha(0.0);
 

@@ -211,13 +211,8 @@ public final class MouseRaycast {
             mutablePos.set(bx, by, bz);
 
             TopDownCuller culler = TopDownCuller.getInstance();
-            if (culler.isBlockCulled(mutablePos, mc.level)) {
-                if (Config.isFadeBlockRaycastProtection() && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
-                    continue;
-                }
-                if (!Config.isFadeBlockRaycastProtection()) {
-                    continue;
-                }
+            if (culler.isBlockCulled(mutablePos, mc.level) && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
+                continue;
             }
 
             BlockState state = mc.level.getBlockState(mutablePos);

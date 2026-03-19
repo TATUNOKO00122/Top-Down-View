@@ -105,9 +105,9 @@ public class Config {
                         .comment("カリング境界の距離フェードの有効/無効")
                         .define("fadeEnabled", true);
 
-        private static final ForgeConfigSpec.BooleanValue FADE_BLOCK_RAYCAST_PROTECTION = BUILDER
-                        .comment("半透明化したブロックにマウスレイキャスト判定を付ける保護機能の有効/無効")
-                        .define("fadeBlockRaycastProtection", false);
+        private static final ForgeConfigSpec.DoubleValue FADE_BLOCK_HIT_THRESHOLD = BUILDER
+                        .comment("透明ブロック判定閾値（0=オフ/全て触れる、1=完全に不透明なもののみ触れる）")
+                        .defineInRange("fadeBlockHitThreshold", 0.0, 0.0, 1.0);
 
         private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
                         .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")
@@ -236,7 +236,7 @@ public class Config {
         private static boolean trapdoorTranslucencyEnabled;
         private static double trapdoorTransparency;
         private static boolean fadeEnabled;
-        private static boolean fadeBlockRaycastProtection;
+        private static double fadeBlockHitThreshold;
         private static double fadeStart;
         private static double fadeNearAlpha;
 
@@ -295,7 +295,7 @@ public class Config {
         public static boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
         public static double getTrapdoorTransparency() { return trapdoorTransparency; }
         public static boolean isFadeEnabled() { return fadeEnabled; }
-        public static boolean isFadeBlockRaycastProtection() { return fadeBlockRaycastProtection; }
+        public static double getFadeBlockHitThreshold() { return fadeBlockHitThreshold; }
         public static double getFadeStart() { return fadeStart; }
         public static double getFadeNearAlpha() { return fadeNearAlpha; }
         public static boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
@@ -342,7 +342,7 @@ public class Config {
         public static void setTrapdoorTranslucencyEnabled(boolean value) { trapdoorTranslucencyEnabled = value; }
         public static void setTrapdoorTransparency(double value) { trapdoorTransparency = value; }
         public static void setFadeEnabled(boolean value) { fadeEnabled = value; }
-        public static void setFadeBlockRaycastProtection(boolean value) { fadeBlockRaycastProtection = value; }
+        public static void setFadeBlockHitThreshold(double value) { fadeBlockHitThreshold = value; }
         public static void setFadeStart(double value) { fadeStart = value; }
         public static void setFadeNearAlpha(double value) { fadeNearAlpha = value; }
         public static void setRangeIndicatorEnabled(boolean value) { rangeIndicatorEnabled = value; }
@@ -389,7 +389,7 @@ public class Config {
                 trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
                 trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
                 fadeEnabled = FADE_ENABLED.get();
-                fadeBlockRaycastProtection = FADE_BLOCK_RAYCAST_PROTECTION.get();
+                fadeBlockHitThreshold = FADE_BLOCK_HIT_THRESHOLD.get();
                 fadeStart = FADE_START.get();
                 fadeNearAlpha = FADE_NEAR_ALPHA.get();
                 rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
@@ -443,7 +443,7 @@ public class Config {
                 TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
                 TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
                 FADE_ENABLED.set(fadeEnabled);
-                FADE_BLOCK_RAYCAST_PROTECTION.set(fadeBlockRaycastProtection);
+                FADE_BLOCK_HIT_THRESHOLD.set(fadeBlockHitThreshold);
                 FADE_START.set(fadeStart);
                 FADE_NEAR_ALPHA.set(fadeNearAlpha);
                 RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
