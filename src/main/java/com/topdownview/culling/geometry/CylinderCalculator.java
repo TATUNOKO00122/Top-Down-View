@@ -12,64 +12,78 @@ public final class CylinderCalculator {
     }
 
     private record CylinderMetrics(double normalizedDistSq, double distXZ, double distY) {
-        static CylinderMetrics invalid() {
-            return new CylinderMetrics(-1.0, 0.0, 0.0);
-        }
+        static final CylinderMetrics INVALID = new CylinderMetrics(-1.0, 0.0, 0.0);
 
         boolean isInside() {
             return normalizedDistSq <= 1.0;
         }
     }
 
-    private static CylinderMetrics computeCylinderMetrics(BlockPos pos, Vec3 playerPos, Vec3 cameraPos,
+    private static CylinderMetrics computeCylinderMetrics(
+            double blockX, double blockY, double blockZ,
+            double playerX, double playerY, double playerZ,
+            double cameraX, double cameraY, double cameraZ,
             boolean useShift, double explicitYaw) {
-        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
 
-        Vec3 shiftedPlayerPos;
+        double shiftedPlayerX = playerX;
+        double shiftedPlayerY = playerY;
+        double shiftedPlayerZ = playerZ;
+
         if (useShift) {
-            double yaw = explicitYaw;
-            double yawRad = Math.toRadians(yaw);
+            double yawRad = Math.toRadians(explicitYaw);
             double shift = Config.getCylinderForwardShift();
-            shiftedPlayerPos = new Vec3(
-                    playerPos.x + shift * (-Math.sin(yawRad)),
-                    playerPos.y,
-                    playerPos.z + shift * Math.cos(yawRad));
-        } else {
-            shiftedPlayerPos = playerPos;
+            shiftedPlayerX = playerX + shift * (-Math.sin(yawRad));
+            shiftedPlayerZ = playerZ + shift * Math.cos(yawRad);
         }
 
-        Vec3 dir = shiftedPlayerPos.subtract(cameraPos);
-        double dirLengthSq = dir.lengthSqr();
-        if (dirLengthSq < 1.0E-8) {
-            return CylinderMetrics.invalid();
+        double segX = shiftedPlayerX - cameraX;
+        double segY = shiftedPlayerY - cameraY;
+        double segZ = shiftedPlayerZ - cameraZ;
+        double segLengthSq = segX * segX + segY * segY + segZ * segZ;
+
+        if (segLengthSq < 1.0E-8) {
+            return CylinderMetrics.INVALID;
         }
-
-        Vec3 normDir = dir.normalize();
-
-        double radiusH = Config.getCylinderRadiusHorizontal();
-        double radiusV = Config.getCylinderRadiusVertical();
-
-        Vec3 segVec = shiftedPlayerPos.subtract(cameraPos);
-        double segLengthSq = segVec.lengthSqr();
-
-        Vec3 toBlock = blockCenter.subtract(cameraPos);
-        double t = toBlock.dot(segVec) / segLengthSq;
 
         double segLength = Math.sqrt(segLengthSq);
+
+        double toBlockX = blockX - cameraX;
+        double toBlockY = blockY - cameraY;
+        double toBlockZ = blockZ - cameraZ;
+
+        double t = (toBlockX * segX + toBlockY * segY + toBlockZ * segZ) / segLengthSq;
+
         double extensionT = 3.0 / segLength;
         if (t < -extensionT) {
-            return CylinderMetrics.invalid();
+            return CylinderMetrics.INVALID;
         }
 
         t = Math.max(-extensionT, Math.min(t, 1.0));
 
-        Vec3 closestPoint = cameraPos.add(segVec.scale(t));
-        Vec3 relPos = blockCenter.subtract(closestPoint);
-        double alongAxis = relPos.dot(normDir);
-        Vec3 perpPos = relPos.subtract(normDir.scale(alongAxis));
+        double closestX = cameraX + segX * t;
+        double closestY = cameraY + segY * t;
+        double closestZ = cameraZ + segZ * t;
 
-        double distXZ = Math.sqrt(perpPos.x * perpPos.x + perpPos.z * perpPos.z);
-        double distY = Math.abs(perpPos.y);
+        double relX = blockX - closestX;
+        double relY = blockY - closestY;
+        double relZ = blockZ - closestZ;
+
+        double invSegLength = 1.0 / segLength;
+        double normDirX = segX * invSegLength;
+        double normDirY = segY * invSegLength;
+        double normDirZ = segZ * invSegLength;
+
+        double alongAxis = relX * normDirX + relY * normDirY + relZ * normDirZ;
+
+        double perpX = relX - normDirX * alongAxis;
+        double perpY = relY - normDirY * alongAxis;
+        double perpZ = relZ - normDirZ * alongAxis;
+
+        double distXZ = Math.sqrt(perpX * perpX + perpZ * perpZ);
+        double distY = Math.abs(perpY);
+
+        double radiusH = Config.getCylinderRadiusHorizontal();
+        double radiusV = Config.getCylinderRadiusVertical();
 
         double normalizedDistSq = (distXZ * distXZ) / (radiusH * radiusH)
                 + (distY * distY) / (radiusV * radiusV);
@@ -79,12 +93,20 @@ public final class CylinderCalculator {
 
     public static double getNormalizedDistanceSq(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
         double yaw = ModState.CAMERA.getYaw();
-        CylinderMetrics metrics = computeCylinderMetrics(pos, playerPos, cameraPos, true, yaw);
+        CylinderMetrics metrics = computeCylinderMetrics(
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                playerPos.x, playerPos.y, playerPos.z,
+                cameraPos.x, cameraPos.y, cameraPos.z,
+                true, yaw);
         return metrics.normalizedDistSq();
     }
 
     public static boolean isInCylinder(BlockPos pos, Vec3 playerPos, Vec3 cameraPos, double yaw) {
-        CylinderMetrics metrics = computeCylinderMetrics(pos, playerPos, cameraPos, true, yaw);
+        CylinderMetrics metrics = computeCylinderMetrics(
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                playerPos.x, playerPos.y, playerPos.z,
+                cameraPos.x, cameraPos.y, cameraPos.z,
+                true, yaw);
         if (metrics.normalizedDistSq() < 0) {
             return false;
         }
@@ -92,69 +114,65 @@ public final class CylinderCalculator {
     }
 
     public static boolean isInCylinderForTrapdoor(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
-        CylinderMetrics metrics = computeCylinderMetrics(pos, playerPos, cameraPos, false, 0.0);
+        CylinderMetrics metrics = computeCylinderMetrics(
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                playerPos.x, playerPos.y, playerPos.z,
+                cameraPos.x, cameraPos.y, cameraPos.z,
+                false, 0.0);
         if (metrics.normalizedDistSq() < 0) {
             return false;
         }
         return metrics.isInside();
     }
 
-    /**
-     * マイニングモード用の真円柱判定
-     * 水平・垂直ともに同じ半径の真円柱
-     * 
-     * @param pos ブロック位置
-     * @param playerPos プレイヤー位置
-     * @param cameraPos カメラ位置
-     * @param radius 円柱の半径（ブロック数）
-     * @param yaw 前方シフト用のヨー角度（度）
-     * @param forwardShift 前方シフト距離（ブロック数）
-     * @return 円柱内ならtrue
-     */
-    public static boolean isInMiningCylinder(BlockPos pos, Vec3 playerPos, Vec3 cameraPos, 
+    public static boolean isInMiningCylinder(BlockPos pos, Vec3 playerPos, Vec3 cameraPos,
             double radius, double yaw, double forwardShift) {
-        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        double blockX = pos.getX() + 0.5;
+        double blockY = pos.getY() + 0.5;
+        double blockZ = pos.getZ() + 0.5;
 
-        // 前方シフトを適用したプレイヤー位置を計算
-        Vec3 shiftedPlayerPos;
+        double shiftedPlayerX = playerPos.x;
+        double shiftedPlayerY = playerPos.y;
+        double shiftedPlayerZ = playerPos.z;
+
         if (forwardShift != 0.0) {
             double yawRad = Math.toRadians(yaw);
-            shiftedPlayerPos = new Vec3(
-                    playerPos.x + forwardShift * (-Math.sin(yawRad)),
-                    playerPos.y,
-                    playerPos.z + forwardShift * Math.cos(yawRad));
-        } else {
-            shiftedPlayerPos = playerPos;
+            shiftedPlayerX = playerPos.x + forwardShift * (-Math.sin(yawRad));
+            shiftedPlayerZ = playerPos.z + forwardShift * Math.cos(yawRad);
         }
 
-        // カメラ→シフト後プレイヤーのベクトル（円柱の軸）
-        Vec3 axis = shiftedPlayerPos.subtract(cameraPos);
-        double axisLengthSq = axis.lengthSqr();
+        double axisX = shiftedPlayerX - cameraPos.x;
+        double axisY = shiftedPlayerY - cameraPos.y;
+        double axisZ = shiftedPlayerZ - cameraPos.z;
+        double axisLengthSq = axisX * axisX + axisY * axisY + axisZ * axisZ;
+
         if (axisLengthSq < 1.0E-8) {
             return false;
         }
 
-        // 軸に沿った位置を計算（t=0がカメラ、t=1がシフト後プレイヤー）
-        Vec3 toBlock = blockCenter.subtract(cameraPos);
-        double t = toBlock.dot(axis) / axisLengthSq;
+        double toBlockX = blockX - cameraPos.x;
+        double toBlockY = blockY - cameraPos.y;
+        double toBlockZ = blockZ - cameraPos.z;
 
-        // 軸の範囲外（カメラより後ろ、またはシフト後プレイヤーより先）は円柱外
+        double t = (toBlockX * axisX + toBlockY * axisY + toBlockZ * axisZ) / axisLengthSq;
+
         double axisLength = Math.sqrt(axisLengthSq);
         double extensionT = 3.0 / axisLength;
+
         if (t < -extensionT || t > 1.0 + extensionT) {
             return false;
         }
 
-        // 軸上の最近傍点
-        Vec3 closestPoint = cameraPos.add(axis.scale(Math.max(0, Math.min(1.0, t))));
+        double clampedT = Math.max(0, Math.min(1.0, t));
+        double closestX = cameraPos.x + axisX * clampedT;
+        double closestY = cameraPos.y + axisY * clampedT;
+        double closestZ = cameraPos.z + axisZ * clampedT;
 
-        // 3D距離（軸からの距離）
-        double dx = blockCenter.x - closestPoint.x;
-        double dy = blockCenter.y - closestPoint.y;
-        double dz = blockCenter.z - closestPoint.z;
-        double distFromAxis = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double dx = blockX - closestX;
+        double dy = blockY - closestY;
+        double dz = blockZ - closestZ;
+        double distFromAxisSq = dx * dx + dy * dy + dz * dz;
 
-        // 真円柱判定：軸からの3D距離が半径以内
-        return distFromAxis <= radius;
+        return distFromAxisSq <= radius * radius;
     }
 }

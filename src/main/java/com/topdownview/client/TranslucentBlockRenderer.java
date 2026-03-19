@@ -99,8 +99,8 @@ public final class TranslucentBlockRenderer {
         poseStack.pushPose();
         poseStack.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
 
-        // 再利用可能なラッパーのalpha値を更新
         alphaConsumer.setAlpha(alpha);
+        fadeLevel.setRenderContext(pos, alpha);
 
         long seed = state.getSeed(pos);
         RANDOM.setSeed(seed);
@@ -120,7 +120,7 @@ public final class TranslucentBlockRenderer {
                 pos,
                 poseStack,
                 alphaConsumer,
-                true, // checkSides
+                true,
                 RANDOM,
                 seed,
                 OverlayTexture.NO_OVERLAY,
@@ -198,17 +198,35 @@ public final class TranslucentBlockRenderer {
         }
     }
 
+    private static final float ALPHA_DIFF_THRESHOLD = 0.05f;
+    private static final BlockState AIR_STATE = Blocks.AIR.defaultBlockState();
+
     /**
-     * フェードブロック描画用のカリング判定プロキシ。
-     * フェードブロック隣接面はカリングを許可し、それ以外（地下など）に対しては空気として振る舞い、強制的に蓋（面）を描画させる。
+     * フェードブロック描画用のBlockAndTintGetterプロキシ。
+     * 
+     * 状態フル設計: パフォーマンス最適化のためインスタンスを再利用。
+     * renderFadeBlock()呼び出し前にsetRenderContext()で現在のブロック情報を設定すること。
+     * 
+     * 判定ロジック:
+     * - 非フェードブロック → AIR（面を描画）
+     * - 自身のブロック → 元の状態（面を描画しない、checkSidesでカリング）
+     * - 透明度差 < 閾値 → 元の状態（面を描画しない）
+     * - 透明度差 >= 閾値 → AIR（面を描画）
      */
     private static class FadeBlockGetter implements BlockAndTintGetter {
         private final BlockAndTintGetter delegate;
         private final Map<BlockPos, Float> fadeBlocks;
+        private BlockPos renderPos;
+        private float renderAlpha;
 
         FadeBlockGetter(BlockAndTintGetter delegate, Map<BlockPos, Float> fadeBlocks) {
             this.delegate = delegate;
             this.fadeBlocks = fadeBlocks;
+        }
+
+        void setRenderContext(BlockPos pos, float alpha) {
+            this.renderPos = pos;
+            this.renderAlpha = alpha;
         }
 
         @Override
@@ -234,16 +252,18 @@ public final class TranslucentBlockRenderer {
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            BlockState originalState = delegate.getBlockState(pos);
-            if (originalState.isAir()) {
-                return originalState;
+            Float neighborAlpha = fadeBlocks.get(pos);
+            if (neighborAlpha == null) {
+                return AIR_STATE;
             }
-            // 自身がフェードブロック群に含まれていない（完全にカリングされたブロックなど）場合は空気と偽装する
-            // これにより checkSides=true の時でも境界となる面が強制的に描画され、「底抜け現象」を防ぐことができる
-            if (!fadeBlocks.containsKey(pos)) {
-                return Blocks.AIR.defaultBlockState();
+            if (pos.equals(renderPos)) {
+                return delegate.getBlockState(pos);
             }
-            return originalState;
+            float diff = Math.abs(renderAlpha - neighborAlpha);
+            if (diff < ALPHA_DIFF_THRESHOLD) {
+                return delegate.getBlockState(pos);
+            }
+            return AIR_STATE;
         }
 
         @Override
@@ -260,8 +280,5 @@ public final class TranslucentBlockRenderer {
         public int getMinBuildHeight() {
             return delegate.getMinBuildHeight();
         }
-
-        // --- IForgeBlockAndTintGetter delegates (default methods will route to
-        // self/delegate where appropriate, but override explicitly if needed) ---
     }
 }

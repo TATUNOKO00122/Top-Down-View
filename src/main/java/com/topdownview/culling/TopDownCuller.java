@@ -2,17 +2,14 @@ package com.topdownview.culling;
 
 import com.topdownview.Config;
 import com.topdownview.client.InteractableBlocks;
-import com.topdownview.client.OreBlocks;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.state.ModState;
-import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.Map;
@@ -21,21 +18,13 @@ public final class TopDownCuller {
 
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
-    // 不変オブジェクトでアトミック更新（volatileで可視性確保）
     private static final record CullingContext(Vec3 playerPos, Vec3 cameraPos) {
         static final CullingContext EMPTY = new CullingContext(Vec3.ZERO, Vec3.ZERO);
     }
 
     private static final int UPDATE_FREQUENCY = 1;
+    private static final int CACHE_CLEAR_DISTANCE_SQ = 9;
 
-    // マイニングモード用スライス設定：足元より下も含めて保護
-    private static final int MINING_MODE_SLICE_OFFSET = -3; // 足元より3ブロック下から
-    private static final int MINING_MODE_SLICE_HEIGHT = 5; // 合計5層（y-3からy+1まで）
-
-    // マイニングモード時の鉱石除外範囲（プレイヤーからの距離）
-    private static final double ORE_EXCLUDE_RADIUS = 2.0;
-
-    // キャッシュクリア判定用の前回位置（ブロック座標）
     private int lastPlayerBlockX = Integer.MIN_VALUE;
     private int lastPlayerBlockY = Integer.MIN_VALUE;
     private int lastPlayerBlockZ = Integer.MIN_VALUE;
@@ -84,9 +73,12 @@ public final class TopDownCuller {
             return cached;
         }
 
-        // マイニングモード時はカリング無効、代わりにスライス表示
+        CullingContext ctx = this.context;
+        Vec3 pPos = ctx.playerPos();
+        Vec3 cPos = ctx.cameraPos();
+
         if (ModState.STATUS.isMiningMode()) {
-            boolean cull = isBlockCulledInMiningMode(pos, level);
+            boolean cull = MiningModeCuller.isBlockCulled(pos, level, pPos, cPos);
             cullingCache.put(pos, cull);
             return cull;
         }
@@ -96,11 +88,6 @@ public final class TopDownCuller {
             cullingCache.put(pos, false);
             return false;
         }
-
-        // 不変オブジェクトでアトミックに読み取り
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        Vec3 cPos = ctx.cameraPos();
 
         if (InteractableBlocks.isInteractableSimple(state)) {
             if (pos.getY() <= Math.floor(pPos.y)) {
@@ -169,13 +156,11 @@ public final class TopDownCuller {
     }
 
     private boolean isProtectedBlock(BlockPos pos, BlockState state, BlockGetter level, Vec3 pPos, Vec3 cPos) {
-        Vec3 blockCenter = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-
         if (cPos.equals(Vec3.ZERO)) {
             return true;
         }
 
-        if (blockCenter.y < pPos.y) {
+        if (pos.getY() + 0.5 < pPos.y) {
             return true;
         }
 
@@ -215,15 +200,16 @@ public final class TopDownCuller {
                 Math.floor(rawCameraPos.y) + 0.5,
                 Math.floor(rawCameraPos.z) + 0.5);
 
-        // プレイヤーのブロック座標を計算
         int playerBlockX = (int) Math.floor(eyePos.x);
         int playerBlockY = (int) Math.floor(eyePos.y);
         int playerBlockZ = (int) Math.floor(eyePos.z);
 
-        // 位置が変わった場合のみキャッシュクリア（パフォーマンス最適化）
-        if (playerBlockX != lastPlayerBlockX
-                || playerBlockY != lastPlayerBlockY
-                || playerBlockZ != lastPlayerBlockZ) {
+        int dx = playerBlockX - lastPlayerBlockX;
+        int dy = playerBlockY - lastPlayerBlockY;
+        int dz = playerBlockZ - lastPlayerBlockZ;
+        int distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq >= CACHE_CLEAR_DISTANCE_SQ || distSq < 0) {
             cullingCache.clear();
             fadeCache.clear();
             lastPlayerBlockX = playerBlockX;
@@ -245,141 +231,6 @@ public final class TopDownCuller {
         lastPlayerBlockZ = Integer.MIN_VALUE;
     }
 
-    /**
-     * マイニングモード時のスライス方式カリング
-     * 真円柱範囲内だけスライス方式を適用、円柱外は表示
-     * 鉱石はプレイヤーから2ブロック以内のみカリング除外
-     * 階段は無条件でカリング除外
-     */
-    private boolean isBlockCulledInMiningMode(BlockPos pos, BlockGetter level) {
-        // 不変オブジェクトでアトミックに読み取り
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        Vec3 cPos = ctx.cameraPos();
-
-        // カメラ位置が未初期化の場合は表示
-        if (cPos.equals(Vec3.ZERO)) {
-            return false;
-        }
-
-        BlockState state = level.getBlockState(pos);
-
-        // 階段は無条件でカリング除外
-        if (state.getBlock() instanceof StairBlock) {
-            return false;
-        }
-
-        // 鉱石はプレイヤーから2ブロック以内かつ足元から3ブロックの高さのみカリング除外
-        if (OreBlocks.isOre(state)) {
-            double dx = (pos.getX() + 0.5) - pPos.x;
-            double dz = (pos.getZ() + 0.5) - pPos.z;
-            double distXZ = Math.sqrt(dx * dx + dz * dz);
-            if (distXZ <= ORE_EXCLUDE_RADIUS) {
-                // 高さ制限: 足元から3ブロックまで
-                int playerFeetY = (int) Math.floor(pPos.y) - 1;
-                if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 3) {
-                    return false; // 2ブロック以内かつ足元から3ブロック以内はカリング除外
-                }
-            }
-            // 2ブロック以上離れた、または高さ制限外の鉱石は通常のスライスカリングに従う
-        }
-
-        // マイニングモード用の真円柱範囲内かチェック
-        double radius = Config.getMiningCylinderRadius();
-        double forwardShift = Config.getMiningCylinderForwardShift();
-        float yaw = ModState.CAMERA.getYaw();
-        if (!CylinderCalculator.isInMiningCylinder(pos, pPos, cPos, radius, yaw, forwardShift)) {
-            // 円柱外は表示（カリングしない）
-            return false;
-        }
-
-        // 円柱内はスライス方式でカリング
-        int playerFeetY = (int) Math.floor(pPos.y) - 1;
-
-        // 保護範囲の基本設定
-        int protectedMinY = playerFeetY + MINING_MODE_SLICE_OFFSET;
-        int protectedMaxY = protectedMinY + MINING_MODE_SLICE_HEIGHT - 1;
-
-        // カメラ側（手前）では保護を5段減らす（断面表示・アリの巣観察キット風）
-        if (isCameraSide(pos, pPos)) {
-            protectedMaxY -= 5;
-        } else {
-            // 奥側では距離に応じて保護を増やす（円柱の半径に比例して最大5段まで）
-            double distanceFactor = getBackwardDistanceFactor(pos, pPos);
-            int additionalLayers = (int) (distanceFactor * 5);
-            protectedMaxY += additionalLayers;
-        }
-
-        // 保護範囲内なら表示、それ以外は非表示
-        return pos.getY() < protectedMinY || pos.getY() > protectedMaxY;
-    }
-
-    /**
-     * ブロックがカメラ側（手前）にあるか判定
-     * カメラのYawとPitchを使用して正確な方向を計算
-     */
-    private boolean isCameraSide(BlockPos pos, Vec3 playerPos) {
-        float pitch = ModState.CAMERA.getPitch();
-
-        // ピッチ角がほぼ90度（真上）なら、水平方向のオフセットが存在しないため false
-        if (pitch >= MathConstants.PITCH_NEAR_VERTICAL) {
-            return false;
-        }
-
-        float yaw = ModState.CAMERA.getYaw();
-        double radYaw = Math.toRadians(yaw);
-
-        // プレイヤー→カメラの水平方向ベクトル（手前方向）
-        double dxToCamera = Math.sin(radYaw);
-        double dzToCamera = -Math.cos(radYaw);
-
-        // プレイヤー→ブロックの水平方向ベクトル
-        double dxBlock = (pos.getX() + 0.5) - playerPos.x;
-        double dzBlock = (pos.getZ() + 0.5) - playerPos.z;
-
-        // プレイヤー→カメラ方向との内積
-        double dot = dxBlock * dxToCamera + dzBlock * dzToCamera;
-
-        // 内積 > DOT_PRODUCT_THRESHOLD で明確にカメラ側（手前）にあると判定（微小な誤差を無視）
-        return dot > MathConstants.DOT_PRODUCT_THRESHOLD;
-    }
-
-    /**
-     * 奥側（プレイヤーより奥）での距離係数を計算
-     * 円柱の半径に対する距離の割合（0.0〜1.0）
-     */
-    private double getBackwardDistanceFactor(BlockPos pos, Vec3 playerPos) {
-        float pitch = ModState.CAMERA.getPitch();
-
-        // ピッチ角がほぼ90度（真上）なら距離係数なし
-        if (pitch >= 89.9f) {
-            return 0.0;
-        }
-
-        float yaw = ModState.CAMERA.getYaw();
-        double radYaw = Math.toRadians(yaw);
-
-        // プレイヤー→奥方向の水平ベクトル（カメラ方向の逆）
-        double dxBackward = -Math.sin(radYaw);
-        double dzBackward = Math.cos(radYaw);
-
-        // プレイヤー→ブロックの水平方向ベクトル
-        double dxBlock = (pos.getX() + 0.5) - playerPos.x;
-        double dzBlock = (pos.getZ() + 0.5) - playerPos.z;
-
-        // 奥方向との内積（正の値 = 奥側）
-        double dot = dxBlock * dxBackward + dzBlock * dzBackward;
-
-        // 奥側でない場合は0
-        if (dot <= MathConstants.DOT_PRODUCT_THRESHOLD) {
-            return 0.0;
-        }
-
-        // 円柱の半径に対する割合（最大1.0）
-        double radius = Config.getMiningCylinderRadius();
-        return Math.min(dot / radius, 1.0);
-    }
-
     public int getCulledBlockCount() {
         return cullingCache.getCulledCount();
     }
@@ -393,7 +244,6 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        // マイニングモード時はフェード無効（通常表示）
         if (ModState.STATUS.isMiningMode()) {
             return 1.0f;
         }
