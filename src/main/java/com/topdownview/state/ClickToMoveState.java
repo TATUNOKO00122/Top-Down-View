@@ -8,25 +8,25 @@ public final class ClickToMoveState {
 
     public static final ClickToMoveState INSTANCE = new ClickToMoveState();
 
-    private Vec3 targetPosition = null;
-    private Vec3 originalLocation = null;
-    private Entity targetEntity = null;
-    private boolean isMoving = false;
-    private boolean useBaritone = false;
-    private int baritoneStartTick = 0;
-    private boolean baritonePathStarted = false;
+    private volatile Vec3 targetPosition = null;
+    private volatile Vec3 originalLocation = null;
+    private volatile Entity targetEntity = null;
+    private volatile boolean isMoving = false;
+    private volatile boolean useBaritone = false;
+    private volatile int baritoneStartTick = 0;
+    private volatile boolean baritonePathStarted = false;
     private static final int BARITONE_MIN_TICKS = 10;
 
-    private boolean isAttacking = false;
-    private int attackCooldown = 0;
+    private volatile boolean isAttacking = false;
+    private volatile int attackCooldown = 0;
 
-    private boolean isDestroying = false;
-    private BlockPos destroyTargetBlock = null;
+    private volatile boolean isDestroying = false;
+    private volatile BlockPos destroyTargetBlock = null;
 
-    private boolean isInteracting = false;
-    private BlockPos interactTargetBlock = null;
+    private volatile boolean isInteracting = false;
+    private volatile BlockPos interactTargetBlock = null;
 
-    private boolean isHoldMode = false;
+    private volatile boolean isHoldMode = false;
 
     public static final double DEFAULT_ARRIVAL_THRESHOLD = 1.5;
     public static final double DEFAULT_ATTACK_RANGE = 3.0;

@@ -29,44 +29,44 @@ public final class CameraState {
 
     public static final CameraState INSTANCE = new CameraState();
 
-    private float yaw = DEFAULT_YAW;
-    private float prevYaw = DEFAULT_YAW;
-    private float targetYaw = DEFAULT_YAW;
-    private boolean isAnimating = false;
-    private float pitch = DEFAULT_PITCH;
-    private double x = 0.0;
-    private double z = 0.0;
-    private float zoom = DEFAULT_ZOOM;
-    private double cameraDistance = DEFAULT_CAMERA_DISTANCE;
-    private Vec3 cameraPosition = DEFAULT_POSITION;
-    private CameraType previousCameraType = null;
-    private long lastAutoAlignTick = 0;
-    private float lastMovementDirection = 0.0f;
-    private int stableDirectionTicks = 0;
-    private boolean isAutoAlignAnimation = false;
+    private volatile float yaw = DEFAULT_YAW;
+    private volatile float prevYaw = DEFAULT_YAW;
+    private volatile float targetYaw = DEFAULT_YAW;
+    private volatile boolean isAnimating = false;
+    private volatile float pitch = DEFAULT_PITCH;
+    private volatile double x = 0.0;
+    private volatile double z = 0.0;
+    private volatile float zoom = DEFAULT_ZOOM;
+    private volatile double cameraDistance = DEFAULT_CAMERA_DISTANCE;
+    private volatile Vec3 cameraPosition = DEFAULT_POSITION;
+    private volatile CameraType previousCameraType = null;
+    private volatile long lastAutoAlignTick = 0;
+    private volatile float lastMovementDirection = 0.0f;
+    private volatile int stableDirectionTicks = 0;
+    private volatile boolean isAutoAlignAnimation = false;
 
-    private boolean isDragging = false;
-    private float dragStartYaw = DEFAULT_YAW;
-    private double dragStartMouseX = 0.0;
+    private volatile boolean isDragging = false;
+    private volatile float dragStartYaw = DEFAULT_YAW;
+    private volatile double dragStartMouseX = 0.0;
 
-    private double currentCameraY = 0.0;
-    private double targetCameraY = 0.0;
-    private boolean cameraYInitialized = false;
+    private volatile double currentCameraY = 0.0;
+    private volatile double targetCameraY = 0.0;
+    private volatile boolean cameraYInitialized = false;
 
-    private double currentCameraX = 0.0;
-    private double currentCameraZ = 0.0;
-    private double targetCameraX = 0.0;
-    private double targetCameraZ = 0.0;
-    private boolean cameraXInitialized = false;
-    private boolean cameraZInitialized = false;
+    private volatile double currentCameraX = 0.0;
+    private volatile double currentCameraZ = 0.0;
+    private volatile double targetCameraX = 0.0;
+    private volatile double targetCameraZ = 0.0;
+    private volatile boolean cameraXInitialized = false;
+    private volatile boolean cameraZInitialized = false;
 
-    private boolean isFreeCameraMode = false;
-    private float freeCameraPitch = DEFAULT_PITCH;
-    private float prevFreeCameraPitch = DEFAULT_PITCH;
-    private double lastMouseX = 0.0;
-    private double lastMouseY = 0.0;
-    private boolean freeCameraMouseInitialized = false;
-    private boolean freeCameraPitchAdjusted = false;
+    private volatile boolean isFreeCameraMode = false;
+    private volatile float freeCameraPitch = DEFAULT_PITCH;
+    private volatile float prevFreeCameraPitch = DEFAULT_PITCH;
+    private volatile double lastMouseX = 0.0;
+    private volatile double lastMouseY = 0.0;
+    private volatile boolean freeCameraMouseInitialized = false;
+    private volatile boolean freeCameraPitchAdjusted = false;
 
     private CameraState() {
     }

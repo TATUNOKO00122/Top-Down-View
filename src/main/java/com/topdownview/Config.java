@@ -4,13 +4,13 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
-    private static final List<Runnable> configChangeListeners = new ArrayList<>();
+    private static final List<Runnable> configChangeListeners = new CopyOnWriteArrayList<>();
 
     public static void registerConfigChangeListener(Runnable listener) {
         configChangeListeners.add(listener);
@@ -54,6 +54,8 @@ public class Config {
             .defineInRange("stableDirectionTicks", 20, 5, 60);
     private static final ForgeConfigSpec.DoubleValue AUTO_ALIGN_ANIMATION_SPEED = BUILDER
             .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
+    private static final ForgeConfigSpec.BooleanValue MOB_CULLING_ENABLED = BUILDER
+            .define("mobCullingEnabled", false);
     private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
             .define("trapdoorTranslucencyEnabled", false);
     private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
@@ -129,6 +131,7 @@ public class Config {
     private static int stableDirectionAngle;
     private static int stableDirectionTicks;
     private static double autoAlignAnimationSpeed;
+    private static boolean mobCullingEnabled;
     private static boolean trapdoorTranslucencyEnabled;
     private static double trapdoorTransparency;
     private static boolean fadeEnabled;
@@ -174,6 +177,7 @@ public class Config {
     public static int getStableDirectionAngle() { return stableDirectionAngle; }
     public static int getStableDirectionTicks() { return stableDirectionTicks; }
     public static double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
+    public static boolean isMobCullingEnabled() { return mobCullingEnabled; }
     public static boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
     public static double getTrapdoorTransparency() { return trapdoorTransparency; }
     public static boolean isFadeEnabled() { return fadeEnabled; }
@@ -219,6 +223,7 @@ public class Config {
     public static void setStableDirectionAngle(int value) { stableDirectionAngle = clamp(value, 5, 60); }
     public static void setStableDirectionTicks(int value) { stableDirectionTicks = clamp(value, 5, 60); }
     public static void setAutoAlignAnimationSpeed(double value) { autoAlignAnimationSpeed = clamp(value, 0.05, 0.5); }
+    public static void setMobCullingEnabled(boolean value) { mobCullingEnabled = value; }
     public static void setTrapdoorTranslucencyEnabled(boolean value) { trapdoorTranslucencyEnabled = value; }
     public static void setTrapdoorTransparency(double value) { trapdoorTransparency = clamp(value, 0.0, 1.0); }
     public static void setFadeEnabled(boolean value) { fadeEnabled = value; }
@@ -274,6 +279,7 @@ public class Config {
         stableDirectionAngle = STABLE_DIRECTION_ANGLE.get();
         stableDirectionTicks = STABLE_DIRECTION_TICKS.get();
         autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.get();
+        mobCullingEnabled = MOB_CULLING_ENABLED.get();
         trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
         trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
         fadeEnabled = FADE_ENABLED.get();
@@ -326,6 +332,7 @@ public class Config {
         STABLE_DIRECTION_ANGLE.set(stableDirectionAngle);
         STABLE_DIRECTION_TICKS.set(stableDirectionTicks);
         AUTO_ALIGN_ANIMATION_SPEED.set(autoAlignAnimationSpeed);
+        MOB_CULLING_ENABLED.set(mobCullingEnabled);
         TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
         TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
         FADE_ENABLED.set(fadeEnabled);

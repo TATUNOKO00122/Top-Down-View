@@ -268,30 +268,34 @@ public final class TopDownCuller {
 
         int playerFeetBlockY = (int) Math.floor(mc.player.getY());
 
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (entity instanceof Player && entity == mc.player) {
-                continue;
-            }
-
-            if (entity instanceof Cullable) {
-                Cullable cullable = (Cullable) entity;
-
-                if (!isCullableEntityType(entity)) {
-                    cullable.topdownview_setCulled(false);
+        try {
+            for (Entity entity : mc.level.entitiesForRendering()) {
+                if (entity instanceof Player && entity == mc.player) {
                     continue;
                 }
 
-                boolean isMob = entity instanceof Mob;
-                boolean shouldCull;
+                if (entity instanceof Cullable) {
+                    Cullable cullable = (Cullable) entity;
 
-                if (isMob) {
-                    shouldCull = shouldCullMob(entity, mc, playerFeetBlockY);
-                } else {
-                    shouldCull = shouldCullDecorativeEntity(entity, pX, pY, pZ, cX, cY, cZ);
+                    if (!isCullableEntityType(entity)) {
+                        cullable.topdownview_setCulled(false);
+                        continue;
+                    }
+
+                    boolean isMob = entity instanceof Mob;
+                    boolean shouldCull;
+
+                    if (isMob) {
+                        shouldCull = shouldCullMob(entity, mc, playerFeetBlockY);
+                    } else {
+                        shouldCull = shouldCullDecorativeEntity(entity, pX, pY, pZ, cX, cY, cZ);
+                    }
+
+                    cullable.topdownview_setCulled(shouldCull);
                 }
-
-                cullable.topdownview_setCulled(shouldCull);
             }
+        } catch (java.util.ConcurrentModificationException e) {
+            // エンティティリストが別スレッドで変更された - 次フレームで再試行
         }
     }
 
@@ -356,8 +360,10 @@ public final class TopDownCuller {
     }
 
     private boolean isCullableEntityType(Entity entity) {
-        return entity instanceof Mob
-            || entity instanceof ItemFrame
+        if (entity instanceof Mob) {
+            return Config.isMobCullingEnabled();
+        }
+        return entity instanceof ItemFrame
             || entity instanceof GlowItemFrame
             || entity instanceof ArmorStand
             || entity instanceof Painting;

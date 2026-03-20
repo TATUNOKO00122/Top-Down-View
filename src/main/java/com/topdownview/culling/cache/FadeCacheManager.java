@@ -3,6 +3,7 @@ package com.topdownview.culling.cache;
 import net.minecraft.core.BlockPos;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class FadeCacheManager {
 
@@ -11,14 +12,16 @@ public final class FadeCacheManager {
 
     private final Map<BlockPos, Float> fadeAlphaCache = new ConcurrentHashMap<>(500);
     private final Map<BlockPos, Float> fadeBlocksCache = new ConcurrentHashMap<>(500);
+    private final AtomicInteger fadeAlphaCacheSize = new AtomicInteger(0);
 
     public Float getFadeAlpha(BlockPos pos) {
         return fadeAlphaCache.get(pos);
     }
 
     public void putFadeAlpha(BlockPos pos, float alpha) {
-        if (fadeAlphaCache.size() >= MAX_FADE_ALPHA_CACHE_SIZE) {
+        if (fadeAlphaCacheSize.incrementAndGet() > MAX_FADE_ALPHA_CACHE_SIZE) {
             fadeAlphaCache.clear();
+            fadeAlphaCacheSize.set(1);
         }
         fadeAlphaCache.put(pos.immutable(), alpha);
     }
@@ -37,6 +40,7 @@ public final class FadeCacheManager {
 
     public void clear() {
         fadeAlphaCache.clear();
+        fadeAlphaCacheSize.set(0);
         fadeBlocksCache.clear();
     }
 
