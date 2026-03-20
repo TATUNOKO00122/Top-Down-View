@@ -6,7 +6,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
@@ -24,203 +23,143 @@ public class Config {
                 }
         }
 
-        // Culling settings
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_HORIZONTAL = BUILDER
-                        .comment("シリンダーの水平方向半径（ブロック数）")
                         .defineInRange("cylinderRadiusHorizontal", 5, 1, 10);
 
         private static final ForgeConfigSpec.IntValue CYLINDER_RADIUS_VERTICAL = BUILDER
-                        .comment("シリンダーの垂直方向半径（ブロック数）")
                         .defineInRange("cylinderRadiusVertical", 5, 1, 10);
 
         private static final ForgeConfigSpec.IntValue CYLINDER_FORWARD_SHIFT = BUILDER
-                        .comment("楕円柱の中心を前方にシフトする距離（ブロック数）")
                         .defineInRange("cylinderForwardShift", 1, 0, 10);
 
-        // Mining mode cylinder settings (true cylinder, not elliptical)
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_RADIUS = BUILDER
-                        .comment("マイニングモード用円柱の半径（ブロック数）")
                         .defineInRange("miningCylinderRadius", 5, 1, 16);
 
         private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
-                        .comment("マイニングモード時の円柱中心を前方にシフトする距離（ブロック数）")
-                        .defineInRange("miningCylinderForwardShift", 1, 0, 10);
+                        .defineInRange("miningCylinderForwardShift", 0, 0, 10);
 
         private static final ForgeConfigSpec.BooleanValue MINING_MODE_ENABLED = BUILDER
-                        .comment("マイニングモード機能の有効/無効（無効時はキー入力を無視）")
                         .define("miningModeEnabled", false);
 
-        // Movement settings
         private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
-                        .comment("クリックツームーブ機能の有効/無効")
                         .define("clickToMoveEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue ARRIVAL_THRESHOLD = BUILDER
-                        .comment("目的地到達判定の距離（ブロック数）")
                         .defineInRange("arrivalThreshold", 1.5, 0.5, 5.0);
 
         private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
-                        .comment("クリックツームーブ中の自動ジャンプ強制")
-                        .define("forceAutoJump", false);
+                        .define("forceAutoJump", true);
 
         private static final ForgeConfigSpec.DoubleValue SPRINT_DISTANCE_THRESHOLD = BUILDER
-                        .comment("クリックツームーブ中にダッシュを開始する距離（ブロック数）")
                         .defineInRange("sprintDistanceThreshold", 5.0, 1.0, 50.0);
 
         private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_TO_MOVEMENT_ENABLED = BUILDER
-                        .comment("移動中にカメラを進行方向へ自動回転")
                         .define("autoAlignToMovementEnabled", false);
 
         private static final ForgeConfigSpec.IntValue AUTO_ALIGN_ANGLE_THRESHOLD = BUILDER
-                        .comment("自動回転を開始する角度差の閾値（度）")
                         .defineInRange("autoAlignAngleThreshold", 45, 0, 90);
 
         private static final ForgeConfigSpec.IntValue AUTO_ALIGN_COOLDOWN_TICKS = BUILDER
-                        .comment("自動回転後のクールダウン時間（tick、20tick=1秒）")
                         .defineInRange("autoAlignCooldownTicks", 30, 0, 100);
 
         private static final ForgeConfigSpec.IntValue STABLE_DIRECTION_ANGLE = BUILDER
-                        .comment("同じ方向と見なす許容角度差（度）")
                         .defineInRange("stableDirectionAngle", 15, 5, 60);
 
         private static final ForgeConfigSpec.IntValue STABLE_DIRECTION_TICKS = BUILDER
-                        .comment("反応に必要な方向安定時間（tick）")
                         .defineInRange("stableDirectionTicks", 20, 5, 60);
 
         private static final ForgeConfigSpec.DoubleValue AUTO_ALIGN_ANIMATION_SPEED = BUILDER
-                        .comment("自動回転のアニメーション速度（0.05=遅い、0.5=速い）")
                         .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
 
-        // Translucent trapdoor settings
         private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
-                        .comment("遮蔽トラップドアの半透明化の有効/無効")
                         .define("trapdoorTranslucencyEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
-                        .comment("遮蔽トラップドアの透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
 
-        // Fade settings
         private static final ForgeConfigSpec.BooleanValue FADE_ENABLED = BUILDER
-                        .comment("カリング境界の距離フェードの有効/無効")
                         .define("fadeEnabled", true);
 
         private static final ForgeConfigSpec.DoubleValue FADE_BLOCK_HIT_THRESHOLD = BUILDER
-                        .comment("透明ブロック判定閾値（0=オフ/全て触れる、1=完全に不透明なもののみ触れる）")
-                        .defineInRange("fadeBlockHitThreshold", 0.7, 0.0, 1.0);
+                        .defineInRange("fadeBlockHitThreshold", 0.5, 0.0, 1.0);
 
         private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
-                        .comment("フェード開始位置（境界=1.0に対する比率、0.7=境界の70%位置から開始）")
                         .defineInRange("fadeStart", 0.7, 0.0, 0.9);
 
         private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
-                        .comment("カメラ付近の不透明度（0.0=透明、1.0=不透明）")
                         .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
 
-        // Target highlight settings
         private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
-                        .comment("射程外ターゲットを赤く表示する機能の有効/無効")
                         .define("rangeIndicatorEnabled", false);
 
-        // Destination highlight settings
         private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
-                        .comment("クリック移動先のハイライト表示の有効/無効")
                         .define("destinationHighlightEnabled", true);
 
-        // Weapon type specific attack ranges
         private static final ForgeConfigSpec.DoubleValue RANGE_EMPTY_HAND = BUILDER
-                        .comment("素手時の攻撃射程")
                         .defineInRange("rangeEmptyHand", 3.0, 1.0, 10.0);
 
         private static final ForgeConfigSpec.DoubleValue RANGE_SWORD = BUILDER
-                        .comment("剣装備時の攻撃射程")
                         .defineInRange("rangeSword", 3.0, 1.0, 10.0);
 
         private static final ForgeConfigSpec.DoubleValue RANGE_AXE = BUILDER
-                        .comment("斧装備時の攻撃射程")
                         .defineInRange("rangeAxe", 3.0, 1.0, 10.0);
 
         private static final ForgeConfigSpec.DoubleValue RANGE_PICKAXE = BUILDER
-                        .comment("ツルハシ装備時の攻撃射程")
                         .defineInRange("rangePickaxe", 3.0, 1.0, 10.0);
 
         private static final ForgeConfigSpec.DoubleValue RANGE_SHOVEL = BUILDER
-                        .comment("シャベル装備時の攻撃射程")
                         .defineInRange("rangeShovel", 3.0, 1.0, 10.0);
 
         private static final ForgeConfigSpec.DoubleValue RANGE_OTHER = BUILDER
-                        .comment("その他の武器/アイテム装備時の攻撃射程")
                         .defineInRange("rangeOther", 3.0, 1.0, 10.0);
 
-        // Default state
         private static final ForgeConfigSpec.BooleanValue DEFAULT_ENABLED = BUILDER
-                        .comment("ゲーム起動時にトップダウン視点をデフォルトで有効にする")
                         .define("defaultEnabled", true);
 
-	// Camera settings
 	private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
-			.comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
 			.defineInRange("rotateAngleMode", 0, 0, 2);
 
 	private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
-			.comment("スナップ回転のアニメーション速度（0.05=遅い、0.5=速い）")
 			.defineInRange("cameraSnapRotationSpeed", 0.2, 0.05, 0.5);
 
 	private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-			.comment("カメラが見下ろす垂直の角度（ピッチ）")
 			.defineInRange("cameraPitch", 45.0, 10.0, 90.0);
 
 	private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
-			.comment("マイニングモード時のカメラ角度（ピッチ）")
 			.defineInRange("miningModePitch", 45.0, 10.0, 90.0);
 
 	private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
-			.comment("最大カメラ距離（ズームアウト限界）")
 			.defineInRange("maxCameraDistance", 50.0, 0.0, 200.0);
 
 	private static final ForgeConfigSpec.DoubleValue DEFAULT_CAMERA_DISTANCE = BUILDER
-			.comment("デフォルトカメラ距離（初期ズーム位置）")
 			.defineInRange("defaultCameraDistance", 9.0, 0.0, 100.0);
 
-        // Drag rotation settings
         private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
-                        .comment("マウスドラッグによるカメラ回転の有効/無効")
                         .define("dragRotationEnabled", true);
 
         private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
-                        .comment("ドラッグ回転の感度（値が大きいほど敏感）")
                         .defineInRange("dragRotationSensitivity", 0.05, 0.01, 0.1);
 
-        // Camera Y follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER
-                        .comment("カメラY軸追従遅延の有効/無効（3D酔い対策）")
-                        .define("cameraYFollowDelayEnabled", false);
+                        .define("cameraYFollowDelayEnabled", true);
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_Y_FOLLOW_DELAY = BUILDER
-                        .comment("カメラY軸追従の遅延時間（秒）、大きいほど遅れる")
                         .defineInRange("cameraYFollowDelay", 1.0, 0.0, 4.0);
 
-        // Camera X follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_X_FOLLOW_DELAY_ENABLED = BUILDER
-                        .comment("カメラX軸追従遅延の有効/無効（3D酔い対策）")
                         .define("cameraXFollowDelayEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_X_FOLLOW_DELAY = BUILDER
-                        .comment("カメラX軸追従の遅延時間（秒）、大きいほど遅れる")
                         .defineInRange("cameraXFollowDelay", 1.0, 0.0, 4.0);
 
-        // Camera Z follow delay (motion sickness prevention)
         private static final ForgeConfigSpec.BooleanValue CAMERA_Z_FOLLOW_DELAY_ENABLED = BUILDER
-                        .comment("カメラZ軸追従遅延の有効/無効（3D酔い対策）")
                         .define("cameraZFollowDelayEnabled", false);
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_Z_FOLLOW_DELAY = BUILDER
-                        .comment("カメラZ軸追従の遅延時間（秒）、大きいほど遅れる")
                         .defineInRange("cameraZFollowDelay", 1.0, 0.0, 4.0);
 
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
-        // Runtime values (private with getters for encapsulation)
         private static int cylinderRadiusHorizontal;
         private static int cylinderRadiusVertical;
         private static int cylinderForwardShift;
@@ -263,24 +202,18 @@ public class Config {
 	private static double maxCameraDistance;
 	private static double defaultCameraDistance;
 
-	// Drag rotation settings
 	private static boolean dragRotationEnabled;
 	private static double dragRotationSensitivity;
 
-	// Camera Y follow delay
 	private static boolean cameraYFollowDelayEnabled;
 	private static double cameraYFollowDelay;
 
-	// Camera X follow delay
 	private static boolean cameraXFollowDelayEnabled;
 	private static double cameraXFollowDelay;
 
-	// Camera Z follow delay
 	private static boolean cameraZFollowDelayEnabled;
 	private static double cameraZFollowDelay;
 
-        // ==================== Getters ====================
-        
         public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
         public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
         public static int getCylinderForwardShift() { return cylinderForwardShift; }
@@ -327,8 +260,6 @@ public class Config {
 	public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
 	public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
 
-        // ==================== Setters (for GUI) ====================
-        
         public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = value; }
         public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = value; }
         public static void setCylinderForwardShift(int value) { cylinderForwardShift = value; }
@@ -423,7 +354,6 @@ public class Config {
 		cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.get();
 		cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.get();
 
-                // ゲーム起動時にデフォルト状態を適用
                 com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
 
                 notifyConfigChanged();
@@ -482,7 +412,6 @@ public class Config {
                 notifyConfigChanged();
         }
 
-        // ForgeConfigSpecへのアクセス用ゲッター
         public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {
                 return MAX_CAMERA_DISTANCE;
         }
