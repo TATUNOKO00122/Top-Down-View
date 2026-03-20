@@ -38,12 +38,7 @@ public final class TopDownCuller {
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
     private static final int UPDATE_FREQUENCY = 1;
-    private static final int CACHE_CLEAR_DISTANCE_SQ = 9;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
-
-    private int lastPlayerBlockX = Integer.MIN_VALUE;
-    private int lastPlayerBlockY = Integer.MIN_VALUE;
-    private int lastPlayerBlockZ = Integer.MIN_VALUE;
 
     private volatile double playerX;
     private volatile double playerY;
@@ -224,22 +219,8 @@ public final class TopDownCuller {
         cameraZ = Math.floor(rawCameraZ) + 0.5;
         contextValid = true;
 
-        int playerBlockX = (int) Math.floor(eyeX);
-        int playerBlockY = (int) Math.floor(eyeY);
-        int playerBlockZ = (int) Math.floor(eyeZ);
-
-        int dx = playerBlockX - lastPlayerBlockX;
-        int dy = playerBlockY - lastPlayerBlockY;
-        int dz = playerBlockZ - lastPlayerBlockZ;
-        int distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq >= CACHE_CLEAR_DISTANCE_SQ || distSq < 0) {
-            cullingCache.clear();
-            fadeCache.clear();
-            lastPlayerBlockX = playerBlockX;
-            lastPlayerBlockY = playerBlockY;
-            lastPlayerBlockZ = playerBlockZ;
-        }
+        cullingCache.clear();
+        fadeCache.clear();
 
         updateEntityCulling(mc);
     }
@@ -371,9 +352,6 @@ public final class TopDownCuller {
         cameraX = 0.0;
         cameraY = 0.0;
         cameraZ = 0.0;
-        lastPlayerBlockX = Integer.MIN_VALUE;
-        lastPlayerBlockY = Integer.MIN_VALUE;
-        lastPlayerBlockZ = Integer.MIN_VALUE;
     }
 
     public int getCulledBlockCount() {
