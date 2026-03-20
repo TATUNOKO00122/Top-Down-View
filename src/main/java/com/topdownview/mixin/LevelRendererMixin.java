@@ -16,7 +16,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 /**
  * LevelRenderer Mixin
@@ -34,8 +36,8 @@ public class LevelRendererMixin {
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
 
     private static Class<?> entityCullingCullableClass = null;
-    private static Method entityCullingSetCulledMethod = null;
-    private static Method entityCullingSetOutOfCameraMethod = null;
+    private static MethodHandle entityCullingSetCulledHandle = null;
+    private static MethodHandle entityCullingSetOutOfCameraHandle = null;
     private static boolean entityCullingLoaded = false;
     private static boolean entityCullingReflectionInitialized = false;
 
@@ -49,11 +51,13 @@ public class LevelRendererMixin {
 
         try {
             entityCullingCullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
-            entityCullingSetCulledMethod = entityCullingCullableClass.getMethod("setCulled", boolean.class);
-            entityCullingSetOutOfCameraMethod = entityCullingCullableClass.getMethod("setOutOfCamera", boolean.class);
+            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+            entityCullingSetCulledHandle = lookup.findVirtual(entityCullingCullableClass, "setCulled", MethodType.methodType(void.class, boolean.class));
+            entityCullingSetOutOfCameraHandle = lookup.findVirtual(entityCullingCullableClass, "setOutOfCamera", MethodType.methodType(void.class, boolean.class));
             entityCullingLoaded = true;
         } catch (ClassNotFoundException e) {
         } catch (NoSuchMethodException e) {
+        } catch (IllegalAccessException e) {
         }
     }
 
@@ -68,9 +72,9 @@ public class LevelRendererMixin {
         if (entity instanceof Player && entity == mc.player) {
             if (entityCullingLoaded && entityCullingCullableClass.isInstance(entity)) {
                 try {
-                    entityCullingSetCulledMethod.invoke(entity, false);
-                    entityCullingSetOutOfCameraMethod.invoke(entity, false);
-                } catch (Exception e) {
+                    entityCullingSetCulledHandle.invoke(entity, false);
+                    entityCullingSetOutOfCameraHandle.invoke(entity, false);
+                } catch (Throwable e) {
                 }
             }
             return;

@@ -58,6 +58,9 @@ public final class MouseRaycast {
     private volatile double lastYaw = -1;
     private volatile double lastPitch = -1;
 
+    private volatile long lastUpdateGameTime = -1;
+    private volatile float lastPartialTick = -1;
+
     private MouseRaycast() {
     }
 
@@ -71,6 +74,13 @@ public final class MouseRaycast {
             clearResults();
             return;
         }
+
+        long currentGameTime = mc.level.getGameTime();
+        if (currentGameTime == lastUpdateGameTime && partialTick == lastPartialTick) {
+            return;
+        }
+        lastUpdateGameTime = currentGameTime;
+        lastPartialTick = partialTick;
 
         RaycastResult result = performRaycast(mc, reachDistance);
         if (result == null) {
@@ -329,6 +339,8 @@ public final class MouseRaycast {
         lastMouseY = -1;
         lastYaw = -1;
         lastPitch = -1;
+        lastUpdateGameTime = -1;
+        lastPartialTick = -1;
     }
 }
 

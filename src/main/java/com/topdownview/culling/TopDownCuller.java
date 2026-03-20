@@ -48,6 +48,12 @@ public final class TopDownCuller {
     private volatile double cameraZ;
     private volatile boolean contextValid = false;
 
+    private volatile int lastPlayerBlockX = Integer.MIN_VALUE;
+    private volatile int lastPlayerBlockY = Integer.MIN_VALUE;
+    private volatile int lastPlayerBlockZ = Integer.MIN_VALUE;
+
+    private volatile long lastFadeBlocksUpdateTick = -1;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
 
@@ -219,8 +225,17 @@ public final class TopDownCuller {
         cameraZ = Math.floor(rawCameraZ) + 0.5;
         contextValid = true;
 
-        cullingCache.clear();
-        fadeCache.clear();
+        int currentBlockX = (int) Math.floor(eyeX);
+        int currentBlockY = (int) Math.floor(eyeY);
+        int currentBlockZ = (int) Math.floor(eyeZ);
+
+        if (currentBlockX != lastPlayerBlockX || currentBlockY != lastPlayerBlockY || currentBlockZ != lastPlayerBlockZ) {
+            cullingCache.clear();
+            fadeCache.clear();
+            lastPlayerBlockX = currentBlockX;
+            lastPlayerBlockY = currentBlockY;
+            lastPlayerBlockZ = currentBlockZ;
+        }
 
         updateEntityCulling(mc);
     }
@@ -352,6 +367,9 @@ public final class TopDownCuller {
         cameraX = 0.0;
         cameraY = 0.0;
         cameraZ = 0.0;
+        lastPlayerBlockX = Integer.MIN_VALUE;
+        lastPlayerBlockY = Integer.MIN_VALUE;
+        lastPlayerBlockZ = Integer.MIN_VALUE;
     }
 
     public int getCulledBlockCount() {
@@ -406,23 +424,36 @@ public final class TopDownCuller {
     }
 
     public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
-        fadeCache.clearFadeBlocks();
-
         if (!ModState.STATUS.isEnabled()) {
+            fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
 
         if (ModState.STATUS.isMiningMode()) {
+            fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
 
         if (!Config.isFadeEnabled()) {
+            fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
 
         if (level == null || !contextValid) {
+            fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            long currentTick = mc.level.getGameTime();
+            if (currentTick == lastFadeBlocksUpdateTick) {
+                return fadeCache.getFadeBlocksCache();
+            }
+            lastFadeBlocksUpdateTick = currentTick;
+        }
+
+        fadeCache.clearFadeBlocks();
 
         double pX = this.playerX;
         double pY = this.playerY;

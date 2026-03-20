@@ -38,9 +38,6 @@ public class TargetHighlightRenderer {
         if (mc.level == null || mc.player == null)
             return;
 
-        double reach = MouseRaycast.getCustomReachDistance();
-        MouseRaycast.INSTANCE.update(mc, event.getPartialTick(), reach);
-
         net.minecraft.world.phys.HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         LivingEntity currentEntity = null;

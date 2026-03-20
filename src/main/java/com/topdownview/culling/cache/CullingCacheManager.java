@@ -1,15 +1,15 @@
 package com.topdownview.culling.cache;
 
 import net.minecraft.core.BlockPos;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class CullingCacheManager {
 
     private static final int MAX_CACHE_SIZE = 8000;
 
-    private final Map<BlockPos, Boolean> cache = new HashMap<>(1000);
-    private int culledCount = 0;
+    private final Map<BlockPos, Boolean> cache = new ConcurrentHashMap<>(1000);
+    private volatile int culledCount = 0;
 
     public Boolean get(BlockPos pos) {
         return cache.get(pos);
