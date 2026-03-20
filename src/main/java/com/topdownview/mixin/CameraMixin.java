@@ -60,6 +60,12 @@ public abstract class CameraMixin {
             return;
         }
 
+        // フリーカメラモード: フレーム開始時に前回値を保存（補間用）
+        if (ModState.CAMERA.isFreeCameraMode()) {
+            ModState.CAMERA.updatePrevYaw();
+            ModState.CAMERA.updatePrevFreeCameraPitch();
+        }
+
         // フリーカメラモードの更新（毎フレーム）
         updateFreeCameraMode();
 
@@ -145,7 +151,6 @@ public abstract class CameraMixin {
         ModState.CAMERA.setYaw(newYaw);
         ModState.CAMERA.setFreeCameraPitch(newPitch);
         ModState.CAMERA.setFreeCameraPitchAdjusted(true);
-        ModState.CAMERA.updatePrevFreeCameraPitch();
 
         ModState.CAMERA.setLastMouseX(currentMouseX);
         ModState.CAMERA.setLastMouseY(currentMouseY);

@@ -1,8 +1,10 @@
 package com.topdownview.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.Config;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -26,32 +28,60 @@ public final class InputHandler {
         if (mc.screen != null)
             return;
 
-        int freeCameraKeyCode = ClientModBusEvents.FREE_CAMERA_KEY.getKey().getValue();
-
-        if (event.getKey() == freeCameraKeyCode && ModState.STATUS.isEnabled()) {
-            if (event.getAction() == GLFW.GLFW_PRESS) {
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastFreeCameraClickTime < DOUBLE_CLICK_THRESHOLD_MS) {
-                    resetFreeCameraAngles();
-                    lastFreeCameraClickTime = 0;
-                } else {
-                    startFreeCameraMode(mc);
-                    lastFreeCameraClickTime = currentTime;
+        int keyCode = event.getKey();
+        
+        // フリーカメラキー（キーボードの場合のみ処理）
+        if (isKeyboardKey(ClientModBusEvents.FREE_CAMERA_KEY)) {
+            int freeCameraKeyCode = ClientModBusEvents.FREE_CAMERA_KEY.getKey().getValue();
+            if (keyCode == freeCameraKeyCode && ModState.STATUS.isEnabled()) {
+                if (event.getAction() == GLFW.GLFW_PRESS) {
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastFreeCameraClickTime < DOUBLE_CLICK_THRESHOLD_MS) {
+                        resetFreeCameraAngles();
+                        lastFreeCameraClickTime = 0;
+                    } else {
+                        startFreeCameraMode(mc);
+                        lastFreeCameraClickTime = currentTime;
+                    }
+                } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                    stopFreeCameraMode(mc);
                 }
-            } else if (event.getAction() == GLFW.GLFW_RELEASE) {
-                stopFreeCameraMode(mc);
+                return;
             }
-            return;
         }
 
         if (event.getAction() != GLFW.GLFW_PRESS)
             return;
-        handleInput(event.getKey());
+        handleInput(keyCode, InputConstants.Type.KEYSYM);
     }
 
     @SubscribeEvent
     public static void onMouseButton(InputEvent.MouseButton.Pre event) {
         Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null)
+            return;
+
+        int button = event.getButton();
+
+        // フリーカメラキー（マウスボタンの場合のみ処理）
+        if (isMouseButton(ClientModBusEvents.FREE_CAMERA_KEY) && ModState.STATUS.isEnabled()) {
+            int freeCameraButton = ClientModBusEvents.FREE_CAMERA_KEY.getKey().getValue();
+            if (button == freeCameraButton) {
+                if (event.getAction() == GLFW.GLFW_PRESS) {
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastFreeCameraClickTime < DOUBLE_CLICK_THRESHOLD_MS) {
+                        resetFreeCameraAngles();
+                        lastFreeCameraClickTime = 0;
+                    } else {
+                        startFreeCameraMode(mc);
+                        lastFreeCameraClickTime = currentTime;
+                    }
+                } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                    stopFreeCameraMode(mc);
+                }
+                return;
+            }
+        }
 
         // ドラッグ回転の処理
         if (ModState.STATUS.isEnabled() && Config.isDragRotationEnabled()) {
@@ -63,14 +93,20 @@ public final class InputHandler {
                 } else if (event.getAction() == GLFW.GLFW_RELEASE) {
                     stopDragRotation();
                 }
-                // ドラッグボタンのイベントはキャンセルしない（他の機能との競合を避ける）
             }
         }
 
-        // 既存のボタン処理
         if (event.getAction() == GLFW.GLFW_PRESS) {
-            handleInput(event.getButton());
+            handleInput(button, InputConstants.Type.MOUSE);
         }
+    }
+
+    private static boolean isKeyboardKey(KeyMapping keyMapping) {
+        return keyMapping.getKey().getType() == InputConstants.Type.KEYSYM;
+    }
+
+    private static boolean isMouseButton(KeyMapping keyMapping) {
+        return keyMapping.getKey().getType() == InputConstants.Type.MOUSE;
     }
 
     /**
@@ -104,6 +140,8 @@ public final class InputHandler {
     }
 
     private static void startDragRotation(Minecraft mc) {
+        // Rキーの回転アニメーションをキャンセル
+        ModState.CAMERA.setAnimating(false);
         ModState.CAMERA.setDragging(true);
         ModState.CAMERA.setDragStartYaw(ModState.CAMERA.getYaw());
         ModState.CAMERA.setDragStartMouseX(mc.mouseHandler.xpos());
@@ -113,6 +151,8 @@ public final class InputHandler {
     }
 
     private static void stopDragRotation() {
+        // ドラッグ終了時に回転アニメーションをキャンセル
+        ModState.CAMERA.setAnimating(false);
         ModState.CAMERA.setDragging(false);
         // カーソルを通常モードに戻す
         Minecraft mc = Minecraft.getInstance();
@@ -121,12 +161,19 @@ public final class InputHandler {
     }
 
     private static void startFreeCameraMode(Minecraft mc) {
+        // Rキーの回転アニメーションをキャンセル
+        ModState.CAMERA.setAnimating(false);
+        // フリーカム開始時に前回値を初期化（補間用）
+        ModState.CAMERA.updatePrevYaw();
+        ModState.CAMERA.updatePrevFreeCameraPitch();
         ModState.CAMERA.setFreeCameraMode(true);
         org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
                 org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED);
     }
 
     private static void stopFreeCameraMode(Minecraft mc) {
+        // フリーカム終了時に回転アニメーションをキャンセル
+        ModState.CAMERA.setAnimating(false);
         ModState.CAMERA.setFreeCameraMode(false);
         ModState.CAMERA.setFreeCameraMouseInitialized(false);
         org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
@@ -139,28 +186,29 @@ public final class InputHandler {
         ModState.CAMERA.updatePrevFreeCameraPitch();
     }
 
-    private static void handleInput(int keyCode) {
+    private static void handleInput(int keyCode, InputConstants.Type inputType) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) {
             return;
         }
-        int toggleKeyCode = ClientModBusEvents.TOGGLE_VIEW_KEY.getKey().getValue();
-        int rotateKeyCode = ClientModBusEvents.ROTATE_VIEW_KEY.getKey().getValue();
-        int alignKeyCode = ClientModBusEvents.ALIGN_TO_MOVEMENT_KEY.getKey().getValue();
-        int miningModeKeyCode = ClientModBusEvents.MINING_MODE_KEY.getKey().getValue();
-        int jumpKeyCode = mc.options.keyJump.getKey().getValue();
-
-        if (keyCode == toggleKeyCode) {
+        
+        // 各キーマッピングと比較（タイプも考慮）
+        if (matchesKeyBinding(ClientModBusEvents.TOGGLE_VIEW_KEY, keyCode, inputType)) {
             toggleTopDownView();
-        } else if (ModState.STATUS.isEnabled() && keyCode == rotateKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.ROTATE_VIEW_KEY, keyCode, inputType)) {
             CameraController.rotateCamera();
-        } else if (ModState.STATUS.isEnabled() && keyCode == alignKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.ALIGN_TO_MOVEMENT_KEY, keyCode, inputType)) {
             CameraController.alignCameraToMovementImmediate();
-        } else if (ModState.STATUS.isEnabled() && Config.isMiningModeEnabled() && keyCode == miningModeKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.isMiningModeEnabled() && matchesKeyBinding(ClientModBusEvents.MINING_MODE_KEY, keyCode, inputType)) {
             toggleMiningMode();
-        } else if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled() && keyCode == jumpKeyCode) {
+        } else if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled() && matchesKeyBinding(mc.options.keyJump, keyCode, inputType)) {
             ClickToMoveController.reset();
         }
+    }
+
+    private static boolean matchesKeyBinding(KeyMapping keyMapping, int keyCode, InputConstants.Type inputType) {
+        InputConstants.Key key = keyMapping.getKey();
+        return key.getType() == inputType && key.getValue() == keyCode;
     }
 
     private static void toggleTopDownView() {

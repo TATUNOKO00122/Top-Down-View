@@ -34,6 +34,10 @@ public class TargetHighlightRenderer {
         if (!ModState.STATUS.isEnabled())
             return;
 
+        // フリーカム中はハイライトを非表示
+        if (ModState.CAMERA.isFreeCameraMode())
+            return;
+
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null)
             return;
