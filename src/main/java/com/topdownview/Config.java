@@ -137,9 +137,6 @@ public class Config {
         private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
                         .define("dragRotationEnabled", true);
 
-        private static final ForgeConfigSpec.DoubleValue DRAG_ROTATION_SENSITIVITY = BUILDER
-                        .defineInRange("dragRotationSensitivity", 0.05, 0.01, 0.1);
-
         private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER
                         .define("cameraYFollowDelayEnabled", true);
 
@@ -157,12 +154,6 @@ public class Config {
 
         private static final ForgeConfigSpec.DoubleValue CAMERA_Z_FOLLOW_DELAY = BUILDER
                         .defineInRange("cameraZFollowDelay", 1.0, 0.0, 4.0);
-
-        private static final ForgeConfigSpec.DoubleValue FREE_CAMERA_YAW_SENSITIVITY = BUILDER
-                        .defineInRange("freeCameraYawSensitivity", 0.3, 0.01, 1.0);
-
-        private static final ForgeConfigSpec.DoubleValue FREE_CAMERA_PITCH_SENSITIVITY = BUILDER
-                        .defineInRange("freeCameraPitchSensitivity", 0.2, 0.01, 1.0);
 
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -209,7 +200,6 @@ public class Config {
 	private static double defaultCameraDistance;
 
 	private static boolean dragRotationEnabled;
-	private static double dragRotationSensitivity;
 
 	private static boolean cameraYFollowDelayEnabled;
 	private static double cameraYFollowDelay;
@@ -219,9 +209,6 @@ public class Config {
 
 private static boolean cameraZFollowDelayEnabled;
         private static double cameraZFollowDelay;
-
-        private static double freeCameraYawSensitivity;
-        private static double freeCameraPitchSensitivity;
 
         public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
         public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -261,15 +248,12 @@ private static boolean cameraZFollowDelayEnabled;
 	public static double getMaxCameraDistance() { return maxCameraDistance; }
 	public static double getDefaultCameraDistance() { return defaultCameraDistance; }
 	public static boolean isDragRotationEnabled() { return dragRotationEnabled; }
-	public static double getDragRotationSensitivity() { return dragRotationSensitivity; }
 	public static boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
 	public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
 	public static boolean isCameraXFollowDelayEnabled() { return cameraXFollowDelayEnabled; }
 	public static double getCameraXFollowDelay() { return cameraXFollowDelay; }
 public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
         public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
-        public static double getFreeCameraYawSensitivity() { return freeCameraYawSensitivity; }
-        public static double getFreeCameraPitchSensitivity() { return freeCameraPitchSensitivity; }
 
         public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = value; }
         public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = value; }
@@ -309,15 +293,12 @@ public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayE
 	public static void setMaxCameraDistance(double value) { maxCameraDistance = value; }
 	public static void setDefaultCameraDistance(double value) { defaultCameraDistance = value; }
 	public static void setDragRotationEnabled(boolean value) { dragRotationEnabled = value; }
-	public static void setDragRotationSensitivity(double value) { dragRotationSensitivity = value; }
 	public static void setCameraYFollowDelayEnabled(boolean value) { cameraYFollowDelayEnabled = value; }
 	public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = value; }
 	public static void setCameraXFollowDelayEnabled(boolean value) { cameraXFollowDelayEnabled = value; }
 	public static void setCameraXFollowDelay(double value) { cameraXFollowDelay = value; }
 public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDelayEnabled = value; }
         public static void setCameraZFollowDelay(double value) { cameraZFollowDelay = value; }
-        public static void setFreeCameraYawSensitivity(double value) { freeCameraYawSensitivity = value; }
-        public static void setFreeCameraPitchSensitivity(double value) { freeCameraPitchSensitivity = value; }
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -359,15 +340,12 @@ public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDe
                 maxCameraDistance = MAX_CAMERA_DISTANCE.get();
                 defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.get();
 		dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
-		dragRotationSensitivity = DRAG_ROTATION_SENSITIVITY.get();
 		cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.get();
 		cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.get();
 		cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.get();
 		cameraXFollowDelay = CAMERA_X_FOLLOW_DELAY.get();
 		cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.get();
 		cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.get();
-		freeCameraYawSensitivity = FREE_CAMERA_YAW_SENSITIVITY.get();
-		freeCameraPitchSensitivity = FREE_CAMERA_PITCH_SENSITIVITY.get();
 
                 com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
 
@@ -415,15 +393,12 @@ public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDe
         MAX_CAMERA_DISTANCE.set(maxCameraDistance);
         DEFAULT_CAMERA_DISTANCE.set(defaultCameraDistance);
 	DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
-	DRAG_ROTATION_SENSITIVITY.set(dragRotationSensitivity);
 	CAMERA_Y_FOLLOW_DELAY_ENABLED.set(cameraYFollowDelayEnabled);
 	CAMERA_Y_FOLLOW_DELAY.set(cameraYFollowDelay);
 	CAMERA_X_FOLLOW_DELAY_ENABLED.set(cameraXFollowDelayEnabled);
 	CAMERA_X_FOLLOW_DELAY.set(cameraXFollowDelay);
 	CAMERA_Z_FOLLOW_DELAY_ENABLED.set(cameraZFollowDelayEnabled);
 	CAMERA_Z_FOLLOW_DELAY.set(cameraZFollowDelay);
-	FREE_CAMERA_YAW_SENSITIVITY.set(freeCameraYawSensitivity);
-	FREE_CAMERA_PITCH_SENSITIVITY.set(freeCameraPitchSensitivity);
 	SPEC.save();
                 com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
                 notifyConfigChanged();

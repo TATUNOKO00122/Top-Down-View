@@ -129,14 +129,16 @@ public abstract class CameraMixin {
         double deltaX = currentMouseX - lastX;
         double deltaY = currentMouseY - lastY;
 
-        double yawSensitivity = com.topdownview.Config.getFreeCameraYawSensitivity();
-        double pitchSensitivity = com.topdownview.Config.getFreeCameraPitchSensitivity();
+        double sensitivity = mc.options.sensitivity().get();
+        double f = sensitivity * 0.6 + 0.2;
+        double multiplier = f * f * f * 8.0;
+        double guiScale = mc.getWindow().getGuiScale();
 
         float currentYaw = ModState.CAMERA.getYaw();
         float currentPitch = ModState.CAMERA.getFreeCameraPitch();
 
-        float newYaw = currentYaw + (float) (deltaX * yawSensitivity);
-        float newPitch = currentPitch + (float) (deltaY * pitchSensitivity);
+        float newYaw = currentYaw + (float) (deltaX * multiplier / guiScale);
+        float newPitch = currentPitch + (float) (deltaY * multiplier / guiScale);
 
         newPitch = Math.max(0.0f, Math.min(90.0f, newPitch));
 

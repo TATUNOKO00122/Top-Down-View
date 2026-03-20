@@ -13,6 +13,9 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class InputHandler {
 
+    private static final long DOUBLE_CLICK_THRESHOLD_MS = 300;
+    private static long lastFreeCameraClickTime = 0;
+
     private InputHandler() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -27,7 +30,14 @@ public final class InputHandler {
 
         if (event.getKey() == freeCameraKeyCode && ModState.STATUS.isEnabled()) {
             if (event.getAction() == GLFW.GLFW_PRESS) {
-                startFreeCameraMode(mc);
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastFreeCameraClickTime < DOUBLE_CLICK_THRESHOLD_MS) {
+                    resetFreeCameraAngles();
+                    lastFreeCameraClickTime = 0;
+                } else {
+                    startFreeCameraMode(mc);
+                    lastFreeCameraClickTime = currentTime;
+                }
             } else if (event.getAction() == GLFW.GLFW_RELEASE) {
                 stopFreeCameraMode(mc);
             }
@@ -79,9 +89,11 @@ public final class InputHandler {
         double currentMouseX = mc.mouseHandler.xpos();
         double deltaX = currentMouseX - ModState.CAMERA.getDragStartMouseX();
 
-        // 感度を適用して回転角度を計算
-        double sensitivity = Config.getDragRotationSensitivity();
-        double rotationDelta = deltaX * sensitivity;
+        double sensitivity = mc.options.sensitivity().get();
+        double f = sensitivity * 0.6 + 0.2;
+        double multiplier = f * f * f * 8.0;
+        double guiScale = mc.getWindow().getGuiScale();
+        double rotationDelta = deltaX * multiplier / guiScale;
 
         float newYaw = ModState.CAMERA.getDragStartYaw() + (float) rotationDelta;
         ModState.CAMERA.setYaw(newYaw);
@@ -116,8 +128,15 @@ public final class InputHandler {
 
     private static void stopFreeCameraMode(Minecraft mc) {
         ModState.CAMERA.setFreeCameraMode(false);
+        ModState.CAMERA.setFreeCameraMouseInitialized(false);
         org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
                 org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
+    }
+
+    private static void resetFreeCameraAngles() {
+        ModState.CAMERA.setFreeCameraPitch((float) com.topdownview.Config.getCameraPitch());
+        ModState.CAMERA.setFreeCameraPitchAdjusted(false);
+        ModState.CAMERA.updatePrevFreeCameraPitch();
     }
 
     private static void handleInput(int keyCode) {

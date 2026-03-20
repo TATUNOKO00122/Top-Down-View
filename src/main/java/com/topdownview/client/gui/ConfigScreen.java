@@ -232,9 +232,6 @@ public class ConfigScreen extends Screen {
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.drag_rotation_enabled.tooltip")))
                 .build());
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.drag_rotation_sensitivity",
-                Config.getDragRotationSensitivity(), 0.01, 0.1, val -> Config.setDragRotationSensitivity(val), 2));
-        y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
         addRightWidget(Button.builder(
@@ -449,7 +446,6 @@ public class ConfigScreen extends Screen {
         Config.setRangeOther(3.0);
 
         Config.setDragRotationEnabled(true);
-        Config.setDragRotationSensitivity(0.05);
 
         Config.setAutoAlignToMovementEnabled(false);
         Config.setAutoAlignAngleThreshold(45);

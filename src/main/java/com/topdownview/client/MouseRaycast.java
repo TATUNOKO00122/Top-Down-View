@@ -82,7 +82,7 @@ public final class MouseRaycast {
         lastUpdateGameTime = currentGameTime;
         lastPartialTick = partialTick;
 
-        RaycastResult result = performRaycast(mc, reachDistance);
+        RaycastResult result = performRaycast(mc, reachDistance, partialTick);
         if (result == null) {
             clearResults();
             return;
@@ -100,9 +100,9 @@ public final class MouseRaycast {
         }
     }
 
-    private RaycastResult performRaycast(Minecraft mc, double reachDistance) {
+    private RaycastResult performRaycast(Minecraft mc, double reachDistance, float partialTick) {
         Vec3 start = mc.gameRenderer.getMainCamera().getPosition();
-        Vec3 direction = getMouseRayDirection(mc);
+        Vec3 direction = getMouseRayDirection(mc, partialTick);
         if (direction == null)
             return null;
 
@@ -261,7 +261,7 @@ public final class MouseRaycast {
         return lastEntityHit;
     }
 
-    private Vec3 getMouseRayDirection(Minecraft mc) {
+    private Vec3 getMouseRayDirection(Minecraft mc, float partialTick) {
         if (mc.mouseHandler == null || mc.options == null || mc.getWindow() == null)
             return null;
 
@@ -275,8 +275,16 @@ public final class MouseRaycast {
 
         double fov = mc.options.fov().get();
         double aspectRatio = screenWidth / screenHeight;
-        // マイニングモード時はminingModePitch、通常時はConfigのcameraPitch
-        double pitch = ModState.STATUS.isMiningMode() ? com.topdownview.Config.getMiningModePitch() : com.topdownview.Config.getCameraPitch();
+        double pitch;
+        if (ModState.CAMERA.isFreeCameraMode()) {
+            pitch = ModState.CAMERA.getLerpFreeCameraPitch(partialTick);
+        } else if (ModState.CAMERA.isFreeCameraPitchAdjusted()) {
+            pitch = ModState.CAMERA.getFreeCameraPitch();
+        } else if (ModState.STATUS.isMiningMode()) {
+            pitch = com.topdownview.Config.getMiningModePitch();
+        } else {
+            pitch = com.topdownview.Config.getCameraPitch();
+        }
         double yaw = ModState.CAMERA.getYaw();
 
         if (cachedDirection != null && mouseX == lastMouseX && mouseY == lastMouseY
