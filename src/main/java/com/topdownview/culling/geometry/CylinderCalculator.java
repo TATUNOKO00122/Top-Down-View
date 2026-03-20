@@ -88,7 +88,7 @@ public final class CylinderCalculator {
 
         double segLength = Math.sqrt(segLengthSq);
         double extensionT = EXTENSION_BLOCKS / segLength;
-        if (t < -extensionT) {
+        if (t < -extensionT || t > 1.0 + extensionT) {
             return -1.0;
         }
 
