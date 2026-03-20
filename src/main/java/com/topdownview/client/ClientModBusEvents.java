@@ -1,7 +1,6 @@
 package com.topdownview.client;
 
 import com.topdownview.TopDownViewMod;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -30,18 +29,17 @@ public class ClientModBusEvents {
 
     public static final KeyMapping ALIGN_TO_MOVEMENT_KEY = new KeyMapping(
             "key.topdown_view.align_to_movement",
-            GLFW.GLFW_KEY_V,
+            GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
     public static final KeyMapping DRAG_ROTATE_KEY = new KeyMapping(
             "key.topdown_view.drag_rotate",
-            InputConstants.Type.MOUSE,
-            GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
+            GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
     public static final KeyMapping MINING_MODE_KEY = new KeyMapping(
             "key.topdown_view.mining_mode",
-            GLFW.GLFW_KEY_M,
+            GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
     public static final KeyMapping DESTROY_KEY = new KeyMapping(
@@ -51,7 +49,7 @@ public class ClientModBusEvents {
 
     public static final KeyMapping FREE_CAMERA_KEY = new KeyMapping(
             "key.topdown_view.free_camera",
-            GLFW.GLFW_KEY_C,
+            GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
     @SubscribeEvent
