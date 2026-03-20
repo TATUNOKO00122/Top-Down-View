@@ -61,6 +61,8 @@
   "topdown_view.config.rotate_angle_mode.mode_45": "45° (Diag)",
   "topdown_view.config.rotate_angle_mode.mode_15": "15° (Free)",
   "topdown_view.config.rotate_angle_mode.tooltip": "Sets the snap interval for horizontal camera rotation.\n- 90°: Axis-aligned only\n- 45°: Isometric diagonal view support\n- 15°: Freer rotation",
+  "topdown_view.config.camera_snap_rotation_speed": "Rotation Animation Speed: %.2f",
+  "topdown_view.config.camera_snap_rotation_speed.tooltip": "How quickly the camera rotates during snap rotation. Lower = slower, higher = faster.",
   "topdown_view.config.camera_pitch": "Camera Pitch: %.1f°",
   "topdown_view.config.camera_pitch.tooltip": "Sets the vertical looking angle of the camera.\n90.0 is top-down (bird's eye), 45.0 is an angled view.",
   "topdown_view.config.max_camera_distance": "Max Camera Distance: %.1f",

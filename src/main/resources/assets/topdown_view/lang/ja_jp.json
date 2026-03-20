@@ -61,6 +61,8 @@
   "topdown_view.config.rotate_angle_mode.mode_45": "45度（斜め）",
   "topdown_view.config.rotate_angle_mode.mode_15": "15度（自由）",
   "topdown_view.config.rotate_angle_mode.tooltip": "カメラの水平回転（方位）がスナップする角度の単位を設定します。\n・90度: 正面のみ\n・45度: 斜め視点（アイソメトリック）対応\n・15度: より細かい回転",
+  "topdown_view.config.camera_snap_rotation_speed": "回転アニメーション速度: %.2f",
+  "topdown_view.config.camera_snap_rotation_speed.tooltip": "カメラ回転時のアニメーション速度です。小さいほどゆっくり、大きいほど素早く回転します。",
   "topdown_view.config.camera_pitch": "カメラ垂直角度: %.1f°",
   "topdown_view.config.camera_pitch.tooltip": "カメラが見下ろす垂直の角度（ピッチ）を設定します。\n90.0で真上からの視点、45.0で斜め見下ろしになります。",
   "topdown_view.config.mining_mode_pitch": "マイニングモード角度: %.1f°",

@@ -197,6 +197,9 @@ public class ConfigScreen extends Screen {
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.rotate_angle_mode.tooltip")))
                 .build());
         y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_snap_rotation_speed",
+                Config.getCameraSnapRotationSpeed(), 0.05, 0.5, val -> Config.setCameraSnapRotationSpeed(val)));
+        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
                 val -> Config.setCameraPitch(val), 0));
         y += sp;
@@ -464,6 +467,7 @@ public class ConfigScreen extends Screen {
         Config.setFadeNearAlpha(0.0);
 
         Config.setRotateAngleMode(0);
+        Config.setCameraSnapRotationSpeed(0.2);
         Config.setCameraPitch(45.0);
         Config.setMiningModePitch(45.0);
         Config.setMaxCameraDistance(50.0);

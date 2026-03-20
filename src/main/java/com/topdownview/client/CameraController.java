@@ -110,7 +110,7 @@ public final class CameraController {
             // 線形補間（Lerp）による滑らかな回転
             float lerpStrength = ModState.CAMERA.isAutoAlignAnimation()
                     ? (float) com.topdownview.Config.getAutoAlignAnimationSpeed()
-                    : 0.2f;
+                    : (float) com.topdownview.Config.getCameraSnapRotationSpeed();
             ModState.CAMERA.setYaw(currentYaw + diff * lerpStrength);
         }
     }

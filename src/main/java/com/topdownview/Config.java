@@ -162,6 +162,10 @@ public class Config {
 			.comment("カメラの回転スナップ角度モード (0=90度, 1=45度, 2=15度)")
 			.defineInRange("rotateAngleMode", 0, 0, 2);
 
+	private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
+			.comment("スナップ回転のアニメーション速度（0.05=遅い、0.5=速い）")
+			.defineInRange("cameraSnapRotationSpeed", 0.2, 0.05, 0.5);
+
 	private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
 			.comment("カメラが見下ろす垂直の角度（ピッチ）")
 			.defineInRange("cameraPitch", 45.0, 10.0, 90.0);
@@ -253,6 +257,7 @@ public class Config {
         private static boolean defaultEnabled;
 
 	private static int rotateAngleMode;
+	private static double cameraSnapRotationSpeed;
 	private static double cameraPitch;
 	private static double miningModePitch;
 	private static double maxCameraDistance;
@@ -308,6 +313,7 @@ public class Config {
         public static double getRangeOther() { return rangeOther; }
         public static boolean isDefaultEnabled() { return defaultEnabled; }
 	public static int getRotateAngleMode() { return rotateAngleMode; }
+	public static double getCameraSnapRotationSpeed() { return cameraSnapRotationSpeed; }
 	public static double getCameraPitch() { return cameraPitch; }
 	public static double getMiningModePitch() { return miningModePitch; }
 	public static double getMaxCameraDistance() { return maxCameraDistance; }
@@ -355,6 +361,7 @@ public class Config {
         public static void setRangeOther(double value) { rangeOther = value; }
         public static void setDefaultEnabled(boolean value) { defaultEnabled = value; }
 	public static void setRotateAngleMode(int value) { rotateAngleMode = value; }
+	public static void setCameraSnapRotationSpeed(double value) { cameraSnapRotationSpeed = value; }
 	public static void setCameraPitch(double value) { cameraPitch = value; }
 	public static void setMiningModePitch(double value) { miningModePitch = value; }
 	public static void setMaxCameraDistance(double value) { maxCameraDistance = value; }
@@ -402,6 +409,7 @@ public class Config {
                 rangeOther = RANGE_OTHER.get();
                 defaultEnabled = DEFAULT_ENABLED.get();
                 rotateAngleMode = ROTATE_ANGLE_MODE.get();
+                cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.get();
                 cameraPitch = CAMERA_PITCH.get();
                 miningModePitch = MINING_MODE_PITCH.get();
                 maxCameraDistance = MAX_CAMERA_DISTANCE.get();
@@ -456,6 +464,7 @@ public class Config {
                 RANGE_OTHER.set(rangeOther);
                 DEFAULT_ENABLED.set(defaultEnabled);
         ROTATE_ANGLE_MODE.set(rotateAngleMode);
+        CAMERA_SNAP_ROTATION_SPEED.set(cameraSnapRotationSpeed);
         CAMERA_PITCH.set(cameraPitch);
         MINING_MODE_PITCH.set(miningModePitch);
         MAX_CAMERA_DISTANCE.set(maxCameraDistance);
