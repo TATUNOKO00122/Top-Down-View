@@ -11,16 +11,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 
+/**
+ * トップダウン視点用のブロックカリングを管理するシングルトンクラス。
+ * 
+ * <p>ハイブリッドカリング戦略:
+ * <ul>
+ *   <li>シリンダーゾーン: カメラとプレイヤー間の可視領域</li>
+ *   <li>逆ピラミッド保護: プレイヤー周辺の足元ブロック保護</li>
+ *   <li>フェード境界: カリング境界での滑らかな透過遷移</li>
+ * </ul>
+ */
 public final class TopDownCuller {
 
     private static final TopDownCuller INSTANCE = new TopDownCuller();
-
-    private static final record CullingContext(Vec3 playerPos, Vec3 cameraPos) {
-        static final CullingContext EMPTY = new CullingContext(Vec3.ZERO, Vec3.ZERO);
-    }
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final int CACHE_CLEAR_DISTANCE_SQ = 9;
@@ -29,7 +34,13 @@ public final class TopDownCuller {
     private int lastPlayerBlockY = Integer.MIN_VALUE;
     private int lastPlayerBlockZ = Integer.MIN_VALUE;
 
-    private volatile CullingContext context = CullingContext.EMPTY;
+    private volatile double playerX;
+    private volatile double playerY;
+    private volatile double playerZ;
+    private volatile double cameraX;
+    private volatile double cameraY;
+    private volatile double cameraZ;
+    private volatile boolean contextValid = false;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -73,12 +84,20 @@ public final class TopDownCuller {
             return cached;
         }
 
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        Vec3 cPos = ctx.cameraPos();
+        if (!contextValid) {
+            cullingCache.put(pos, false);
+            return false;
+        }
+
+        double pX = this.playerX;
+        double pY = this.playerY;
+        double pZ = this.playerZ;
+        double cX = this.cameraX;
+        double cY = this.cameraY;
+        double cZ = this.cameraZ;
 
         if (ModState.STATUS.isMiningMode()) {
-            boolean cull = MiningModeCuller.isBlockCulled(pos, level, pPos, cPos);
+            boolean cull = MiningModeCuller.isBlockCulled(pos, level, pX, pY, pZ, cX, cY, cZ);
             cullingCache.put(pos, cull);
             return cull;
         }
@@ -90,15 +109,15 @@ public final class TopDownCuller {
         }
 
         if (InteractableBlocks.isInteractableSimple(state)) {
-            if (pos.getY() <= Math.floor(pPos.y)) {
+            if (pos.getY() <= Math.floor(pY)) {
                 cullingCache.put(pos, false);
                 return false;
             }
         }
 
-        int playerBlockX = (int) Math.floor(pPos.x);
-        int playerBlockZ = (int) Math.floor(pPos.z);
-        int playerFeetY = (int) Math.floor(pPos.y) - 1;
+        int playerBlockX = (int) Math.floor(pX);
+        int playerBlockZ = (int) Math.floor(pZ);
+        int playerFeetY = (int) Math.floor(pY) - 1;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
             if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
                 cullingCache.put(pos, false);
@@ -106,18 +125,14 @@ public final class TopDownCuller {
             }
         }
 
-        if (cPos.equals(Vec3.ZERO)) {
-            cullingCache.put(pos, false);
-            return false;
-        }
-
-        float alpha = calculateFadeAlpha(pos, level, state);
+        float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cY, cZ);
         boolean isCulled = alpha < 1.0f;
         cullingCache.put(pos, isCulled);
         return isCulled;
     }
 
-    private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state) {
+    private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
+            double pX, double pY, double pZ, double cX, double cY, double cZ) {
         if (level == null) {
             return 1.0f;
         }
@@ -126,17 +141,15 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        // 不変オブジェクトでアトミックに読み取り
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        Vec3 cPos = ctx.cameraPos();
-
-        if (isProtectedBlock(pos, state, level, pPos, cPos)) {
+        if (isProtectedBlock(pos, state, pY)) {
             return 1.0f;
         }
 
-        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos, pPos, cPos);
-        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(pos, pPos, cPos);
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                pX, pY, pZ, cX, cY, cZ);
+        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
+                pos, pX, pY, pZ, cX, cZ);
 
         double fadeStart = Config.getFadeStart();
         double fadeNearAlpha = Config.getFadeNearAlpha();
@@ -155,17 +168,13 @@ public final class TopDownCuller {
         return (float) Math.max(cylinderAlpha, pyramidFactor);
     }
 
-    private boolean isProtectedBlock(BlockPos pos, BlockState state, BlockGetter level, Vec3 pPos, Vec3 cPos) {
-        if (cPos.equals(Vec3.ZERO)) {
-            return true;
-        }
-
-        if (pos.getY() + 0.5 < pPos.y) {
+    private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY) {
+        if (pos.getY() + 0.5 < pY) {
             return true;
         }
 
         if (InteractableBlocks.isInteractableSimple(state)) {
-            if (pos.getY() <= Math.floor(pPos.y)) {
+            if (pos.getY() <= Math.floor(pY)) {
                 return true;
             }
         }
@@ -176,33 +185,37 @@ public final class TopDownCuller {
     public void update() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) {
+            contextValid = false;
             return;
         }
 
-        Vec3 eyePos = mc.player.getEyePosition(1.0f);
-        Vec3 candidatePos = new Vec3(
-                Math.floor(eyePos.x) + 0.5,
-                Math.floor(eyePos.y) + 0.5,
-                Math.floor(eyePos.z) + 0.5);
-        Vec3 rawCameraPos = ModState.CAMERA.getCameraPosition();
+        double eyeX = mc.player.getX();
+        double eyeY = mc.player.getEyeY();
+        double eyeZ = mc.player.getZ();
 
-        // カメラ位置が未初期化の場合、プレイヤー位置のみ更新して早期リターン
-        // 次のフレームでカメラ位置が設定された後にカリングが有効になる
-        if (rawCameraPos.equals(com.topdownview.state.CameraState.DEFAULT_POSITION)) {
-            // プレイヤー位置のみ更新（カメラ位置はZERO）
-            this.context = new CullingContext(candidatePos, Vec3.ZERO);
+        double rawCameraX = ModState.CAMERA.getCameraX();
+        double rawCameraY = ModState.CAMERA.getCameraY();
+        double rawCameraZ = ModState.CAMERA.getCameraZ();
+
+        if (rawCameraX == 0.0 && rawCameraY == 0.0 && rawCameraZ == 0.0) {
+            playerX = Math.floor(eyeX) + 0.5;
+            playerY = Math.floor(eyeY) + 0.5;
+            playerZ = Math.floor(eyeZ) + 0.5;
+            contextValid = false;
             return;
         }
 
-        // カメラ位置をブロック座標にスナップ（判定の安定化のため）
-        Vec3 cPos = new Vec3(
-                Math.floor(rawCameraPos.x) + 0.5,
-                Math.floor(rawCameraPos.y) + 0.5,
-                Math.floor(rawCameraPos.z) + 0.5);
+        playerX = Math.floor(eyeX) + 0.5;
+        playerY = Math.floor(eyeY) + 0.5;
+        playerZ = Math.floor(eyeZ) + 0.5;
+        cameraX = Math.floor(rawCameraX) + 0.5;
+        cameraY = Math.floor(rawCameraY) + 0.5;
+        cameraZ = Math.floor(rawCameraZ) + 0.5;
+        contextValid = true;
 
-        int playerBlockX = (int) Math.floor(eyePos.x);
-        int playerBlockY = (int) Math.floor(eyePos.y);
-        int playerBlockZ = (int) Math.floor(eyePos.z);
+        int playerBlockX = (int) Math.floor(eyeX);
+        int playerBlockY = (int) Math.floor(eyeY);
+        int playerBlockZ = (int) Math.floor(eyeZ);
 
         int dx = playerBlockX - lastPlayerBlockX;
         int dy = playerBlockY - lastPlayerBlockY;
@@ -216,16 +229,18 @@ public final class TopDownCuller {
             lastPlayerBlockY = playerBlockY;
             lastPlayerBlockZ = playerBlockZ;
         }
-
-        // 不変オブジェクトでアトミック更新（synchronized不要）
-        this.context = new CullingContext(candidatePos, cPos);
     }
 
     public void reset() {
         cullingCache.clear();
         fadeCache.clear();
-        this.context = CullingContext.EMPTY;
-        // 前回位置もリセット
+        contextValid = false;
+        playerX = 0.0;
+        playerY = 0.0;
+        playerZ = 0.0;
+        cameraX = 0.0;
+        cameraY = 0.0;
+        cameraZ = 0.0;
         lastPlayerBlockX = Integer.MIN_VALUE;
         lastPlayerBlockY = Integer.MIN_VALUE;
         lastPlayerBlockZ = Integer.MIN_VALUE;
@@ -258,7 +273,8 @@ public final class TopDownCuller {
         }
 
         BlockState state = level.getBlockState(pos);
-        float alpha = calculateFadeAlpha(pos, level, state);
+        float alpha = calculateFadeAlpha(pos, level, state,
+                playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         fadeCache.putFadeAlpha(pos, alpha);
 
         return alpha;
@@ -288,7 +304,6 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        // マイニングモード時はフェードブロックを返さない
         if (ModState.STATUS.isMiningMode()) {
             return fadeCache.getFadeBlocksCache();
         }
@@ -297,26 +312,28 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        // 不変オブジェクトでアトミックに読み取り
-        CullingContext ctx = this.context;
-        Vec3 pPos = ctx.playerPos();
-        Vec3 cPos = ctx.cameraPos();
-
-        if (level == null || cPos.equals(Vec3.ZERO)) {
+        if (level == null || !contextValid) {
             return fadeCache.getFadeBlocksCache();
         }
+
+        double pX = this.playerX;
+        double pY = this.playerY;
+        double pZ = this.playerZ;
+        double cX = this.cameraX;
+        double cY = this.cameraY;
+        double cZ = this.cameraZ;
 
         int rangeH = Config.getCylinderRadiusHorizontal() + 2;
         int rangeV = Config.getCylinderRadiusVertical() + 3;
 
         int scanRangeXZ = Math.max(rangeH, 4);
 
-        int minX = (int) Math.floor(pPos.x) - scanRangeXZ;
-        int maxX = (int) Math.floor(pPos.x) + scanRangeXZ;
-        int minY = (int) Math.floor(pPos.y) - 1;
-        int maxY = (int) Math.floor(pPos.y) + rangeV;
-        int minZ = (int) Math.floor(pPos.z) - scanRangeXZ;
-        int maxZ = (int) Math.floor(pPos.z) + scanRangeXZ;
+        int minX = (int) Math.floor(pX) - scanRangeXZ;
+        int maxX = (int) Math.floor(pX) + scanRangeXZ;
+        int minY = (int) Math.floor(pY) - 1;
+        int maxY = (int) Math.floor(pY) + rangeV;
+        int minZ = (int) Math.floor(pZ) - scanRangeXZ;
+        int maxZ = (int) Math.floor(pZ) + scanRangeXZ;
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -330,7 +347,8 @@ public final class TopDownCuller {
                         continue;
                     }
 
-                    float alpha = calculateFadeAlpha(mutablePos, level, state);
+                    float alpha = calculateFadeAlpha(mutablePos, level, state,
+                            pX, pY, pZ, cX, cY, cZ);
                     if (alpha < 1.0f && alpha > 0.0f) {
                         fadeCache.putFadeBlock(mutablePos.immutable(), alpha);
 

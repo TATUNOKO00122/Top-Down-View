@@ -110,6 +110,18 @@ public final class CameraState {
         return cameraPosition;
     }
 
+    public double getCameraX() {
+        return cameraPosition.x;
+    }
+
+    public double getCameraY() {
+        return cameraPosition.y;
+    }
+
+    public double getCameraZ() {
+        return cameraPosition.z;
+    }
+
     public CameraType getPreviousCameraType() {
         return previousCameraType;
     }
