@@ -9,8 +9,16 @@ import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.decoration.GlowItemFrame;
+import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.entity.decoration.Painting;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 
 /**
@@ -29,6 +37,7 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final int CACHE_CLEAR_DISTANCE_SQ = 9;
+    private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
 
     private int lastPlayerBlockX = Integer.MIN_VALUE;
     private int lastPlayerBlockY = Integer.MIN_VALUE;
@@ -229,6 +238,78 @@ public final class TopDownCuller {
             lastPlayerBlockY = playerBlockY;
             lastPlayerBlockZ = playerBlockZ;
         }
+
+        updateEntityCulling(mc);
+    }
+
+    private void updateEntityCulling(Minecraft mc) {
+        if (!ModState.STATUS.isEnabled()) {
+            return;
+        }
+
+        if (mc.level == null) {
+            return;
+        }
+
+        if (!contextValid) {
+            return;
+        }
+
+        double pX = this.playerX;
+        double pY = this.playerY;
+        double pZ = this.playerZ;
+        double cX = this.cameraX;
+        double cY = this.cameraY;
+        double cZ = this.cameraZ;
+
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity instanceof Player && entity == mc.player) {
+                continue;
+            }
+
+            if (entity instanceof Cullable) {
+                Cullable cullable = (Cullable) entity;
+
+                if (!isCullableEntityType(entity)) {
+                    cullable.topdownview_setCulled(false);
+                    continue;
+                }
+
+                Vec3 entityPos = entity.position();
+                double ex = entityPos.x;
+                double ey = entityPos.y;
+                double ez = entityPos.z;
+
+                double dx = ex - pX;
+                double dy = ey - pY;
+                double dz = ez - pZ;
+                double distToPlayerSq = dx * dx + dy * dy + dz * dz;
+
+                if (distToPlayerSq <= ENTITY_PROTECTION_RADIUS_SQ) {
+                    cullable.topdownview_setCulled(false);
+                    continue;
+                }
+
+                double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                        ex, ey, ez,
+                        pX, pY, pZ,
+                        cX, cY, cZ);
+
+                if (normalizedDistSq < 0) {
+                    cullable.topdownview_setCulled(false);
+                    continue;
+                }
+
+                cullable.topdownview_setCulled(normalizedDistSq <= 1.0);
+            }
+        }
+    }
+
+    private boolean isCullableEntityType(Entity entity) {
+        return entity instanceof ItemFrame
+            || entity instanceof GlowItemFrame
+            || entity instanceof ArmorStand
+            || entity instanceof Painting;
     }
 
     public void reset() {
@@ -365,5 +446,15 @@ public final class TopDownCuller {
 
     public Map<BlockPos, Float> getFadeBlocksCache() {
         return fadeCache.getFadeBlocksCache();
+    }
+
+    public boolean isEntityCulled(Entity entity) {
+        if (!ModState.STATUS.isEnabled()) {
+            return false;
+        }
+        if (entity instanceof Cullable) {
+            return ((Cullable) entity).topdownview_isCulled();
+        }
+        return false;
     }
 }

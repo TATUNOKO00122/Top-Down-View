@@ -1,13 +1,15 @@
 package com.topdownview.mixin;
 
 import com.topdownview.state.ModState;
+import com.topdownview.culling.TopDownCuller;
+import com.topdownview.culling.Cullable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.OutlineBufferSource;
 import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,8 +21,9 @@ import java.lang.reflect.Method;
 /**
  * LevelRenderer Mixin
  * 
- * 1. Entity Culling対応（優先度100）
- * 2. ターゲットアウトライン色変更（EpicFight式）
+ * 1. エンティティカリング（トップダウン視点）
+ * 2. Entity Culling MOD対応（プレイヤー保護）
+ * 3. ターゲットアウトライン色変更
  */
 @Mixin(value = LevelRenderer.class, priority = 100)
 public class LevelRendererMixin {
@@ -28,59 +31,56 @@ public class LevelRendererMixin {
     @Shadow
     private RenderBuffers renderBuffers;
 
-    private static Class<?> cullableClass = null;
-    private static Method setCulledMethod = null;
-    private static Method setOutOfCameraMethod = null;
+    private static final TopDownCuller CULLER = TopDownCuller.getInstance();
+
+    private static Class<?> entityCullingCullableClass = null;
+    private static Method entityCullingSetCulledMethod = null;
+    private static Method entityCullingSetOutOfCameraMethod = null;
     private static boolean entityCullingLoaded = false;
-    private static boolean reflectionInitialized = false;
+    private static boolean entityCullingReflectionInitialized = false;
 
     static {
-        initializeReflection();
+        initEntityCullingReflection();
     }
 
-    private static void initializeReflection() {
-        if (reflectionInitialized) return;
-        reflectionInitialized = true;
+    private static void initEntityCullingReflection() {
+        if (entityCullingReflectionInitialized) return;
+        entityCullingReflectionInitialized = true;
 
         try {
-            cullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
-            setCulledMethod = cullableClass.getMethod("setCulled", boolean.class);
-            setOutOfCameraMethod = cullableClass.getMethod("setOutOfCamera", boolean.class);
+            entityCullingCullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
+            entityCullingSetCulledMethod = entityCullingCullableClass.getMethod("setCulled", boolean.class);
+            entityCullingSetOutOfCameraMethod = entityCullingCullableClass.getMethod("setOutOfCamera", boolean.class);
             entityCullingLoaded = true;
         } catch (ClassNotFoundException e) {
-            // Entity Culling MODがインストールされていない
         } catch (NoSuchMethodException e) {
-            // メソッドシグネチャが変更されている
         }
     }
 
-    /**
-     * Entity Culling対応：プレイヤーのカリングを防止
-     */
-    @Inject(method = "renderEntity", at = @At("HEAD"))
+    @Inject(method = "renderEntity", at = @At("HEAD"), cancellable = true)
     private void onRenderEntityHead(Entity entity, double camX, double camY, double camZ,
             float partialTick, PoseStack poseStack, MultiBufferSource bufferSource,
             CallbackInfo ci) {
         if (!ModState.STATUS.isEnabled()) return;
-        if (!entityCullingLoaded) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (entity != mc.player) return;
 
-        try {
-            if (cullableClass.isInstance(entity)) {
-                setCulledMethod.invoke(entity, false);
-                setOutOfCameraMethod.invoke(entity, false);
+        if (entity instanceof Player && entity == mc.player) {
+            if (entityCullingLoaded && entityCullingCullableClass.isInstance(entity)) {
+                try {
+                    entityCullingSetCulledMethod.invoke(entity, false);
+                    entityCullingSetOutOfCameraMethod.invoke(entity, false);
+                } catch (Exception e) {
+                }
             }
-        } catch (Exception e) {
-            // リフレクションエラーは無視
+            return;
+        }
+
+        if (entity instanceof Cullable && ((Cullable) entity).topdownview_isCulled()) {
+            ci.cancel();
         }
     }
 
-    /**
-     * ターゲットアウトライン色変更（EpicFight式）
-     * OutlineBufferSource.setColor()の直後に色を上書き
-     */
     @Inject(
         method = "renderLevel",
         at = @At(
@@ -95,11 +95,9 @@ public class LevelRendererMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        // 現在のターゲットを取得
         Entity target = ModState.TARGET_HIGHLIGHT.getCurrentTarget();
         if (target == null) return;
 
-        // アウトライン色を設定
         int[] color = ModState.TARGET_HIGHLIGHT.getOutlineColor();
         this.renderBuffers.outlineBufferSource().setColor(color[0], color[1], color[2], color[3]);
     }
