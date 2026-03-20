@@ -1,7 +1,0 @@
-"@echo off"  
-"set JAVA=C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\java.exe"  
-"set CFR=C:\Users\tatun\Downloads\cfr-152.jar"  
-"set CLASSDIR=E:\Minecraft\MOD\topdown_view\temp_decompile"  
-"set OUTPUT=E:\Minecraft\MOD\topdown_view\decompiled_sources"  
-""  
-"%JAVA% -jar %CFR% --showsemantics \"%CLASSDIR%\com\topdownview\Config.class\" > \"%OUTPUT%\Config_dec.java\"" 

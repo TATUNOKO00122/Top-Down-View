@@ -33,6 +33,12 @@ embeddium-*.jar
 .factorypath
 *.javaa
 nul
+hs_err_pid*.log
+replay_pid*.log
+cfr-*.jar
+decompiled_sources/
+jar_contents.txt
+run_cfr.bat
 
 # AI/Development docs
 docs/AI/

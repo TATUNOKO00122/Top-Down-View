@@ -40,19 +40,20 @@ public final class TopDownCuller {
     private static final int UPDATE_FREQUENCY = 1;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
 
-    private volatile double playerX;
-    private volatile double playerY;
-    private volatile double playerZ;
-    private volatile double cameraX;
-    private volatile double cameraY;
-    private volatile double cameraZ;
-    private volatile boolean contextValid = false;
+    private double playerX;
+    private double playerY;
+    private double playerZ;
+    private double cameraX;
+    private double cameraY;
+    private double cameraZ;
+    private boolean contextValid = false;
 
-    private volatile int lastPlayerBlockX = Integer.MIN_VALUE;
-    private volatile int lastPlayerBlockY = Integer.MIN_VALUE;
-    private volatile int lastPlayerBlockZ = Integer.MIN_VALUE;
+    private int lastPlayerBlockX = Integer.MIN_VALUE;
+    private int lastPlayerBlockY = Integer.MIN_VALUE;
+    private int lastPlayerBlockZ = Integer.MIN_VALUE;
 
-    private volatile long lastFadeBlocksUpdateTick = -1;
+    private long lastFadeBlocksUpdateTick = -1;
+    private boolean cacheClearedOnDisabled = false;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -83,9 +84,14 @@ public final class TopDownCuller {
 
     public boolean isBlockCulled(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled()) {
-            cullingCache.clear();
+            if (!cacheClearedOnDisabled) {
+                cullingCache.clear();
+                fadeCache.clear();
+                cacheClearedOnDisabled = true;
+            }
             return false;
         }
+        cacheClearedOnDisabled = false;
 
         if (level == null) {
             return false;
@@ -205,17 +211,17 @@ public final class TopDownCuller {
         double eyeY = mc.player.getEyeY();
         double eyeZ = mc.player.getZ();
 
-        double rawCameraX = ModState.CAMERA.getCameraX();
-        double rawCameraY = ModState.CAMERA.getCameraY();
-        double rawCameraZ = ModState.CAMERA.getCameraZ();
-
-        if (rawCameraX == 0.0 && rawCameraY == 0.0 && rawCameraZ == 0.0) {
+        if (!com.topdownview.state.CameraState.isPositionValid(ModState.CAMERA.getCameraPosition())) {
             playerX = Math.floor(eyeX) + 0.5;
             playerY = Math.floor(eyeY) + 0.5;
             playerZ = Math.floor(eyeZ) + 0.5;
             contextValid = false;
             return;
         }
+
+        double rawCameraX = ModState.CAMERA.getCameraX();
+        double rawCameraY = ModState.CAMERA.getCameraY();
+        double rawCameraZ = ModState.CAMERA.getCameraZ();
 
         playerX = Math.floor(eyeX) + 0.5;
         playerY = Math.floor(eyeY) + 0.5;
@@ -424,17 +430,7 @@ public final class TopDownCuller {
     }
 
     public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
-        if (!ModState.STATUS.isEnabled()) {
-            fadeCache.clearFadeBlocks();
-            return fadeCache.getFadeBlocksCache();
-        }
-
-        if (ModState.STATUS.isMiningMode()) {
-            fadeCache.clearFadeBlocks();
-            return fadeCache.getFadeBlocksCache();
-        }
-
-        if (!Config.isFadeEnabled()) {
+        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() || !Config.isFadeEnabled()) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
@@ -462,17 +458,15 @@ public final class TopDownCuller {
         double cY = this.cameraY;
         double cZ = this.cameraZ;
 
-        int rangeH = Config.getCylinderRadiusHorizontal() + 2;
-        int rangeV = Config.getCylinderRadiusVertical() + 3;
+        int rangeH = Math.min(Config.getCylinderRadiusHorizontal() + 2, 6);
+        int rangeV = Math.min(Config.getCylinderRadiusVertical() + 3, 8);
 
-        int scanRangeXZ = Math.max(rangeH, 4);
-
-        int minX = (int) Math.floor(pX) - scanRangeXZ;
-        int maxX = (int) Math.floor(pX) + scanRangeXZ;
+        int minX = (int) Math.floor(pX) - rangeH;
+        int maxX = (int) Math.floor(pX) + rangeH;
         int minY = (int) Math.floor(pY) - 1;
         int maxY = (int) Math.floor(pY) + rangeV;
-        int minZ = (int) Math.floor(pZ) - scanRangeXZ;
-        int maxZ = (int) Math.floor(pZ) + scanRangeXZ;
+        int minZ = (int) Math.floor(pZ) - rangeH;
+        int maxZ = (int) Math.floor(pZ) + rangeH;
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -486,10 +480,9 @@ public final class TopDownCuller {
                         continue;
                     }
 
-                    float alpha = calculateFadeAlpha(mutablePos, level, state,
-                            pX, pY, pZ, cX, cY, cZ);
+                    float alpha = calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ);
                     if (alpha < 1.0f && alpha > 0.0f) {
-                        fadeCache.putFadeBlock(mutablePos.immutable(), alpha);
+                        fadeCache.putFadeBlock(new BlockPos(x, y, z), alpha);
 
                         if (fadeCache.isFadeBlocksFull()) {
                             return fadeCache.getFadeBlocksCache();

@@ -45,7 +45,7 @@ public abstract class MinecraftClientMixin {
         }
 
         // GLFWやVanillaのGUI判定に邪魔されず、マウスの左クリック状態を直接見る
-        if (ClickActionHandler.isLeftClickDown) {
+        if (ClickActionHandler.isLeftClickDown()) {
             this.missTime = 0;
 
             if (mc.hitResult != null) {

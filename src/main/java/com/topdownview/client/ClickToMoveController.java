@@ -5,7 +5,6 @@ import com.topdownview.TopDownViewMod;
 import com.topdownview.baritone.BaritoneIntegration;
 import com.topdownview.state.ClickToMoveState;
 import com.topdownview.state.ModState;
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -31,12 +30,10 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.slf4j.Logger;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class ClickToMoveController {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
     private static final double STOP_THRESHOLD = 0.5;
 
     public enum EntityAction {
@@ -110,7 +107,6 @@ public final class ClickToMoveController {
             return;
         }
         if (!BaritoneIntegration.isPathing()) {
-            LOGGER.info("[ClickToMove] Baritone経路完了");
             stop();
         }
     }
@@ -119,17 +115,14 @@ public final class ClickToMoveController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        LOGGER.info("[ClickToMove] 目的地設定: {}", BlockPos.containing(targetPos));
         ModState.CLICK_TO_MOVE.startMoveTo(targetPos, mc.player.position());
 
         if (BaritoneIntegration.isBaritoneAvailable()) {
-            LOGGER.info("[ClickToMove] Baritone経路探索使用");
             ModState.CLICK_TO_MOVE.setUseBaritone(true);
             BaritoneIntegration.pathTo(targetPos);
             return;
         }
 
-        LOGGER.info("[ClickToMove] 直線移動モード");
         ModState.CLICK_TO_MOVE.setUseBaritone(false);
     }
 
@@ -393,16 +386,10 @@ public final class ClickToMoveController {
         double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
         double distSq = mc.player.distanceToSqr(targetEntity.position());
 
-        LOGGER.info("[ClickToMove] tickAttackFollow - distSq: {}, attackRangeSq: {}, canAttack: {}, cooldown: {}, holdMode: {}",
-            distSq, attackRange * attackRange, ModState.CLICK_TO_MOVE.canAttack(), 
-            ModState.CLICK_TO_MOVE.getAttackCooldown(), ModState.CLICK_TO_MOVE.isHoldMode());
-
         if (distSq <= attackRange * attackRange) {
             if (!ModState.CLICK_TO_MOVE.canAttack()) {
                 return;
             }
-
-            LOGGER.info("[ClickToMove] 攻撃実行!");
 
             mc.gameMode.attack(mc.player, targetEntity);
             mc.player.swing(InteractionHand.MAIN_HAND);
@@ -413,10 +400,6 @@ public final class ClickToMoveController {
             int cooldown = (int) (delayInSeconds * 20);
             ModState.CLICK_TO_MOVE.setAttackCooldown(Math.max(5, cooldown));
 
-            LOGGER.info("[ClickToMove] 攻撃後クールダウン設定: {} ticks ({:.2f}秒, attacksPerSecond: {:.2f})", 
-                cooldown, String.format("%.2f", delayInSeconds), String.format("%.2f", attacksPerSecond));
-
-            // ホールドモードでなければ停止
             if (!ModState.CLICK_TO_MOVE.isHoldMode()) {
                 stop();
             }

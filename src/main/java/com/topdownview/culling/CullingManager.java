@@ -16,71 +16,48 @@ import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Method;
 
-/**
- * カリングマネージャー
- * Embeddium連携でチャンク再構築を制御
- */
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
 public final class CullingManager {
 
     private static final Logger LOGGER = LogManager.getLogger();
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
-
     private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
-    private static final String EMBEDDIUM_CLASS = "me.jellysquid.mods.sodium.client.SodiumClientMod";
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
 
-    private static Boolean embeddiumLoaded = null;
+    private static boolean initialized = false;
+    private static boolean initializationFailed = false;
     private static long lastChunkRebuildTime = 0;
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
-    private static Class<?> rendererClass = null;
 
     private CullingManager() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    private static boolean isEmbeddiumLoaded() {
-        if (embeddiumLoaded == null) {
-            try {
-                Class.forName(EMBEDDIUM_CLASS);
-                embeddiumLoaded = true;
-                LOGGER.info("Embeddium detected");
-            } catch (ClassNotFoundException e) {
-                embeddiumLoaded = false;
-                LOGGER.info("Embeddium not detected");
-            }
-        }
-        return embeddiumLoaded;
-    }
-
     private static boolean initializeReflection() {
-        // 成功時のみキャッシュ（再試行を許可）
-        if (instanceMethod != null && rebuildMethod != null) {
-            return true;
-        }
+        if (initialized) return true;
+        if (initializationFailed) return false;
 
         try {
-            rendererClass = Class.forName(SODIUM_RENDERER_CLASS);
+            Class<?> rendererClass = Class.forName(SODIUM_RENDERER_CLASS);
             instanceMethod = rendererClass.getMethod("instance");
             rebuildMethod = rendererClass.getMethod(
                     "scheduleRebuildForBlockArea",
                     int.class, int.class, int.class,
                     int.class, int.class, int.class,
                     boolean.class);
-
+            initialized = true;
             LOGGER.info("Embeddium reflection initialized successfully");
             return true;
-
         } catch (ClassNotFoundException e) {
-            LOGGER.debug("SodiumWorldRenderer class not found (may load later): {}", e.getMessage());
+            LOGGER.error("Embeddium/Sodium not found. TopDownView requires Embeddium. Class: {}", SODIUM_RENDERER_CLASS);
         } catch (NoSuchMethodException e) {
-            LOGGER.warn("Required method not found in SodiumWorldRenderer: {}", e.getMessage());
+            LOGGER.error("Required method not found in SodiumWorldRenderer: {}", e.getMessage());
         } catch (Exception e) {
-            LOGGER.warn("Failed to initialize Embeddium reflection: {}", e.getMessage());
+            LOGGER.error("Failed to initialize Embeddium reflection: {}", e.getMessage());
         }
 
-        // 失敗時も再試行可能（フラグを設定しない）
+        initializationFailed = true;
         return false;
     }
 
@@ -106,7 +83,7 @@ public final class CullingManager {
     }
 
     private static void scheduleChunkRebuildIfNeeded() {
-        if (!isEmbeddiumLoaded()) {
+        if (!initializeReflection()) {
             return;
         }
 
@@ -119,11 +96,10 @@ public final class CullingManager {
         Vec3 playerPos = mc.player.getEyePosition(1.0f);
         Vec3 cameraPos = ModState.CAMERA.getCameraPosition();
 
-        if (cameraPos == com.topdownview.state.CameraState.DEFAULT_POSITION) {
+        if (!com.topdownview.state.CameraState.isPositionValid(cameraPos)) {
             return;
         }
 
-        // モードに応じて円柱のサイズを選択
         int radiusH;
         int radiusV;
         if (ModState.STATUS.isMiningMode()) {
@@ -141,9 +117,7 @@ public final class CullingManager {
     }
 
     private static boolean scheduleChunkRebuildInternal(AABB box) {
-        if (!initializeReflection()) {
-            return false;
-        }
+        if (!initialized) return false;
 
         try {
             Object renderer = instanceMethod.invoke(null);
@@ -157,19 +131,15 @@ public final class CullingManager {
                     (int) box.maxX, (int) box.maxY, (int) box.maxZ,
                     true);
 
-            LOGGER.debug("Scheduled chunk rebuild for area: [{}, {}, {}] to [{}, {}, {}]",
-                    (int) box.minX, (int) box.minY, (int) box.minZ,
-                    (int) box.maxX, (int) box.maxY, (int) box.maxZ);
-
             return true;
 
         } catch (IllegalAccessException e) {
-            LOGGER.warn("Cannot access Embeddium method: {}", e.getMessage());
+            LOGGER.error("Cannot access Embeddium method: {}", e.getMessage());
         } catch (java.lang.reflect.InvocationTargetException e) {
-            LOGGER.warn("Embeddium method invocation failed: {}",
+            LOGGER.error("Embeddium method invocation failed: {}",
                     e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (Exception e) {
-            LOGGER.warn("Failed to schedule chunk rebuild: {}", e.getMessage());
+            LOGGER.error("Failed to schedule chunk rebuild: {}", e.getMessage());
         }
 
         return false;
@@ -192,7 +162,7 @@ public final class CullingManager {
         CULLER.reset();
         lastChunkRebuildTime = 0;
 
-        if (isEmbeddiumLoaded() && initializeReflection()) {
+        if (initializeReflection()) {
             Vec3 playerPos = mc.player.getEyePosition(1.0f);
             double renderDistance = mc.options.getEffectiveRenderDistance() * 16;
             AABB box = new AABB(

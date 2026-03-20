@@ -42,59 +42,32 @@ public final class ClientForgeEvents {
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        // PauseScreen以外は無視
         if (!(event.getScreen() instanceof PauseScreen screen)) {
             return;
         }
 
-        LOGGER.info("PauseScreen initialized, screen size: {}x{}", screen.width, screen.height);
-
-        // renderablesがnullの場合は処理をスキップ
         if (screen.renderables == null) {
-            LOGGER.warn("Renderables is null, skipping button addition");
             return;
         }
 
-        // デバッグ: すべてのボタンをログ出力（childrenとrenderablesの両方を確認）
-        LOGGER.info("Children count: {}", screen.children().size());
-        LOGGER.info("Renderables count: {}", screen.renderables.size());
-
-        // renderablesからボタンを探す（PauseScreenではこちらにボタンが入っている）
         screen.renderables.stream()
                 .filter(renderable -> renderable instanceof Button)
                 .map(renderable -> (Button) renderable)
-                .forEach(button -> LOGGER.info("Button found: '{}' at ({}, {})",
-                        button.getMessage().getString(), button.getX(), button.getY()));
-
-        // 画面右下エリアのボタンを特定（renderablesから検索）
-        screen.renderables.stream()
-                .filter(renderable -> renderable instanceof Button)
-                .map(renderable -> (Button) renderable)
-                .filter(button -> button.getX() > screen.width / 2) // 右半分のボタン
-                .filter(button -> button.getY() > screen.height - 60) // 下部のボタン
-                .max(java.util.Comparator.comparingInt(Button::getX)) // 最も右にあるボタン
-                .ifPresentOrElse(rightmostBottomButton -> {
-                    LOGGER.info("Target button found at ({}, {})", rightmostBottomButton.getX(),
-                            rightmostBottomButton.getY());
-                    // オプションボタンの左隣に設定ボタンを配置
+                .filter(button -> button.getX() > screen.width / 2)
+                .filter(button -> button.getY() > screen.height - 60)
+                .max(java.util.Comparator.comparingInt(Button::getX))
+                .ifPresent(rightmostBottomButton -> {
                     int x = rightmostBottomButton.getX() - BUTTON_SIZE - BUTTON_SPACING;
                     int y = rightmostBottomButton.getY();
 
-                    LOGGER.info("Adding config button at ({}, {})", x, y);
-
                     Button configButton = Button.builder(
                             Component.literal("⚙"),
-                            (button) -> {
-                                LOGGER.info("Config button clicked");
-                                Minecraft.getInstance().setScreen(new ConfigScreen(screen));
-                            })
+                            (button) -> Minecraft.getInstance().setScreen(new ConfigScreen(screen)))
                             .bounds(x, y, BUTTON_SIZE, BUTTON_SIZE)
                             .tooltip(Tooltip.create(Component.translatable("topdown_view.pause.config_button.tooltip")))
                             .build();
 
-                    // ScreenEvent.Init.Post では addListener を使用してボタンを追加
                     event.addListener(configButton);
-                    LOGGER.info("Config button added to screen");
-                }, () -> LOGGER.warn("No suitable button found in bottom-right area"));
+                });
     }
 }

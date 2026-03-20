@@ -1,6 +1,0 @@
-"# Key Translation Changes: '整列' → '回転'"  
-""  
-"## Files Analyzed"  
-"- Decompiled source: decompiled_sources/Config_dec.java"  
-"- Translation file (JAR): temp_decompile/assets/topdown_view/lang/ja_jp.json"  
-"- Translation file (repo): src/main/resources/assets/topdown_view/lang/ja_jp.json" 

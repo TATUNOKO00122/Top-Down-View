@@ -255,19 +255,6 @@ public final class ClickToMoveState {
     }
 
     public void stopMovement() {
-        isMoving = false;
-        targetPosition = null;
-        originalLocation = null;
-        targetEntity = null;
-        useBaritone = false;
-        baritoneStartTick = 0;
-        baritonePathStarted = false;
-        isAttacking = false;
-        attackCooldown = 0;
-        isDestroying = false;
-        destroyTargetBlock = null;
-        isInteracting = false;
-        interactTargetBlock = null;
-        isHoldMode = false;
+        reset();
     }
 }

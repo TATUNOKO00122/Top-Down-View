@@ -1,9 +1,0 @@
-Manifest-Version: 1.0
-Specification-Title: topdown_view
-Specification-Vendor: dev_f4m24hve
-Specification-Version: 1
-Implementation-Title: topdown_view
-Implementation-Version: 1.3.3
-Implementation-Timestamp: 2026-03-08T04:45:56+0900
-MixinConfigs: topdown_view.mixins.json,topdown_view_compat.mixins.json
-

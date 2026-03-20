@@ -26,7 +26,11 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
  * - 射程内：白色アウトライン
  * - 射程外：赤色アウトライン
  */
-public class TargetHighlightRenderer {
+public final class TargetHighlightRenderer {
+
+    private TargetHighlightRenderer() {
+        throw new IllegalStateException("ユーティリティクラス");
+    }
 
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES)

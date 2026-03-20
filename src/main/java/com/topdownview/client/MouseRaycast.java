@@ -44,22 +44,22 @@ public final class MouseRaycast {
 
     public static final MouseRaycast INSTANCE = new MouseRaycast();
 
-    // 結果キャッシュ（volatileでスレッド安全性を確保）
-    private volatile BlockHitResult lastBlockHit = null;
-    private volatile EntityHitResult lastEntityHit = null;
-    private volatile net.minecraft.world.phys.HitResult lastHitResult = null;
+    private static final double EPSILON = 1e-6;
 
-    // 方向キャッシュ（volatileでスレッド安全性を確保）
-    private volatile Vec3 cachedDirection = null;
-    private volatile double lastFov = -1;
-    private volatile double lastAspectRatio = -1;
-    private volatile double lastMouseX = -1;
-    private volatile double lastMouseY = -1;
-    private volatile double lastYaw = -1;
-    private volatile double lastPitch = -1;
+    private BlockHitResult lastBlockHit = null;
+    private EntityHitResult lastEntityHit = null;
+    private net.minecraft.world.phys.HitResult lastHitResult = null;
 
-    private volatile long lastUpdateGameTime = -1;
-    private volatile float lastPartialTick = -1;
+    private Vec3 cachedDirection = null;
+    private double lastFov = -1;
+    private double lastAspectRatio = -1;
+    private double lastMouseX = -1;
+    private double lastMouseY = -1;
+    private double lastYaw = -1;
+    private double lastPitch = -1;
+
+    private long lastUpdateGameTime = -1;
+    private float lastPartialTick = -1;
 
     private MouseRaycast() {
     }
@@ -293,9 +293,13 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
         }
         double yaw = ModState.CAMERA.getYaw();
 
-        if (cachedDirection != null && mouseX == lastMouseX && mouseY == lastMouseY
-                && fov == lastFov && aspectRatio == lastAspectRatio
-                && yaw == lastYaw && pitch == lastPitch) {
+        if (cachedDirection != null
+                && Math.abs(mouseX - lastMouseX) < EPSILON
+                && Math.abs(mouseY - lastMouseY) < EPSILON
+                && Math.abs(fov - lastFov) < EPSILON
+                && Math.abs(aspectRatio - lastAspectRatio) < EPSILON
+                && Math.abs(yaw - lastYaw) < EPSILON
+                && Math.abs(pitch - lastPitch) < EPSILON) {
             return cachedDirection;
         }
 

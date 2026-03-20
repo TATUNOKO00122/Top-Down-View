@@ -14,13 +14,17 @@ import net.minecraft.world.phys.Vec3;
 
 public final class ClickActionHandler {
 
-    public static boolean isLeftClickDown = false;
+    private static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
     private static int leftClickHoldTicks = 0;
     private static final int HOLD_THRESHOLD_TICKS = 5;
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
+    }
+
+    public static boolean isLeftClickDown() {
+        return isLeftClickDown;
     }
 
     public static boolean onInput(int button, int action, Minecraft mc) {

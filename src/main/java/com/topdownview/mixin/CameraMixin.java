@@ -14,12 +14,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * CameraMixin
- * トップダウンビューのカメラ位置と回転を制御
- */
 @Mixin(value = Camera.class, priority = 1000)
 public abstract class CameraMixin {
+
+    private static final double DT = 0.05;
+    private static final double MIN_DELAY = 0.001;
 
     @Shadow
     public abstract void setPosition(Vec3 pos);
@@ -30,10 +29,18 @@ public abstract class CameraMixin {
     @Shadow
     public abstract Vec3 getPosition();
 
-    /**
-     * カメラがブロックに埋もれた際に起こるチャンクのOcclusion Cullingバグを防止するため、
-     * カメラのブロック位置としてプレイヤーの位置を返すよう偽装する。
-     */
+    private double cachedDelayY = -1;
+    private double cachedLerpFactorY = 0;
+    private double cachedDelayX = -1;
+    private double cachedLerpFactorX = 0;
+    private double cachedDelayZ = -1;
+    private double cachedLerpFactorZ = 0;
+
+    private static double computeLerpFactor(double delaySeconds) {
+        if (delaySeconds <= MIN_DELAY) return 1.0;
+        return 1.0 - Math.exp(-DT / delaySeconds);
+    }
+
     @Inject(method = "getBlockPosition", at = @At("HEAD"), cancellable = true)
     private void onGetBlockPosition(CallbackInfoReturnable<BlockPos> cir) {
         if (ModState.STATUS.isEnabled()) {
@@ -44,9 +51,6 @@ public abstract class CameraMixin {
         }
     }
 
-    /**
-     * TAILでカメラを上書き
-     */
     @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
     private void onSetupTail(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
@@ -60,25 +64,19 @@ public abstract class CameraMixin {
             return;
         }
 
-        // フリーカメラモード: フレーム開始時に前回値を保存（補間用）
+        updateFreeCameraMode();
+
         if (ModState.CAMERA.isFreeCameraMode()) {
-            ModState.CAMERA.updatePrevYaw();
             ModState.CAMERA.updatePrevFreeCameraPitch();
         }
-
-        // フリーカメラモードの更新（毎フレーム）
-        updateFreeCameraMode();
 
         double targetX = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
-        // Y軸遅延追従処理
-        double cameraY = calculateCameraY(targetY, partialTick);
-
-        // X軸・Z軸遅延追従処理
-        double cameraBaseX = calculateCameraX(targetX, partialTick);
-        double cameraBaseZ = calculateCameraZ(targetZ, partialTick);
+        double cameraY = calculateCameraY(targetY);
+        double cameraBaseX = calculateCameraX(targetX);
+        double cameraBaseZ = calculateCameraZ(targetZ);
 
         double distance = ModState.CAMERA.getCameraDistance();
         float pitch;
@@ -156,11 +154,7 @@ public abstract class CameraMixin {
         ModState.CAMERA.setLastMouseY(currentMouseY);
     }
 
-    /**
-     * Y軸の遅延追従を計算
-     * 遅延時間に基づいて指数減衰で滑らかに追従
-     */
-    private double calculateCameraY(double targetY, float partialTick) {
+    private double calculateCameraY(double targetY) {
         if (!com.topdownview.Config.isCameraYFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraY(targetY);
             ModState.CAMERA.setCurrentCameraY(targetY);
@@ -185,22 +179,18 @@ public abstract class CameraMixin {
             return targetY;
         }
 
-        // 指数減衰による遅延追従
-        // dtは約0.05秒（20TPS）、フレームレートに依存しないよう固定値を使用
-        double dt = 0.05;
-        double lerpFactor = 1.0 - Math.exp(-dt / delaySeconds);
+        if (cachedDelayY != delaySeconds) {
+            cachedDelayY = delaySeconds;
+            cachedLerpFactorY = computeLerpFactor(delaySeconds);
+        }
 
-        double newY = currentY + (targetY - currentY) * lerpFactor;
+        double newY = currentY + (targetY - currentY) * cachedLerpFactorY;
         ModState.CAMERA.setCurrentCameraY(newY);
 
         return newY;
     }
 
-    /**
-     * X軸の遅延追従を計算
-     * 遅延時間に基づいて指数減衰で滑らかに追従
-     */
-    private double calculateCameraX(double targetX, float partialTick) {
+    private double calculateCameraX(double targetX) {
         if (!com.topdownview.Config.isCameraXFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraX(targetX);
             ModState.CAMERA.setCurrentCameraX(targetX);
@@ -225,20 +215,18 @@ public abstract class CameraMixin {
             return targetX;
         }
 
-        double dt = 0.05;
-        double lerpFactor = 1.0 - Math.exp(-dt / delaySeconds);
+        if (cachedDelayX != delaySeconds) {
+            cachedDelayX = delaySeconds;
+            cachedLerpFactorX = computeLerpFactor(delaySeconds);
+        }
 
-        double newX = currentX + (targetX - currentX) * lerpFactor;
+        double newX = currentX + (targetX - currentX) * cachedLerpFactorX;
         ModState.CAMERA.setCurrentCameraX(newX);
 
         return newX;
     }
 
-    /**
-     * Z軸の遅延追従を計算
-     * 遅延時間に基づいて指数減衰で滑らかに追従
-     */
-    private double calculateCameraZ(double targetZ, float partialTick) {
+    private double calculateCameraZ(double targetZ) {
         if (!com.topdownview.Config.isCameraZFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraZ(targetZ);
             ModState.CAMERA.setCurrentCameraZ(targetZ);
@@ -263,10 +251,12 @@ public abstract class CameraMixin {
             return targetZ;
         }
 
-        double dt = 0.05;
-        double lerpFactor = 1.0 - Math.exp(-dt / delaySeconds);
+        if (cachedDelayZ != delaySeconds) {
+            cachedDelayZ = delaySeconds;
+            cachedLerpFactorZ = computeLerpFactor(delaySeconds);
+        }
 
-        double newZ = currentZ + (targetZ - currentZ) * lerpFactor;
+        double newZ = currentZ + (targetZ - currentZ) * cachedLerpFactorZ;
         ModState.CAMERA.setCurrentCameraZ(newZ);
 
         return newZ;

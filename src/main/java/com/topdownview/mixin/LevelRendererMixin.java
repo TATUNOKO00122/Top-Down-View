@@ -4,12 +4,14 @@ import com.topdownview.state.ModState;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.culling.Cullable;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,6 +31,8 @@ import java.lang.invoke.MethodType;
  */
 @Mixin(value = LevelRenderer.class, priority = 100)
 public class LevelRendererMixin {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Shadow
     private RenderBuffers renderBuffers;
@@ -55,9 +59,11 @@ public class LevelRendererMixin {
             entityCullingSetCulledHandle = lookup.findVirtual(entityCullingCullableClass, "setCulled", MethodType.methodType(void.class, boolean.class));
             entityCullingSetOutOfCameraHandle = lookup.findVirtual(entityCullingCullableClass, "setOutOfCamera", MethodType.methodType(void.class, boolean.class));
             entityCullingLoaded = true;
+            LOGGER.debug("[TopDownView] Entity Culling MOD integration initialized");
         } catch (ClassNotFoundException e) {
-        } catch (NoSuchMethodException e) {
-        } catch (IllegalAccessException e) {
+            LOGGER.debug("[TopDownView] Entity Culling MOD not found, skipping integration");
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            LOGGER.warn("[TopDownView] Failed to initialize Entity Culling MOD integration: {}", e.getMessage());
         }
     }
 
@@ -75,6 +81,7 @@ public class LevelRendererMixin {
                     entityCullingSetCulledHandle.invoke(entity, false);
                     entityCullingSetOutOfCameraHandle.invoke(entity, false);
                 } catch (Throwable e) {
+                    LOGGER.warn("[TopDownView] Entity Culling MOD reflection failed: {}", e.getMessage());
                 }
             }
             return;

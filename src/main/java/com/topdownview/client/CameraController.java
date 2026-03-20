@@ -1,6 +1,7 @@
 package com.topdownview.client;
 
 import com.topdownview.state.ModState;
+import com.topdownview.state.CameraState;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.culling.CullingManager;
 import com.topdownview.util.MathConstants;
@@ -96,11 +97,7 @@ public final class CameraController {
         float targetYaw = ModState.CAMERA.getTargetYaw();
 
         // 角度の差分を計算（最短距離で回転）
-        float diff = targetYaw - currentYaw;
-        while (diff < -180.0f)
-            diff += 360.0f;
-        while (diff > 180.0f)
-            diff -= 360.0f;
+float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
 
         if (Math.abs(diff) < 0.1f) {
             ModState.CAMERA.setYaw(targetYaw);
@@ -181,11 +178,8 @@ public final class CameraController {
         // カメラ距離をデフォルト値で初期化
         try {
             double defaultDistance = com.topdownview.state.CameraState.getEffectiveDefaultCameraDistance();
-            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Setting camera distance to: {}", defaultDistance);
             ModState.CAMERA.setCameraDistance(defaultDistance);
-            com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][CameraController] Camera distance set successfully. Current value: {}", ModState.CAMERA.getCameraDistance());
         } catch (IllegalArgumentException e) {
-            // 設定値が無効な場合はフォールバック
             com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraController] Failed to set default camera distance, using fallback: {}", e.getMessage());
             ModState.CAMERA.setCameraDistance(com.topdownview.state.CameraState.DEFAULT_CAMERA_DISTANCE);
         }
@@ -233,9 +227,7 @@ public final class CameraController {
 
     private static void alignToYaw(float targetYaw) {
         float currentYaw = ModState.CAMERA.getYaw();
-        float angleDiff = targetYaw - currentYaw;
-        while (angleDiff < -180.0f) angleDiff += 360.0f;
-        while (angleDiff > 180.0f) angleDiff -= 360.0f;
+        float angleDiff = CameraState.normalizeAngle(targetYaw - currentYaw);
         
         if (Math.abs(angleDiff) < 5.0f) {
             ModState.CAMERA.setYaw(targetYaw);
@@ -271,9 +263,7 @@ public final class CameraController {
         float currentDirection = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES);
 
         // 方向安定性チェック
-        float directionDiff = currentDirection - ModState.CAMERA.getLastMovementDirection();
-        while (directionDiff < -180.0f) directionDiff += 360.0f;
-        while (directionDiff > 180.0f) directionDiff -= 360.0f;
+        float directionDiff = CameraState.normalizeAngle(currentDirection - ModState.CAMERA.getLastMovementDirection());
 
         if (Math.abs(directionDiff) <= com.topdownview.Config.getStableDirectionAngle()) {
             ModState.CAMERA.setStableDirectionTicks(ModState.CAMERA.getStableDirectionTicks() + 1);
@@ -288,9 +278,7 @@ public final class CameraController {
 
         // 角度差チェック
         float currentYaw = ModState.CAMERA.getYaw();
-        float angleDiff = targetYaw - currentYaw;
-        while (angleDiff < -180.0f) angleDiff += 360.0f;
-        while (angleDiff > 180.0f) angleDiff -= 360.0f;
+        float angleDiff = CameraState.normalizeAngle(targetYaw - currentYaw);
 
         if (Math.abs(angleDiff) < com.topdownview.Config.getAutoAlignAngleThreshold()) return;
 

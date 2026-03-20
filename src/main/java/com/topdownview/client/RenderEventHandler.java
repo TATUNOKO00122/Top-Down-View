@@ -8,7 +8,11 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, value = Dist.CLIENT)
-public class RenderEventHandler {
+public final class RenderEventHandler {
+
+    private RenderEventHandler() {
+        throw new IllegalStateException("ユーティリティクラス");
+    }
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
