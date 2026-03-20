@@ -65,6 +65,15 @@ public final class CameraState {
     private volatile boolean cameraXInitialized = false;
     private volatile boolean cameraZInitialized = false;
 
+    // フリーカメラモード用状態
+    private volatile boolean isFreeCameraMode = false;
+    private volatile float freeCameraPitch = DEFAULT_PITCH;
+    private volatile float prevFreeCameraPitch = DEFAULT_PITCH;
+    private volatile double lastMouseX = 0.0;
+    private volatile double lastMouseY = 0.0;
+    private volatile boolean freeCameraMouseInitialized = false;
+    private volatile boolean freeCameraPitchAdjusted = false;
+
     private CameraState() {
     }
 
@@ -349,6 +358,70 @@ public final class CameraState {
         cameraZInitialized = value;
     }
 
+    // ==================== Free Camera Mode Getters ====================
+
+    public boolean isFreeCameraMode() {
+        return isFreeCameraMode;
+    }
+
+    public float getFreeCameraPitch() {
+        return freeCameraPitch;
+    }
+
+    public float getPrevFreeCameraPitch() {
+        return prevFreeCameraPitch;
+    }
+
+    public float getLerpFreeCameraPitch(float partialTicks) {
+        return prevFreeCameraPitch + (freeCameraPitch - prevFreeCameraPitch) * partialTicks;
+    }
+
+    // ==================== Free Camera Mode Setters ====================
+
+    public void setFreeCameraMode(boolean value) {
+        isFreeCameraMode = value;
+    }
+
+    public void setFreeCameraPitch(float value) {
+        freeCameraPitch = clampPitch(value);
+    }
+
+    public void updatePrevFreeCameraPitch() {
+        prevFreeCameraPitch = freeCameraPitch;
+    }
+
+    public double getLastMouseX() {
+        return lastMouseX;
+    }
+
+    public double getLastMouseY() {
+        return lastMouseY;
+    }
+
+    public boolean isFreeCameraMouseInitialized() {
+        return freeCameraMouseInitialized;
+    }
+
+    public void setLastMouseX(double value) {
+        lastMouseX = value;
+    }
+
+    public void setLastMouseY(double value) {
+        lastMouseY = value;
+    }
+
+    public void setFreeCameraMouseInitialized(boolean value) {
+        freeCameraMouseInitialized = value;
+    }
+
+    public boolean isFreeCameraPitchAdjusted() {
+        return freeCameraPitchAdjusted;
+    }
+
+    public void setFreeCameraPitchAdjusted(boolean value) {
+        freeCameraPitchAdjusted = value;
+    }
+
     /**
      * カメラ距離を増加
      */
@@ -399,6 +472,13 @@ public final class CameraState {
         targetCameraZ = 0.0;
         cameraXInitialized = false;
         cameraZInitialized = false;
+        isFreeCameraMode = false;
+        freeCameraPitch = DEFAULT_PITCH;
+        prevFreeCameraPitch = DEFAULT_PITCH;
+        lastMouseX = 0.0;
+        lastMouseY = 0.0;
+        freeCameraMouseInitialized = false;
+        freeCameraPitchAdjusted = false;
     }
 
     /**

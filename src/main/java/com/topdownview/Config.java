@@ -158,6 +158,12 @@ public class Config {
         private static final ForgeConfigSpec.DoubleValue CAMERA_Z_FOLLOW_DELAY = BUILDER
                         .defineInRange("cameraZFollowDelay", 1.0, 0.0, 4.0);
 
+        private static final ForgeConfigSpec.DoubleValue FREE_CAMERA_YAW_SENSITIVITY = BUILDER
+                        .defineInRange("freeCameraYawSensitivity", 0.3, 0.01, 1.0);
+
+        private static final ForgeConfigSpec.DoubleValue FREE_CAMERA_PITCH_SENSITIVITY = BUILDER
+                        .defineInRange("freeCameraPitchSensitivity", 0.2, 0.01, 1.0);
+
         public static final ForgeConfigSpec SPEC = BUILDER.build();
 
         private static int cylinderRadiusHorizontal;
@@ -211,8 +217,11 @@ public class Config {
 	private static boolean cameraXFollowDelayEnabled;
 	private static double cameraXFollowDelay;
 
-	private static boolean cameraZFollowDelayEnabled;
-	private static double cameraZFollowDelay;
+private static boolean cameraZFollowDelayEnabled;
+        private static double cameraZFollowDelay;
+
+        private static double freeCameraYawSensitivity;
+        private static double freeCameraPitchSensitivity;
 
         public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
         public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -257,8 +266,10 @@ public class Config {
 	public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
 	public static boolean isCameraXFollowDelayEnabled() { return cameraXFollowDelayEnabled; }
 	public static double getCameraXFollowDelay() { return cameraXFollowDelay; }
-	public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
-	public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
+public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
+        public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
+        public static double getFreeCameraYawSensitivity() { return freeCameraYawSensitivity; }
+        public static double getFreeCameraPitchSensitivity() { return freeCameraPitchSensitivity; }
 
         public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = value; }
         public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = value; }
@@ -303,8 +314,10 @@ public class Config {
 	public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = value; }
 	public static void setCameraXFollowDelayEnabled(boolean value) { cameraXFollowDelayEnabled = value; }
 	public static void setCameraXFollowDelay(double value) { cameraXFollowDelay = value; }
-	public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDelayEnabled = value; }
-	public static void setCameraZFollowDelay(double value) { cameraZFollowDelay = value; }
+public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDelayEnabled = value; }
+        public static void setCameraZFollowDelay(double value) { cameraZFollowDelay = value; }
+        public static void setFreeCameraYawSensitivity(double value) { freeCameraYawSensitivity = value; }
+        public static void setFreeCameraPitchSensitivity(double value) { freeCameraPitchSensitivity = value; }
 
         @SubscribeEvent
         static void onLoad(final ModConfigEvent event) {
@@ -353,6 +366,8 @@ public class Config {
 		cameraXFollowDelay = CAMERA_X_FOLLOW_DELAY.get();
 		cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.get();
 		cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.get();
+		freeCameraYawSensitivity = FREE_CAMERA_YAW_SENSITIVITY.get();
+		freeCameraPitchSensitivity = FREE_CAMERA_PITCH_SENSITIVITY.get();
 
                 com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
 
@@ -407,6 +422,8 @@ public class Config {
 	CAMERA_X_FOLLOW_DELAY.set(cameraXFollowDelay);
 	CAMERA_Z_FOLLOW_DELAY_ENABLED.set(cameraZFollowDelayEnabled);
 	CAMERA_Z_FOLLOW_DELAY.set(cameraZFollowDelay);
+	FREE_CAMERA_YAW_SENSITIVITY.set(freeCameraYawSensitivity);
+	FREE_CAMERA_PITCH_SENSITIVITY.set(freeCameraPitchSensitivity);
 	SPEC.save();
                 com.topdownview.TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
                 notifyConfigChanged();

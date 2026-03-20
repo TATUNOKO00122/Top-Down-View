@@ -49,6 +49,11 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
+    public static final KeyMapping FREE_CAMERA_KEY = new KeyMapping(
+            "key.topdown_view.free_camera",
+            GLFW.GLFW_KEY_C,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
@@ -58,6 +63,7 @@ public class ClientModBusEvents {
         event.register(DRAG_ROTATE_KEY);
         event.register(MINING_MODE_KEY);
         event.register(DESTROY_KEY);
+        event.register(FREE_CAMERA_KEY);
     }
 
 

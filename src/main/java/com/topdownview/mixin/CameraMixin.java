@@ -60,6 +60,9 @@ public abstract class CameraMixin {
             return;
         }
 
+        // フリーカメラモードの更新（毎フレーム）
+        updateFreeCameraMode();
+
         double targetX = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
@@ -72,7 +75,16 @@ public abstract class CameraMixin {
         double cameraBaseZ = calculateCameraZ(targetZ, partialTick);
 
         double distance = ModState.CAMERA.getCameraDistance();
-        float pitch = ModState.STATUS.isMiningMode() ? (float) com.topdownview.Config.getMiningModePitch() : (float) com.topdownview.Config.getCameraPitch();
+        float pitch;
+        if (ModState.CAMERA.isFreeCameraMode()) {
+            pitch = ModState.CAMERA.getLerpFreeCameraPitch(partialTick);
+        } else if (ModState.CAMERA.isFreeCameraPitchAdjusted()) {
+            pitch = ModState.CAMERA.getFreeCameraPitch();
+        } else if (ModState.STATUS.isMiningMode()) {
+            pitch = (float) com.topdownview.Config.getMiningModePitch();
+        } else {
+            pitch = (float) com.topdownview.Config.getCameraPitch();
+        }
         float yaw = ModState.CAMERA.getLerpYaw(partialTick);
 
         double radPitch = pitch * MathConstants.DEGREES_TO_RADIANS;
@@ -88,6 +100,53 @@ public abstract class CameraMixin {
 
         ModState.CAMERA.setPitch(pitch);
         ModState.CAMERA.setCameraPosition(this.getPosition());
+    }
+
+    private void updateFreeCameraMode() {
+        if (!ModState.CAMERA.isFreeCameraMode()) {
+            return;
+        }
+
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.screen != null) {
+            return;
+        }
+
+        double currentMouseX = mc.mouseHandler.xpos();
+        double currentMouseY = mc.mouseHandler.ypos();
+
+        if (!ModState.CAMERA.isFreeCameraMouseInitialized()) {
+            ModState.CAMERA.setLastMouseX(currentMouseX);
+            ModState.CAMERA.setLastMouseY(currentMouseY);
+            ModState.CAMERA.setFreeCameraMouseInitialized(true);
+            ModState.CAMERA.updatePrevFreeCameraPitch();
+            return;
+        }
+
+        double lastX = ModState.CAMERA.getLastMouseX();
+        double lastY = ModState.CAMERA.getLastMouseY();
+
+        double deltaX = currentMouseX - lastX;
+        double deltaY = currentMouseY - lastY;
+
+        double yawSensitivity = com.topdownview.Config.getFreeCameraYawSensitivity();
+        double pitchSensitivity = com.topdownview.Config.getFreeCameraPitchSensitivity();
+
+        float currentYaw = ModState.CAMERA.getYaw();
+        float currentPitch = ModState.CAMERA.getFreeCameraPitch();
+
+        float newYaw = currentYaw + (float) (deltaX * yawSensitivity);
+        float newPitch = currentPitch + (float) (deltaY * pitchSensitivity);
+
+        newPitch = Math.max(0.0f, Math.min(90.0f, newPitch));
+
+        ModState.CAMERA.setYaw(newYaw);
+        ModState.CAMERA.setFreeCameraPitch(newPitch);
+        ModState.CAMERA.setFreeCameraPitchAdjusted(true);
+        ModState.CAMERA.updatePrevFreeCameraPitch();
+
+        ModState.CAMERA.setLastMouseX(currentMouseX);
+        ModState.CAMERA.setLastMouseY(currentMouseY);
     }
 
     /**

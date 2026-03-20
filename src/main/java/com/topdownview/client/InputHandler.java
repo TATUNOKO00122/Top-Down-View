@@ -19,6 +19,21 @@ public final class InputHandler {
 
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null)
+            return;
+
+        int freeCameraKeyCode = ClientModBusEvents.FREE_CAMERA_KEY.getKey().getValue();
+
+        if (event.getKey() == freeCameraKeyCode && ModState.STATUS.isEnabled()) {
+            if (event.getAction() == GLFW.GLFW_PRESS) {
+                startFreeCameraMode(mc);
+            } else if (event.getAction() == GLFW.GLFW_RELEASE) {
+                stopFreeCameraMode(mc);
+            }
+            return;
+        }
+
         if (event.getAction() != GLFW.GLFW_PRESS)
             return;
         handleInput(event.getKey());
@@ -89,6 +104,18 @@ public final class InputHandler {
         ModState.CAMERA.setDragging(false);
         // カーソルを通常モードに戻す
         Minecraft mc = Minecraft.getInstance();
+        org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
+    }
+
+    private static void startFreeCameraMode(Minecraft mc) {
+        ModState.CAMERA.setFreeCameraMode(true);
+        org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED);
+    }
+
+    private static void stopFreeCameraMode(Minecraft mc) {
+        ModState.CAMERA.setFreeCameraMode(false);
         org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
                 org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
     }
