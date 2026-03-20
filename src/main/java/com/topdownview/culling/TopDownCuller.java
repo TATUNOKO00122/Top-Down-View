@@ -9,7 +9,9 @@ import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.GlowItemFrame;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -247,7 +249,7 @@ public final class TopDownCuller {
             return;
         }
 
-        if (mc.level == null) {
+        if (mc.level == null || mc.player == null) {
             return;
         }
 
@@ -262,6 +264,8 @@ public final class TopDownCuller {
         double cY = this.cameraY;
         double cZ = this.cameraZ;
 
+        int playerFeetBlockY = (int) Math.floor(mc.player.getY());
+
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof Player && entity == mc.player) {
                 continue;
@@ -275,38 +279,83 @@ public final class TopDownCuller {
                     continue;
                 }
 
-                Vec3 entityPos = entity.position();
-                double ex = entityPos.x;
-                double ey = entityPos.y;
-                double ez = entityPos.z;
+                boolean isMob = entity instanceof Mob;
+                boolean shouldCull;
 
-                double dx = ex - pX;
-                double dy = ey - pY;
-                double dz = ez - pZ;
-                double distToPlayerSq = dx * dx + dy * dy + dz * dz;
-
-                if (distToPlayerSq <= ENTITY_PROTECTION_RADIUS_SQ) {
-                    cullable.topdownview_setCulled(false);
-                    continue;
+                if (isMob) {
+                    shouldCull = shouldCullMob(entity, mc, playerFeetBlockY);
+                } else {
+                    shouldCull = shouldCullDecorativeEntity(entity, pX, pY, pZ, cX, cY, cZ);
                 }
 
-                double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
-                        ex, ey, ez,
-                        pX, pY, pZ,
-                        cX, cY, cZ);
-
-                if (normalizedDistSq < 0) {
-                    cullable.topdownview_setCulled(false);
-                    continue;
-                }
-
-                cullable.topdownview_setCulled(normalizedDistSq <= 1.0);
+                cullable.topdownview_setCulled(shouldCull);
             }
         }
     }
 
+    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY) {
+        int entityBlockY = entity.getBlockY();
+
+        if (entityBlockY <= playerFeetBlockY + 1) {
+            return false;
+        }
+
+        if (!isEntityGrounded(entity, mc)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
+        Vec3 entityPos = entity.position();
+        double ex = entityPos.x;
+        double ey = entityPos.y;
+        double ez = entityPos.z;
+
+        double dx = ex - pX;
+        double dy = ey - pY;
+        double dz = ez - pZ;
+        double distToPlayerSq = dx * dx + dy * dy + dz * dz;
+
+        if (distToPlayerSq <= ENTITY_PROTECTION_RADIUS_SQ) {
+            return false;
+        }
+
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                ex, ey, ez,
+                pX, pY, pZ,
+                cX, cY, cZ);
+
+        if (normalizedDistSq < 0) {
+            return false;
+        }
+
+        return normalizedDistSq <= 1.0;
+    }
+
+    private boolean isEntityGrounded(Entity entity, Minecraft mc) {
+        if (mc.level == null) {
+            return false;
+        }
+
+        int entityBlockY = entity.getBlockY();
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+        for (int yOffset = 0; yOffset <= 2; yOffset++) {
+            mutablePos.set(entity.getBlockX(), entityBlockY - yOffset, entity.getBlockZ());
+            if (!mc.level.getBlockState(mutablePos).isAir()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private boolean isCullableEntityType(Entity entity) {
-        return entity instanceof ItemFrame
+        return entity instanceof Mob
+            || entity instanceof ItemFrame
             || entity instanceof GlowItemFrame
             || entity instanceof ArmorStand
             || entity instanceof Painting;
