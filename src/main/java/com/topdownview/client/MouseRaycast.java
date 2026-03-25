@@ -40,7 +40,7 @@ public final class MouseRaycast {
     private static final double MIN_SCREEN_DIMENSION = 1.0;
     private static final double MIN_REACH_DISTANCE = 30.0;
     private static final double REACH_DISTANCE_MULTIPLIER = 1.5;
-    private static final double LINE_PROXIMITY_THRESHOLD = 2.0;
+    
 
     public static final MouseRaycast INSTANCE = new MouseRaycast();
 
@@ -124,58 +124,62 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
         if (mc.player == null)
             return null;
 
-        Vec3 mousePos = calculateGroundIntersection(mc, start, end);
-        if (mousePos == null) {
-            mousePos = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? end
-                    : blockHit.getLocation();
-        }
+        Vec3 direction = end.subtract(start).normalize();
+        double maxDistance = start.distanceTo(end);
 
-        Vec3 playerEyePos = mc.player.getEyePosition(1.0f);
-        AABB searchBox = new AABB(mousePos, mousePos).inflate(LINE_PROXIMITY_THRESHOLD);
+        AABB searchBox = new AABB(start, end).inflate(2.0);
 
         var entities = mc.level.getEntities(mc.player, searchBox,
                 (entity) -> entity != null && !entity.isSpectator() && entity.isPickable() && entity != mc.player);
 
         Entity closestEntity = null;
-        double closestDistanceSq = Double.MAX_VALUE;
+        double closestT = Double.MAX_VALUE;
         Vec3 closestHitPoint = null;
 
         for (Entity entity : entities) {
-            double dx = entity.getBoundingBox().getCenter().x - mousePos.x;
-            double dz = entity.getBoundingBox().getCenter().z - mousePos.z;
-            if (Math.sqrt(dx * dx + dz * dz) > LINE_PROXIMITY_THRESHOLD)
+            AABB aabb = entity.getBoundingBox();
+            double t = rayAABBIntersection(start, direction, aabb);
+            
+            if (t < 0 || t > maxDistance || t >= closestT)
                 continue;
 
-            if (!hasLineOfSight(mc, playerEyePos, entity))
+            Vec3 hitPoint = start.add(direction.scale(t));
+            
+            if (!hasLineOfSight(mc, mc.player.getEyePosition(1.0f), entity))
                 continue;
 
-            double distToPlayerSq = entity.distanceToSqr(playerEyePos);
-            if (distToPlayerSq < closestDistanceSq) {
-                closestDistanceSq = distToPlayerSq;
-                closestEntity = entity;
-                closestHitPoint = entity.getBoundingBox().getCenter();
-            }
+            closestT = t;
+            closestEntity = entity;
+            closestHitPoint = hitPoint;
         }
 
         return closestEntity != null ? new EntityHitResult(closestEntity, closestHitPoint) : null;
     }
 
-    private Vec3 calculateGroundIntersection(Minecraft mc, Vec3 start, Vec3 end) {
-        if (mc.player == null)
-            return null;
+    private double rayAABBIntersection(Vec3 rayOrigin, Vec3 rayDir, AABB aabb) {
+        double tMin = 0.0;
+        double tMax = Double.MAX_VALUE;
 
-        double targetY = mc.player.getEyePosition(1.0f).y - 1.0;
-        Vec3 direction = end.subtract(start);
-        double dy = direction.y;
+        for (int axis = 0; axis < 3; axis++) {
+            double origin = axis == 0 ? rayOrigin.x : (axis == 1 ? rayOrigin.y : rayOrigin.z);
+            double dir = axis == 0 ? rayDir.x : (axis == 1 ? rayDir.y : rayDir.z);
+            double min = axis == 0 ? aabb.minX : (axis == 1 ? aabb.minY : aabb.minZ);
+            double max = axis == 0 ? aabb.maxX : (axis == 1 ? aabb.maxY : aabb.maxZ);
 
-        if (Math.abs(dy) < 0.001)
-            return null;
-
-        double t = (targetY - start.y) / dy;
-        if (t < 0)
-            return null;
-
-        return new Vec3(start.x + t * direction.x, targetY, start.z + t * direction.z);
+            if (Math.abs(dir) < 1e-8) {
+                if (origin < min || origin > max)
+                    return -1;
+            } else {
+                double t1 = (min - origin) / dir;
+                double t2 = (max - origin) / dir;
+                if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
+                tMin = Math.max(tMin, t1);
+                tMax = Math.min(tMax, t2);
+                if (tMin > tMax)
+                    return -1;
+            }
+        }
+        return tMin >= 0 ? tMin : tMax;
     }
 
     private boolean hasLineOfSight(Minecraft mc, Vec3 fromPos, Entity target) {
