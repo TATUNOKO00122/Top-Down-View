@@ -72,6 +72,7 @@ public final class TargetHighlightState {
      */
     public boolean shouldHighlight(Entity entity) {
         if (!ModState.STATUS.isEnabled()) return false;
+        if (!Config.isTargetGlowEnabled()) return false;
         return isTarget(entity);
     }
 

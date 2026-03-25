@@ -86,6 +86,8 @@ public class Config {
             .defineInRange("rangeOther", 3.0, 1.0, 10.0);
     private static final ForgeConfigSpec.BooleanValue DEFAULT_ENABLED = BUILDER
             .define("defaultEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue TARGET_GLOW_ENABLED = BUILDER
+            .define("targetGlowEnabled", true);
     private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
             .defineInRange("rotateAngleMode", 0, 0, 2);
     private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
@@ -147,6 +149,7 @@ public class Config {
     private static double rangeShovel;
     private static double rangeOther;
     private static boolean defaultEnabled;
+    private static boolean targetGlowEnabled;
     private static int rotateAngleMode;
     private static double cameraSnapRotationSpeed;
     private static double cameraPitch;
@@ -193,6 +196,7 @@ public class Config {
     public static double getRangeShovel() { return rangeShovel; }
     public static double getRangeOther() { return rangeOther; }
     public static boolean isDefaultEnabled() { return defaultEnabled; }
+    public static boolean isTargetGlowEnabled() { return targetGlowEnabled; }
     public static int getRotateAngleMode() { return rotateAngleMode; }
     public static double getCameraSnapRotationSpeed() { return cameraSnapRotationSpeed; }
     public static double getCameraPitch() { return cameraPitch; }
@@ -239,6 +243,7 @@ public class Config {
     public static void setRangeShovel(double value) { rangeShovel = clamp(value, 1.0, 10.0); }
     public static void setRangeOther(double value) { rangeOther = clamp(value, 1.0, 10.0); }
     public static void setDefaultEnabled(boolean value) { defaultEnabled = value; }
+    public static void setTargetGlowEnabled(boolean value) { targetGlowEnabled = value; }
     public static void setRotateAngleMode(int value) { rotateAngleMode = clamp(value, 0, 2); }
     public static void setCameraSnapRotationSpeed(double value) { cameraSnapRotationSpeed = clamp(value, 0.05, 0.5); }
     public static void setCameraPitch(double value) { cameraPitch = clamp(value, 10.0, 90.0); }
@@ -295,6 +300,7 @@ public class Config {
         rangeShovel = RANGE_SHOVEL.get();
         rangeOther = RANGE_OTHER.get();
         defaultEnabled = DEFAULT_ENABLED.get();
+        targetGlowEnabled = TARGET_GLOW_ENABLED.get();
         rotateAngleMode = ROTATE_ANGLE_MODE.get();
         cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.get();
         cameraPitch = CAMERA_PITCH.get();
@@ -348,6 +354,7 @@ public class Config {
         RANGE_SHOVEL.set(rangeShovel);
         RANGE_OTHER.set(rangeOther);
         DEFAULT_ENABLED.set(defaultEnabled);
+        TARGET_GLOW_ENABLED.set(targetGlowEnabled);
         ROTATE_ANGLE_MODE.set(rotateAngleMode);
         CAMERA_SNAP_ROTATION_SPEED.set(cameraSnapRotationSpeed);
         CAMERA_PITCH.set(cameraPitch);

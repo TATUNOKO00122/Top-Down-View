@@ -137,6 +137,14 @@ public class ConfigScreen extends Screen {
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
                         .build());
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.target_glow_enabled", Config.isTargetGlowEnabled()), btn -> {
+                    Config.setTargetGlowEnabled(!Config.isTargetGlowEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.target_glow_enabled", Config.isTargetGlowEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.target_glow_enabled.tooltip")))
+                        .build());
         contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
