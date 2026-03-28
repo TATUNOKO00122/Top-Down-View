@@ -18,6 +18,7 @@ public final class ModState {
     public static final ClickToMoveState CLICK_TO_MOVE = ClickToMoveState.INSTANCE;
     public static final TargetHighlightState TARGET_HIGHLIGHT = TargetHighlightState.INSTANCE;
     public static final DestinationHighlightState DESTINATION_HIGHLIGHT = DestinationHighlightState.INSTANCE;
+    public static final PlayerRotationState PLAYER_ROTATION = PlayerRotationState.INSTANCE;
 
     /**
      * 全状態をリセット
@@ -29,5 +30,6 @@ public final class ModState {
         CLICK_TO_MOVE.reset();
         TARGET_HIGHLIGHT.reset();
         DESTINATION_HIGHLIGHT.reset();
+        PLAYER_ROTATION.reset();
     }
 }

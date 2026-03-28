@@ -36,8 +36,11 @@ public final class ClientForgeEvents {
     public static void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
         LOGGER.info("[TopDownView] Player joined world, resetting state");
         ModState.resetAll();
-        // コンフィグのデフォルト有効設定を適用
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
+        
+        if (Minecraft.getInstance().player != null) {
+            PlayerRotationController.initializeFromPlayer(Minecraft.getInstance().player);
+        }
     }
 
     @SubscribeEvent

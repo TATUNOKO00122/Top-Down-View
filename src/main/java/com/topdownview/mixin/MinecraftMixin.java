@@ -1,11 +1,13 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.PlayerRotationController;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -30,5 +32,11 @@ public class MinecraftMixin {
             cir.setReturnValue(true);
             cir.cancel();
         }
+    }
+
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void onTickTail(CallbackInfo ci) {
+        Minecraft mc = (Minecraft) (Object) this;
+        PlayerRotationController.onClientTick(mc);
     }
 }
