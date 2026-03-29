@@ -26,7 +26,6 @@ public final class ClientForgeEvents {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int BUTTON_SIZE = 20;
-    private static final int BUTTON_SPACING = 5;
 
     private ClientForgeEvents() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -49,16 +48,25 @@ public final class ClientForgeEvents {
             return;
         }
 
-        int x = screen.width / 2 - 102 - BUTTON_SIZE - 4;
-        int y = screen.height / 4 + 72 - 21;
+        Component optionsLabel = Component.translatable("menu.options");
 
-        Button configButton = Button.builder(
-                Component.literal("⚙"),
-                (button) -> Minecraft.getInstance().setScreen(new ConfigScreen(screen)))
-                .bounds(x, y, BUTTON_SIZE, BUTTON_SIZE)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.pause.config_button.tooltip")))
-                .build();
+        screen.renderables.stream()
+                .filter(renderable -> renderable instanceof Button)
+                .map(renderable -> (Button) renderable)
+                .filter(button -> button.getMessage().equals(optionsLabel))
+                .findFirst()
+                .ifPresent(optionsButton -> {
+                    int x = optionsButton.getX() - BUTTON_SIZE - 4;
+                    int y = optionsButton.getY();
 
-        event.addListener(configButton);
+                    Button configButton = Button.builder(
+                            Component.literal("⚙"),
+                            (btn) -> Minecraft.getInstance().setScreen(new ConfigScreen(screen)))
+                            .bounds(x, y, BUTTON_SIZE, BUTTON_SIZE)
+                            .tooltip(Tooltip.create(Component.translatable("topdown_view.pause.config_button.tooltip")))
+                            .build();
+
+                    event.addListener(configButton);
+                });
     }
 }
