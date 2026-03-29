@@ -49,28 +49,16 @@ public final class ClientForgeEvents {
             return;
         }
 
-        if (screen.renderables == null) {
-            return;
-        }
+        int x = screen.width / 2 - 102 - BUTTON_SIZE - 4;
+        int y = screen.height / 4 + 72 - 21;
 
-        screen.renderables.stream()
-                .filter(renderable -> renderable instanceof Button)
-                .map(renderable -> (Button) renderable)
-                .filter(button -> button.getX() > screen.width / 2)
-                .filter(button -> button.getY() > screen.height - 60)
-                .max(java.util.Comparator.comparingInt(Button::getX))
-                .ifPresent(rightmostBottomButton -> {
-                    int x = rightmostBottomButton.getX() - BUTTON_SIZE - BUTTON_SPACING;
-                    int y = rightmostBottomButton.getY();
+        Button configButton = Button.builder(
+                Component.literal("⚙"),
+                (button) -> Minecraft.getInstance().setScreen(new ConfigScreen(screen)))
+                .bounds(x, y, BUTTON_SIZE, BUTTON_SIZE)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.pause.config_button.tooltip")))
+                .build();
 
-                    Button configButton = Button.builder(
-                            Component.literal("⚙"),
-                            (button) -> Minecraft.getInstance().setScreen(new ConfigScreen(screen)))
-                            .bounds(x, y, BUTTON_SIZE, BUTTON_SIZE)
-                            .tooltip(Tooltip.create(Component.translatable("topdown_view.pause.config_button.tooltip")))
-                            .build();
-
-                    event.addListener(configButton);
-                });
+        event.addListener(configButton);
     }
 }

@@ -15,7 +15,6 @@
     "CullableMixin",
     "SoundSystemMixin",
     "ClientLevelSoundMixin",
-    "PauseScreenMixin",
     "MinecraftMixin",
     "GameOptionsMixin"
   ],
