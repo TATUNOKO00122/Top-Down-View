@@ -259,6 +259,18 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
         return MIN_RAYCAST_STEP;
     }
 
+    public float[] getMouseTargetYawPitch(Minecraft mc, float partialTick) {
+        Vec3 dir = getMouseRayDirection(mc, partialTick);
+        if (dir == null) return null;
+
+        double horizontalLen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+        if (horizontalLen < 1e-8) return null;
+
+        float yaw = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
+        float pitch = (float) Math.toDegrees(Math.atan2(-dir.y, horizontalLen));
+        return new float[]{yaw, pitch};
+    }
+
     public net.minecraft.world.phys.HitResult getLastHitResult() {
         return lastHitResult;
     }

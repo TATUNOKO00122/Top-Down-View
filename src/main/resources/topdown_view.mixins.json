@@ -16,7 +16,8 @@
     "SoundSystemMixin",
     "ClientLevelSoundMixin",
     "MinecraftMixin",
-    "GameOptionsMixin"
+    "GameOptionsMixin",
+    "LocalPlayerMixin"
   ],
   "mixins": [],
   "injectors": {

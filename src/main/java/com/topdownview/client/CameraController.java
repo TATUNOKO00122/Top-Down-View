@@ -296,28 +296,43 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
         MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (hitResult == null || mc.player == null) {
+        if (mc.player == null) {
             return;
         }
 
-        Vec3 targetPos = hitResult.getLocation();
-        Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
+        if (mc.player.isPassenger() || mc.player.isFallFlying()) {
+            return;
+        }
 
-        double dx = targetPos.x - playerEyePos.x;
-        double dy = targetPos.y - playerEyePos.y;
-        double dz = targetPos.z - playerEyePos.z;
+        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
+            Vec3 targetPos = hitResult.getLocation();
+            Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
 
-        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+            double dx = targetPos.x - playerEyePos.x;
+            double dy = targetPos.y - playerEyePos.y;
+            double dz = targetPos.z - playerEyePos.z;
 
-        float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
+            double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
-        mc.player.setYRot(yaw);
-        mc.player.yHeadRot = yaw;
-        mc.player.yBodyRot = yaw;
+            float yaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
 
-        Float pitch = calculatePitch(mc, horizontalDist, dy);
-        if (pitch != null) {
-            mc.player.setXRot(pitch);
+            mc.player.setYRot(yaw);
+            mc.player.yHeadRot = yaw;
+            mc.player.yBodyRot = yaw;
+
+            Float pitch = calculatePitch(mc, horizontalDist, dy);
+            if (pitch != null) {
+                mc.player.setXRot(pitch);
+            }
+        } else {
+            float[] yawPitch = MouseRaycast.INSTANCE.getMouseTargetYawPitch(mc, mc.getFrameTime());
+            if (yawPitch == null) return;
+
+            float yaw = yawPitch[0];
+            mc.player.setYRot(yaw);
+            mc.player.yHeadRot = yaw;
+            mc.player.yBodyRot = yaw;
+            mc.player.setXRot(yawPitch[1]);
         }
     }
 
