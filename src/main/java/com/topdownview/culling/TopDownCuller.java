@@ -121,7 +121,7 @@ public final class TopDownCuller {
         }
 
         BlockState state = level.getBlockState(pos);
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
+        if (state.isAir()) {
             cullingCache.put(pos, false);
             return false;
         }
@@ -155,7 +155,7 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        if (state.isAir() || !state.getFluidState().isEmpty()) {
+        if (state.isAir()) {
             return 1.0f;
         }
 

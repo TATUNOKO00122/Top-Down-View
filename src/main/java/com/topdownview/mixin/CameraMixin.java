@@ -51,6 +51,13 @@ public abstract class CameraMixin {
         }
     }
 
+    @Inject(method = "getFluidInCamera", at = @At("HEAD"), cancellable = true)
+    private void onGetFluidInCamera(CallbackInfoReturnable<net.minecraft.world.level.material.FogType> cir) {
+        if (ModState.STATUS.isEnabled()) {
+            cir.setReturnValue(net.minecraft.world.level.material.FogType.NONE);
+        }
+    }
+
     @Inject(method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", at = @At("TAIL"))
     private void onSetupTail(BlockGetter level, Entity entity, boolean detached,
             boolean thirdPersonReverse, float partialTick,
