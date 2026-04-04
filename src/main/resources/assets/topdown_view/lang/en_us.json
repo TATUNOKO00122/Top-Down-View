@@ -113,6 +113,8 @@
   "topdown_view.config.fade_block_hit_threshold.tooltip": "Only blocks with alpha above this value are hittable.\n0.0 = All blocks hittable (off), 1.0 = Only fully opaque blocks",
   "topdown_view.config.section.camera_angle": "Camera Basic Settings",
   "topdown_view.config.section.camera_follow_delay": "Camera Follow Delay",
+  "topdown_view.config.follow_delay_while_mounted": "Follow Delay While Mounted: %s",
+  "topdown_view.config.follow_delay_while_mounted.tooltip": "Toggle follow delay while riding a vehicle. When off, the camera follows instantly while mounted.",
   "topdown_view.config.camera_y_follow_delay_enabled": "Y Follow Delay: %s",
   "topdown_view.config.camera_y_follow_delay_enabled.tooltip": "Enable delayed camera Y-axis follow. Reduces motion sickness during jumps.",
   "topdown_view.config.camera_y_follow_delay": "Y Delay Time: %.2fs",

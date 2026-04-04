@@ -281,6 +281,16 @@ public class ConfigScreen extends Screen {
 
         y = addSection(y, "topdown_view.config.section.camera_follow_delay", tx);
         addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.follow_delay_while_mounted", Config.isFollowDelayWhileMounted()),
+                btn -> {
+                    Config.setFollowDelayWhileMounted(!Config.isFollowDelayWhileMounted());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.follow_delay_while_mounted",
+                            Config.isFollowDelayWhileMounted()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.follow_delay_while_mounted.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled", Config.isCameraYFollowDelayEnabled()),
                 btn -> {
                     Config.setCameraYFollowDelayEnabled(!Config.isCameraYFollowDelayEnabled());
@@ -491,6 +501,7 @@ public class ConfigScreen extends Screen {
 
         Config.setCameraYFollowDelayEnabled(true);
         Config.setCameraYFollowDelay(1.0);
+        Config.setFollowDelayWhileMounted(false);
 
         Config.setCameraXFollowDelayEnabled(false);
         Config.setCameraXFollowDelay(1.0);

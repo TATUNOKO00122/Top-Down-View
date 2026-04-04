@@ -81,9 +81,11 @@ public abstract class CameraMixin {
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
-        double cameraY = calculateCameraY(targetY);
-        double cameraBaseX = calculateCameraX(targetX);
-        double cameraBaseZ = calculateCameraZ(targetZ);
+        boolean skipDelay = entity.isPassenger() && !com.topdownview.Config.isFollowDelayWhileMounted();
+
+        double cameraY = calculateCameraY(targetY, skipDelay);
+        double cameraBaseX = calculateCameraX(targetX, skipDelay);
+        double cameraBaseZ = calculateCameraZ(targetZ, skipDelay);
 
         double distance = ModState.CAMERA.getCameraDistance();
         float pitch;
@@ -161,8 +163,8 @@ public abstract class CameraMixin {
         ModState.CAMERA.setLastMouseY(currentMouseY);
     }
 
-    private double calculateCameraY(double targetY) {
-        if (!com.topdownview.Config.isCameraYFollowDelayEnabled()) {
+    private double calculateCameraY(double targetY, boolean skipDelay) {
+        if (skipDelay || !com.topdownview.Config.isCameraYFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraY(targetY);
             ModState.CAMERA.setCurrentCameraY(targetY);
             ModState.CAMERA.setCameraYInitialized(true);
@@ -197,8 +199,8 @@ public abstract class CameraMixin {
         return newY;
     }
 
-    private double calculateCameraX(double targetX) {
-        if (!com.topdownview.Config.isCameraXFollowDelayEnabled()) {
+    private double calculateCameraX(double targetX, boolean skipDelay) {
+        if (skipDelay || !com.topdownview.Config.isCameraXFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraX(targetX);
             ModState.CAMERA.setCurrentCameraX(targetX);
             ModState.CAMERA.setCameraXInitialized(true);
@@ -233,8 +235,8 @@ public abstract class CameraMixin {
         return newX;
     }
 
-    private double calculateCameraZ(double targetZ) {
-        if (!com.topdownview.Config.isCameraZFollowDelayEnabled()) {
+    private double calculateCameraZ(double targetZ, boolean skipDelay) {
+        if (skipDelay || !com.topdownview.Config.isCameraZFollowDelayEnabled()) {
             ModState.CAMERA.setTargetCameraZ(targetZ);
             ModState.CAMERA.setCurrentCameraZ(targetZ);
             ModState.CAMERA.setCameraZInitialized(true);

@@ -113,6 +113,8 @@
   "topdown_view.config.fade_block_hit_threshold.tooltip": "この透明度以上のブロックのみ触れます。\n0.0=全て触れる（オフ）、1.0=完全に不透明なもののみ",
   "topdown_view.config.section.camera_angle": "カメラ基本設定",
   "topdown_view.config.section.camera_follow_delay": "カメラ追従遅延",
+  "topdown_view.config.follow_delay_while_mounted": "マウント時の追従遅延: %s",
+  "topdown_view.config.follow_delay_while_mounted.tooltip": "乗り物に乗っている間の追従遅延を切り替えます。オフの場合、マウント中は即座にカメラが追従します。",
   "topdown_view.config.camera_y_follow_delay_enabled": "Y軸追従遅延: %s",
   "topdown_view.config.camera_y_follow_delay_enabled.tooltip": "カメラのY軸（上下）追従を遅らせます。ジャンプ時の3D酔いを軽減します。",
   "topdown_view.config.camera_y_follow_delay": "Y軸遅延時間: %.2f秒",
