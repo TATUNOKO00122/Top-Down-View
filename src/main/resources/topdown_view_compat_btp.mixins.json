@@ -1,0 +1,14 @@
+{
+    "required": false,
+    "package": "com.topdownview.mixin",
+    "refmap": "topdown_view_compat_btp.refmap.json",
+    "compatibilityLevel": "JAVA_17",
+    "minVersion": "0.8",
+    "client": [
+        "CustomCameraManagerCompatMixin"
+    ],
+    "mixins": [],
+    "injectors": {
+        "defaultRequire": 0
+    }
+}
