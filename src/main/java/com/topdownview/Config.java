@@ -116,6 +116,8 @@ public class Config {
             .defineInRange("cameraZFollowDelay", 1.0, 0.0, 4.0);
     private static final ForgeConfigSpec.BooleanValue FOLLOW_DELAY_WHILE_MOUNTED = BUILDER
             .define("followDelayWhileMounted", false);
+    private static final ForgeConfigSpec.DoubleValue PLAYER_SCREEN_OFFSET = BUILDER
+            .defineInRange("playerScreenOffset", 2.0, -10.0, 10.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -166,6 +168,7 @@ public class Config {
     private static boolean cameraZFollowDelayEnabled;
     private static double cameraZFollowDelay;
     private static boolean followDelayWhileMounted;
+    private static double playerScreenOffset;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -214,6 +217,7 @@ public class Config {
     public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
     public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
     public static boolean isFollowDelayWhileMounted() { return followDelayWhileMounted; }
+    public static double getPlayerScreenOffset() { return playerScreenOffset; }
 
     public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = clamp(value, 1, 10); }
     public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = clamp(value, 1, 10); }
@@ -262,6 +266,7 @@ public class Config {
     public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDelayEnabled = value; }
     public static void setCameraZFollowDelay(double value) { cameraZFollowDelay = clamp(value, 0.0, 4.0); }
     public static void setFollowDelayWhileMounted(boolean value) { followDelayWhileMounted = value; }
+    public static void setPlayerScreenOffset(double value) { playerScreenOffset = clamp(value, -10.0, 10.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -320,6 +325,7 @@ public class Config {
         cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.get();
         cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.get();
         followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.get();
+        playerScreenOffset = PLAYER_SCREEN_OFFSET.get();
 
         com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
         notifyConfigChanged();
@@ -375,6 +381,7 @@ public class Config {
         CAMERA_Z_FOLLOW_DELAY_ENABLED.set(cameraZFollowDelayEnabled);
         CAMERA_Z_FOLLOW_DELAY.set(cameraZFollowDelay);
         FOLLOW_DELAY_WHILE_MOUNTED.set(followDelayWhileMounted);
+        PLAYER_SCREEN_OFFSET.set(playerScreenOffset);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

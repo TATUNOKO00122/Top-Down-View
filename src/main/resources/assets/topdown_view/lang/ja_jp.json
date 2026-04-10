@@ -62,6 +62,8 @@
   "topdown_view.config.camera_snap_rotation_speed.tooltip": "カメラ回転時のアニメーション速度です。小さいほどゆっくり、大きいほど素早く回転します。",
   "topdown_view.config.camera_pitch": "カメラ垂直角度: %.1f°",
   "topdown_view.config.camera_pitch.tooltip": "カメラが見下ろす垂直の角度（ピッチ）を設定します。\n90.0で真上からの視点、45.0で斜め見下ろしになります。",
+  "topdown_view.config.player_screen_offset": "プレイヤー画面位置オフセット: %.1f",
+  "topdown_view.config.player_screen_offset.tooltip": "カメラの注視点を視線方向に沿ってずらします。\n正の値 = プレイヤーが上に、負の値 = プレイヤーが下に配置されます。",
   "topdown_view.config.max_camera_distance": "最大カメラ距離: %.1f",
   "topdown_view.config.max_camera_distance.tooltip": "ズームアウトできる最大距離です。\n大きい値にするとより遠くまで見渡せます。",
   "topdown_view.config.default_camera_distance": "デフォルトカメラ距離: %.1f",

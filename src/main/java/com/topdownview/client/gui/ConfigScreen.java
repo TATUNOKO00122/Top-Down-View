@@ -222,6 +222,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
                 val -> Config.setCameraPitch(val), 0));
         y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_screen_offset", Config.getPlayerScreenOffset(), -10.0, 10.0,
+                val -> Config.setPlayerScreenOffset(val)));
+        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.max_camera_distance", Config.getMaxCameraDistance(), 0.0, 200.0,
                 val -> {
                     Config.setMaxCameraDistance(val);
@@ -498,6 +501,8 @@ public class ConfigScreen extends Screen {
         Config.setMiningModePitch(45.0);
         Config.setMaxCameraDistance(50.0);
         Config.setDefaultCameraDistance(9.0);
+
+        Config.setPlayerScreenOffset(2.0);
 
         Config.setCameraYFollowDelayEnabled(true);
         Config.setCameraYFollowDelay(1.0);

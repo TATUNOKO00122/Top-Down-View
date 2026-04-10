@@ -87,6 +87,13 @@ public abstract class CameraMixin {
         double cameraBaseX = calculateCameraX(targetX, skipDelay);
         double cameraBaseZ = calculateCameraZ(targetZ, skipDelay);
 
+        double screenOffset = com.topdownview.Config.getPlayerScreenOffset();
+        if (screenOffset != 0.0) {
+            double offsetRadYaw = ModState.CAMERA.getLerpYaw(partialTick) * MathConstants.DEGREES_TO_RADIANS;
+            cameraBaseX += Math.sin(offsetRadYaw) * screenOffset;
+            cameraBaseZ += -Math.cos(offsetRadYaw) * screenOffset;
+        }
+
         double distance = ModState.CAMERA.getCameraDistance();
         float pitch;
         if (ModState.CAMERA.isFreeCameraMode()) {

@@ -62,6 +62,8 @@
   "topdown_view.config.camera_snap_rotation_speed.tooltip": "How quickly the camera rotates during snap rotation. Lower = slower, higher = faster.",
   "topdown_view.config.camera_pitch": "Camera Pitch: %.1f°",
   "topdown_view.config.camera_pitch.tooltip": "Sets the vertical looking angle of the camera.\n90.0 is top-down (bird's eye), 45.0 is an angled view.",
+  "topdown_view.config.player_screen_offset": "Player Screen Offset: %.1f",
+  "topdown_view.config.player_screen_offset.tooltip": "Shifts the camera's look-at point along the view direction.\nPositive = player appears higher, Negative = player appears lower.",
   "topdown_view.config.max_camera_distance": "Max Camera Distance: %.1f",
   "topdown_view.config.max_camera_distance.tooltip": "Maximum camera distance for zooming out.\nHigher values let you see further away.",
   "topdown_view.config.default_camera_distance": "Default Camera Distance: %.1f",

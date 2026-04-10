@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.7.0] - 2026-04-05
+
+### New Features
+
+- **Fluid culling**: Water and lava blocks between camera and player are now properly hidden in top-down view
+  - Added `FluidRendererMixin` for Embeddium's separate fluid rendering pipeline
+  - Disabled lava fog overlay (red screen) and water overlay when top-down view is active
+- **Player head/body independent rotation**: Player head tracks mouse cursor while body follows movement direction (±45° limit)
+  - Smooth lerp interpolation for both head and body angles
+  - Head and body synchronize when using items or attacking
+- **Vehicle steering system**: Separated player and mount rotation controls for riding entities
+  - New `MountSteeringController` with hybrid steering: WASD input snaps to camera-relative direction, deceleration follows velocity vector
+  - Boat camera-relative steering support (previously vanilla-only)
+  - Player pitch is now correctly set based on raycast hit position when mounted
+- **Mount camera follow delay**: Config option to toggle camera follow delay while riding mounts (default: OFF — instant follow)
+- **Mouse raycast reach extended**: Fixed raycast reach distance to 512 blocks, allowing targeting from high vantage points
+
+---
+
 ## [1.4.0] - 2026-03-20
 
 ### 新機能
