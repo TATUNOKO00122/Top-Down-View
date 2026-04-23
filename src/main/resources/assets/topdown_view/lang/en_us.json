@@ -19,6 +19,8 @@
   "topdown_view.config.default_enabled.tooltip": "Automatically enable top-down view when the game starts.",
   "topdown_view.config.target_glow_enabled": "Target Glow: %s",
   "topdown_view.config.target_glow_enabled.tooltip": "Apply glow effect to targeted mobs.",
+  "topdown_view.config.head_body_rotation_enabled": "Head/Body Rotation: %s",
+  "topdown_view.config.head_body_rotation_enabled.tooltip": "Separate head and body rotation for realistic movement.\nDisable if ranged weapon mods aim incorrectly.",
   "topdown_view.config.cylinder_radius_horizontal": "Horizontal Radius: %d",
   "topdown_view.config.cylinder_radius_vertical": "Vertical Radius: %d",
   "topdown_view.config.cylinder_forward_shift": "Forward Shift: %d",

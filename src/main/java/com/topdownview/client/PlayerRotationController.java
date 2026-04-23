@@ -22,6 +22,8 @@ public final class PlayerRotationController {
         if (!ModState.STATUS.isEnabled()) return;
         if (mc.player == null || mc.level == null) return;
 
+        if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
+
         if (mc.player.isPassenger() || mc.player.isFallFlying()) {
             return;
         }

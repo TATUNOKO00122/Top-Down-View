@@ -19,6 +19,8 @@
   "topdown_view.config.default_enabled.tooltip": "ゲーム起動時に自動的にトップダウンビューを有効にします。",
   "topdown_view.config.target_glow_enabled": "ターゲット発光: %s",
   "topdown_view.config.target_glow_enabled.tooltip": "ターゲットしたMobに発光エフェクトを付与します。",
+  "topdown_view.config.head_body_rotation_enabled": "頭部/胴体回転: %s",
+  "topdown_view.config.head_body_rotation_enabled.tooltip": "頭部と胴体の回転を分離し、リアルな動きを実現します。\n遠距離武器Modの照準がずれる場合は無効にしてください。",
   "topdown_view.config.cylinder_radius_horizontal": "水平半径: %d",
   "topdown_view.config.cylinder_radius_vertical": "垂直半径: %d",
   "topdown_view.config.cylinder_forward_shift": "前方シフト: %d",

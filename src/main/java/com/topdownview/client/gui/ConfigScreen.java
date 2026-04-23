@@ -145,6 +145,14 @@ public class ConfigScreen extends Screen {
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.target_glow_enabled.tooltip")))
                         .build());
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.head_body_rotation_enabled", Config.isHeadBodyRotationEnabled()), btn -> {
+                    Config.setHeadBodyRotationEnabled(!Config.isHeadBodyRotationEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.head_body_rotation_enabled", Config.isHeadBodyRotationEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.head_body_rotation_enabled.tooltip")))
+                        .build());
         contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
@@ -503,6 +511,8 @@ public class ConfigScreen extends Screen {
         Config.setDefaultCameraDistance(9.0);
 
         Config.setPlayerScreenOffset(2.0);
+
+        Config.setHeadBodyRotationEnabled(true);
 
         Config.setCameraYFollowDelayEnabled(true);
         Config.setCameraYFollowDelay(1.0);
