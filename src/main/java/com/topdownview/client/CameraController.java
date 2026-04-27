@@ -171,7 +171,7 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
         }
         ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-        mc.mouseHandler.releaseMouse();
+        mc.mouseHandler.grabMouse();
         if (mc.level != null) {
             ModState.TIME.setStartTime(mc.level.getGameTime());
         }

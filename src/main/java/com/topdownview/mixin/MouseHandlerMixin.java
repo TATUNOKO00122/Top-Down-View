@@ -5,17 +5,23 @@ import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MouseHandler.class)
-public class MouseHandlerMixin {
+public abstract class MouseHandlerMixin {
 
-    @Inject(method = "grabMouse", at = @At("HEAD"), cancellable = true)
+    @Shadow private boolean mouseGrabbed;
+
+    @Inject(method = "grabMouse", at = @At("TAIL"))
     private void onGrabMouse(CallbackInfo ci) {
-        if (ModState.STATUS.isEnabled()) {
-            ci.cancel();
+        if (ModState.STATUS.isEnabled() && mouseGrabbed) {
+            Minecraft mc = Minecraft.getInstance();
+            org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(),
+                    org.lwjgl.glfw.GLFW.GLFW_CURSOR,
+                    org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
         }
     }
 
