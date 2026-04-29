@@ -200,6 +200,7 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
             restoreType = CameraType.FIRST_PERSON;
         }
         mc.options.setCameraType(restoreType);
+        mc.mouseHandler.releaseMouse();
         mc.mouseHandler.grabMouse();
         ModState.resetAll();
         CullingManager.forceChunkRebuild(mc);
