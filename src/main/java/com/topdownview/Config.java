@@ -117,7 +117,7 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue FOLLOW_DELAY_WHILE_MOUNTED = BUILDER
             .define("followDelayWhileMounted", false);
     private static final ForgeConfigSpec.DoubleValue PLAYER_SCREEN_OFFSET = BUILDER
-            .defineInRange("playerScreenOffset", 2.0, -10.0, 10.0);
+            .defineInRange("playerScreenOffset", 0.5, -10.0, 10.0);
     private static final ForgeConfigSpec.BooleanValue HEAD_BODY_ROTATION_ENABLED = BUILDER
             .define("headBodyRotationEnabled", true);
 
