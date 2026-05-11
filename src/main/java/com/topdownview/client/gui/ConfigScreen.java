@@ -230,6 +230,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_pitch", Config.getCameraPitch(), 10.0, 90.0,
                 val -> Config.setCameraPitch(val), 0));
         y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.top_down_fov",
+                Config.getTopDownFov(), 30, 110, val -> Config.setTopDownFov(val)));
+        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_screen_offset", Config.getPlayerScreenOffset(), -10.0, 10.0,
                 val -> Config.setPlayerScreenOffset(val)));
         y += sp;
@@ -506,6 +509,7 @@ public class ConfigScreen extends Screen {
         Config.setRotateAngleMode(0);
         Config.setCameraSnapRotationSpeed(0.2);
         Config.setCameraPitch(45.0);
+        Config.setTopDownFov(70);
         Config.setMiningModePitch(45.0);
         Config.setMaxCameraDistance(50.0);
         Config.setDefaultCameraDistance(9.0);

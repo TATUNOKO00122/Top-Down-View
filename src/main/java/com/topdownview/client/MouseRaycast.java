@@ -293,7 +293,12 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
         if (screenWidth < MIN_SCREEN_DIMENSION || screenHeight < MIN_SCREEN_DIMENSION)
             return null;
 
-        double fov = mc.options.fov().get();
+        double fov;
+        if (ModState.STATUS.isEnabled()) {
+            fov = com.topdownview.Config.getTopDownFov();
+        } else {
+            fov = mc.options.fov().get();
+        }
         double aspectRatio = screenWidth / screenHeight;
         double pitch;
         if (ModState.CAMERA.isFreeCameraMode()) {

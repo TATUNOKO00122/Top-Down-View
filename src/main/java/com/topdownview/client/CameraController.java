@@ -41,7 +41,10 @@ public final class CameraController {
     @SubscribeEvent
     public static void onComputeFovModifier(ComputeFovModifierEvent event) {
         if (ModState.STATUS.isEnabled()) {
-            event.setNewFovModifier(1.0f);
+            float baseFov = Minecraft.getInstance().options.fov().get();
+            if (baseFov <= 0) baseFov = 70.0f;
+            float modifier = (float) com.topdownview.Config.getTopDownFov() / baseFov;
+            event.setNewFovModifier(modifier);
         }
     }
 
