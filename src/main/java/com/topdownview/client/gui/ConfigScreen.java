@@ -640,6 +640,7 @@ public class ConfigScreen extends Screen {
 
     @Override
     public void onClose() {
+        saveConfig();
         this.minecraft.setScreen(this.lastScreen);
     }
 
