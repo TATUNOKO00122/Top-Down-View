@@ -140,5 +140,7 @@
   "topdown_view.config.free_camera_pitch_sensitivity.tooltip": "Vertical rotation sensitivity during free camera mode.",
   "topdown_view.config.reset": "Reset",
   "topdown_view.config.reset.tooltip": "Reset all settings to default values.",
-  "topdown_view.pause.config_button.tooltip": "Open Top-Down View Settings"
+  "topdown_view.pause.config_button.tooltip": "Open Top-Down View Settings",
+  "topdown_view.config.locked_top_down": "Lock Top-Down View: %s",
+  "topdown_view.config.locked_top_down.tooltip": "Prevents switching back to first-person view.\nWhen enabled, F5 and the toggle key are disabled."
 }

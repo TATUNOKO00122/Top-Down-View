@@ -12,6 +12,7 @@ public final class ModStatus {
     private volatile boolean enabled = false;
     private volatile boolean initialized = false;
     private volatile boolean miningMode = false;
+    private volatile boolean internalCameraChange = false;
 
     private ModStatus() {}
 
@@ -29,6 +30,10 @@ public final class ModStatus {
         return miningMode;
     }
 
+    public boolean isInternalCameraChange() {
+        return internalCameraChange;
+    }
+
     // ==================== Setters ====================
 
     public void setEnabled(boolean value) {
@@ -41,6 +46,10 @@ public final class ModStatus {
 
     public void setMiningMode(boolean value) {
         miningMode = value;
+    }
+
+    public void setInternalCameraChange(boolean value) {
+        internalCameraChange = value;
     }
 
     /**

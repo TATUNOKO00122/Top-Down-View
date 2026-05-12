@@ -140,5 +140,7 @@
   "topdown_view.config.free_camera_pitch_sensitivity.tooltip": "フリーカメラモード時の垂直回転感度です。",
   "topdown_view.config.reset": "初期化",
   "topdown_view.config.reset.tooltip": "すべての設定をデフォルトに戻します。",
-  "topdown_view.pause.config_button.tooltip": "トップダウンビュー設定を開く"
+  "topdown_view.pause.config_button.tooltip": "トップダウンビュー設定を開く",
+  "topdown_view.config.locked_top_down": "トップダウン固定: %s",
+  "topdown_view.config.locked_top_down.tooltip": "一人称視点への切り替えを禁止します。\n有効時、F5キーとトグルキーが無効化されます。"
 }

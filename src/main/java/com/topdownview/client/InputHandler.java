@@ -52,6 +52,7 @@ public final class InputHandler {
 
         if (event.getAction() != GLFW.GLFW_PRESS)
             return;
+
         handleInput(keyCode, InputConstants.Type.KEYSYM);
     }
 
@@ -212,6 +213,10 @@ public final class InputHandler {
     }
 
     private static void toggleTopDownView() {
+        if (ModState.STATUS.isEnabled() && Config.isLockedTopDown()) {
+            return;
+        }
+
         boolean newState = !ModState.STATUS.isEnabled();
         ModState.STATUS.setEnabled(newState);
         Minecraft mc = Minecraft.getInstance();

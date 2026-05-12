@@ -173,7 +173,9 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
             return;
         }
         ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
+        ModState.STATUS.setInternalCameraChange(true);
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        ModState.STATUS.setInternalCameraChange(false);
         mc.mouseHandler.grabMouse();
         if (mc.level != null) {
             ModState.TIME.setStartTime(mc.level.getGameTime());
@@ -202,7 +204,9 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
         if (restoreType == null) {
             restoreType = CameraType.FIRST_PERSON;
         }
+        ModState.STATUS.setInternalCameraChange(true);
         mc.options.setCameraType(restoreType);
+        ModState.STATUS.setInternalCameraChange(false);
         mc.mouseHandler.releaseMouse();
         mc.mouseHandler.grabMouse();
         ModState.resetAll();

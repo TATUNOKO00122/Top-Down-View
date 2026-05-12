@@ -122,6 +122,8 @@ public class Config {
             .define("headBodyRotationEnabled", true);
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
             .defineInRange("topDownFov", 70, 30, 110);
+    private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
+            .define("lockedTopDown", false);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -175,6 +177,7 @@ public class Config {
     private static double playerScreenOffset;
     private static boolean headBodyRotationEnabled;
     private static int topDownFov;
+    private static boolean lockedTopDown;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -226,6 +229,7 @@ public class Config {
     public static double getPlayerScreenOffset() { return playerScreenOffset; }
     public static boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
     public static int getTopDownFov() { return topDownFov; }
+    public static boolean isLockedTopDown() { return lockedTopDown; }
 
     public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = clamp(value, 1, 10); }
     public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = clamp(value, 1, 10); }
@@ -277,6 +281,7 @@ public class Config {
     public static void setPlayerScreenOffset(double value) { playerScreenOffset = clamp(value, -10.0, 10.0); }
     public static void setHeadBodyRotationEnabled(boolean value) { headBodyRotationEnabled = value; }
     public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
+    public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -338,6 +343,7 @@ public class Config {
         playerScreenOffset = PLAYER_SCREEN_OFFSET.get();
         headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.get();
         topDownFov = TOP_DOWN_FOV.get();
+        lockedTopDown = LOCKED_TOP_DOWN.get();
 
         com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
         notifyConfigChanged();
@@ -396,6 +402,7 @@ public class Config {
         PLAYER_SCREEN_OFFSET.set(playerScreenOffset);
         HEAD_BODY_ROTATION_ENABLED.set(headBodyRotationEnabled);
         TOP_DOWN_FOV.set(topDownFov);
+        LOCKED_TOP_DOWN.set(lockedTopDown);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
