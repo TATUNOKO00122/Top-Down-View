@@ -154,29 +154,10 @@ public class ConfigScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.head_body_rotation_enabled.tooltip")))
                         .build());
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.locked_top_down", Config.isLockedTopDown()), btn -> {
-                    Config.setLockedTopDown(!Config.isLockedTopDown());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.locked_top_down", Config.isLockedTopDown()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.locked_top_down.tooltip")))
-                        .build());
-        y += sp;
         contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.entity_culling", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.mob_culling_enabled", Config.isMobCullingEnabled()),
-                btn -> {
-                    Config.setMobCullingEnabled(!Config.isMobCullingEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_culling_enabled", Config.isMobCullingEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mob_culling_enabled.tooltip")))
-                .build());
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.culling", tx);
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
                 Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));

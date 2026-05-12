@@ -123,6 +123,7 @@ public class Config {
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
             .defineInRange("topDownFov", 70, 30, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
+            .comment("Locks the camera to top-down view. Prevents switching back to first-person via F5 or toggle key.", "This setting is not available in the in-game GUI. Edit the config file directly to change it.")
             .define("lockedTopDown", false);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
