@@ -148,18 +148,16 @@ public final class ClickActionHandler {
             boolean wasHold = leftClickHoldTicks >= HOLD_THRESHOLD_TICKS;
 
             if (wasHold) {
-                // ホールド離上時の処理
                 if (ModState.CLICK_TO_MOVE.isInteracting()) {
-                    // 商人・村人/インタラクト可能ブロック: 停止
                     ClickToMoveController.stop();
                 } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
-                    // 破壊: 停止
                     ClickToMoveController.stop();
+                } else if (ModState.CLICK_TO_MOVE.isAttacking()) {
+                    // ホールド攻撃離上: 次の攻撃後に停止
+                    ModState.CLICK_TO_MOVE.setHoldMode(false);
                 }
-                // 敵攻撃ホールド: 追従継続
                 // 通常ブロック移動: 追従継続
             } else {
-                // 単発クリック離上時: 移動継続、到達時に自動実行
                 ModState.CLICK_TO_MOVE.setHoldMode(false);
             }
             leftClickHoldTicks = 0;
@@ -174,12 +172,6 @@ public final class ClickActionHandler {
             }
         }
 
-        if (isLeftClickDown) {
-            if (ModState.CLICK_TO_MOVE.isAttacking()) {
-                ClickToMoveController.tickAttackFollow(mc);
-            } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
-                ClickToMoveController.tickDestroyFollow(mc);
-            }
-        }
+
     }
 }
