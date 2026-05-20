@@ -11,14 +11,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.level.block.state.BlockState;
@@ -79,8 +77,6 @@ public final class ClickToMoveController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        ClickActionHandler.onClientTick(mc);
-
         if (!Config.isClickToMoveEnabled()) return;
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
@@ -133,13 +129,16 @@ public final class ClickToMoveController {
         double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
         double distSq = mc.player.distanceToSqr(entity.position());
 
-        ModState.CLICK_TO_MOVE.startFollowAndAttack(entity, mc.player.position());
-
         if (distSq <= attackRange * attackRange) {
-            mc.gameMode.attack(mc.player, entity);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-            mc.player.sweepAttack();
+            lookAtTarget(mc.player, entity);
+            if (mc.player.getAttackStrengthScale(0.5F) >= 1.0F) {
+                net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
+                ClickActionHandler.setSimulatedAttackPending();
+            }
+            return;
         }
+
+        ModState.CLICK_TO_MOVE.startFollowAndAttack(entity, mc.player.position());
 
         if (BaritoneIntegration.isBaritoneAvailable()) {
             ModState.CLICK_TO_MOVE.setUseBaritone(true);
@@ -173,7 +172,7 @@ public final class ClickToMoveController {
         stop();
     }
 
-    public static void startDestroyBlock(BlockPos blockPos) {
+    public static void startDestroyBlock(BlockPos blockPos, Direction direction) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
@@ -182,11 +181,11 @@ public final class ClickToMoveController {
         double distSq = mc.player.distanceToSqr(blockCenter);
 
         if (distSq <= destroyRange * destroyRange) {
-            startDestroying(mc, blockPos);
+            startDestroying(mc, blockPos, direction);
             return;
         }
 
-        ModState.CLICK_TO_MOVE.startDestroyBlock(blockPos, mc.player.position());
+        ModState.CLICK_TO_MOVE.startDestroyBlock(blockPos, direction, mc.player.position());
 
         if (BaritoneIntegration.isBaritoneAvailable()) {
             ModState.CLICK_TO_MOVE.setUseBaritone(true);
@@ -194,10 +193,9 @@ public final class ClickToMoveController {
         }
     }
 
-    private static void startDestroying(Minecraft mc, BlockPos blockPos) {
-        ModState.CLICK_TO_MOVE.setDestroying(true);
-        ModState.CLICK_TO_MOVE.setDestroyTargetBlock(blockPos);
-        mc.gameMode.startDestroyBlock(blockPos, Direction.UP);
+    private static void startDestroying(Minecraft mc, BlockPos blockPos, Direction direction) {
+        ModState.CLICK_TO_MOVE.startDirectDestroy(blockPos, direction);
+        mc.gameMode.startDestroyBlock(blockPos, direction);
     }
 
     public static void startInteractBlock(BlockPos blockPos) {
@@ -247,24 +245,6 @@ public final class ClickToMoveController {
         ModState.CLICK_TO_MOVE.reset();
     }
 
-    public static void tickTerrainFollow(Minecraft mc) {
-        if (mc.player == null || mc.level == null) return;
-
-        double reach = MouseRaycast.getCustomReachDistance();
-        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
-        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
-
-        if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult blockHit = (BlockHitResult) hitResult;
-            Vec3 destination = blockHit.getLocation();
-            ModState.CLICK_TO_MOVE.setTargetPosition(destination);
-
-            if (BaritoneIntegration.isBaritoneAvailable() && ModState.CLICK_TO_MOVE.useBaritone()) {
-                BaritoneIntegration.pathTo(destination);
-            }
-        }
-    }
-
     public static float[] calculateMovementInput(Minecraft mc) {
         if (!ModState.CLICK_TO_MOVE.isMoving()) return null;
         if (mc.player == null) return null;
@@ -279,8 +259,19 @@ public final class ClickToMoveController {
             if (target != null && target.isAlive()) {
                 double distSq = mc.player.distanceToSqr(target.position());
                 double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
-
                 if (distSq <= attackRange * attackRange) {
+                    return null;
+                }
+            }
+        }
+
+        if (ModState.CLICK_TO_MOVE.isDestroying()) {
+            BlockPos destroyTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
+            if (destroyTarget != null) {
+                Vec3 blockCenter = Vec3.atCenterOf(destroyTarget);
+                double distSq = mc.player.distanceToSqr(blockCenter);
+                double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
+                if (distSq <= destroyRange * destroyRange) {
                     return null;
                 }
             }
@@ -333,10 +324,7 @@ public final class ClickToMoveController {
 
         double threshold = Config.getArrivalThreshold();
         if (ModState.CLICK_TO_MOVE.hasArrived(mc.player.position(), threshold)) {
-            // ホールドモードでなければ停止
-            if (!ModState.CLICK_TO_MOVE.isHoldMode()) {
-                stop();
-            }
+            stop();
         }
     }
 
@@ -353,10 +341,10 @@ public final class ClickToMoveController {
 
         double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
         if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
-            mc.gameMode.attack(mc.player, targetEntity);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-            // ホールドモードでなければ停止
-            if (!ModState.CLICK_TO_MOVE.isHoldMode()) {
+            float attackStrength = mc.player.getAttackStrengthScale(0.5F);
+            if (attackStrength >= 1.0F) {
+                net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
+                ClickActionHandler.setSimulatedAttackPending();
                 stop();
             }
         }
@@ -371,39 +359,38 @@ public final class ClickToMoveController {
             return;
         }
 
-        // 発光ターゲットが変わった場合、ターゲット切り替え
-        LivingEntity highlightTarget = ModState.TARGET_HIGHLIGHT.getCurrentTarget();
-        if (highlightTarget != null && highlightTarget.isAlive() && highlightTarget != targetEntity) {
-            EntityAction action = getEntityAction(highlightTarget);
-            if (action == EntityAction.ATTACK) {
-                ModState.CLICK_TO_MOVE.setTargetEntity(highlightTarget);
-                targetEntity = highlightTarget;
-            }
-        }
-
         ModState.CLICK_TO_MOVE.setTargetPosition(targetEntity.position());
 
         double attackRange = ModState.TARGET_HIGHLIGHT.getAttackRange(mc.player);
         double distSq = mc.player.distanceToSqr(targetEntity.position());
 
         if (distSq <= attackRange * attackRange) {
-            if (!ModState.CLICK_TO_MOVE.canAttack()) {
+            lookAtTarget(mc.player, targetEntity);
+
+            float attackStrength = mc.player.getAttackStrengthScale(0.5F);
+            if (attackStrength < 1.0F) {
                 return;
             }
 
-            mc.gameMode.attack(mc.player, targetEntity);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-            mc.player.sweepAttack();
+            net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
+            ClickActionHandler.setSimulatedAttackPending();
 
-            double attacksPerSecond = mc.player.getAttributeValue(Attributes.ATTACK_SPEED);
-            double delayInSeconds = 1.0 / attacksPerSecond;
-            int cooldown = (int) (delayInSeconds * 20);
-            ModState.CLICK_TO_MOVE.setAttackCooldown(Math.max(5, cooldown));
-
-            if (!ModState.CLICK_TO_MOVE.isHoldMode()) {
-                stop();
-            }
+            stop();
         }
+    }
+
+    private static void lookAtTarget(net.minecraft.world.entity.player.Player player, Entity target) {
+        double dx = target.getX() - player.getX();
+        double dz = target.getZ() - player.getZ();
+        double dy = target.getY() + target.getEyeHeight() - player.getEyeY();
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        float targetYaw = (float) Math.toDegrees(Mth.atan2(-dx, dz));
+        float targetPitch = (float) -Math.toDegrees(Mth.atan2(dy, horizontalDist));
+        player.setYRot(targetYaw);
+        player.yBodyRot = targetYaw;
+        player.yHeadRot = targetYaw;
+        player.setXRot(targetPitch);
+        ModState.PLAYER_ROTATION.lockAttackRotation(targetYaw, targetYaw, targetPitch, 15);
     }
 
     public static void tickDestroyFollow(Minecraft mc) {
@@ -419,9 +406,11 @@ public final class ClickToMoveController {
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         BlockPos newTargetBlock = null;
+        Direction newDirection = null;
         if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
             BlockHitResult blockHit = (BlockHitResult) hitResult;
             newTargetBlock = blockHit.getBlockPos();
+            newDirection = blockHit.getDirection();
         }
 
         BlockPos currentTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
@@ -431,6 +420,7 @@ public final class ClickToMoveController {
                 mc.gameMode.stopDestroyBlock();
                 ModState.CLICK_TO_MOVE.setDestroying(false);
                 ModState.CLICK_TO_MOVE.setDestroyTargetBlock(null);
+                ModState.CLICK_TO_MOVE.setDestroyDirection(null);
             }
             return;
         }
@@ -438,8 +428,9 @@ public final class ClickToMoveController {
         if (!newTargetBlock.equals(currentTarget)) {
             mc.gameMode.stopDestroyBlock();
             ModState.CLICK_TO_MOVE.setDestroying(false);
+            ModState.CLICK_TO_MOVE.setDestroyTargetBlock(newTargetBlock);
+            ModState.CLICK_TO_MOVE.setDestroyDirection(newDirection);
             currentTarget = newTargetBlock;
-            ModState.CLICK_TO_MOVE.setDestroyTargetBlock(currentTarget);
         }
 
         BlockState state = mc.level.getBlockState(currentTarget);
@@ -452,10 +443,13 @@ public final class ClickToMoveController {
         double distSq = mc.player.distanceToSqr(blockCenter);
 
         if (distSq <= destroyRange * destroyRange) {
+            Direction dir = ModState.CLICK_TO_MOVE.getDestroyDirection();
+            if (dir == null) dir = Direction.UP;
+
             if (!ModState.CLICK_TO_MOVE.isDestroying()) {
-                startDestroying(mc, currentTarget);
+                startDestroying(mc, currentTarget, dir);
             }
-            mc.gameMode.continueDestroyBlock(currentTarget, Direction.UP);
+            mc.gameMode.continueDestroyBlock(currentTarget, dir);
             mc.player.swing(InteractionHand.MAIN_HAND);
         }
     }

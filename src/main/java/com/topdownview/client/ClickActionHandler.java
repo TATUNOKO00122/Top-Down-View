@@ -4,9 +4,8 @@ import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -16,8 +15,7 @@ public final class ClickActionHandler {
 
     private static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
-    private static int leftClickHoldTicks = 0;
-    private static final int HOLD_THRESHOLD_TICKS = 5;
+    private static boolean simulatedAttackPending = false;
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -27,7 +25,19 @@ public final class ClickActionHandler {
         return isLeftClickDown;
     }
 
-    public static boolean onInput(int button, int action, Minecraft mc) {
+    public static boolean isSimulatedAttackPending() {
+        if (simulatedAttackPending) {
+            simulatedAttackPending = false;
+            return true;
+        }
+        return false;
+    }
+
+    public static void setSimulatedAttackPending() {
+        simulatedAttackPending = true;
+    }
+
+    public static void onInput(int button, int action, Minecraft mc) {
         int attackButton = mc.options.keyAttack.getKey().getValue();
         int useButton = mc.options.keyUse.getKey().getValue();
 
@@ -35,22 +45,15 @@ public final class ClickActionHandler {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
 
-            if (isLeftClickDown && !wasDown) {
-                leftClickHoldTicks = 0;
-            }
-
             if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
-                if (isLeftClickDown && !wasDown) {
+                if (action != 0 && !wasDown) {
                     handleLeftClickPress(mc);
                 }
-                return true;
             }
-            return false;
         } else if (button == useButton) {
             boolean wasDown = isRightClickDown;
             isRightClickDown = (action != 0);
         }
-        return false;
     }
 
     private static void handleLeftClickPress(Minecraft mc) {
@@ -132,46 +135,8 @@ public final class ClickActionHandler {
         if (result.getType() == HitResult.Type.BLOCK) {
             BlockHitResult blockHit = (BlockHitResult) result;
             BlockPos blockPos = blockHit.getBlockPos();
-            ClickToMoveController.startDestroyBlock(blockPos);
+            Direction direction = blockHit.getDirection();
+            ClickToMoveController.startDestroyBlock(blockPos, direction);
         }
-    }
-
-    public static void onClientTick(Minecraft mc) {
-        ModState.CLICK_TO_MOVE.tickAttackCooldown();
-
-        if (isLeftClickDown) {
-            leftClickHoldTicks++;
-        }
-
-        // 左クリック離上時の処理
-        if (!isLeftClickDown && leftClickHoldTicks > 0) {
-            boolean wasHold = leftClickHoldTicks >= HOLD_THRESHOLD_TICKS;
-
-            if (wasHold) {
-                if (ModState.CLICK_TO_MOVE.isInteracting()) {
-                    ClickToMoveController.stop();
-                } else if (ModState.CLICK_TO_MOVE.isDestroying()) {
-                    ClickToMoveController.stop();
-                } else if (ModState.CLICK_TO_MOVE.isAttacking()) {
-                    // ホールド攻撃離上: 次の攻撃後に停止
-                    ModState.CLICK_TO_MOVE.setHoldMode(false);
-                }
-                // 通常ブロック移動: 追従継続
-            } else {
-                ModState.CLICK_TO_MOVE.setHoldMode(false);
-            }
-            leftClickHoldTicks = 0;
-        }
-
-        if (isLeftClickDown && ModState.CLICK_TO_MOVE.isMoving()) {
-            // 地形ホールド追従
-            if (!ModState.CLICK_TO_MOVE.isAttacking() &&
-                !ModState.CLICK_TO_MOVE.isDestroying() &&
-                !ModState.CLICK_TO_MOVE.isInteracting()) {
-                ClickToMoveController.tickTerrainFollow(mc);
-            }
-        }
-
-
     }
 }

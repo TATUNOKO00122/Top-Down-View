@@ -5,8 +5,8 @@ import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import com.topdownview.client.ClickActionHandler;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -69,10 +69,19 @@ public abstract class MinecraftClientMixin {
         }
     }
 
-    @Inject(method = "startAttack", at = @At("HEAD"))
+    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void onStartAttack(CallbackInfoReturnable<Boolean> cir) {
         if (!ModState.STATUS.isEnabled())
             return;
         this.missTime = 0;
+
+        if (!com.topdownview.Config.isClickToMoveEnabled())
+            return;
+
+        if (ClickActionHandler.isSimulatedAttackPending()) {
+            return;
+        }
+
+        cir.setReturnValue(false);
     }
 }

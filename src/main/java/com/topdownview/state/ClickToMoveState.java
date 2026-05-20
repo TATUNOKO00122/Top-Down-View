@@ -1,6 +1,7 @@
 package com.topdownview.state;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -18,15 +19,13 @@ public final class ClickToMoveState {
     private static final int BARITONE_MIN_TICKS = 10;
 
     private volatile boolean isAttacking = false;
-    private volatile int attackCooldown = 0;
 
     private volatile boolean isDestroying = false;
     private volatile BlockPos destroyTargetBlock = null;
+    private volatile Direction destroyDirection = null;
 
     private volatile boolean isInteracting = false;
     private volatile BlockPos interactTargetBlock = null;
-
-    private volatile boolean isHoldMode = false;
 
     public static final double DEFAULT_ARRIVAL_THRESHOLD = 1.5;
     public static final double DEFAULT_ATTACK_RANGE = 3.0;
@@ -42,12 +41,11 @@ public final class ClickToMoveState {
     public boolean useBaritone() { return useBaritone; }
     public int getBaritoneStartTick() { return baritoneStartTick; }
     public boolean isAttacking() { return isAttacking; }
-    public int getAttackCooldown() { return attackCooldown; }
     public boolean isDestroying() { return isDestroying; }
     public BlockPos getDestroyTargetBlock() { return destroyTargetBlock; }
+    public Direction getDestroyDirection() { return destroyDirection; }
     public boolean isInteracting() { return isInteracting; }
     public BlockPos getInteractTargetBlock() { return interactTargetBlock; }
-    public boolean isHoldMode() { return isHoldMode; }
 
     public void setUseBaritone(boolean use) {
         if (use && !baritonePathStarted) {
@@ -93,26 +91,16 @@ public final class ClickToMoveState {
         this.isAttacking = attacking;
     }
 
-    public void setAttackCooldown(int cooldown) {
-        this.attackCooldown = Math.max(0, cooldown);
-    }
-
-    public void tickAttackCooldown() {
-        if (attackCooldown > 0) {
-            attackCooldown--;
-        }
-    }
-
-    public boolean canAttack() {
-        return attackCooldown == 0;
-    }
-
     public void setDestroying(boolean destroying) {
         this.isDestroying = destroying;
     }
 
     public void setDestroyTargetBlock(BlockPos pos) {
         this.destroyTargetBlock = pos;
+    }
+
+    public void setDestroyDirection(Direction dir) {
+        this.destroyDirection = dir;
     }
 
     public void setInteracting(boolean interacting) {
@@ -123,10 +111,6 @@ public final class ClickToMoveState {
         this.interactTargetBlock = pos;
     }
 
-    public void setHoldMode(boolean holdMode) {
-        this.isHoldMode = holdMode;
-    }
-
     public void startFollowAndAttack(Entity entity, Vec3 playerPos) {
         clearAllTargets();
         this.targetEntity = entity;
@@ -134,7 +118,6 @@ public final class ClickToMoveState {
         this.originalLocation = playerPos;
         this.isMoving = true;
         this.isAttacking = true;
-        this.isHoldMode = true;
     }
 
     public void startMoveTo(Vec3 destination, Vec3 playerPos) {
@@ -142,7 +125,6 @@ public final class ClickToMoveState {
         this.targetPosition = destination;
         this.originalLocation = playerPos;
         this.isMoving = true;
-        this.isHoldMode = true;
     }
 
     public void startFollowEntity(Entity entity, Vec3 playerPos) {
@@ -153,14 +135,22 @@ public final class ClickToMoveState {
         this.isMoving = true;
     }
 
-    public void startDestroyBlock(BlockPos blockPos, Vec3 playerPos) {
+    public void startDestroyBlock(BlockPos blockPos, Direction direction, Vec3 playerPos) {
         clearAllTargets();
         this.destroyTargetBlock = blockPos;
+        this.destroyDirection = direction;
         this.targetPosition = Vec3.atCenterOf(blockPos);
         this.originalLocation = playerPos;
         this.isMoving = true;
         this.isDestroying = true;
-        this.isHoldMode = true;
+    }
+
+    public void startDirectDestroy(BlockPos blockPos, Direction direction) {
+        this.destroyTargetBlock = blockPos;
+        this.destroyDirection = direction;
+        this.targetPosition = Vec3.atCenterOf(blockPos);
+        this.isMoving = true;
+        this.isDestroying = true;
     }
 
     public void startInteractBlock(BlockPos blockPos, Vec3 playerPos) {
@@ -170,7 +160,6 @@ public final class ClickToMoveState {
         this.originalLocation = playerPos;
         this.isMoving = true;
         this.isInteracting = true;
-        this.isHoldMode = true;
     }
 
     public void startInteractEntity(Entity entity, Vec3 playerPos) {
@@ -180,18 +169,16 @@ public final class ClickToMoveState {
         this.originalLocation = playerPos;
         this.isMoving = true;
         this.isInteracting = true;
-        this.isHoldMode = true;
     }
 
     private void clearAllTargets() {
         this.targetEntity = null;
         this.destroyTargetBlock = null;
+        this.destroyDirection = null;
         this.interactTargetBlock = null;
         this.isAttacking = false;
         this.isDestroying = false;
         this.isInteracting = false;
-        this.attackCooldown = 0;
-        this.isHoldMode = false;
     }
 
     public boolean hasArrived(Vec3 playerPos, double threshold) {
@@ -246,12 +233,11 @@ public final class ClickToMoveState {
         baritoneStartTick = 0;
         baritonePathStarted = false;
         isAttacking = false;
-        attackCooldown = 0;
         isDestroying = false;
         destroyTargetBlock = null;
+        destroyDirection = null;
         isInteracting = false;
         interactTargetBlock = null;
-        isHoldMode = false;
     }
 
     public void stopMovement() {

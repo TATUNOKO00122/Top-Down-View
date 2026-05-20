@@ -1,5 +1,6 @@
 package com.topdownview.mixin;
 
+import com.topdownview.Config;
 import com.topdownview.client.ClickActionHandler;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
@@ -28,10 +29,12 @@ public abstract class MouseHandlerMixin {
     @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void onMousePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen == null && ModState.STATUS.isEnabled()) {
-            if (ClickActionHandler.onInput(button, action, mc)) {
-                ci.cancel();
-            }
-        }
+        if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
+
+        ClickActionHandler.onInput(button, action, mc);
+
+        if (!Config.isClickToMoveEnabled()) return;
+
+        ci.cancel();
     }
 }

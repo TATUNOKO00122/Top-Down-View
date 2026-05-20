@@ -93,6 +93,17 @@ public final class PlayerRotationController {
     }
 
     private static void applyToPlayer(Player player, PlayerRotationState state) {
+        if (state.isAttackRotationLocked()) {
+            float yaw = state.getLockedBodyYaw();
+            player.setYRot(yaw);
+            player.yRotO = yaw;
+            player.setYHeadRot(state.getLockedHeadYaw());
+            player.yHeadRotO = state.getLockedHeadYaw();
+            player.setYBodyRot(yaw);
+            player.setXRot(state.getLockedPitch());
+            return;
+        }
+
         float headYaw = state.getCurrentHeadYaw();
         float bodyYaw = state.getCurrentBodyYaw();
 

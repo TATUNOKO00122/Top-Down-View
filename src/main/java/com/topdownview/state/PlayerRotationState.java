@@ -22,6 +22,12 @@ public final class PlayerRotationState {
     private boolean isUsingItem = false;
     private boolean hasMovementInput = false;
 
+    private boolean attackRotationLocked = false;
+    private float lockedHeadYaw = 0.0f;
+    private float lockedBodyYaw = 0.0f;
+    private float lockedPitch = 0.0f;
+    private int attackLockTicks = 0;
+
     private float bodyLerpSpeed = DEFAULT_LERP_SPEED;
     private float headLerpSpeed = HEAD_LERP_SPEED;
 
@@ -48,6 +54,14 @@ public final class PlayerRotationState {
     }
 
     public void tick() {
+        if (attackRotationLocked) {
+            attackLockTicks--;
+            if (attackLockTicks <= 0) {
+                attackRotationLocked = false;
+            }
+            return;
+        }
+
         prevHeadYaw = currentHeadYaw;
         prevBodyYaw = currentBodyYaw;
 
@@ -126,6 +140,8 @@ public final class PlayerRotationState {
         prevBodyYaw = 0.0f;
         isUsingItem = false;
         hasMovementInput = false;
+        attackRotationLocked = false;
+        attackLockTicks = 0;
     }
 
     public void initializeFromPlayer(float headYaw, float bodyYaw) {
@@ -135,6 +151,38 @@ public final class PlayerRotationState {
         targetBodyYaw = normalizeAngle(bodyYaw);
         currentBodyYaw = targetBodyYaw;
         prevBodyYaw = targetBodyYaw;
+    }
+
+    public void lockAttackRotation(float headYaw, float bodyYaw, float pitch, int ticks) {
+        float normHead = normalizeAngle(headYaw);
+        float normBody = normalizeAngle(bodyYaw);
+        this.lockedHeadYaw = normHead;
+        this.lockedBodyYaw = normBody;
+        this.lockedPitch = pitch;
+        this.currentHeadYaw = normHead;
+        this.prevHeadYaw = normHead;
+        this.currentBodyYaw = normBody;
+        this.prevBodyYaw = normBody;
+        this.targetHeadYaw = normHead;
+        this.targetBodyYaw = normBody;
+        this.attackRotationLocked = true;
+        this.attackLockTicks = ticks;
+    }
+
+    public boolean isAttackRotationLocked() {
+        return attackRotationLocked;
+    }
+
+    public float getLockedHeadYaw() {
+        return lockedHeadYaw;
+    }
+
+    public float getLockedBodyYaw() {
+        return lockedBodyYaw;
+    }
+
+    public float getLockedPitch() {
+        return lockedPitch;
     }
 
     private float constrainBodyToHead(float bodyYaw, float headYaw) {
