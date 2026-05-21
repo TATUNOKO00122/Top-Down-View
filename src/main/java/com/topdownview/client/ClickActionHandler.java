@@ -15,7 +15,6 @@ public final class ClickActionHandler {
 
     private static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
-    private static boolean simulatedAttackPending = false;
 
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -23,18 +22,6 @@ public final class ClickActionHandler {
 
     public static boolean isLeftClickDown() {
         return isLeftClickDown;
-    }
-
-    public static boolean isSimulatedAttackPending() {
-        if (simulatedAttackPending) {
-            simulatedAttackPending = false;
-            return true;
-        }
-        return false;
-    }
-
-    public static void setSimulatedAttackPending() {
-        simulatedAttackPending = true;
     }
 
     public static void onInput(int button, int action, Minecraft mc) {

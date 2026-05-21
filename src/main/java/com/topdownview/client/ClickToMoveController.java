@@ -5,6 +5,7 @@ import com.topdownview.TopDownViewMod;
 import com.topdownview.baritone.BaritoneIntegration;
 import com.topdownview.state.ClickToMoveState;
 import com.topdownview.state.ModState;
+import com.topdownview.mixin.MinecraftInvoker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -132,10 +133,9 @@ public final class ClickToMoveController {
         if (distSq <= attackRange * attackRange) {
             lookAtTarget(mc.player, entity);
             if (mc.player.getAttackStrengthScale(0.5F) >= 1.0F) {
-                net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
-                ClickActionHandler.setSimulatedAttackPending();
+                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
+                return;
             }
-            return;
         }
 
         ModState.CLICK_TO_MOVE.startFollowAndAttack(entity, mc.player.position());
@@ -343,8 +343,7 @@ public final class ClickToMoveController {
         if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
             float attackStrength = mc.player.getAttackStrengthScale(0.5F);
             if (attackStrength >= 1.0F) {
-                net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
-                ClickActionHandler.setSimulatedAttackPending();
+                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
                 stop();
             }
         }
@@ -372,8 +371,7 @@ public final class ClickToMoveController {
                 return;
             }
 
-            net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey());
-            ClickActionHandler.setSimulatedAttackPending();
+            ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
 
             stop();
         }
