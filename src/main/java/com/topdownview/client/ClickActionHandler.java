@@ -40,6 +40,12 @@ public final class ClickActionHandler {
         } else if (button == useButton) {
             boolean wasDown = isRightClickDown;
             isRightClickDown = (action != 0);
+
+            if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
+                if (action != 0 && !wasDown) {
+                    ((com.topdownview.mixin.MinecraftInvoker) Minecraft.getInstance()).invokeStartUseItem();
+                }
+            }
         }
     }
 

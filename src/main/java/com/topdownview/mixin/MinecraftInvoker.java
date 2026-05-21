@@ -9,4 +9,7 @@ public interface MinecraftInvoker {
 
     @Invoker("startAttack")
     boolean invokeStartAttack();
+
+    @Invoker("startUseItem")
+    void invokeStartUseItem();
 }
