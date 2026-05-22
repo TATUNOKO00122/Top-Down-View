@@ -1,12 +1,12 @@
 package com.topdownview.client;
 
-import com.topdownview.Config;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
-import com.topdownview.state.CameraState;
+import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
@@ -310,7 +310,7 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
         } else {
             pitch = com.topdownview.Config.getCameraPitch();
         }
-        double yaw = ModState.CAMERA.getYaw();
+        double yaw = ModState.CAMERA.getLerpYaw(partialTick);
 
         if (cachedDirection != null
                 && Math.abs(mouseX - lastMouseX) < EPSILON
