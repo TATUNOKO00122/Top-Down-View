@@ -50,16 +50,24 @@ public class ConfigScreen extends Screen {
         int rightPanelH = this.height - 40;
 
         // --- タブの生成 (左パネル) ---
-        int tabY = leftPanelY + 10;
-        for (int i = 0; i < 6; i++) {
+        int tabCount = 6;
+        int topPadding = 10;
+        int bottomButtonTop = leftPanelY + leftPanelH - 54;
+        int bottomGap = 4;
+        int availableForTabs = bottomButtonTop - bottomGap - (leftPanelY + topPadding);
+        int gap = 2;
+        int tabH = Math.min(20, (availableForTabs - (tabCount - 1) * gap) / tabCount);
+
+        int tabY = leftPanelY + topPadding;
+        for (int i = 0; i < tabCount; i++) {
             final int index = i;
             Button btn = Button.builder(getTabComponent(i), b -> switchTab(index))
-                    .bounds(leftPanelX + 10, tabY, leftPanelW - 20, 20)
+                    .bounds(leftPanelX + 10, tabY, leftPanelW - 20, tabH)
                     .build();
             btn.active = (currentTab != i);
             leftWidgets.add(btn);
-            this.addRenderableWidget(btn); // 標準のイベントと描画
-            tabY += 24;
+            this.addRenderableWidget(btn);
+            tabY += tabH + gap;
         }
 
         // --- 下部ボタン (左パネルの下) ---
