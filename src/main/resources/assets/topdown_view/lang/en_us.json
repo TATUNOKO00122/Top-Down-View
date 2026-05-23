@@ -142,5 +142,10 @@
   "topdown_view.config.reset.tooltip": "Reset all settings to default values.",
   "topdown_view.pause.config_button.tooltip": "Open Top-Down View Settings",
   "topdown_view.config.locked_top_down": "Lock Top-Down View: %s",
-  "topdown_view.config.locked_top_down.tooltip": "Prevents switching back to first-person view.\nWhen enabled, F5 and the toggle key are disabled."
+  "topdown_view.config.locked_top_down.tooltip": "Prevents switching back to first-person view.\nWhen enabled, F5 and the toggle key are disabled.",
+  "topdown_view.config.section.target_lock": "Target Lock",
+  "topdown_view.config.target_lock_duration": "Lock Duration: %d ticks",
+  "topdown_view.config.target_lock_duration.tooltip": "Duration to expand a clicked mob's hitbox.\n0 to disable, 120 ticks = 6 seconds. Makes re-clicking easier even when the cursor moves off the mob.",
+  "topdown_view.config.target_hitbox_expansion": "Hitbox Expansion: %.1f blocks",
+  "topdown_view.config.target_hitbox_expansion.tooltip": "Hitbox expansion amount while target is locked.\n1.0 = 1 block in all directions. Too large may cause accidental clicks."
 }

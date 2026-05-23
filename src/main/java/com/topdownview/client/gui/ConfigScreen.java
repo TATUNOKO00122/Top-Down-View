@@ -202,6 +202,14 @@ public class ConfigScreen extends Screen {
                 Config.getSprintDistanceThreshold(), 1.0, 50.0, val -> Config.setSprintDistanceThreshold(val)));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.target_lock", tx);
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.target_lock_duration",
+                Config.getTargetLockDuration(), 0, 600, val -> Config.setTargetLockDuration(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.target_hitbox_expansion",
+                Config.getTargetHitboxExpansion(), 0.0, 5.0, val -> Config.setTargetHitboxExpansion(val), 1));
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()), btn -> {
@@ -526,6 +534,9 @@ public class ConfigScreen extends Screen {
 
         Config.setCameraZFollowDelayEnabled(false);
         Config.setCameraZFollowDelay(1.0);
+
+        Config.setTargetLockDuration(120);
+        Config.setTargetHitboxExpansion(1.0);
 
         this.init();
     }

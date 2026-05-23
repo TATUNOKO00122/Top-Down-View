@@ -2,6 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
+import com.topdownview.state.TargetLockState;
 import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+
+import com.topdownview.Config;
 
 import static com.topdownview.state.ModState.CAMERA;
 
@@ -136,6 +139,11 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
 
         for (Entity entity : entities) {
             AABB aabb = entity.getBoundingBox();
+            TargetLockState lockState = ModState.TARGET_LOCK;
+            if (lockState.isLockedTo(entity)) {
+                double expansion = Config.getTargetHitboxExpansion();
+                aabb = aabb.inflate(expansion);
+            }
             double t = rayAABBIntersection(start, direction, aabb);
             
             if (t < 0 || t > maxDistance || t >= closestT)

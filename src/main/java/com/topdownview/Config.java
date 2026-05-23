@@ -125,6 +125,10 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
             .comment("Locks the camera to top-down view. Prevents switching back to first-person via F5 or toggle key.", "This setting is not available in the in-game GUI. Edit the config file directly to change it.")
             .define("lockedTopDown", false);
+    private static final ForgeConfigSpec.IntValue TARGET_LOCK_DURATION = BUILDER
+            .defineInRange("targetLockDuration", 120, 0, 600);
+    private static final ForgeConfigSpec.DoubleValue TARGET_HITBOX_EXPANSION = BUILDER
+            .defineInRange("targetHitboxExpansion", 1.0, 0.0, 5.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -179,6 +183,8 @@ public class Config {
     private static boolean headBodyRotationEnabled;
     private static int topDownFov;
     private static boolean lockedTopDown;
+    private static int targetLockDuration;
+    private static double targetHitboxExpansion;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -231,6 +237,8 @@ public class Config {
     public static boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
     public static int getTopDownFov() { return topDownFov; }
     public static boolean isLockedTopDown() { return lockedTopDown; }
+    public static int getTargetLockDuration() { return targetLockDuration; }
+    public static double getTargetHitboxExpansion() { return targetHitboxExpansion; }
 
     public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = clamp(value, 1, 10); }
     public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = clamp(value, 1, 10); }
@@ -283,6 +291,8 @@ public class Config {
     public static void setHeadBodyRotationEnabled(boolean value) { headBodyRotationEnabled = value; }
     public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
     public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
+    public static void setTargetLockDuration(int value) { targetLockDuration = clamp(value, 0, 600); }
+    public static void setTargetHitboxExpansion(double value) { targetHitboxExpansion = clamp(value, 0.0, 5.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -345,6 +355,8 @@ public class Config {
         headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.get();
         topDownFov = TOP_DOWN_FOV.get();
         lockedTopDown = LOCKED_TOP_DOWN.get();
+        targetLockDuration = TARGET_LOCK_DURATION.get();
+        targetHitboxExpansion = TARGET_HITBOX_EXPANSION.get();
 
         com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
         notifyConfigChanged();
@@ -404,6 +416,8 @@ public class Config {
         HEAD_BODY_ROTATION_ENABLED.set(headBodyRotationEnabled);
         TOP_DOWN_FOV.set(topDownFov);
         LOCKED_TOP_DOWN.set(lockedTopDown);
+        TARGET_LOCK_DURATION.set(targetLockDuration);
+        TARGET_HITBOX_EXPANSION.set(targetHitboxExpansion);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

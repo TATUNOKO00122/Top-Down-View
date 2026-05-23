@@ -83,6 +83,7 @@ public final class ClickToMoveController {
 
         ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
         ModState.CLICK_TO_MOVE.tickBaritone();
+        ModState.TARGET_LOCK.tick();
 
         if (ModState.CLICK_TO_MOVE.isAttacking()) {
             tickAttackFollow(mc);

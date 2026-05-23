@@ -62,6 +62,14 @@ public final class TargetHighlightRenderer {
             }
         }
 
+        // ロック中エンティティがカーソル外でもハイライト対象として維持
+        if (currentEntity == null && ModState.TARGET_LOCK.isLocked()) {
+            Entity locked = ModState.TARGET_LOCK.getLockedTarget();
+            if (locked instanceof LivingEntity living && !(locked instanceof Player)) {
+                currentEntity = living;
+            }
+        }
+
         // ターゲット状態を更新
         updateTargetState(mc, mc.player, currentEntity);
 

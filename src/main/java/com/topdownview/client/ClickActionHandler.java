@@ -16,6 +16,13 @@ public final class ClickActionHandler {
     private static boolean isLeftClickDown = false;
     private static boolean isRightClickDown = false;
 
+    private static void lockTarget(Entity entity) {
+        int duration = Config.getTargetLockDuration();
+        if (duration > 0) {
+            ModState.TARGET_LOCK.lock(entity, duration);
+        }
+    }
+
     private ClickActionHandler() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -75,10 +82,12 @@ public final class ClickActionHandler {
 
             switch (action) {
                 case ATTACK -> {
+                    lockTarget(entity);
                     ClickToMoveController.startFollowAndAttack(entity);
                     return;
                 }
                 case INTERACT -> {
+                    lockTarget(entity);
                     ClickToMoveController.startInteractEntity(entity);
                     return;
                 }
@@ -117,9 +126,11 @@ public final class ClickActionHandler {
             ClickToMoveController.EntityAction action = ClickToMoveController.getEntityAction(entity);
 
             if (action == ClickToMoveController.EntityAction.ATTACK) {
+                lockTarget(entity);
                 ClickToMoveController.startFollowAndAttack(entity);
                 return;
             } else if (action == ClickToMoveController.EntityAction.INTERACT) {
+                lockTarget(entity);
                 ClickToMoveController.startInteractEntity(entity);
                 return;
             }

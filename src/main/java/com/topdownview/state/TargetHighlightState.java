@@ -81,16 +81,18 @@ public final class TargetHighlightState {
      * @return int[4] = {r, g, b, a}
      */
     public int[] getOutlineColor() {
-        // 射程外赤表示が無効の場合は常に白色
+        if (ModState.TARGET_LOCK.isLocked() && currentTarget != null
+                && ModState.TARGET_LOCK.isLockedTo(currentTarget)) {
+            return new int[]{255, 50, 50, 255};
+        }
+
         if (!Config.isRangeIndicatorEnabled()) {
             return new int[]{255, 255, 255, 255};
         }
-        
+
         if (isInRange) {
-            // 射程内：白色 (255, 255, 255, 255)
             return new int[]{255, 255, 255, 255};
         } else {
-            // 射程外：赤色 (255, 0, 0, 255)
             return new int[]{255, 0, 0, 255};
         }
     }
