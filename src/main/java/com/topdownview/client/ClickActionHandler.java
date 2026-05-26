@@ -17,6 +17,7 @@ public final class ClickActionHandler {
     private static boolean isRightClickDown = false;
 
     private static void lockTarget(Entity entity) {
+        if (!Config.isTargetLockEnabled()) return;
         int duration = Config.getTargetLockDuration();
         if (duration > 0) {
             ModState.TARGET_LOCK.lock(entity, duration);
@@ -39,9 +40,11 @@ public final class ClickActionHandler {
             boolean wasDown = isLeftClickDown;
             isLeftClickDown = (action != 0);
 
-            if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
-                if (action != 0 && !wasDown) {
+            if (ModState.STATUS.isEnabled() && action != 0 && !wasDown) {
+                if (Config.isClickToMoveEnabled()) {
                     handleLeftClickPress(mc);
+                } else {
+                    handleTargetLockOnly(mc);
                 }
             }
         } else if (button == useButton) {
@@ -53,6 +56,21 @@ public final class ClickActionHandler {
                     ((com.topdownview.mixin.MinecraftInvoker) Minecraft.getInstance()).invokeStartUseItem();
                 }
             }
+        }
+    }
+
+    private static void handleTargetLockOnly(Minecraft mc) {
+        if (mc.level == null || mc.player == null) return;
+
+        double reach = MouseRaycast.getCustomReachDistance();
+        MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
+        HitResult result = MouseRaycast.INSTANCE.getLastHitResult();
+
+        if (result == null || result.getType() != HitResult.Type.ENTITY) return;
+
+        Entity entity = ((EntityHitResult) result).getEntity();
+        if (entity instanceof net.minecraft.world.entity.LivingEntity && !(entity instanceof net.minecraft.world.entity.player.Player)) {
+            lockTarget(entity);
         }
     }
 

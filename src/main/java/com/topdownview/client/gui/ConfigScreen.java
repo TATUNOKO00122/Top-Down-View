@@ -162,6 +162,23 @@ public class ConfigScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("topdown_view.config.head_body_rotation_enabled.tooltip")))
                         .build());
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.target_lock", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()), btn -> {
+                    Config.setTargetLockEnabled(!Config.isTargetLockEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.target_lock_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.target_lock_duration",
+                Config.getTargetLockDuration(), 0, 600, val -> Config.setTargetLockDuration(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.target_hitbox_expansion",
+                Config.getTargetHitboxExpansion(), 0.0, 5.0, val -> Config.setTargetHitboxExpansion(val), 1));
+        y += sp;
+
         contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
@@ -200,14 +217,6 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.sprint_distance_threshold",
                 Config.getSprintDistanceThreshold(), 1.0, 50.0, val -> Config.setSprintDistanceThreshold(val)));
-        y += sp;
-
-        y = addSection(y, "topdown_view.config.section.target_lock", tx);
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.target_lock_duration",
-                Config.getTargetLockDuration(), 0, 600, val -> Config.setTargetLockDuration(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.target_hitbox_expansion",
-                Config.getTargetHitboxExpansion(), 0.0, 5.0, val -> Config.setTargetHitboxExpansion(val), 1));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
@@ -535,6 +544,7 @@ public class ConfigScreen extends Screen {
         Config.setCameraZFollowDelayEnabled(false);
         Config.setCameraZFollowDelay(1.0);
 
+        Config.setTargetLockEnabled(true);
         Config.setTargetLockDuration(120);
         Config.setTargetHitboxExpansion(1.0);
 

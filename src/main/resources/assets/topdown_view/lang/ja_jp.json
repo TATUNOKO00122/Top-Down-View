@@ -144,8 +144,10 @@
   "topdown_view.config.locked_top_down": "トップダウン固定: %s",
   "topdown_view.config.locked_top_down.tooltip": "一人称視点への切り替えを禁止します。\n有効時、F5キーとトグルキーが無効化されます。",
   "topdown_view.config.section.target_lock": "ターゲットロック",
+  "topdown_view.config.target_lock_enabled": "ターゲットロック: %s",
+  "topdown_view.config.target_lock_enabled.tooltip": "Mobをクリックした際、一時的に当たり判定を拡大します。",
   "topdown_view.config.target_lock_duration": "ロック持続時間: %d tick",
-  "topdown_view.config.target_lock_duration.tooltip": "一度クリックしたMobの当たり判定を拡大する時間です。\n0で無効、120tick=6秒。カーソルを外してもクリックしやすくなります。",
+  "topdown_view.config.target_lock_duration.tooltip": "Mobをクリックした際、当たり判定を拡大する時間です。\n0で無効、120tick=6秒。カーソルを外してもクリックしやすくなります。",
   "topdown_view.config.target_hitbox_expansion": "判定拡大量: %.1fブロック",
   "topdown_view.config.target_hitbox_expansion.tooltip": "ターゲットロック中の当たり判定拡大量です。\n1.0で全方向に1ブロック拡大。大きすぎると誤クリックしやすくなります。"
 }

@@ -78,12 +78,15 @@ public final class ClickToMoveController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
+        if (Config.isTargetLockEnabled()) {
+            ModState.TARGET_LOCK.tick();
+        }
+
         if (!Config.isClickToMoveEnabled()) return;
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
         ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
         ModState.CLICK_TO_MOVE.tickBaritone();
-        ModState.TARGET_LOCK.tick();
 
         if (ModState.CLICK_TO_MOVE.isAttacking()) {
             tickAttackFollow(mc);
