@@ -57,7 +57,7 @@ public final class ClientForgeEvents {
                 .findFirst()
                 .ifPresent(optionsButton -> {
                     int x = optionsButton.getX() - BUTTON_SIZE - 4;
-                    int y = optionsButton.getY();
+                    int y = optionsButton.getY() - 24;
 
                     Button configButton = Button.builder(
                             Component.literal("⚙"),
