@@ -72,6 +72,8 @@
   "topdown_view.config.max_camera_distance.tooltip": "ズームアウトできる最大距離です。\n大きい値にするとより遠くまで見渡せます。",
   "topdown_view.config.default_camera_distance": "デフォルトカメラ距離: %.1f",
   "topdown_view.config.default_camera_distance.tooltip": "トップダウンビュー有効時の初期カメラ距離です。\n最小値と最大値の間で設定してください。",
+  "topdown_view.config.scroll_only_zoom_enabled": "スクロール単体ズーム: %s",
+  "topdown_view.config.scroll_only_zoom_enabled.tooltip": "マウスホイール操作のみでカメラ距離（ズーム）を変更できるようにします。\nオフ時は Alt + スクロール での操作が必要です。",
   "topdown_view.config.on": "§aオン",
   "topdown_view.config.off": "§cオフ",
   "topdown_view.config.section.basic": "基本設定",

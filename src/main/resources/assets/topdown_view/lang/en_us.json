@@ -72,6 +72,8 @@
   "topdown_view.config.max_camera_distance.tooltip": "Maximum camera distance for zooming out.\nHigher values let you see further away.",
   "topdown_view.config.default_camera_distance": "Default Camera Distance: %.1f",
   "topdown_view.config.default_camera_distance.tooltip": "Initial camera distance when enabling top-down view.\nMust be between minimum and maximum distance.",
+  "topdown_view.config.scroll_only_zoom_enabled": "Scroll-Only Zoom: %s",
+  "topdown_view.config.scroll_only_zoom_enabled.tooltip": "Enable camera zoom with mouse scroll wheel alone (no modifier key required).\nWhen disabled, Alt + Scroll is required to zoom.",
   "topdown_view.config.on": "§aON",
   "topdown_view.config.off": "§cOFF",
   "topdown_view.config.section.basic": "Basic Settings",

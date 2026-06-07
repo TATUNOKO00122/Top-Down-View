@@ -163,6 +163,15 @@ public class ConfigScreen extends Screen {
                         .build());
         y += sp;
 
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()), btn -> {
+                    Config.setScrollOnlyZoomEnabled(!Config.isScrollOnlyZoomEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.scroll_only_zoom_enabled.tooltip")))
+                        .build());
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.target_lock", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()), btn -> {
