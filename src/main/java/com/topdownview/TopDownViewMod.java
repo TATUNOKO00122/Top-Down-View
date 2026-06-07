@@ -25,7 +25,7 @@ public class TopDownViewMod {
     public TopDownViewMod(FMLJavaModLoadingContext context) {
         MinecraftForge.EVENT_BUS.register(this);
 
-        context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        context.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
 
         Config.registerConfigChangeListener(() -> {
             TopDownCuller.getInstance().clearCache();

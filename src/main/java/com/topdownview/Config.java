@@ -309,6 +309,9 @@ public class Config {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
+        if (event.getConfig().getSpec() != SPEC) {
+            return;
+        }
         cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
         cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
         cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
