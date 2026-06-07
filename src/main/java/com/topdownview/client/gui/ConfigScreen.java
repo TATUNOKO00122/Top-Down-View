@@ -513,6 +513,8 @@ public class ConfigScreen extends Screen {
         Config.setRangeShovel(3.0);
         Config.setRangeOther(3.0);
 
+        Config.setScrollOnlyZoomEnabled(false);
+
         Config.setDragRotationEnabled(true);
 
         Config.setAutoAlignToMovementEnabled(false);
