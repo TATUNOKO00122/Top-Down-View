@@ -3,11 +3,9 @@ package com.topdownview.client;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
 import com.topdownview.state.TargetLockState;
-import com.topdownview.util.MathConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,12 +29,6 @@ public final class MouseRaycast {
 
     private record RaycastResult(Vec3 start, Vec3 end, Vec3 direction, BlockHitResult blockHit) {
     }
-
-    private static final double RAYCAST_STEP = 0.5;
-    private static final double MIN_RAYCAST_STEP = 0.25;
-    private static final double MAX_RAYCAST_STEP = 1.0;
-    private static final double FAR_DISTANCE_THRESHOLD = 50.0;
-    private static final double MEDIUM_DISTANCE_THRESHOLD = 20.0;
 
     private static final double SCREEN_TO_NDC_FACTOR = 2.0;
     private static final double NDC_OFFSET = 1.0;
@@ -206,63 +198,91 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
             return BlockHitResult.miss(end, Direction.UP, BlockPos.containing(end));
         }
 
-        Vec3 direction = end.subtract(start).normalize();
-        double step = calculateAdaptiveStep(distance);
+        return ddaRayTrace(mc, start, end, distance);
+    }
 
-        // パフォーマンス最適化: ループ内オブジェクト生成を回避
-        double dx = direction.x;
-        double dy = direction.y;
-        double dz = direction.z;
+    /**
+     * DDAボクセルトラバーサルによるレイキャスト。
+     * レイ上の全ブロックを漏れなく訪問し、スキップによる誤ヒットを防止する。
+     */
+    private BlockHitResult ddaRayTrace(Minecraft mc, Vec3 start, Vec3 end, double maxDistance) {
+        double dirX = end.x - start.x;
+        double dirY = end.y - start.y;
+        double dirZ = end.z - start.z;
+        double lenSq = dirX * dirX + dirY * dirY + dirZ * dirZ;
+        if (lenSq < 1e-12) {
+            return BlockHitResult.miss(end, Direction.UP, BlockPos.containing(end));
+        }
+
+        int x = (int) Math.floor(start.x);
+        int y = (int) Math.floor(start.y);
+        int z = (int) Math.floor(start.z);
+
+        int stepX = Double.compare(dirX, 0);
+        int stepY = Double.compare(dirY, 0);
+        int stepZ = Double.compare(dirZ, 0);
+
+        double tDeltaX = stepX != 0 ? Math.abs(1.0 / dirX) : Double.MAX_VALUE;
+        double tDeltaY = stepY != 0 ? Math.abs(1.0 / dirY) : Double.MAX_VALUE;
+        double tDeltaZ = stepZ != 0 ? Math.abs(1.0 / dirZ) : Double.MAX_VALUE;
+
+        double tMaxX = stepX > 0 ? ((x + 1) - start.x) * tDeltaX
+                : stepX < 0 ? (start.x - x) * tDeltaX
+                : Double.MAX_VALUE;
+        double tMaxY = stepY > 0 ? ((y + 1) - start.y) * tDeltaY
+                : stepY < 0 ? (start.y - y) * tDeltaY
+                : Double.MAX_VALUE;
+        double tMaxZ = stepZ > 0 ? ((z + 1) - start.z) * tDeltaZ
+                : stepZ < 0 ? (start.z - z) * tDeltaZ
+                : Double.MAX_VALUE;
+
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-        int lastX = Integer.MIN_VALUE;
-        int lastY = Integer.MIN_VALUE;
-        int lastZ = Integer.MIN_VALUE;
+        TopDownCuller culler = TopDownCuller.getInstance();
+        int maxSteps = (int) Math.min(maxDistance * 3, 3000);
 
-        int maxIterations = (int) (distance / Math.max(step, MIN_RAYCAST_STEP)) + 10;
-        int iterations = 0;
+        for (int i = 0; i < maxSteps; i++) {
+            mutablePos.set(x, y, z);
 
-        for (double d = 0; d < distance && iterations < maxIterations; d += step) {
-            iterations++;
-            // 直接計算でオブジェクト生成を回避
-            int bx = (int) Math.floor(start.x + dx * d);
-            int by = (int) Math.floor(start.y + dy * d);
-            int bz = (int) Math.floor(start.z + dz * d);
-
-            if (bx == lastX && by == lastY && bz == lastZ)
-                continue;
-            lastX = bx;
-            lastY = by;
-            lastZ = bz;
-
-            mutablePos.set(bx, by, bz);
-
-            TopDownCuller culler = TopDownCuller.getInstance();
             if (culler.isBlockCulled(mutablePos, mc.level) && !culler.isHittableFadeBlock(mutablePos, mc.level)) {
-                continue;
+                // カリング済みブロックは透過として扱う
+            } else {
+                BlockState state = mc.level.getBlockState(mutablePos);
+                if (!state.isAir()) {
+                    var shape = state.getShape(mc.level, mutablePos, CollisionContext.of(mc.player));
+                    if (!shape.isEmpty()) {
+                        var clipResult = shape.clip(start, end, mutablePos);
+                        if (clipResult != null) {
+                            return clipResult;
+                        }
+                    }
+                }
             }
 
-            BlockState state = mc.level.getBlockState(mutablePos);
-            if (!state.isAir()) {
-                var shape = state.getShape(mc.level, mutablePos, CollisionContext.of(mc.player));
-                if (!shape.isEmpty()) {
-                    var clipResult = shape.clip(start, end, mutablePos);
-                    if (clipResult != null)
-                        return clipResult;
+            // 次のボクセル境界へ進む
+            if (tMaxX < tMaxY) {
+                if (tMaxX < tMaxZ) {
+                    if (tMaxX > 1.0) break;
+                    x += stepX;
+                    tMaxX += tDeltaX;
+                } else {
+                    if (tMaxZ > 1.0) break;
+                    z += stepZ;
+                    tMaxZ += tDeltaZ;
+                }
+            } else {
+                if (tMaxY < tMaxZ) {
+                    if (tMaxY > 1.0) break;
+                    y += stepY;
+                    tMaxY += tDeltaY;
+                } else {
+                    if (tMaxZ > 1.0) break;
+                    z += stepZ;
+                    tMaxZ += tDeltaZ;
                 }
             }
         }
 
         return BlockHitResult.miss(end, Direction.UP, BlockPos.containing(end));
-    }
-
-    private double calculateAdaptiveStep(double distance) {
-        if (!Double.isFinite(distance) || distance <= 0)
-            return MIN_RAYCAST_STEP;
-        if (distance > FAR_DISTANCE_THRESHOLD)
-            return MAX_RAYCAST_STEP;
-        if (distance > MEDIUM_DISTANCE_THRESHOLD)
-            return RAYCAST_STEP;
-        return MIN_RAYCAST_STEP;
     }
 
     public float[] getMouseTargetYawPitch(Minecraft mc, float partialTick) {
