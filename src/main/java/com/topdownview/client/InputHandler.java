@@ -219,6 +219,7 @@ public final class InputHandler {
 
         boolean newState = !ModState.STATUS.isEnabled();
         ModState.STATUS.setEnabled(newState);
+        ReachManager.forceUpdate();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;

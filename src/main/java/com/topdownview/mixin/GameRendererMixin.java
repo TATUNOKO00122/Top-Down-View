@@ -1,5 +1,7 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.MouseRaycast;
+import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -25,9 +27,8 @@ public class GameRendererMixin {
     private void onPick(float partialTicks, CallbackInfo ci) {
         if (ModState.STATUS.isEnabled()) {
             Minecraft mc = Minecraft.getInstance();
-            com.topdownview.client.MouseRaycast.INSTANCE.update(mc, partialTicks,
-                    com.topdownview.client.MouseRaycast.getCustomReachDistance());
-            mc.hitResult = com.topdownview.client.MouseRaycast.INSTANCE.getLastHitResult();
+            MouseRaycast.INSTANCE.update(mc, partialTicks, MouseRaycast.getCustomReachDistance());
+            mc.hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
             HitResult result = mc.hitResult;
             if (result instanceof EntityHitResult entityHit) {

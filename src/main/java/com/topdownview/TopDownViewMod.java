@@ -29,6 +29,7 @@ public class TopDownViewMod {
 
         Config.registerConfigChangeListener(() -> {
             TopDownCuller.getInstance().clearCache();
+            com.topdownview.client.ReachManager.forceUpdate();
             LOGGER.info("TopDownView cache cleared due to config change");
         });
 

@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
@@ -32,10 +33,17 @@ public final class ClientForgeEvents {
     }
 
     @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        ReachManager.onClientTick();
+    }
+
+    @SubscribeEvent
     public static void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
         LOGGER.info("[TopDownView] Player joined world, resetting state");
         ModState.resetAll();
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
+        ReachManager.forceUpdate();
         
         if (Minecraft.getInstance().player != null) {
             PlayerRotationController.initializeFromPlayer(Minecraft.getInstance().player);

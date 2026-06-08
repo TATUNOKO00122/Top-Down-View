@@ -18,7 +18,8 @@
     "ClientLevelSoundMixin",
     "MinecraftMixin",
     "GameOptionsMixin",
-    "LocalPlayerMixin"
+    "LocalPlayerMixin",
+    "MultiPlayerGameModeMixin"
   ],
   "mixins": [],
   "injectors": {

@@ -397,6 +397,19 @@ public class ConfigScreen extends Screen {
                 Config.getMiningCylinderForwardShift(), 0, 10, val -> Config.setMiningCylinderForwardShift(val)));
         y += sp;
 
+        // 画面全体リーチ設定
+        y = addSection(y, "topdown_view.config.section.screen_reach", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.screen_reach_enabled", Config.isScreenReachEnabled()),
+                btn -> {
+                    Config.setScreenReachEnabled(!Config.isScreenReachEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.screen_reach_enabled",
+                            Config.isScreenReachEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.screen_reach_enabled.tooltip")))
+                .build());
+        y += sp;
+
         // 射程設定
         y = addSection(y, "topdown_view.config.section.weapon_range", tx);
         addRightWidget(Button.builder(
