@@ -152,7 +152,7 @@
   "topdown_view.config.target_lock_duration.tooltip": "Duration to expand a clicked mob's hitbox.\n0 to disable, 120 ticks = 6 seconds. Makes re-clicking easier even when the cursor moves off the mob.",
   "topdown_view.config.target_hitbox_expansion": "Hitbox Expansion: %.1f blocks",
   "topdown_view.config.target_hitbox_expansion.tooltip": "Hitbox expansion amount while target is locked.\n1.0 = 1 block in all directions. Too large may cause accidental clicks.",
-  "topdown_view.config.section.screen_reach": "Screen Reach",
+  "topdown_view.config.section.screen_reach": "Reach Distance",
   "topdown_view.config.screen_reach_enabled": "Screen Reach: %s",
   "topdown_view.config.screen_reach_enabled.tooltip": "Extend player reach to cover the entire screen.\nWhen enabled, you can target and interact with any block or entity visible on screen.\nDisable to use vanilla reach distance.",
   "topdown_view.config.reach_distance": "Reach Distance: %.0f",

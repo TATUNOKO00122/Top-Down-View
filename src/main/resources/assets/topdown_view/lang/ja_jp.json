@@ -152,7 +152,7 @@
   "topdown_view.config.target_lock_duration.tooltip": "Mobをクリックした際、当たり判定を拡大する時間です。\n0で無効、120tick=6秒。カーソルを外してもクリックしやすくなります。",
   "topdown_view.config.target_hitbox_expansion": "判定拡大量: %.1fブロック",
   "topdown_view.config.target_hitbox_expansion.tooltip": "ターゲットロック中の当たり判定拡大量です。\n1.0で全方向に1ブロック拡大。大きすぎると誤クリックしやすくなります。",
-  "topdown_view.config.section.screen_reach": "画面全体リーチ",
+  "topdown_view.config.section.screen_reach": "リーチ距離",
   "topdown_view.config.screen_reach_enabled": "画面全体リーチ: %s",
   "topdown_view.config.screen_reach_enabled.tooltip": "プレイヤーのリーチ距離を画面全体に拡張します。\n有効時、画面上に見えるブロックやエンティティをターゲット・操作できます。\n無効時はバニラのリーチ距離を使用します。",
   "topdown_view.config.reach_distance": "リーチ距離: %.0f",

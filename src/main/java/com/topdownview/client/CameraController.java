@@ -14,8 +14,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ComputeFovModifierEvent;
 import net.minecraftforge.client.event.RenderHandEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -39,12 +39,12 @@ public final class CameraController {
     }
 
     @SubscribeEvent
-    public static void onComputeFovModifier(ComputeFovModifierEvent event) {
+    public static void onComputeFov(ViewportEvent.ComputeFov event) {
         if (ModState.STATUS.isEnabled()) {
-            float baseFov = Minecraft.getInstance().options.fov().get();
-            if (baseFov <= 0) baseFov = 70.0f;
-            float modifier = (float) com.topdownview.Config.getTopDownFov() / baseFov;
-            event.setNewFovModifier(modifier);
+            double topDownFov = com.topdownview.Config.getTopDownFov();
+            if (topDownFov > 0) {
+                event.setFOV(topDownFov);
+            }
         }
     }
 
