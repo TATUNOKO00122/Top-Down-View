@@ -51,6 +51,11 @@ public final class ClientForgeEvents {
     }
 
     @SubscribeEvent
+    public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        Config.clearSyncedServerReach();
+    }
+
+    @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof PauseScreen screen)) {
             return;

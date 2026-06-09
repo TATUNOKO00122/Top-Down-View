@@ -188,6 +188,21 @@ public class ConfigScreen extends Screen {
                 Config.getTargetHitboxExpansion(), 0.0, 5.0, val -> Config.setTargetHitboxExpansion(val), 1));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.screen_reach", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.screen_reach_enabled", Config.isScreenReachEnabled()),
+                btn -> {
+                    Config.setScreenReachEnabled(!Config.isScreenReachEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.screen_reach_enabled",
+                            Config.isScreenReachEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.screen_reach_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.reach_distance",
+                Config.getReachDistance(), 1.0, 100.0, val -> Config.setReachDistance(val), 0));
+        y += sp;
+
         contentHeight = (y + sp) - (30 - (int) scrollOffset) + sp;
     }
 
@@ -397,19 +412,6 @@ public class ConfigScreen extends Screen {
                 Config.getMiningCylinderForwardShift(), 0, 10, val -> Config.setMiningCylinderForwardShift(val)));
         y += sp;
 
-        // 画面全体リーチ設定
-        y = addSection(y, "topdown_view.config.section.screen_reach", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.screen_reach_enabled", Config.isScreenReachEnabled()),
-                btn -> {
-                    Config.setScreenReachEnabled(!Config.isScreenReachEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.screen_reach_enabled",
-                            Config.isScreenReachEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.screen_reach_enabled.tooltip")))
-                .build());
-        y += sp;
-
         // 射程設定
         y = addSection(y, "topdown_view.config.section.weapon_range", tx);
         addRightWidget(Button.builder(
@@ -571,6 +573,9 @@ public class ConfigScreen extends Screen {
         Config.setTargetLockEnabled(true);
         Config.setTargetLockDuration(120);
         Config.setTargetHitboxExpansion(1.0);
+
+        Config.setScreenReachEnabled(false);
+        Config.setReachDistance(10.0);
 
         this.init();
     }

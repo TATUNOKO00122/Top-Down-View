@@ -154,5 +154,7 @@
   "topdown_view.config.target_hitbox_expansion.tooltip": "ターゲットロック中の当たり判定拡大量です。\n1.0で全方向に1ブロック拡大。大きすぎると誤クリックしやすくなります。",
   "topdown_view.config.section.screen_reach": "画面全体リーチ",
   "topdown_view.config.screen_reach_enabled": "画面全体リーチ: %s",
-  "topdown_view.config.screen_reach_enabled.tooltip": "プレイヤーのリーチ距離を画面全体に拡張します。\n有効時、画面上に見えるブロックやエンティティをターゲット・操作できます。\n無効時はバニラのリーチ距離を使用します。"
+  "topdown_view.config.screen_reach_enabled.tooltip": "プレイヤーのリーチ距離を画面全体に拡張します。\n有効時、画面上に見えるブロックやエンティティをターゲット・操作できます。\n無効時はバニラのリーチ距離を使用します。",
+  "topdown_view.config.reach_distance": "リーチ距離: %.0f",
+  "topdown_view.config.reach_distance.tooltip": "画面全体リーチ有効時の最大リーチ距離（ブロック数）。\nバニラのデフォルトは約4.5ブロック。大きい値ほど遠くのブロックを操作できます。"
 }

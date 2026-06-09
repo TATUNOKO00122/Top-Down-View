@@ -14,7 +14,7 @@ license="${mod_license}"
 issueTrackerURL="https://github.com/dev-f4m24hve/topdown_view/issues" #optional
 # If your mod is purely client-side and has no multiplayer functionality (be it dedicated servers or Open to LAN),
 # set this to true, and Forge will set the correct displayTest for you and skip loading your mod on dedicated servers.
-clientSideOnly=true #optional - defaults to false if absent
+clientSideOnly=false #optional - defaults to false if absent
 # A list of mods - how many allowed here is determined by the individual mod loader
 [[mods]] #mandatory
 # The modid of the mod
@@ -32,6 +32,14 @@ displayName="Top Down View Mod" #mandatory
 # NONE means that no display test is set on your mod. You need to do this yourself, see IExtensionPoint.DisplayTest for more information. You can define any scheme you wish with this value.
 # IMPORTANT NOTE: this is NOT an instruction as to which environments (CLIENT or DEDICATED SERVER) your mod loads on. Your mod should load (and maybe do nothing!) whereever it finds itself.
 #displayTest="MATCH_VERSION" # if nothing is specified, MATCH_VERSION is the default when clientSideOnly=false, otherwise IGNORE_ALL_VERSION when clientSideOnly=true (#optional)
+
+# Server-optional mod: allow clients with mod to join vanilla servers without version mismatch
+[[dependencies.${mod_id}]]
+    modId="topdown_view"
+    mandatory=false
+    versionRange="${mod_version}"
+    ordering="NONE"
+    side="SERVER"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''${mod_description}'''

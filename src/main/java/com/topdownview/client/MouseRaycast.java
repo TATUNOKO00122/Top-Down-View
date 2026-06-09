@@ -33,8 +33,7 @@ public final class MouseRaycast {
     private static final double SCREEN_TO_NDC_FACTOR = 2.0;
     private static final double NDC_OFFSET = 1.0;
     private static final double MIN_SCREEN_DIMENSION = 1.0;
-    private static final double REACH_DISTANCE = 512.0;
-    
+    private static final double RAYCAST_DISTANCE = 512.0;
 
     public static final MouseRaycast INSTANCE = new MouseRaycast();
 
@@ -59,7 +58,7 @@ public final class MouseRaycast {
     }
 
     public static double getCustomReachDistance() {
-        return REACH_DISTANCE;
+        return RAYCAST_DISTANCE;
     }
 
 public void update(Minecraft mc, float partialTick, double reachDistance) {

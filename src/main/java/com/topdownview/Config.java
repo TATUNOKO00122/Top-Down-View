@@ -134,9 +134,18 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue TARGET_HITBOX_EXPANSION = BUILDER
             .defineInRange("targetHitboxExpansion", 1.0, 0.0, 5.0);
     private static final ForgeConfigSpec.BooleanValue SCREEN_REACH_ENABLED = BUILDER
-            .define("screenReachEnabled", true);
+            .define("screenReachEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue REACH_DISTANCE = BUILDER
+            .defineInRange("reachDistance", 10.0, 1.0, 100.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
+
+    private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
+    private static final ForgeConfigSpec.DoubleValue SERVER_REACH_DISTANCE = COMMON_BUILDER
+            .defineInRange("serverReachDistance", 10.0, 1.0, 100.0);
+    public static final ForgeConfigSpec COMMON_SPEC = COMMON_BUILDER.build();
+
+    private static double syncedServerReach = -1.0;
 
     private static int cylinderRadiusHorizontal;
     private static int cylinderRadiusVertical;
@@ -194,6 +203,8 @@ public class Config {
     private static int targetLockDuration;
     private static double targetHitboxExpansion;
     private static boolean screenReachEnabled;
+    private static double reachDistance;
+    private static double serverReachDistance;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -251,6 +262,14 @@ public class Config {
     public static int getTargetLockDuration() { return targetLockDuration; }
     public static double getTargetHitboxExpansion() { return targetHitboxExpansion; }
     public static boolean isScreenReachEnabled() { return screenReachEnabled; }
+    public static double getReachDistance() { return reachDistance; }
+    public static double getServerReachDistance() { return serverReachDistance; }
+    public static double getEffectiveReachDistance() {
+        return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
+    }
+    public static void setSyncedServerReach(double value) { syncedServerReach = value; }
+    public static void clearSyncedServerReach() { syncedServerReach = -1.0; }
+    public static boolean hasSyncedServerReach() { return syncedServerReach >= 0; }
 
     public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = clamp(value, 1, 10); }
     public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = clamp(value, 1, 10); }
@@ -308,6 +327,7 @@ public class Config {
     public static void setTargetLockDuration(int value) { targetLockDuration = clamp(value, 0, 600); }
     public static void setTargetHitboxExpansion(double value) { targetHitboxExpansion = clamp(value, 0.0, 5.0); }
     public static void setScreenReachEnabled(boolean value) { screenReachEnabled = value; }
+    public static void setReachDistance(double value) { reachDistance = clamp(value, 1.0, 100.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -319,9 +339,16 @@ public class Config {
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
-        if (event.getConfig().getSpec() != SPEC) {
-            return;
+        if (event.getConfig().getSpec() == SPEC) {
+            loadClientConfig();
+            com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
+            notifyConfigChanged();
+        } else if (event.getConfig().getSpec() == COMMON_SPEC) {
+            loadCommonConfig();
         }
+    }
+
+    private static void loadClientConfig() {
         cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
         cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
         cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
@@ -378,9 +405,11 @@ public class Config {
         targetLockDuration = TARGET_LOCK_DURATION.get();
         targetHitboxExpansion = TARGET_HITBOX_EXPANSION.get();
         screenReachEnabled = SCREEN_REACH_ENABLED.get();
+        reachDistance = REACH_DISTANCE.get();
+    }
 
-        com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
-        notifyConfigChanged();
+    private static void loadCommonConfig() {
+        serverReachDistance = SERVER_REACH_DISTANCE.get();
     }
 
     public static void save() {
@@ -442,6 +471,7 @@ public class Config {
         TARGET_LOCK_DURATION.set(targetLockDuration);
         TARGET_HITBOX_EXPANSION.set(targetHitboxExpansion);
         SCREEN_REACH_ENABLED.set(screenReachEnabled);
+        REACH_DISTANCE.set(reachDistance);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
