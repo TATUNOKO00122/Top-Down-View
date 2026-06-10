@@ -29,7 +29,18 @@ public final class InputHandler {
             return;
 
         int keyCode = event.getKey();
-        
+
+        // F5（視点切替）の処理 - トップダウン有効時に押されたら無効化
+        if (ModState.STATUS.isEnabled() && event.getAction() == GLFW.GLFW_PRESS) {
+            KeyMapping perspectiveKey = mc.options.keyTogglePerspective;
+            if (perspectiveKey.getKey().getType() == InputConstants.Type.KEYSYM &&
+                perspectiveKey.getKey().getValue() == keyCode) {
+                event.setCanceled(true);
+                toggleTopDownView();
+                return;
+            }
+        }
+
         // フリーカメラキー（キーボードの場合のみ処理）
         if (isKeyboardKey(ClientModBusEvents.FREE_CAMERA_KEY)) {
             int freeCameraKeyCode = ClientModBusEvents.FREE_CAMERA_KEY.getKey().getValue();
@@ -63,6 +74,17 @@ public final class InputHandler {
             return;
 
         int button = event.getButton();
+
+        // F5（視点切替）の処理 - マウスボタンに割り当てられている場合
+        if (ModState.STATUS.isEnabled() && event.getAction() == GLFW.GLFW_PRESS) {
+            KeyMapping perspectiveKey = mc.options.keyTogglePerspective;
+            if (perspectiveKey.getKey().getType() == InputConstants.Type.MOUSE &&
+                perspectiveKey.getKey().getValue() == button) {
+                event.setCanceled(true);
+                toggleTopDownView();
+                return;
+            }
+        }
 
         // フリーカメラキー（マウスボタンの場合のみ処理）
         if (isMouseButton(ClientModBusEvents.FREE_CAMERA_KEY) && ModState.STATUS.isEnabled()) {

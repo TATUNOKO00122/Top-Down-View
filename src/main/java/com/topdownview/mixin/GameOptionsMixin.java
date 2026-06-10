@@ -1,10 +1,7 @@
 package com.topdownview.mixin;
 
-import com.topdownview.Config;
-import com.topdownview.culling.CullingManager;
 import com.topdownview.state.ModState;
 import net.minecraft.client.CameraType;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +17,7 @@ public abstract class GameOptionsMixin {
 
     @Inject(method = "autoJump", at = @At("HEAD"), cancellable = true)
     public void topdownview$getAutoJump(CallbackInfoReturnable<OptionInstance<Boolean>> cir) {
-        if (ModState.STATUS.isEnabled() && Config.isForceAutoJump() && ModState.CLICK_TO_MOVE.isMoving()) {
+        if (ModState.STATUS.isEnabled() && com.topdownview.Config.isForceAutoJump() && ModState.CLICK_TO_MOVE.isMoving()) {
             cir.setReturnValue(FORCE_AUTO_JUMP);
         }
     }
@@ -35,18 +32,8 @@ public abstract class GameOptionsMixin {
             return;
         }
 
-        if (Config.isLockedTopDown()) {
-            ci.cancel();
-            return;
-        }
-
+        // トップダウン有効時は外部からのカメラタイプ変更（F5、Waystones、ベッド起床等）を全て吸収
+        // 無効化せずキャンセルのみ行う。F5での終了はInputHandlerで個別に処理
         ci.cancel();
-        Minecraft mc = Minecraft.getInstance();
-        ModState.STATUS.setEnabled(false);
-        mc.options.setCameraType(CameraType.FIRST_PERSON);
-        mc.mouseHandler.releaseMouse();
-        mc.mouseHandler.grabMouse();
-        ModState.resetAll();
-        CullingManager.forceChunkRebuild(mc);
     }
 }
