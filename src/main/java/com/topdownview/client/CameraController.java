@@ -8,9 +8,11 @@ import com.topdownview.util.MathConstants;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -314,6 +316,15 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
 
         if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
             Vec3 targetPos = hitResult.getLocation();
+
+            // ターゲットロック中：拡大ヒットボックスによるYずれを補正
+            if (hitResult instanceof EntityHitResult entityHit) {
+                Entity hitEntity = entityHit.getEntity();
+                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
+                    targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
+                }
+            }
+
             Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
 
             double dx = targetPos.x - playerEyePos.x;
