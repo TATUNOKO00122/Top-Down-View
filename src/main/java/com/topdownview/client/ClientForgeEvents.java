@@ -47,6 +47,11 @@ public final class ClientForgeEvents {
         
         if (Minecraft.getInstance().player != null) {
             PlayerRotationController.initializeFromPlayer(Minecraft.getInstance().player);
+            if (ModState.STATUS.isEnabled()) {
+                float playerYaw = Minecraft.getInstance().player.getYRot();
+                ModState.CAMERA.setYaw(playerYaw);
+                ModState.CAMERA.updatePrevYaw();
+            }
         }
     }
 

@@ -182,6 +182,12 @@ float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
         if (mc.level != null) {
             ModState.TIME.setStartTime(mc.level.getGameTime());
         }
+        // プレイヤーの向きでカメラのヨー角を初期化
+        if (mc.player != null) {
+            float playerYaw = mc.player.getYRot();
+            ModState.CAMERA.setYaw(playerYaw);
+            ModState.CAMERA.updatePrevYaw();
+        }
         // カメラ距離をデフォルト値で初期化
         try {
             double defaultDistance = com.topdownview.state.CameraState.getEffectiveDefaultCameraDistance();
