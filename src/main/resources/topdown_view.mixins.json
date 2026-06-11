@@ -19,6 +19,7 @@
     "MinecraftMixin",
     "GameOptionsMixin",
     "LocalPlayerMixin",
+    "AbstractHorseEntityMixin",
     "MultiPlayerGameModeMixin"
   ],
   "mixins": [],

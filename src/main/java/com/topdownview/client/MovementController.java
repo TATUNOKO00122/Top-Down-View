@@ -26,6 +26,8 @@ public final class MovementController {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
+        if (mc.player.isPassenger()) return;
+
         if (ModState.CLICK_TO_MOVE.useBaritone()) {
             return;
         }
