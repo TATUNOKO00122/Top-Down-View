@@ -1,9 +1,9 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.MountSteeringController;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
@@ -44,10 +44,9 @@ public abstract class AbstractHorseEntityMixin {
         float inputLength = (float) Math.sqrt(forward * forward + strafe * strafe);
         if (inputLength < 0.01f) return;
 
-        float cameraYaw = ModState.CAMERA.getYaw();
-        float moveAngleDeg = (float) Math.toDegrees(Math.atan2(-strafe, forward));
-        float targetYaw = Mth.wrapDegrees(cameraYaw + moveAngleDeg);
+        float smoothYaw = MountSteeringController.getSmoothMountTargetYaw();
+        if (Float.isNaN(smoothYaw)) return;
 
-        cir.setReturnValue(new Vec2(0.0f, targetYaw));
+        cir.setReturnValue(new Vec2(0.0f, smoothYaw));
     }
 }

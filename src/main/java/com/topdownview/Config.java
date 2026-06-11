@@ -120,6 +120,12 @@ public class Config {
             .defineInRange("playerScreenOffset", 0.5, -10.0, 10.0);
     private static final ForgeConfigSpec.BooleanValue HEAD_BODY_ROTATION_ENABLED = BUILDER
             .define("headBodyRotationEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue INDEPENDENT_MOUNT_AIM = BUILDER
+            .define("independentMountAim", true);
+    private static final ForgeConfigSpec.IntValue MOUNT_AIM_MAX_TWIST = BUILDER
+            .defineInRange("mountAimMaxTwist", 360, 45, 360);
+    private static final ForgeConfigSpec.DoubleValue MOUNT_TURN_SMOOTHING = BUILDER
+            .defineInRange("mountTurnSmoothing", 0.25, 0.05, 1.0);
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
             .defineInRange("topDownFov", 70, 30, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
@@ -196,6 +202,9 @@ public class Config {
     private static boolean followDelayWhileMounted;
     private static double playerScreenOffset;
     private static boolean headBodyRotationEnabled;
+    private static boolean independentMountAim;
+    private static int mountAimMaxTwist;
+    private static double mountTurnSmoothing;
     private static int topDownFov;
     private static boolean lockedTopDown;
     private static boolean scrollOnlyZoomEnabled;
@@ -255,6 +264,9 @@ public class Config {
     public static boolean isFollowDelayWhileMounted() { return followDelayWhileMounted; }
     public static double getPlayerScreenOffset() { return playerScreenOffset; }
     public static boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
+    public static boolean isIndependentMountAim() { return independentMountAim; }
+    public static int getMountAimMaxTwist() { return mountAimMaxTwist; }
+    public static double getMountTurnSmoothing() { return mountTurnSmoothing; }
     public static int getTopDownFov() { return topDownFov; }
     public static boolean isLockedTopDown() { return lockedTopDown; }
     public static boolean isScrollOnlyZoomEnabled() { return scrollOnlyZoomEnabled; }
@@ -320,6 +332,9 @@ public class Config {
     public static void setFollowDelayWhileMounted(boolean value) { followDelayWhileMounted = value; }
     public static void setPlayerScreenOffset(double value) { playerScreenOffset = clamp(value, -10.0, 10.0); }
     public static void setHeadBodyRotationEnabled(boolean value) { headBodyRotationEnabled = value; }
+    public static void setIndependentMountAim(boolean value) { independentMountAim = value; }
+    public static void setMountAimMaxTwist(int value) { mountAimMaxTwist = clamp(value, 45, 360); }
+    public static void setMountTurnSmoothing(double value) { mountTurnSmoothing = clamp(value, 0.05, 1.0); }
     public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
     public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
     public static void setScrollOnlyZoomEnabled(boolean value) { scrollOnlyZoomEnabled = value; }
@@ -398,6 +413,9 @@ public class Config {
         followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.get();
         playerScreenOffset = PLAYER_SCREEN_OFFSET.get();
         headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.get();
+        independentMountAim = INDEPENDENT_MOUNT_AIM.get();
+        mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.get();
+        mountTurnSmoothing = MOUNT_TURN_SMOOTHING.get();
         topDownFov = TOP_DOWN_FOV.get();
         lockedTopDown = LOCKED_TOP_DOWN.get();
         scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.get();
@@ -464,6 +482,9 @@ public class Config {
         FOLLOW_DELAY_WHILE_MOUNTED.set(followDelayWhileMounted);
         PLAYER_SCREEN_OFFSET.set(playerScreenOffset);
         HEAD_BODY_ROTATION_ENABLED.set(headBodyRotationEnabled);
+        INDEPENDENT_MOUNT_AIM.set(independentMountAim);
+        MOUNT_AIM_MAX_TWIST.set(mountAimMaxTwist);
+        MOUNT_TURN_SMOOTHING.set(mountTurnSmoothing);
         TOP_DOWN_FOV.set(topDownFov);
         LOCKED_TOP_DOWN.set(lockedTopDown);
         SCROLL_ONLY_ZOOM_ENABLED.set(scrollOnlyZoomEnabled);

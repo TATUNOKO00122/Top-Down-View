@@ -1,5 +1,7 @@
 package com.topdownview.state;
 
+import com.topdownview.client.MountSteeringController;
+
 /**
  * MOD状態管理のファサード
  * 分割された状態クラスへのアクセスを統一
@@ -33,5 +35,6 @@ public final class ModState {
         DESTINATION_HIGHLIGHT.reset();
         PLAYER_ROTATION.reset();
         TARGET_LOCK.reset();
+        MountSteeringController.reset();
     }
 }
