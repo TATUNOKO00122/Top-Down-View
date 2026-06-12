@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class FadeCacheManager {
 
     private static final int MAX_FADE_ALPHA_CACHE_SIZE = 2000;
-    private static final int MAX_FADE_BLOCKS_CACHE_SIZE = 2000;
+    private static final int MAX_FADE_BLOCKS_CACHE_SIZE = 4000;
 
     private final Map<BlockPos, Float> fadeAlphaCache = new ConcurrentHashMap<>(500);
     private final Map<BlockPos, Float> fadeBlocksCache = new ConcurrentHashMap<>(500);

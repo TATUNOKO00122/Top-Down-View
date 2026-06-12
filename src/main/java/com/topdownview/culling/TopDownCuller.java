@@ -464,15 +464,16 @@ public final class TopDownCuller {
         double cY = this.cameraY;
         double cZ = this.cameraZ;
 
-        int rangeH = Math.min(Config.getCylinderRadiusHorizontal() + 2, 6);
-        int rangeV = Math.min(Config.getCylinderRadiusVertical() + 3, 8);
+        int radiusH = Config.getCylinderRadiusHorizontal();
+        int radiusV = Config.getCylinderRadiusVertical();
+        int margin = 2;
 
-        int minX = (int) Math.floor(pX) - rangeH;
-        int maxX = (int) Math.floor(pX) + rangeH;
-        int minY = (int) Math.floor(pY) - 1;
-        int maxY = (int) Math.floor(pY) + rangeV;
-        int minZ = (int) Math.floor(pZ) - rangeH;
-        int maxZ = (int) Math.floor(pZ) + rangeH;
+        int minX = (int) Math.floor(Math.min(pX, cX)) - radiusH - margin;
+        int maxX = (int) Math.floor(Math.max(pX, cX)) + radiusH + margin;
+        int minY = (int) Math.floor(Math.min(pY, cY)) - 1;
+        int maxY = (int) Math.floor(Math.max(pY, cY)) + radiusV + margin;
+        int minZ = (int) Math.floor(Math.min(pZ, cZ)) - radiusH - margin;
+        int maxZ = (int) Math.floor(Math.max(pZ, cZ)) + radiusH + margin;
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
