@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.0] - 2026-06-12
+
+### New Features
+- **Independent aiming while riding mounts**: WASD steers the mount while the mouse controls aim independently (default: on)
+  - Configurable turn smoothing coefficient and max twist angle between mount heading and aim direction
+  - Player pitch now correctly set based on raycast hit position when mounted
+- **Player body faces mouse cursor when riding boats**: Boat riders now look toward the mouse cursor instead of being locked to the boat's forward direction
+  - Twist limit configurable via `mountAimMaxTwist` setting (default: 360° = unlimited)
+
+### Bug Fixes
+- **Fixed mount movement controls**: WASD input while riding is now properly camera-relative; corrected A/D left-right direction being reversed
+- **Fixed camera yaw initialization**: Camera yaw now initializes to the player's facing direction when entering top-down view (previously always pointed south at 0°)
+- **Fixed target lock Y-offset issue**: Expanded hitbox during target lock no longer causes the player to look upward — aiming now uses entity center position (`eyeHeight × 0.8`) instead of hit result location
+
+---
+
 ## [1.7.0] - 2026-04-05
 
 ### New Features
