@@ -21,6 +21,7 @@
     "LocalPlayerMixin",
     "AbstractHorseEntityMixin",
     "BoatEntityMixin",
+    "LivingEntityMixin",
     "MultiPlayerGameModeMixin"
   ],
   "mixins": [],

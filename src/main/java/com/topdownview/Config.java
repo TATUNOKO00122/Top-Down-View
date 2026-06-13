@@ -123,9 +123,13 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue INDEPENDENT_MOUNT_AIM = BUILDER
             .define("independentMountAim", true);
     private static final ForgeConfigSpec.IntValue MOUNT_AIM_MAX_TWIST = BUILDER
-            .defineInRange("mountAimMaxTwist", 360, 45, 360);
+            .defineInRange("mountAimMaxTwist", 90, 45, 360);
     private static final ForgeConfigSpec.DoubleValue MOUNT_TURN_SMOOTHING = BUILDER
             .defineInRange("mountTurnSmoothing", 0.25, 0.05, 1.0);
+    private static final ForgeConfigSpec.IntValue BOAT_HEAD_MAX_TWIST = BUILDER
+            .defineInRange("boatHeadMaxTwist", 60, 30, 180);
+    private static final ForgeConfigSpec.IntValue BOAT_BODY_MAX_TWIST = BUILDER
+            .defineInRange("boatBodyMaxTwist", 45, 15, 90);
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
             .defineInRange("topDownFov", 70, 30, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
@@ -205,6 +209,8 @@ public class Config {
     private static boolean independentMountAim;
     private static int mountAimMaxTwist;
     private static double mountTurnSmoothing;
+    private static int boatHeadMaxTwist;
+    private static int boatBodyMaxTwist;
     private static int topDownFov;
     private static boolean lockedTopDown;
     private static boolean scrollOnlyZoomEnabled;
@@ -267,6 +273,8 @@ public class Config {
     public static boolean isIndependentMountAim() { return independentMountAim; }
     public static int getMountAimMaxTwist() { return mountAimMaxTwist; }
     public static double getMountTurnSmoothing() { return mountTurnSmoothing; }
+    public static int getBoatHeadMaxTwist() { return boatHeadMaxTwist; }
+    public static int getBoatBodyMaxTwist() { return boatBodyMaxTwist; }
     public static int getTopDownFov() { return topDownFov; }
     public static boolean isLockedTopDown() { return lockedTopDown; }
     public static boolean isScrollOnlyZoomEnabled() { return scrollOnlyZoomEnabled; }
@@ -335,6 +343,8 @@ public class Config {
     public static void setIndependentMountAim(boolean value) { independentMountAim = value; }
     public static void setMountAimMaxTwist(int value) { mountAimMaxTwist = clamp(value, 45, 360); }
     public static void setMountTurnSmoothing(double value) { mountTurnSmoothing = clamp(value, 0.05, 1.0); }
+    public static void setBoatHeadMaxTwist(int value) { boatHeadMaxTwist = clamp(value, 30, 180); }
+    public static void setBoatBodyMaxTwist(int value) { boatBodyMaxTwist = clamp(value, 15, 90); }
     public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
     public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
     public static void setScrollOnlyZoomEnabled(boolean value) { scrollOnlyZoomEnabled = value; }
@@ -416,6 +426,8 @@ public class Config {
         independentMountAim = INDEPENDENT_MOUNT_AIM.get();
         mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.get();
         mountTurnSmoothing = MOUNT_TURN_SMOOTHING.get();
+        boatHeadMaxTwist = BOAT_HEAD_MAX_TWIST.get();
+        boatBodyMaxTwist = BOAT_BODY_MAX_TWIST.get();
         topDownFov = TOP_DOWN_FOV.get();
         lockedTopDown = LOCKED_TOP_DOWN.get();
         scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.get();
@@ -485,6 +497,8 @@ public class Config {
         INDEPENDENT_MOUNT_AIM.set(independentMountAim);
         MOUNT_AIM_MAX_TWIST.set(mountAimMaxTwist);
         MOUNT_TURN_SMOOTHING.set(mountTurnSmoothing);
+        BOAT_HEAD_MAX_TWIST.set(boatHeadMaxTwist);
+        BOAT_BODY_MAX_TWIST.set(boatBodyMaxTwist);
         TOP_DOWN_FOV.set(topDownFov);
         LOCKED_TOP_DOWN.set(lockedTopDown);
         SCROLL_ONLY_ZOOM_ENABLED.set(scrollOnlyZoomEnabled);

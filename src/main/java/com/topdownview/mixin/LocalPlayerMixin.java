@@ -48,6 +48,14 @@ public abstract class LocalPlayerMixin {
         MountSteeringController.tick(player);
     }
 
+    private static final float BOAT_HEAD_LERP_SPEED = 0.4f;
+    private static final float BOAT_BODY_LERP_SPEED = 0.2f;
+
+    private float prevBoatHeadYaw = Float.NaN;
+    private float prevBoatBodyYaw = Float.NaN;
+    private float currentBoatHeadYaw = Float.NaN;
+    private float currentBoatBodyYaw = Float.NaN;
+
     private void setBoatPlayerRotationToMouse(LocalPlayer player, Minecraft mc) {
         MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
@@ -82,17 +90,49 @@ public abstract class LocalPlayerMixin {
         }
 
         float boatYaw = player.getVehicle().getYRot();
-        int maxTwist = Config.getMountAimMaxTwist();
-        float twist = Mth.wrapDegrees(aimYaw - boatYaw);
-        twist = Mth.clamp(twist, -maxTwist, maxTwist);
-        float constrainedYaw = Mth.wrapDegrees(boatYaw + twist);
 
-        player.setYRot(constrainedYaw);
-        player.yHeadRot = constrainedYaw;
-        player.yBodyRot = constrainedYaw;
-        player.yRotO = constrainedYaw;
-        player.yHeadRotO = constrainedYaw;
+        float headMaxTwist = Config.getBoatHeadMaxTwist();
+        float bodyMaxTwist = Config.getBoatBodyMaxTwist();
+
+        float headTwist = Mth.wrapDegrees(aimYaw - boatYaw);
+        headTwist = Mth.clamp(headTwist, -headMaxTwist, headMaxTwist);
+        float targetHeadYaw = Mth.wrapDegrees(boatYaw + headTwist);
+
+        float bodyTwist = Mth.wrapDegrees(aimYaw - boatYaw);
+        bodyTwist = Mth.clamp(bodyTwist, -bodyMaxTwist, bodyMaxTwist);
+        float targetBodyYaw = Mth.wrapDegrees(boatYaw + bodyTwist);
+
+        if (Float.isNaN(currentBoatHeadYaw)) {
+            currentBoatHeadYaw = targetHeadYaw;
+            prevBoatHeadYaw = targetHeadYaw;
+            currentBoatBodyYaw = targetBodyYaw;
+            prevBoatBodyYaw = targetBodyYaw;
+        }
+
+        prevBoatHeadYaw = currentBoatHeadYaw;
+        prevBoatBodyYaw = currentBoatBodyYaw;
+
+        currentBoatHeadYaw = lerpAngleDeg(currentBoatHeadYaw, targetHeadYaw, BOAT_HEAD_LERP_SPEED);
+        currentBoatBodyYaw = lerpAngleDeg(currentBoatBodyYaw, targetBodyYaw, BOAT_BODY_LERP_SPEED);
+
+        float clampedBody = Mth.wrapDegrees(currentBoatBodyYaw);
+        float bodyDiff = Mth.wrapDegrees(clampedBody - currentBoatHeadYaw);
+        if (Math.abs(bodyDiff) > bodyMaxTwist) {
+            clampedBody = Mth.wrapDegrees(currentBoatHeadYaw + Mth.clamp(bodyDiff, -bodyMaxTwist, bodyMaxTwist));
+            currentBoatBodyYaw = clampedBody;
+        }
+
+        player.setYRot(currentBoatBodyYaw);
+        player.yHeadRot = currentBoatHeadYaw;
+        player.yBodyRot = currentBoatBodyYaw;
+        player.yRotO = prevBoatBodyYaw;
+        player.yHeadRotO = prevBoatHeadYaw;
         player.setXRot(aimPitch);
+    }
+
+    private static float lerpAngleDeg(float from, float to, float t) {
+        float diff = Mth.wrapDegrees(to - from);
+        return Mth.wrapDegrees(from + diff * t);
     }
 
     private void handleElytraFlight(LocalPlayer player, Minecraft mc) {
