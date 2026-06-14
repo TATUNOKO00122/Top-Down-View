@@ -11,8 +11,8 @@ public final class PacketHandler {
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TopDownViewMod.MODID, "reach"),
             () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
+            s -> true,
+            s -> true
     );
 
     private static int nextId = 0;

@@ -31,6 +31,13 @@ public final class ReachManager {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    private static boolean isReachAllowed() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return false;
+        if (mc.getSingleplayerServer() != null) return true;
+        return Config.hasSyncedServerReach();
+    }
+
     public static void onClientTick() {
         tickCounter++;
         if (tickCounter % 20 != 0) return;
@@ -38,7 +45,9 @@ public final class ReachManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
 
-        boolean shouldApply = ModStatus.INSTANCE.isEnabled() && Config.isScreenReachEnabled();
+        boolean shouldApply = ModStatus.INSTANCE.isEnabled()
+                && Config.isScreenReachEnabled()
+                && isReachAllowed();
         double effectiveReach = Config.getEffectiveReachDistance();
 
         if (shouldApply && (!applied || lastAppliedReach != effectiveReach)) {
@@ -54,7 +63,9 @@ public final class ReachManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
 
-        boolean shouldApply = ModStatus.INSTANCE.isEnabled() && Config.isScreenReachEnabled();
+        boolean shouldApply = ModStatus.INSTANCE.isEnabled()
+                && Config.isScreenReachEnabled()
+                && isReachAllowed();
         if (shouldApply) {
             applyAll();
         } else {

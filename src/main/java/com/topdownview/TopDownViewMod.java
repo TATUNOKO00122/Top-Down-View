@@ -11,6 +11,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.IExtensionPoint;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 
@@ -40,6 +41,11 @@ public class TopDownViewMod {
         context.registerExtensionPoint(net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
                         (mc, lastScreen) -> new com.topdownview.client.gui.ConfigScreen(lastScreen)));
+
+        context.registerExtensionPoint(IExtensionPoint.DisplayTest.class,
+                () -> new IExtensionPoint.DisplayTest(
+                        () -> "IGNORE_ALL_VERSION",
+                        (remoteVersion, fromServer) -> true));
 
         context.getModEventBus().addListener(this::onCommonSetup);
     }
