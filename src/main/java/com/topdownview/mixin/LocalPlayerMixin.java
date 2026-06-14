@@ -21,8 +21,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LocalPlayer.class)
 public abstract class LocalPlayerMixin {
 
-    @Inject(method = "aiStep", at = @At("HEAD"))
-    private void onAiStepHead(CallbackInfo ci) {
+    @Inject(method = "aiStep", at = @At("TAIL"))
+    private void onAiStepTail(CallbackInfo ci) {
         if (!ModState.STATUS.isEnabled()) return;
 
         LocalPlayer player = (LocalPlayer) (Object) this;
