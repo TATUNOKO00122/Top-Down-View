@@ -11,10 +11,8 @@ import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
@@ -33,7 +31,6 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
  *   <li>境界ボックス：太線、色＝SpaceType（ROOM=緑/CORRIDOR=青/OUTDOOR=黄/CAVE=紫/UNKNOWN=灰）</li>
  *   <li>シード位置：白の小立方体</li>
  *   <li>開口部：黄（小穴）/オレンジ（大穴）の小立方体</li>
- *   <li>空気ブロック：サンプリング薄色細線（上限200個）</li>
  *   <li>壁ブロック：サンプリング赤細線（上限150個）</li>
  *   <li>階段：シアン(StairBlock含む)/マゼンタ(通常ブロック)の小立方体</li>
  *   <li>HUD：画面左上に空間情報テキスト</li>
@@ -44,7 +41,7 @@ public final class SpaceDebugRenderer {
     private static final float SEED_BOX_SIZE = 0.5f;
     private static final float OPENING_BOX_SIZE = 0.4f;
     private static final float STAIR_BOX_SIZE = 0.45f;
-    private static final int AIR_SAMPLE_LIMIT = 200;
+    private static final int OPENING_SAMPLE_LIMIT = 30;
     private static final int WALL_SAMPLE_LIMIT = 150;
     /** プレイヤーがこのブロック数以上移動したら再探索 */
     private static final int REEXPLORE_DISTANCE = 2;
@@ -78,13 +75,11 @@ public final class SpaceDebugRenderer {
         PoseStack poseStack = event.getPoseStack();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        renderAirBlocks(poseStack, mc, region, cameraPos);
         renderWallBlocks(poseStack, mc, region, cameraPos);
         renderOpenings(poseStack, mc, region, cameraPos);
         renderStaircases(poseStack, mc, cameraPos);
         renderSeed(poseStack, mc, region, cameraPos);
         renderBoundingBox(poseStack, mc, region, cameraPos);
-        renderFloatingInfo(poseStack, mc, region, cameraPos);
     }
 
     /**
@@ -148,11 +143,17 @@ public final class SpaceDebugRenderer {
 
     private static void renderOpenings(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
         if (region.getOpenings().isEmpty()) return;
+        int step = Math.max(1, region.getOpenings().size() / OPENING_SAMPLE_LIMIT);
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(2.5f);
+        RenderSystem.lineWidth(1.5f);
 
+        int idx = 0;
+        int drawn = 0;
         for (Opening opening : region.getOpenings()) {
+            if (idx++ % step != 0) continue;
+            if (drawn++ >= OPENING_SAMPLE_LIMIT) break;
+
             BlockPos rep = opening.getRepresentativePos();
             double x = rep.getX() + (1.0 - OPENING_BOX_SIZE) / 2.0 - cameraPos.x;
             double y = rep.getY() + (1.0 - OPENING_BOX_SIZE) / 2.0 - cameraPos.y;
@@ -168,33 +169,7 @@ public final class SpaceDebugRenderer {
             AABB box = new AABB(0, 0, 0, OPENING_BOX_SIZE, OPENING_BOX_SIZE, OPENING_BOX_SIZE);
             poseStack.pushPose();
             poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 1.0f);
-            poseStack.popPose();
-        }
-        mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
-    }
-
-    private static void renderAirBlocks(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        if (region.getAirBlocks().isEmpty()) return;
-        int step = Math.max(1, region.getAirBlockCount() / AIR_SAMPLE_LIMIT);
-        float[] color = getTypeColor(region.getType());
-
-        VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.0f);
-
-        int idx = 0;
-        int drawn = 0;
-        for (BlockPos pos : region.getAirBlocks()) {
-            if (idx++ % step != 0) continue;
-            if (drawn++ >= AIR_SAMPLE_LIMIT) break;
-
-            double x = pos.getX() - cameraPos.x;
-            double y = pos.getY() - cameraPos.y;
-            double z = pos.getZ() - cameraPos.z;
-            poseStack.pushPose();
-            poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, 0, 0, 0, 1, 1, 1,
-                    color[0] * 0.4f, color[1] * 0.4f, color[2] * 0.4f, 0.5f);
+            LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 0.4f);
             poseStack.popPose();
         }
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
@@ -256,61 +231,6 @@ public final class SpaceDebugRenderer {
             }
         }
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
-    }
-
-    /**
-     * シード位置の上に空間情報テキストを3D空間内に浮かべて表示（ビルボード）。
-     */
-    private static void renderFloatingInfo(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        BlockPos seed = region.getSeed();
-        double x = seed.getX() + 0.5 - cameraPos.x;
-        double y = seed.getY() + 2.5 - cameraPos.y;
-        double z = seed.getZ() + 0.5 - cameraPos.z;
-
-        Font font = mc.font;
-        List<Staircase> staircases = ModState.SPACE_DEBUG.getCurrentStaircases();
-        int stairCount = staircases.size();
-        int stairBlocksTotal = 0;
-        int stairStepsTotal = 0;
-        for (Staircase s : staircases) {
-            stairStepsTotal += s.getStepCount();
-            if (s.containsStairBlocks()) stairBlocksTotal++;
-        }
-
-        String[] lines = {
-                "Type: " + region.getType(),
-                "Air: " + region.getAirBlockCount(),
-                "Walls: " + region.getWallBlockCount(),
-                "Openings: " + region.getOpenings().size(),
-                "Stairs: " + stairCount + " (" + stairStepsTotal + " steps, "
-                        + stairBlocksTotal + " with StairBlock)",
-                "Bounds: [" + region.getMinX() + "," + region.getMinY() + "," + region.getMinZ()
-                        + "]->[" + region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "]",
-                "Time: " + ModState.SPACE_DEBUG.getLastExploreTimeMs() + "ms"
-        };
-
-        poseStack.pushPose();
-        poseStack.translate(x, y, z);
-        // カメラに向ける（ビルボード）
-        poseStack.mulPose(mc.gameRenderer.getMainCamera().rotation());
-        // テキストサイズを縮小。Y反転で上向き
-        float scale = -0.025f;
-        poseStack.scale(scale, scale, scale);
-
-        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        float lineHeight = font.lineHeight + 1;
-        float startY = -(lines.length * lineHeight) / 2.0f;
-
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
-            float textX = -font.width(line) / 2.0f;
-            float textY = startY + i * lineHeight;
-            font.drawInBatch(line, textX, textY, 0xFFFFFFFF, false,
-                    poseStack.last().pose(), bufferSource, Font.DisplayMode.NORMAL,
-                    0x90000000, 15728880);
-        }
-        bufferSource.endBatch();
-        poseStack.popPose();
     }
 
     private static void renderHudText(GuiGraphics gg, Minecraft mc, SpaceRegion region) {
