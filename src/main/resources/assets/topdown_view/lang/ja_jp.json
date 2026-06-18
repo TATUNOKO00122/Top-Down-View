@@ -170,5 +170,7 @@
   "topdown_view.config.placement_preview_enabled": "配置プレビュー: %s",
   "topdown_view.config.placement_preview_enabled.tooltip": "ブロックを手に持ち視点先に向けると、配置後の姿を半透明で表示します。\nトップダウンモード中のみ動作します。",
   "topdown_view.config.placement_transparency": "プレビュー透明度: %.2f",
-  "topdown_view.config.placement_transparency.tooltip": "配置プレビューの透明度を設定します。\n0.1=ほぼ透明、0.9=ほぼ不透明。"
+  "topdown_view.config.placement_transparency.tooltip": "配置プレビューの透明度を設定します。\n0.1=ほぼ透明、0.9=ほぼ不透明。",
+  "topdown_view.config.click_position_placement_enabled": "クリック位置配置: %s",
+  "topdown_view.config.click_position_placement_enabled.tooltip": "オンにすると、階段やハーフブロックなどの方向性ブロックが\nキャラクターの向きではなく、クリックしたブロック面の方向を向きます。"
 }

@@ -516,6 +516,17 @@ public class ConfigScreen extends Screen {
                 Config.getPlacementTransparency(), 0.1, 0.9,
                 val -> Config.setPlacementTransparency(val)));
         y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
+                        Config.isClickPositionPlacementEnabled()), btn -> {
+                    Config.setClickPositionPlacementEnabled(!Config.isClickPositionPlacementEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
+                            Config.isClickPositionPlacementEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.click_position_placement_enabled.tooltip")))
+                        .build());
+        y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }

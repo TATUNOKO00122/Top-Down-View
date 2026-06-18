@@ -22,6 +22,9 @@ public final class PlayerRotationState {
     private boolean isUsingItem = false;
     private boolean hasMovementInput = false;
 
+    /** クリック位置ベースの配置方向yaw（NaN=未設定、targetHeadYawにフォールバック） */
+    private float targetPlacementYaw = Float.NaN;
+
     private boolean attackRotationLocked = false;
     private float lockedHeadYaw = 0.0f;
     private float lockedBodyYaw = 0.0f;
@@ -67,7 +70,7 @@ public final class PlayerRotationState {
 
         if (isUsingItem) {
             currentHeadYaw = targetHeadYaw;
-            currentBodyYaw = targetHeadYaw;
+            currentBodyYaw = Float.isFinite(targetPlacementYaw) ? targetPlacementYaw : targetHeadYaw;
             return;
         }
 
@@ -123,6 +126,23 @@ public final class PlayerRotationState {
         }
     }
 
+    /**
+     * クリック位置から計算した配置方向yawを設定する。
+     * アイテム使用中のbody yawとして使用され、方向性ブロックの向きを決定する。
+     * NaNでクリアするとtargetHeadYawにフォールバックする。
+     */
+    public void setTargetPlacementYaw(float yaw) {
+        if (!Float.isFinite(yaw)) {
+            targetPlacementYaw = Float.NaN;
+            return;
+        }
+        targetPlacementYaw = normalizeAngle(yaw);
+    }
+
+    public void clearTargetPlacementYaw() {
+        targetPlacementYaw = Float.NaN;
+    }
+
     public void setBodyLerpSpeed(float speed) {
         bodyLerpSpeed = Mth.clamp(speed, 0.01f, 1.0f);
     }
@@ -140,6 +160,7 @@ public final class PlayerRotationState {
         prevBodyYaw = 0.0f;
         isUsingItem = false;
         hasMovementInput = false;
+        targetPlacementYaw = Float.NaN;
         attackRotationLocked = false;
         attackLockTicks = 0;
     }

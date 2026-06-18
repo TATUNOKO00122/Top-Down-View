@@ -153,6 +153,8 @@ public class Config {
             .define("placementPreviewEnabled", true);
     private static final ForgeConfigSpec.DoubleValue PLACEMENT_TRANSPARENCY = BUILDER
             .defineInRange("placementTransparency", 0.5, 0.1, 0.9);
+    private static final ForgeConfigSpec.BooleanValue CLICK_POSITION_PLACEMENT_ENABLED = BUILDER
+            .define("clickPositionPlacementEnabled", true);
 
     // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
@@ -240,6 +242,7 @@ public class Config {
     private static double serverReachDistance;
     private static boolean placementPreviewEnabled;
     private static double placementTransparency;
+    private static boolean clickPositionPlacementEnabled;
     private static boolean staircaseExclusionEnabled;
     private static int staircaseExclusionHeight;
     private static boolean staircaseOccludeEnabled;
@@ -310,6 +313,7 @@ public class Config {
     public static double getServerReachDistance() { return serverReachDistance; }
     public static boolean isPlacementPreviewEnabled() { return placementPreviewEnabled; }
     public static double getPlacementTransparency() { return placementTransparency; }
+    public static boolean isClickPositionPlacementEnabled() { return clickPositionPlacementEnabled; }
     public static boolean isStaircaseExclusionEnabled() { return staircaseExclusionEnabled; }
     public static int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
     public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
@@ -385,6 +389,7 @@ public class Config {
     public static void setReachDistance(double value) { reachDistance = clamp(value, 1.0, 100.0); }
     public static void setPlacementPreviewEnabled(boolean value) { placementPreviewEnabled = value; }
     public static void setPlacementTransparency(double value) { placementTransparency = clamp(value, 0.1, 0.9); }
+    public static void setClickPositionPlacementEnabled(boolean value) { clickPositionPlacementEnabled = value; }
     public static void setStaircaseExclusionEnabled(boolean value) { staircaseExclusionEnabled = value; }
     public static void setStaircaseExclusionHeight(int value) { staircaseExclusionHeight = clamp(value, 1, 10); }
     public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
@@ -474,6 +479,7 @@ public class Config {
         reachDistance = REACH_DISTANCE.get();
         placementPreviewEnabled = PLACEMENT_PREVIEW_ENABLED.get();
         placementTransparency = PLACEMENT_TRANSPARENCY.get();
+        clickPositionPlacementEnabled = CLICK_POSITION_PLACEMENT_ENABLED.get();
         staircaseExclusionEnabled = STAIRCASE_EXCLUSION_ENABLED.get();
         staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.get();
         staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
@@ -551,6 +557,7 @@ public class Config {
         REACH_DISTANCE.set(reachDistance);
         PLACEMENT_PREVIEW_ENABLED.set(placementPreviewEnabled);
         PLACEMENT_TRANSPARENCY.set(placementTransparency);
+        CLICK_POSITION_PLACEMENT_ENABLED.set(clickPositionPlacementEnabled);
         STAIRCASE_EXCLUSION_ENABLED.set(staircaseExclusionEnabled);
         STAIRCASE_EXCLUSION_HEIGHT.set(staircaseExclusionHeight);
         STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);

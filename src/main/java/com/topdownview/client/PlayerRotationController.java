@@ -4,9 +4,14 @@ import com.topdownview.state.ModState;
 import com.topdownview.state.PlayerRotationState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -43,11 +48,13 @@ public final class PlayerRotationController {
 
     private static void updateHeadYawFromMouse(Minecraft mc, PlayerRotationState state) {
         if (ModState.CAMERA.isDragging() || ModState.CAMERA.isFreeCameraMode()) {
+            state.clearTargetPlacementYaw();
             return;
         }
 
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
         if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
+            state.clearTargetPlacementYaw();
             return;
         }
 
@@ -63,6 +70,58 @@ public final class PlayerRotationController {
         }
 
         state.updateTargetHeadYaw(playerEyePos, targetPos);
+
+        updatePlacementDirection(hitResult, targetPos, state);
+    }
+
+    /**
+     * ブロックのクリック位置から方向性ブロック（階段・ハーフブロック等）の
+     * 配置方向を計算し、targetPlacementYaw に反映する。
+     *
+     * ブロック中心→ヒット位置の水平ベクトルから最も近い4方位を求め、
+     * その方向をプレイヤーのbody yawとして設定する。
+     * アイテム使用中、このyawがplayer.getDirection()経由で
+     * BlockPlaceContext.getHorizontalDirection()に伝わる。
+     */
+    private static void updatePlacementDirection(HitResult hitResult, Vec3 hitPos,
+                                                  PlayerRotationState state) {
+        if (!com.topdownview.Config.isClickPositionPlacementEnabled()) {
+            state.clearTargetPlacementYaw();
+            return;
+        }
+
+        if (!(hitResult instanceof BlockHitResult blockHit)) {
+            state.clearTargetPlacementYaw();
+            return;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !isHoldingPlaceableBlock(mc.player)) {
+            state.clearTargetPlacementYaw();
+            return;
+        }
+
+        BlockPos blockPos = blockHit.getBlockPos();
+        double centerX = blockPos.getX() + 0.5;
+        double centerZ = blockPos.getZ() + 0.5;
+        double dx = hitPos.x - centerX;
+        double dz = hitPos.z - centerZ;
+
+        double horizDistSqr = dx * dx + dz * dz;
+        if (horizDistSqr < 0.01) {
+            state.clearTargetPlacementYaw();
+            return;
+        }
+
+        Direction dir = Direction.getNearest(dx, 0.0, dz);
+        state.setTargetPlacementYaw(dir.toYRot());
+    }
+
+    private static boolean isHoldingPlaceableBlock(Player player) {
+        ItemStack mainHand = player.getMainHandItem();
+        ItemStack offHand = player.getOffhandItem();
+        return mainHand.getItem() instanceof BlockItem
+                || offHand.getItem() instanceof BlockItem;
     }
 
     private static void updateBodyYawFromMovement(Minecraft mc, PlayerRotationState state) {

@@ -170,5 +170,7 @@
   "topdown_view.config.placement_preview_enabled": "Placement Preview: %s",
   "topdown_view.config.placement_preview_enabled.tooltip": "Shows a translucent ghost block preview when holding a block item and looking at a surface.\nOnly works in top-down mode.",
   "topdown_view.config.placement_transparency": "Preview Transparency: %.2f",
-  "topdown_view.config.placement_transparency.tooltip": "Sets the transparency of the placement preview.\n0.1 = nearly invisible, 0.9 = nearly opaque."
+  "topdown_view.config.placement_transparency.tooltip": "Sets the transparency of the placement preview.\n0.1 = nearly invisible, 0.9 = nearly opaque.",
+  "topdown_view.config.click_position_placement_enabled": "Click-Position Placement: %s",
+  "topdown_view.config.click_position_placement_enabled.tooltip": "When enabled, directional blocks (stairs, slabs, etc.) face toward\nthe side of the block you click, rather than your character's orientation."
 }
