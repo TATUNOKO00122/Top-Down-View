@@ -217,6 +217,24 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
                 Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.staircase_exclusion_enabled",
+                        Config.isStaircaseExclusionEnabled()),
+                btn -> {
+                    Config.setStaircaseExclusionEnabled(!Config.isStaircaseExclusionEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.staircase_exclusion_enabled",
+                            Config.isStaircaseExclusionEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.staircase_exclusion_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.staircase_exclusion_height",
+                Config.getStaircaseExclusionHeight(), 1, 10,
+                val -> Config.setStaircaseExclusionHeight(val)));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -597,6 +615,9 @@ public class ConfigScreen extends Screen {
 
         Config.setPlacementPreviewEnabled(true);
         Config.setPlacementTransparency(0.5);
+
+        Config.setStaircaseExclusionEnabled(false);
+        Config.setStaircaseExclusionHeight(3);
 
         this.init();
     }

@@ -7,7 +7,9 @@ import com.topdownview.spatial.Opening;
 import com.topdownview.spatial.OpeningType;
 import com.topdownview.spatial.SpaceRegion;
 import com.topdownview.spatial.SpaceType;
+import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -33,6 +35,7 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
  *   <li>開口部：黄（小穴）/オレンジ（大穴）の小立方体</li>
  *   <li>空気ブロック：サンプリング薄色細線（上限200個）</li>
  *   <li>壁ブロック：サンプリング赤細線（上限150個）</li>
+ *   <li>階段：シアン(StairBlock含む)/マゼンタ(通常ブロック)の小立方体</li>
  *   <li>HUD：画面左上に空間情報テキスト</li>
  * </ul>
  */
@@ -40,6 +43,7 @@ public final class SpaceDebugRenderer {
 
     private static final float SEED_BOX_SIZE = 0.5f;
     private static final float OPENING_BOX_SIZE = 0.4f;
+    private static final float STAIR_BOX_SIZE = 0.45f;
     private static final int AIR_SAMPLE_LIMIT = 200;
     private static final int WALL_SAMPLE_LIMIT = 150;
     /** プレイヤーがこのブロック数以上移動したら再探索 */
@@ -77,6 +81,7 @@ public final class SpaceDebugRenderer {
         renderAirBlocks(poseStack, mc, region, cameraPos);
         renderWallBlocks(poseStack, mc, region, cameraPos);
         renderOpenings(poseStack, mc, region, cameraPos);
+        renderStaircases(poseStack, mc, cameraPos);
         renderSeed(poseStack, mc, region, cameraPos);
         renderBoundingBox(poseStack, mc, region, cameraPos);
         renderFloatingInfo(poseStack, mc, region, cameraPos);
@@ -221,6 +226,39 @@ public final class SpaceDebugRenderer {
     }
 
     /**
+     * 検出された階段を描画。
+     * StairBlock含む＝シアン、通常ブロックのみ＝マゼンタ。
+     */
+    private static void renderStaircases(PoseStack poseStack, Minecraft mc, Vec3 cameraPos) {
+        List<Staircase> staircases = ModState.SPACE_DEBUG.getCurrentStaircases();
+        if (staircases.isEmpty()) return;
+
+        VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
+        RenderSystem.lineWidth(2.5f);
+
+        for (Staircase stair : staircases) {
+            float r, g, b;
+            if (stair.containsStairBlocks()) {
+                r = 0.0f; g = 1.0f; b = 1.0f; // シアン：StairBlock含む
+            } else {
+                r = 1.0f; g = 0.0f; b = 1.0f; // マゼンタ：通常ブロックのみ
+            }
+
+            for (BlockPos pos : stair.getSteps()) {
+                double x = pos.getX() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.x;
+                double y = pos.getY() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.y;
+                double z = pos.getZ() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.z;
+                AABB box = new AABB(0, 0, 0, STAIR_BOX_SIZE, STAIR_BOX_SIZE, STAIR_BOX_SIZE);
+                poseStack.pushPose();
+                poseStack.translate(x, y, z);
+                LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 1.0f);
+                poseStack.popPose();
+            }
+        }
+        mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
+    }
+
+    /**
      * シード位置の上に空間情報テキストを3D空間内に浮かべて表示（ビルボード）。
      */
     private static void renderFloatingInfo(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
@@ -230,11 +268,22 @@ public final class SpaceDebugRenderer {
         double z = seed.getZ() + 0.5 - cameraPos.z;
 
         Font font = mc.font;
+        List<Staircase> staircases = ModState.SPACE_DEBUG.getCurrentStaircases();
+        int stairCount = staircases.size();
+        int stairBlocksTotal = 0;
+        int stairStepsTotal = 0;
+        for (Staircase s : staircases) {
+            stairStepsTotal += s.getStepCount();
+            if (s.containsStairBlocks()) stairBlocksTotal++;
+        }
+
         String[] lines = {
                 "Type: " + region.getType(),
                 "Air: " + region.getAirBlockCount(),
                 "Walls: " + region.getWallBlockCount(),
                 "Openings: " + region.getOpenings().size(),
+                "Stairs: " + stairCount + " (" + stairStepsTotal + " steps, "
+                        + stairBlocksTotal + " with StairBlock)",
                 "Bounds: [" + region.getMinX() + "," + region.getMinY() + "," + region.getMinZ()
                         + "]->[" + region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "]",
                 "Time: " + ModState.SPACE_DEBUG.getLastExploreTimeMs() + "ms"
@@ -286,6 +335,22 @@ public final class SpaceDebugRenderer {
                 + "  Walls: " + region.getWallBlockCount()
                 + "  Openings: " + region.getOpenings().size(), x, y, 0xFFFFFFFF, false);
         y += lineHeight;
+
+        // 階段情報
+        List<Staircase> staircases = ModState.SPACE_DEBUG.getCurrentStaircases();
+        if (!staircases.isEmpty()) {
+            int stairStepsTotal = 0;
+            int stairBlocksTotal = 0;
+            for (Staircase s : staircases) {
+                stairStepsTotal += s.getStepCount();
+                if (s.containsStairBlocks()) stairBlocksTotal++;
+            }
+            int stairColor = stairBlocksTotal > 0 ? 0xFF00FFFF : 0xFFFF00FF;
+            gg.drawString(mc.font, "Stairs: " + staircases.size()
+                    + "  Steps: " + stairStepsTotal
+                    + "  StairBlock: " + stairBlocksTotal, x, y, stairColor, false);
+            y += lineHeight;
+        }
         gg.drawString(mc.font, "Bounds: [" + region.getMinX() + "," + region.getMinY() + "," + region.getMinZ()
                 + "]->[" + region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "]", x, y, 0xFFCCCCCC, false);
         y += lineHeight;

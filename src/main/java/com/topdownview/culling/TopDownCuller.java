@@ -6,6 +6,10 @@ import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
+import com.topdownview.spatial.SpaceExplorer;
+import com.topdownview.spatial.SpaceRegion;
+import com.topdownview.spatial.StairAnalyzer;
+import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -21,7 +25,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * トップダウン視点用のブロックカリングを管理するシングルトンクラス。
@@ -55,6 +62,12 @@ public final class TopDownCuller {
     private long lastFadeBlocksUpdateTick = -1;
     private boolean cacheClearedOnDisabled = false;
 
+    // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロックはカリングから除外
+    private final Set<BlockPos> excludedStairBlocks = new HashSet<>();
+    private int lastStairScanBlockX = Integer.MIN_VALUE;
+    private int lastStairScanBlockY = Integer.MIN_VALUE;
+    private int lastStairScanBlockZ = Integer.MIN_VALUE;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
 
@@ -72,6 +85,10 @@ public final class TopDownCuller {
     public void clearCache() {
         cullingCache.clear();
         fadeCache.clear();
+        excludedStairBlocks.clear();
+        lastStairScanBlockX = Integer.MIN_VALUE;
+        lastStairScanBlockY = Integer.MIN_VALUE;
+        lastStairScanBlockZ = Integer.MIN_VALUE;
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -141,6 +158,12 @@ public final class TopDownCuller {
                 cullingCache.put(pos, false);
                 return false;
             }
+        }
+
+        // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロックは表示
+        if (Config.isStaircaseExclusionEnabled() && isExcludedStairBlock(pos, playerFeetY)) {
+            cullingCache.put(pos, false);
+            return false;
         }
 
         float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cY, cZ);
@@ -243,7 +266,79 @@ public final class TopDownCuller {
             lastPlayerBlockZ = currentBlockZ;
         }
 
+        // 階段除外リストを更新（プレイヤーがブロック境界を超えたら再検出）
+        updateStairExclusion(mc, currentBlockX, currentBlockY, currentBlockZ);
+
         updateEntityCulling(mc);
+    }
+
+    /**
+     * 階段除外リストを更新。
+     * プレイヤーが別ブロックに移動した時のみ再検出する（重い処理を毎tick走らせない）。
+     * 検出された階段の全段から、プレイヤー足元〜足元+exclusionHeight の範囲内のものを抽出。
+     */
+    private void updateStairExclusion(Minecraft mc, int blockX, int blockY, int blockZ) {
+        if (!Config.isStaircaseExclusionEnabled()) {
+            if (!excludedStairBlocks.isEmpty()) {
+                excludedStairBlocks.clear();
+            }
+            return;
+        }
+
+        // ブロック境界を超えていなければ再利用
+        if (blockX == lastStairScanBlockX && blockY == lastStairScanBlockY && blockZ == lastStairScanBlockZ) {
+            return;
+        }
+        lastStairScanBlockX = blockX;
+        lastStairScanBlockY = blockY;
+        lastStairScanBlockZ = blockZ;
+
+        excludedStairBlocks.clear();
+
+        if (mc.level == null || mc.player == null) {
+            return;
+        }
+
+        BlockPos seed = mc.player.blockPosition();
+        SpaceRegion region = SpaceExplorer.explore(mc.level, seed,
+                com.topdownview.state.SpaceDebugState.MAX_EXPLORE_BLOCKS,
+                com.topdownview.state.SpaceDebugState.MAX_WALL_THICKNESS,
+                com.topdownview.state.SpaceDebugState.MAX_HOLE_SIZE);
+        if (!region.isValid()) {
+            return;
+        }
+
+        List<Staircase> staircases = StairAnalyzer.detect(mc.level, region,
+                com.topdownview.state.SpaceDebugState.MIN_STAIRCASE_STEPS);
+        if (staircases.isEmpty()) {
+            return;
+        }
+
+        // 足元Y（足元ブロック = eyeY-1 の床 = eyeY-2）。playerY は eyeY のブロック中心。
+        // update() で playerY = floor(eyeY)+0.5。足元床ブロック = floor(eyeY)-1。
+        int playerFeetY = blockY - 1;
+        int exclusionHeight = Config.getStaircaseExclusionHeight();
+        int minY = playerFeetY;
+        int maxY = playerFeetY + exclusionHeight;
+
+        for (Staircase stair : staircases) {
+            for (BlockPos step : stair.getSteps()) {
+                if (step.getY() >= minY && step.getY() <= maxY) {
+                    excludedStairBlocks.add(step.immutable());
+                }
+            }
+        }
+    }
+
+    /**
+     * 指定ブロックが階段除外リストに含まれるか。
+     * Y範囲チェックは updateStairExclusion で行うため、ここではSetの包含のみ。
+     */
+    private boolean isExcludedStairBlock(BlockPos pos, int playerFeetY) {
+        if (excludedStairBlocks.isEmpty()) {
+            return false;
+        }
+        return excludedStairBlocks.contains(pos);
     }
 
     private void updateEntityCulling(Minecraft mc) {
@@ -372,6 +467,10 @@ public final class TopDownCuller {
     public void reset() {
         cullingCache.clear();
         fadeCache.clear();
+        excludedStairBlocks.clear();
+        lastStairScanBlockX = Integer.MIN_VALUE;
+        lastStairScanBlockY = Integer.MIN_VALUE;
+        lastStairScanBlockZ = Integer.MIN_VALUE;
         contextValid = false;
         playerX = 0.0;
         playerY = 0.0;
