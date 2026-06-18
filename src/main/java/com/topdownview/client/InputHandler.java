@@ -226,6 +226,8 @@ public final class InputHandler {
             toggleMiningMode();
         } else if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled() && matchesKeyBinding(mc.options.keyJump, keyCode, inputType)) {
             ClickToMoveController.reset();
+        } else if (matchesKeyBinding(ClientModBusEvents.SPACE_DEBUG_KEY, keyCode, inputType)) {
+            toggleSpaceDebug();
         }
     }
 
@@ -258,6 +260,13 @@ public final class InputHandler {
         ModState.STATUS.setMiningMode(newState);
         // カリングキャッシュをクリアして表示を更新
         com.topdownview.culling.CullingManager.reset();
+    }
+
+    private static void toggleSpaceDebug() {
+        ModState.SPACE_DEBUG.toggle();
+        if (!ModState.SPACE_DEBUG.isEnabled()) {
+            SpaceDebugRenderer.clearCache();
+        }
     }
 
     @SubscribeEvent

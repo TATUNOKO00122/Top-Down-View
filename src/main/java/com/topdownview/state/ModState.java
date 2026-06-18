@@ -22,6 +22,7 @@ public final class ModState {
     public static final DestinationHighlightState DESTINATION_HIGHLIGHT = DestinationHighlightState.INSTANCE;
     public static final PlayerRotationState PLAYER_ROTATION = PlayerRotationState.INSTANCE;
     public static final TargetLockState TARGET_LOCK = TargetLockState.INSTANCE;
+    public static final SpaceDebugState SPACE_DEBUG = SpaceDebugState.INSTANCE;
 
     /**
      * 全状態をリセット
@@ -35,6 +36,7 @@ public final class ModState {
         DESTINATION_HIGHLIGHT.reset();
         PLAYER_ROTATION.reset();
         TARGET_LOCK.reset();
+        SPACE_DEBUG.reset();
         MountSteeringController.reset();
     }
 }

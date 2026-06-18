@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -16,6 +17,11 @@ public final class RenderEventHandler {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        // 空間デバッグはトップダウン有無に関係なく動作
+        if (ModState.SPACE_DEBUG.isEnabled()) {
+            SpaceDebugRenderer.onRenderLevelStage(event);
+        }
+
         if (!ModState.STATUS.isEnabled()) {
             return;
         }
@@ -27,6 +33,13 @@ public final class RenderEventHandler {
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             TargetHighlightRenderer.onRenderLevelStage(event);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRenderGui(RenderGuiEvent.Pre event) {
+        if (ModState.SPACE_DEBUG.isEnabled()) {
+            SpaceDebugRenderer.onRenderGui(event);
         }
     }
 }

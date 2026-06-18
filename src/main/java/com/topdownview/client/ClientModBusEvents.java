@@ -52,6 +52,12 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
+    // 空間探索デバッグ表示トグル（アルゴリズム動作確認用）
+    public static final KeyMapping SPACE_DEBUG_KEY = new KeyMapping(
+            "key.topdown_view.space_debug",
+            GLFW.GLFW_KEY_F6,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
@@ -62,6 +68,7 @@ public class ClientModBusEvents {
         event.register(MINING_MODE_KEY);
         event.register(DESTROY_KEY);
         event.register(FREE_CAMERA_KEY);
+        event.register(SPACE_DEBUG_KEY);
     }
 
 
