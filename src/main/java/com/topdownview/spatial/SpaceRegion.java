@@ -80,6 +80,32 @@ public final class SpaceRegion {
     public int getMaxY() { return maxY; }
     public int getMaxZ() { return maxZ; }
 
+    /**
+     * type だけ差し替えた新しい SpaceRegion を返す。
+     *
+     * <p>内部の Set は不変（unmodifiable）のため、このインスタンスと共有して
+     * コピーを省略できる。SpaceAnalyzer が UNKNOWN → 確定タイプに遷移する際に
+     * 全 Set の再コピーを回避するために使用。
+     */
+    public SpaceRegion withType(SpaceType newType) {
+        if (this.type == newType) return this;
+        return new SpaceRegion(airBlocks, wallBlocks, openings, seed, newType,
+                minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    /** 既存の不変 Set と境界ボックスをそのまま共有する軽量コンストラクタ */
+    private SpaceRegion(Set<BlockPos> airBlocks, Set<BlockPos> wallBlocks, Set<Opening> openings,
+                        BlockPos seed, SpaceType type,
+                        int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        this.airBlocks = airBlocks;
+        this.wallBlocks = wallBlocks;
+        this.openings = openings;
+        this.seed = seed;
+        this.type = type;
+        this.minX = minX; this.minY = minY; this.minZ = minZ;
+        this.maxX = maxX; this.maxY = maxY; this.maxZ = maxZ;
+    }
+
     public int getAirBlockCount() {
         return airBlocks.size();
     }

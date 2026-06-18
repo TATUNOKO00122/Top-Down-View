@@ -55,16 +55,19 @@ public final class SpaceExplorer {
         Set<BlockPos> wallBlocks = new HashSet<>();
         Set<Opening> openings = new HashSet<>();
 
-        Set<BlockPos> visited = new HashSet<>();
-        Set<BlockPos> recordedOpeningReps = new HashSet<>();
+        // visited/recordedOpeningReps は long で管理し、BlockPos の equals/hashCode
+        // オーバーヘッドを回避。airBlocks/wallBlocks は SpaceRegion 生成に使うため BlockPos のまま。
+        Set<Long> visited = new HashSet<>();
+        Set<Long> recordedOpeningReps = new HashSet<>();
         Set<Long> analyzedWallDirs = new HashSet<>();
         Queue<BlockPos> queue = new ArrayDeque<>();
 
         queue.add(seed);
-        visited.add(seed);
+        visited.add(seed.asLong());
 
-        // 平面 BFS のスキャン上限。maxHoleSize + 2 で十分（S > maxHoleSize なら開放確定）
-        int maxHoleScan = maxHoleSize + 2;
+        // 平面 BFS のスキャン上限。maxHoleSize + 1 で十分
+        // （maxHoleSize + 1 個目が見つかった瞬間に size > maxHoleSize が確定し打ち切れる）
+        int maxHoleScan = maxHoleSize + 1;
 
         while (!queue.isEmpty() && airBlocks.size() < maxBlocks) {
             BlockPos pos = queue.poll();
@@ -77,7 +80,7 @@ public final class SpaceExplorer {
                 airBlocks.add(pos);
                 for (Direction dir : Direction.values()) {
                     BlockPos np = pos.relative(dir);
-                    if (!visited.add(np)) continue;
+                    if (!visited.add(np.asLong())) continue;
 
                     if (WallAnalyzer.isSolid(level, np)) {
                         // np は固体 → 壁ブロック。壁解析で向こう側の Opening を記録
@@ -86,11 +89,12 @@ public final class SpaceExplorer {
                                 openings, recordedOpeningReps, analyzedWallDirs);
                     } else {
                         // np は空気 → 壁の穴か開放か判定
-                        // pos の平面（dir に垂直）での空気連結成分サイズ S
-                        Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
-                        int s = planeAir.size();
+                        // まず size だけ取得（Set 生成なし）。開放ケース（大半）で Set 生成を省略
+                        int s = WallAnalyzer.countAirOnPlane(level, pos, dir, maxHoleScan);
                         if (s <= maxHoleSize) {
                             // 壁の小穴 → np は別空間、Opening 記録
+                            // size が小さい（≤ maxHoleSize）ので collectAirOnPlane を呼び直しても軽い
+                            Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
                             recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
                                     openings, recordedOpeningReps);
                         } else {
@@ -115,7 +119,7 @@ public final class SpaceExplorer {
                                                int maxHoleSize,
                                                int maxHoleScan,
                                                Set<Opening> openings,
-                                               Set<BlockPos> recordedOpeningReps,
+                                               Set<Long> recordedOpeningReps,
                                                Set<Long> analyzedWallDirs) {
         for (Direction dir : Direction.values()) {
             long key = makeWallDirKey(wallPos, dir);
@@ -151,11 +155,11 @@ public final class SpaceExplorer {
                                       Direction dir,
                                       OpeningType type,
                                       Set<Opening> openings,
-                                      Set<BlockPos> recordedOpeningReps) {
+                                      Set<Long> recordedOpeningReps) {
         if (blocks.isEmpty()) return;
-        // 代表位置（最小座標）で重複排除
+        // 代表位置（最小座標）で重複排除。long で格納し BlockPos 生成を回避
         BlockPos rep = findMinPos(blocks);
-        if (!recordedOpeningReps.add(rep)) return;
+        if (!recordedOpeningReps.add(rep.asLong())) return;
         openings.add(new Opening(blocks, type, dir));
     }
 

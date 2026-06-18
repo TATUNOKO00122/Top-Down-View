@@ -84,39 +84,82 @@ public final class WallAnalyzer {
      * <p>dir=NORTH/SOUTH → X-Y 平面、dir=UP/DOWN → X-Z 平面、dir=EAST/WEST → Y-Z 平面。
      * 平面から外れないよう、dir 軸座標が start と同じブロックのみ探索する。
      * 固体ブロックは結果に含めない（壁面の穴を構成する空気のみ）。
+     *
+     * <p>visited を long のハッシュ集合で管理し、BlockPos の equals/hashCode
+     * オーバーヘッドを回避する。result は呼び出し元が Opening 記録に使うため
+     * BlockPos のまま維持。
      */
     public static Set<BlockPos> collectAirOnPlane(BlockGetter level, BlockPos start, Direction dir, int maxScan) {
         Direction axis1 = getPerpendicularAxis1(dir);
         Direction axis2 = getPerpendicularAxis2(dir);
         int fixedAxisValue = getAxisCoordinate(start, dir);
 
-        Set<BlockPos> visited = new HashSet<>();
+        Set<Long> visited = new HashSet<>(maxScan * 2);
         Queue<BlockPos> queue = new ArrayDeque<>();
-        Set<BlockPos> result = new HashSet<>();
+        Set<BlockPos> result = new HashSet<>(maxScan);
         queue.add(start);
-        visited.add(start);
+        visited.add(start.asLong());
 
         while (!queue.isEmpty() && result.size() < maxScan) {
             BlockPos p = queue.poll();
             if (isSolid(level, p)) continue;
             result.add(p);
 
-            BlockPos np;
-            np = p.relative(axis1);
-            if (getAxisCoordinate(np, dir) == fixedAxisValue && visited.add(np)) queue.add(np);
-            np = p.relative(axis1.getOpposite());
-            if (getAxisCoordinate(np, dir) == fixedAxisValue && visited.add(np)) queue.add(np);
-            np = p.relative(axis2);
-            if (getAxisCoordinate(np, dir) == fixedAxisValue && visited.add(np)) queue.add(np);
-            np = p.relative(axis2.getOpposite());
-            if (getAxisCoordinate(np, dir) == fixedAxisValue && visited.add(np)) queue.add(np);
+            enqueuePlaneNeighbor(queue, visited, p, axis1, dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis1.getOpposite(), dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis2, dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis2.getOpposite(), dir, fixedAxisValue);
         }
         return result;
     }
 
-    /** collectAirOnPlane の結果サイズを返すショートカット */
+    /**
+     * collectAirOnPlane と同じ平面 BFS を行うが、結果 Set を生成せず size だけ返す。
+     *
+     * <p>呼び出し元が「size > maxHoleSize か？」だけ知りたい場合に Set 生成を丸ごと
+     * 省略できる。SpaceExplorer の空気→空気遷移の大半（開放ケース）で有効。
+     * size <= maxHoleSize の場合は collectAirOnPlane を呼び直して Opening 記録に
+     * 必要なブロック集合を取得する（小サイズなので再 BFS コストも小）。
+     */
+    public static int countAirOnPlane(BlockGetter level, BlockPos start, Direction dir, int maxScan) {
+        Direction axis1 = getPerpendicularAxis1(dir);
+        Direction axis2 = getPerpendicularAxis2(dir);
+        int fixedAxisValue = getAxisCoordinate(start, dir);
+
+        Set<Long> visited = new HashSet<>(maxScan * 2);
+        Queue<BlockPos> queue = new ArrayDeque<>();
+        queue.add(start);
+        visited.add(start.asLong());
+        int count = 0;
+
+        while (!queue.isEmpty() && count < maxScan) {
+            BlockPos p = queue.poll();
+            if (isSolid(level, p)) continue;
+            count++;
+            if (count >= maxScan) break;
+
+            enqueuePlaneNeighbor(queue, visited, p, axis1, dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis1.getOpposite(), dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis2, dir, fixedAxisValue);
+            enqueuePlaneNeighbor(queue, visited, p, axis2.getOpposite(), dir, fixedAxisValue);
+        }
+        return count;
+    }
+
+    /** collectAirOnPlane の結果サイズを返すショートカット（Set 生成なし） */
     public static int countConnectedAirOnPlane(BlockGetter level, BlockPos start, Direction dir, int maxScan) {
-        return collectAirOnPlane(level, start, dir, maxScan).size();
+        return countAirOnPlane(level, start, dir, maxScan);
+    }
+
+    /**
+     * 平面 BFS の近傍をエンキュー。dir 軸座標が固定値と一致し、未訪問の場合のみ追加。
+     * visited は long のハッシュ集合で重複排除する。
+     */
+    private static void enqueuePlaneNeighbor(Queue<BlockPos> queue, Set<Long> visited,
+                                             BlockPos p, Direction side, Direction dir, int fixedAxisValue) {
+        BlockPos np = p.relative(side);
+        if (getAxisCoordinate(np, dir) != fixedAxisValue) return;
+        if (visited.add(np.asLong())) queue.add(np);
     }
 
     /**

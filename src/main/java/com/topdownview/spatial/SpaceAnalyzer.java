@@ -43,7 +43,7 @@ public final class SpaceAnalyzer {
 
         int airCount = region.getAirBlockCount();
         if (airCount < minRoomVolume) {
-            return copyWithType(region, SpaceType.UNKNOWN);
+            return region.withType(SpaceType.UNKNOWN);
         }
 
         int dx = region.getMaxX() - region.getMinX() + 1;
@@ -80,7 +80,7 @@ public final class SpaceAnalyzer {
             type = SpaceType.ROOM;
         }
 
-        return copyWithType(region, type);
+        return region.withType(type);
     }
 
     /** 空気位置の上方 ROOF_SCAN_HEIGHT ブロック以内に固体があるか */
@@ -96,10 +96,5 @@ public final class SpaceAnalyzer {
     /** 空気位置の直下が固体か */
     private static boolean hasFloorBelow(BlockGetter level, BlockPos pos) {
         return WallAnalyzer.isSolid(level, pos.below());
-    }
-
-    /** type を差し替えた新しい SpaceRegion を生成 */
-    private static SpaceRegion copyWithType(SpaceRegion r, SpaceType t) {
-        return new SpaceRegion(r.getAirBlocks(), r.getWallBlocks(), r.getOpenings(), r.getSeed(), t);
     }
 }
