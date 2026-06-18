@@ -235,6 +235,22 @@ public class ConfigScreen extends Screen {
                 Config.getStaircaseExclusionHeight(), 1, 10,
                 val -> Config.setStaircaseExclusionHeight(val)));
         y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.staircase_occlude_enabled",
+                        Config.isStaircaseOccludeEnabled()),
+                btn -> {
+                    Config.setStaircaseOccludeEnabled(!Config.isStaircaseOccludeEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.staircase_occlude_enabled",
+                            Config.isStaircaseOccludeEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.staircase_occlude_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.staircase_occlude_alpha",
+                Config.getStaircaseOccludeAlpha(), 0.0, 1.0,
+                val -> Config.setStaircaseOccludeAlpha(val)));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

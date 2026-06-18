@@ -160,10 +160,14 @@ public final class TopDownCuller {
             }
         }
 
-        // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロックは表示
+        // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロック
         if (Config.isStaircaseExclusionEnabled() && isExcludedStairBlock(pos, playerFeetY)) {
-            cullingCache.put(pos, false);
-            return false;
+            // 視線遮蔽時透明化が有効な場合、階段ブロックは常にカリング（通常描画キャンセル）し、
+            // TranslucentBlockRenderer 経路で alpha 付き描画する。
+            // alpha 値は視線遮蔽の有無で getFadeBlocks() が決定する。
+            boolean occludeEnabled = Config.isStaircaseOccludeEnabled();
+            cullingCache.put(pos, occludeEnabled);
+            return occludeEnabled;
         }
 
         float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cY, cZ);
@@ -535,7 +539,11 @@ public final class TopDownCuller {
     }
 
     public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() || !Config.isFadeEnabled()) {
+        boolean fadeEnabled = Config.isFadeEnabled();
+        boolean stairOccludeEnabled = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
+
+        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode()
+                || (!fadeEnabled && !stairOccludeEnabled)) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
@@ -563,6 +571,21 @@ public final class TopDownCuller {
         double cY = this.cameraY;
         double cZ = this.cameraZ;
 
+        // 階段視線遮蔽ブロック収集を先に行う（優先度高、フェード有無に関わらず動作）
+        if (stairOccludeEnabled) {
+            collectStairOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
+        }
+
+        // フェードブロック収集（フェード有効時のみ）
+        if (fadeEnabled && !fadeCache.isFadeBlocksFull()) {
+            collectFadeBlocks(level, pX, pY, pZ, cX, cY, cZ);
+        }
+
+        return fadeCache.getFadeBlocksCache();
+    }
+
+    private void collectFadeBlocks(BlockGetter level, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
         int radiusH = Config.getCylinderRadiusHorizontal();
         int radiusV = Config.getCylinderRadiusVertical();
         int margin = 2;
@@ -591,14 +614,132 @@ public final class TopDownCuller {
                         fadeCache.putFadeBlock(new BlockPos(x, y, z), alpha);
 
                         if (fadeCache.isFadeBlocksFull()) {
-                            return fadeCache.getFadeBlocksCache();
+                            return;
                         }
                     }
                 }
             }
         }
+    }
 
-        return fadeCache.getFadeBlocksCache();
+    /**
+     * 階段視線遮蔽ブロック収集。
+     * excludedStairBlocks の各ブロックについて視線遮蔽判定を行い、
+     * 遮蔽時は staircaseOccludeAlpha、非遮蔽時は 1.0（ほぼ不透明）で fadeCache に追加。
+     * alpha=1.0 で translucent 経路描画することで、チャンクメッシュ再構築不要化。
+     */
+    private void collectStairOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
+        if (excludedStairBlocks.isEmpty()) {
+            return;
+        }
+
+        float occludeAlpha = (float) Config.getStaircaseOccludeAlpha();
+        Vec3 camera = new Vec3(cX, cY, cZ);
+        Vec3 player = new Vec3(pX, pY, pZ);
+
+        for (BlockPos pos : excludedStairBlocks) {
+            if (fadeCache.isFadeBlocksFull()) {
+                return;
+            }
+            BlockState state = level.getBlockState(pos);
+            if (state.isAir()) {
+                continue;
+            }
+            float alpha = isStairOccludingView(pos, camera, player) ? occludeAlpha : 1.0f;
+            fadeCache.putFadeBlock(pos.immutable(), alpha);
+        }
+    }
+
+    /**
+     * 視線遮蔽判定: カメラ→プレイヤーの視線レイがブロックの単位立方体AABBを通過するか。
+     * スラブ法によるレイ-AABB交差判定。カメラ〜プレイヤー間の範囲のみ判定。
+     */
+    private boolean isStairOccludingView(BlockPos pos, Vec3 camera, Vec3 player) {
+        double minX = pos.getX();
+        double minY = pos.getY();
+        double minZ = pos.getZ();
+        double maxX = pos.getX() + 1.0;
+        double maxY = pos.getY() + 1.0;
+        double maxZ = pos.getZ() + 1.0;
+
+        double dirX = player.x - camera.x;
+        double dirY = player.y - camera.y;
+        double dirZ = player.z - camera.z;
+        double rayLengthSq = dirX * dirX + dirY * dirY + dirZ * dirZ;
+        if (rayLengthSq < 1.0E-12) {
+            // カメラとプレイヤーが同一位置: 視線なし
+            return false;
+        }
+
+        double tmin = 0.0;
+        double tmax = 1.0; // カメラ〜プレイヤー間のみ
+
+        // X軸スラブ
+        if (Math.abs(dirX) < 1.0E-9) {
+            // レイがX軸に平行: カメラXがスラブ内にあるか
+            if (camera.x < minX || camera.x > maxX) {
+                return false;
+            }
+        } else {
+            double invDirX = 1.0 / dirX;
+            double t1 = (minX - camera.x) * invDirX;
+            double t2 = (maxX - camera.x) * invDirX;
+            if (t1 > t2) {
+                double tmp = t1;
+                t1 = t2;
+                t2 = tmp;
+            }
+            tmin = Math.max(tmin, t1);
+            tmax = Math.min(tmax, t2);
+            if (tmin > tmax) {
+                return false;
+            }
+        }
+
+        // Y軸スラブ
+        if (Math.abs(dirY) < 1.0E-9) {
+            if (camera.y < minY || camera.y > maxY) {
+                return false;
+            }
+        } else {
+            double invDirY = 1.0 / dirY;
+            double t1 = (minY - camera.y) * invDirY;
+            double t2 = (maxY - camera.y) * invDirY;
+            if (t1 > t2) {
+                double tmp = t1;
+                t1 = t2;
+                t2 = tmp;
+            }
+            tmin = Math.max(tmin, t1);
+            tmax = Math.min(tmax, t2);
+            if (tmin > tmax) {
+                return false;
+            }
+        }
+
+        // Z軸スラブ
+        if (Math.abs(dirZ) < 1.0E-9) {
+            if (camera.z < minZ || camera.z > maxZ) {
+                return false;
+            }
+        } else {
+            double invDirZ = 1.0 / dirZ;
+            double t1 = (minZ - camera.z) * invDirZ;
+            double t2 = (maxZ - camera.z) * invDirZ;
+            if (t1 > t2) {
+                double tmp = t1;
+                t1 = t2;
+                t2 = tmp;
+            }
+            tmin = Math.max(tmin, t1);
+            tmax = Math.min(tmax, t2);
+            if (tmin > tmax) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public Map<BlockPos, Float> getFadeBlocksCache() {

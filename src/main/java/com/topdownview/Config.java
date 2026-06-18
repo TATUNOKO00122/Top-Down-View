@@ -160,6 +160,12 @@ public class Config {
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
             .defineInRange("staircaseExclusionHeight", 3, 1, 10);
 
+    // 階段視線遮蔽時の透明度設定
+    private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
+            .define("staircaseOccludeEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue STAIRCASE_OCCLUDE_ALPHA = BUILDER
+            .defineInRange("staircaseOccludeAlpha", 0.0, 0.0, 1.0);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -236,6 +242,8 @@ public class Config {
     private static double placementTransparency;
     private static boolean staircaseExclusionEnabled;
     private static int staircaseExclusionHeight;
+    private static boolean staircaseOccludeEnabled;
+    private static double staircaseOccludeAlpha;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -304,6 +312,8 @@ public class Config {
     public static double getPlacementTransparency() { return placementTransparency; }
     public static boolean isStaircaseExclusionEnabled() { return staircaseExclusionEnabled; }
     public static int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
+    public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
+    public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -377,6 +387,8 @@ public class Config {
     public static void setPlacementTransparency(double value) { placementTransparency = clamp(value, 0.1, 0.9); }
     public static void setStaircaseExclusionEnabled(boolean value) { staircaseExclusionEnabled = value; }
     public static void setStaircaseExclusionHeight(int value) { staircaseExclusionHeight = clamp(value, 1, 10); }
+    public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
+    public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -464,6 +476,8 @@ public class Config {
         placementTransparency = PLACEMENT_TRANSPARENCY.get();
         staircaseExclusionEnabled = STAIRCASE_EXCLUSION_ENABLED.get();
         staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.get();
+        staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
+        staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
     }
 
     private static void loadCommonConfig() {
@@ -539,6 +553,8 @@ public class Config {
         PLACEMENT_TRANSPARENCY.set(placementTransparency);
         STAIRCASE_EXCLUSION_ENABLED.set(staircaseExclusionEnabled);
         STAIRCASE_EXCLUSION_HEIGHT.set(staircaseExclusionHeight);
+        STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);
+        STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

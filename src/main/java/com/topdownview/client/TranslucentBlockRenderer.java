@@ -2,7 +2,6 @@ package com.topdownview.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.topdownview.Config;
 import com.topdownview.culling.TopDownCuller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -46,10 +45,8 @@ public final class TranslucentBlockRenderer {
 
         TopDownCuller culler = TopDownCuller.getInstance();
 
-        if (!Config.isFadeEnabled()) {
-            return;
-        }
-
+        // フェード有効/無効の判定は getFadeBlocks() 側で行う。
+        // フェード無効でも階段視線遮蔽が有効な場合はブロックを返すため、ここでは早期リターンしない。
         Map<BlockPos, Float> fadeBlocks = culler.getFadeBlocks(mc.level);
 
         if (fadeBlocks.isEmpty()) {
