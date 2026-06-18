@@ -2,6 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.placement.PlacementRenderer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -29,6 +30,7 @@ public final class RenderEventHandler {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             TranslucentBlockRenderer.renderFadeBlocks(event);
             DestinationHighlightRenderer.onRenderLevelStage(event);
+            PlacementRenderer.onRenderLevelStage(event);
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {

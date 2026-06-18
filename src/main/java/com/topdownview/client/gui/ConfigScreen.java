@@ -465,6 +465,24 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
                 1.0, val -> Config.setFadeNearAlpha(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.placement_preview", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.placement_preview_enabled",
+                        Config.isPlacementPreviewEnabled()), btn -> {
+                    Config.setPlacementPreviewEnabled(!Config.isPlacementPreviewEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.placement_preview_enabled",
+                            Config.isPlacementPreviewEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.placement_preview_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.placement_transparency",
+                Config.getPlacementTransparency(), 0.1, 0.9,
+                val -> Config.setPlacementTransparency(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -576,6 +594,9 @@ public class ConfigScreen extends Screen {
 
         Config.setScreenReachEnabled(false);
         Config.setReachDistance(10.0);
+
+        Config.setPlacementPreviewEnabled(true);
+        Config.setPlacementTransparency(0.5);
 
         this.init();
     }

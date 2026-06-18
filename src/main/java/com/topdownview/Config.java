@@ -148,6 +148,12 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue REACH_DISTANCE = BUILDER
             .defineInRange("reachDistance", 10.0, 1.0, 100.0);
 
+    // PlacementPreview 設定
+    private static final ForgeConfigSpec.BooleanValue PLACEMENT_PREVIEW_ENABLED = BUILDER
+            .define("placementPreviewEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue PLACEMENT_TRANSPARENCY = BUILDER
+            .defineInRange("placementTransparency", 0.5, 0.1, 0.9);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -220,6 +226,8 @@ public class Config {
     private static boolean screenReachEnabled;
     private static double reachDistance;
     private static double serverReachDistance;
+    private static boolean placementPreviewEnabled;
+    private static double placementTransparency;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -284,6 +292,8 @@ public class Config {
     public static boolean isScreenReachEnabled() { return screenReachEnabled; }
     public static double getReachDistance() { return reachDistance; }
     public static double getServerReachDistance() { return serverReachDistance; }
+    public static boolean isPlacementPreviewEnabled() { return placementPreviewEnabled; }
+    public static double getPlacementTransparency() { return placementTransparency; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -353,6 +363,8 @@ public class Config {
     public static void setTargetHitboxExpansion(double value) { targetHitboxExpansion = clamp(value, 0.0, 5.0); }
     public static void setScreenReachEnabled(boolean value) { screenReachEnabled = value; }
     public static void setReachDistance(double value) { reachDistance = clamp(value, 1.0, 100.0); }
+    public static void setPlacementPreviewEnabled(boolean value) { placementPreviewEnabled = value; }
+    public static void setPlacementTransparency(double value) { placementTransparency = clamp(value, 0.1, 0.9); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -436,6 +448,8 @@ public class Config {
         targetHitboxExpansion = TARGET_HITBOX_EXPANSION.get();
         screenReachEnabled = SCREEN_REACH_ENABLED.get();
         reachDistance = REACH_DISTANCE.get();
+        placementPreviewEnabled = PLACEMENT_PREVIEW_ENABLED.get();
+        placementTransparency = PLACEMENT_TRANSPARENCY.get();
     }
 
     private static void loadCommonConfig() {
@@ -507,6 +521,8 @@ public class Config {
         TARGET_HITBOX_EXPANSION.set(targetHitboxExpansion);
         SCREEN_REACH_ENABLED.set(screenReachEnabled);
         REACH_DISTANCE.set(reachDistance);
+        PLACEMENT_PREVIEW_ENABLED.set(placementPreviewEnabled);
+        PLACEMENT_TRANSPARENCY.set(placementTransparency);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

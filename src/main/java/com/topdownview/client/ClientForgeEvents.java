@@ -16,6 +16,7 @@ import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import com.topdownview.placement.PlacementPreviewManager;
 import org.slf4j.Logger;
 
 /**
@@ -36,6 +37,7 @@ public final class ClientForgeEvents {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         ReachManager.onClientTick();
+        PlacementPreviewManager.getInstance().onClientTick();
     }
 
     @SubscribeEvent
@@ -58,6 +60,7 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
         Config.clearSyncedServerReach();
+        PlacementPreviewManager.getInstance().reset();
     }
 
     @SubscribeEvent

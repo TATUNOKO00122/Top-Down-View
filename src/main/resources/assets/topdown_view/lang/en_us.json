@@ -156,5 +156,10 @@
   "topdown_view.config.screen_reach_enabled": "Reach Override: %s",
   "topdown_view.config.screen_reach_enabled.tooltip": "Extend player reach to cover the entire screen.\nWhen enabled, you can target and interact with any block or entity visible on screen.\nDisable to use vanilla reach distance.",
   "topdown_view.config.reach_distance": "Reach Distance: %.0f",
-  "topdown_view.config.reach_distance.tooltip": "Maximum reach distance in blocks when Reach Override is enabled.\nVanilla default is around 4.5 blocks. Higher values allow targeting farther blocks."
+  "topdown_view.config.reach_distance.tooltip": "Maximum reach distance in blocks when Reach Override is enabled.\nVanilla default is around 4.5 blocks. Higher values allow targeting farther blocks.",
+  "topdown_view.config.section.placement_preview": "Placement Preview",
+  "topdown_view.config.placement_preview_enabled": "Placement Preview: %s",
+  "topdown_view.config.placement_preview_enabled.tooltip": "Shows a translucent ghost block preview when holding a block item and looking at a surface.\nOnly works in top-down mode.",
+  "topdown_view.config.placement_transparency": "Preview Transparency: %.2f",
+  "topdown_view.config.placement_transparency.tooltip": "Sets the transparency of the placement preview.\n0.1 = nearly invisible, 0.9 = nearly opaque."
 }
