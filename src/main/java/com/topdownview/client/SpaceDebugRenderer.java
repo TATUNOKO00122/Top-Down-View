@@ -58,6 +58,7 @@ public final class SpaceDebugRenderer {
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         if (!ModState.SPACE_DEBUG.isEnabled()) return;
+        if (!com.topdownview.Config.isStaircaseExclusionEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
@@ -241,6 +242,11 @@ public final class SpaceDebugRenderer {
         // ガイド
         gg.drawString(mc.font, "[Space Debug] F6: toggle", x, y, 0xFFFFFFFF, false);
         y += lineHeight;
+
+        if (!com.topdownview.Config.isStaircaseExclusionEnabled()) {
+            gg.drawString(mc.font, "階段除外機能がオフのため空間探索は無効です", x, y, 0xFFFF5555, false);
+            return;
+        }
 
         if (region == null || !region.isValid()) {
             gg.drawString(mc.font, "(no region)", x, y, 0xFFAAAAAA, false);

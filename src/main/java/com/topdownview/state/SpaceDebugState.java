@@ -76,7 +76,7 @@ public final class SpaceDebugState {
      * disabled の場合はクリアして何もしない。
      */
     public void update(BlockGetter level, BlockPos seed) {
-        if (!enabled || level == null || seed == null) {
+        if (!enabled || !com.topdownview.Config.isStaircaseExclusionEnabled() || level == null || seed == null) {
             currentRegion = null;
             currentStaircases = List.of();
             currentSeed = null;

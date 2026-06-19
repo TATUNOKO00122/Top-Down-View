@@ -271,7 +271,9 @@ public final class TopDownCuller {
         }
 
         // 階段除外リストを更新（プレイヤーがブロック境界を超えたら再検出）
-        updateStairExclusion(mc, currentBlockX, currentBlockY, currentBlockZ);
+        if (Config.isStaircaseExclusionEnabled()) {
+            updateStairExclusion(mc, currentBlockX, currentBlockY, currentBlockZ);
+        }
 
         updateEntityCulling(mc);
     }
