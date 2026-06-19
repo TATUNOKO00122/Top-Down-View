@@ -657,7 +657,7 @@ public class ConfigScreen extends Screen {
         Config.setPlacementPreviewEnabled(true);
         Config.setPlacementTransparency(0.5);
         Config.setClickPositionPlacementEnabled(false);
-        Config.setPlacementRotationEnabled(true);
+        Config.setPlacementRotationEnabled(false);
 
         Config.setStaircaseExclusionEnabled(true);
         Config.setStaircaseExclusionHeight(2);

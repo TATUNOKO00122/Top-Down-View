@@ -170,7 +170,7 @@ public class Config {
 
     // ブロック配置方向手動指定
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
-            .define("placementRotationEnabled", true);
+            .define("placementRotationEnabled", false);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
