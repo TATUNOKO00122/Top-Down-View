@@ -24,7 +24,9 @@
     "LivingEntityMixin",
     "MultiPlayerGameModeMixin"
   ],
-  "mixins": [],
+  "mixins": [
+    "BlockItemPlacementMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

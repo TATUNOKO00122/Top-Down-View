@@ -168,6 +168,10 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue STAIRCASE_OCCLUDE_ALPHA = BUILDER
             .defineInRange("staircaseOccludeAlpha", 0.0, 0.0, 1.0);
 
+    // ブロック配置方向手動指定
+    private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
+            .define("placementRotationEnabled", false);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -247,6 +251,7 @@ public class Config {
     private static int staircaseExclusionHeight;
     private static boolean staircaseOccludeEnabled;
     private static double staircaseOccludeAlpha;
+    private static boolean placementRotationEnabled;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -318,6 +323,7 @@ public class Config {
     public static int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
     public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
+    public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -394,6 +400,7 @@ public class Config {
     public static void setStaircaseExclusionHeight(int value) { staircaseExclusionHeight = clamp(value, 1, 10); }
     public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
+    public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -484,6 +491,7 @@ public class Config {
         staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.get();
         staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
+        placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
     }
 
     private static void loadCommonConfig() {
@@ -562,6 +570,7 @@ public class Config {
         STAIRCASE_EXCLUSION_HEIGHT.set(staircaseExclusionHeight);
         STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
+        PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

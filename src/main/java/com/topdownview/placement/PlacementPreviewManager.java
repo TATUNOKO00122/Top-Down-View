@@ -56,6 +56,7 @@ public final class PlacementPreviewManager {
     private BlockPos lastPos = null;
     private Direction lastSide = null;
     private Vec3 lastHitVec = null;
+    private Direction lastPlacementFacing = null;
 
     /** セッション中に例外が出たアイテムのブラックリスト */
     private final Set<net.minecraft.resources.ResourceLocation> blacklistedItems = new HashSet<>();
@@ -108,11 +109,16 @@ public final class PlacementPreviewManager {
         Direction hitSide = hitResult.getDirection();
         Vec3 hitVec = hitResult.getLocation();
 
-        // 視点・持ち物が変化していなければ再計算不要
+        // 配置方向指定の現在値を取得
+        Direction currentPlacementFacing = ModState.PLACEMENT_ROTATION.hasOverride()
+                ? ModState.PLACEMENT_ROTATION.getCurrentFacing() : null;
+
+        // 視点・持ち物・配置方向が変化していなければ再計算不要
         boolean changed = !hitPos.equals(lastPos)
                 || hitSide != lastSide
                 || (lastHitVec != null && !hitVec.equals(lastHitVec))
-                || hasItemChanged(player);
+                || hasItemChanged(player)
+                || currentPlacementFacing != lastPlacementFacing;
 
         if (!changed) {
             return;
@@ -121,6 +127,7 @@ public final class PlacementPreviewManager {
         lastPos = hitPos;
         lastSide = hitSide;
         lastHitVec = hitVec;
+        lastPlacementFacing = currentPlacementFacing;
 
         // 周辺ブロックをFakeBlockGetterにコピーして配置シミュレーション
         updateEntries(level, player, hitResult, mainHand, offHand);
@@ -180,17 +187,6 @@ public final class PlacementPreviewManager {
 
         BlockPos targetPos = hitResult.getBlockPos().relative(hitResult.getDirection());
 
-        // すでに実ブロックが存在する位置は上書きしない
-        BlockState existingState = level.getBlockState(targetPos);
-        if (!existingState.isAir() && !existingState.canBeReplaced()) {
-            return false;
-        }
-
-        // 高さ範囲チェック
-        if (targetPos.getY() < level.getMinBuildHeight() || targetPos.getY() >= level.getMaxBuildHeight()) {
-            return false;
-        }
-
         try {
             // BlockPlaceContext を使って配置後の BlockState を取得
             UseOnContext useCtx = new UseOnContext(level, player, hand, stack, hitResult);
@@ -200,13 +196,20 @@ public final class PlacementPreviewManager {
                 return false;
             }
 
+            // BlockPlaceContext.getClickedPos() はスラブ統合などの場合に
+            // クリックしたブロック自身の位置を返す（canBeReplaced考慮済み）
+            BlockPos actualPos = placeCtx.getClickedPos();
+
             BlockState stateToBePlaced = blockItem.getBlock().getStateForPlacement(placeCtx);
             if (stateToBePlaced == null || stateToBePlaced.isAir()) {
                 return false;
             }
 
-            fakeBlockGetter.setFakeBlock(targetPos, stateToBePlaced);
-            handleMultiBlockPlacement(targetPos, stateToBePlaced);
+            // 配置方向手動指定が有効なら向きを反映
+            stateToBePlaced = applyPlacementRotation(stateToBePlaced);
+
+            fakeBlockGetter.setFakeBlock(actualPos, stateToBePlaced);
+            handleMultiBlockPlacement(actualPos, stateToBePlaced);
             return true;
 
         } catch (Throwable t) {
@@ -221,6 +224,18 @@ public final class PlacementPreviewManager {
      */
     private boolean isPlaceableItem(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof BlockItem;
+    }
+
+    /**
+     * 配置方向手動指定が有効な場合、BlockState の DirectionProperty を
+     * PlacementRotationState.currentFacing で差し替える。
+     */
+    private BlockState applyPlacementRotation(BlockState state) {
+        if (!ModState.PLACEMENT_ROTATION.hasOverride()) {
+            return state;
+        }
+        Direction facing = ModState.PLACEMENT_ROTATION.getCurrentFacing();
+        return PlacementHandler.applyFacing(state, facing);
     }
 
     /**
@@ -258,6 +273,7 @@ public final class PlacementPreviewManager {
         lastPos = null;
         lastSide = null;
         lastHitVec = null;
+        lastPlacementFacing = null;
         lastMain = ItemStack.EMPTY;
         lastOff = ItemStack.EMPTY;
     }

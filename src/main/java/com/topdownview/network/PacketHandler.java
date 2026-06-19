@@ -33,5 +33,11 @@ public final class PacketHandler {
                 ReachSyncPacket::encode,
                 ReachSyncPacket::decode,
                 ReachSyncPacket::handle);
+
+        CHANNEL.registerMessage(nextId++,
+                PlacementRotationPacket.class,
+                PlacementRotationPacket::encode,
+                PlacementRotationPacket::decode,
+                PlacementRotationPacket::handle);
     }
 }

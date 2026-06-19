@@ -228,6 +228,10 @@ public final class InputHandler {
             ClickToMoveController.reset();
         } else if (matchesKeyBinding(ClientModBusEvents.SPACE_DEBUG_KEY, keyCode, inputType)) {
             toggleSpaceDebug();
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.PLACEMENT_ROTATION_UP_DOWN_KEY, keyCode, inputType)) {
+            PlacementRotationController.toggleVertical();
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.PLACEMENT_ROTATION_CYCLE_KEY, keyCode, inputType)) {
+            PlacementRotationController.cycleHorizontal();
         }
     }
 

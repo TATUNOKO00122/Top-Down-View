@@ -528,6 +528,20 @@ public class ConfigScreen extends Screen {
                         .build());
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.placement_rotation", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
+                        Config.isPlacementRotationEnabled()), btn -> {
+                    Config.setPlacementRotationEnabled(!Config.isPlacementRotationEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
+                            Config.isPlacementRotationEnabled()));
+                    com.topdownview.client.PlacementRotationController.onConfigChanged();
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.placement_rotation_enabled.tooltip")))
+                        .build());
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

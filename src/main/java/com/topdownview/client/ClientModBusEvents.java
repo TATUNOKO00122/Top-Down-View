@@ -58,6 +58,18 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_F6,
             "key.categories.topdown_view");
 
+    // ブロック配置方向: 上下トグル
+    public static final KeyMapping PLACEMENT_ROTATION_UP_DOWN_KEY = new KeyMapping(
+            "key.topdown_view.placement_rotation_up_down",
+            GLFW.GLFW_KEY_UNKNOWN,
+            "key.categories.topdown_view");
+
+    // ブロック配置方向: 水平サイクル（時計回り）
+    public static final KeyMapping PLACEMENT_ROTATION_CYCLE_KEY = new KeyMapping(
+            "key.topdown_view.placement_rotation_cycle",
+            GLFW.GLFW_KEY_UNKNOWN,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
@@ -69,6 +81,8 @@ public class ClientModBusEvents {
         event.register(DESTROY_KEY);
         event.register(FREE_CAMERA_KEY);
         event.register(SPACE_DEBUG_KEY);
+        event.register(PLACEMENT_ROTATION_UP_DOWN_KEY);
+        event.register(PLACEMENT_ROTATION_CYCLE_KEY);
     }
 
 

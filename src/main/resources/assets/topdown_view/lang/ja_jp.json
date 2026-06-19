@@ -172,5 +172,19 @@
   "topdown_view.config.placement_transparency": "プレビュー透明度: %.2f",
   "topdown_view.config.placement_transparency.tooltip": "配置プレビューの透明度を設定します。\n0.1=ほぼ透明、0.9=ほぼ不透明。",
   "topdown_view.config.click_position_placement_enabled": "クリック位置配置: %s",
-  "topdown_view.config.click_position_placement_enabled.tooltip": "オンにすると、階段やハーフブロックなどの方向性ブロックが\nキャラクターの向きではなく、クリックしたブロック面の方向を向きます。"
+  "topdown_view.config.click_position_placement_enabled.tooltip": "オンにすると、階段やハーフブロックなどの方向性ブロックが\nキャラクターの向きではなく、クリックしたブロック面の方向を向きます。",
+  "topdown_view.config.section.placement_rotation": "配置方向指定",
+  "topdown_view.config.placement_rotation_enabled": "配置方向指定: %s",
+  "topdown_view.config.placement_rotation_enabled.tooltip": "ブロックの設置方向（ピストンやディスペンサー等の向き）を\nキーで手動指定できるようにします。\n視線に依存せず6方向（上下・水平4方向）を切り替え可能。\n§cサーバーにTopDownViewの導入が必要（シングルプレイを除く）。",
+  "key.topdown_view.placement_rotation_up_down": "配置方向: 上下切替",
+  "key.topdown_view.placement_rotation_cycle": "配置方向: 水平回転（時計回り）",
+  "topdown_view.placement_rotation.current": "配置方向: %s",
+  "topdown_view.placement_rotation.cleared": "配置方向指定: クリア",
+  "topdown_view.placement_rotation.no_server_mod": "§c配置方向指定にはサーバー側へのTopDownView導入が必要です",
+  "topdown_view.placement_rotation.facing.down": "下",
+  "topdown_view.placement_rotation.facing.up": "上",
+  "topdown_view.placement_rotation.facing.north": "北",
+  "topdown_view.placement_rotation.facing.south": "南",
+  "topdown_view.placement_rotation.facing.west": "西",
+  "topdown_view.placement_rotation.facing.east": "東"
 }
