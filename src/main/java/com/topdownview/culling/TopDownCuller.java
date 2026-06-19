@@ -291,9 +291,16 @@ public final class TopDownCuller {
             return;
         }
 
-        // ブロック境界を超えていなければ再利用
-        if (blockX == lastStairScanBlockX && blockY == lastStairScanBlockY && blockZ == lastStairScanBlockZ) {
-            return;
+        // 前回スキャン位置からのマンハッタン距離を判定し、4ブロック未満であれば再利用（走査頻度の削減）
+        if (lastStairScanBlockX != Integer.MIN_VALUE &&
+            lastStairScanBlockY != Integer.MIN_VALUE &&
+            lastStairScanBlockZ != Integer.MIN_VALUE) {
+            int dx = Math.abs(blockX - lastStairScanBlockX);
+            int dy = Math.abs(blockY - lastStairScanBlockY);
+            int dz = Math.abs(blockZ - lastStairScanBlockZ);
+            if (dx + dy + dz < 4) {
+                return;
+            }
         }
         lastStairScanBlockX = blockX;
         lastStairScanBlockY = blockY;

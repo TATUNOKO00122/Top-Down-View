@@ -1,5 +1,0 @@
-配置方向指定のデフォルト値をオフ(false)に変更
-
-* Configの `PLACEMENT_ROTATION_ENABLED` のデフォルト値を `true` から `false` へ変更
-* ConfigScreen の `resetToDefaults()` における初期化値も同様に `false` に変更し、設定リセット時にもオフになるよう修正
-※ 階段検出の高さは前回対応済み(2)であるため今回は変更なし

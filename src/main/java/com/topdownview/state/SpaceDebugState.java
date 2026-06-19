@@ -22,7 +22,7 @@ public final class SpaceDebugState {
     public static final SpaceDebugState INSTANCE = new SpaceDebugState();
 
     // 探索パラメータ（後でConfig化）
-    public static final int MAX_EXPLORE_BLOCKS = 10000;
+    public static final int MAX_EXPLORE_BLOCKS = 1000;
     public static final int MAX_WALL_THICKNESS = 3;
     public static final int MAX_HOLE_SIZE = 2;
     public static final int MIN_ROOM_VOLUME = 8;
