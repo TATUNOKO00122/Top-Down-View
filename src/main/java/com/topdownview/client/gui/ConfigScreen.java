@@ -632,7 +632,7 @@ public class ConfigScreen extends Screen {
         Config.setMaxCameraDistance(50.0);
         Config.setDefaultCameraDistance(9.0);
 
-        Config.setPlayerScreenOffset(2.0);
+        Config.setPlayerScreenOffset(0.5);
 
         Config.setHeadBodyRotationEnabled(true);
         Config.setLockedTopDown(false);
@@ -656,9 +656,19 @@ public class ConfigScreen extends Screen {
 
         Config.setPlacementPreviewEnabled(true);
         Config.setPlacementTransparency(0.5);
+        Config.setClickPositionPlacementEnabled(false);
+        Config.setPlacementRotationEnabled(true);
 
-        Config.setStaircaseExclusionEnabled(false);
-        Config.setStaircaseExclusionHeight(3);
+        Config.setStaircaseExclusionEnabled(true);
+        Config.setStaircaseExclusionHeight(2);
+        Config.setStaircaseOccludeEnabled(false);
+        Config.setStaircaseOccludeAlpha(0.0);
+
+        Config.setIndependentMountAim(true);
+        Config.setMountAimMaxTwist(90);
+        Config.setMountTurnSmoothing(0.25);
+        Config.setBoatHeadMaxTwist(60);
+        Config.setBoatBodyMaxTwist(45);
 
         this.init();
     }

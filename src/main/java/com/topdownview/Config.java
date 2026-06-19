@@ -154,13 +154,13 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue PLACEMENT_TRANSPARENCY = BUILDER
             .defineInRange("placementTransparency", 0.5, 0.1, 0.9);
     private static final ForgeConfigSpec.BooleanValue CLICK_POSITION_PLACEMENT_ENABLED = BUILDER
-            .define("clickPositionPlacementEnabled", true);
+            .define("clickPositionPlacementEnabled", false);
 
     // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
-            .define("staircaseExclusionEnabled", false);
+            .define("staircaseExclusionEnabled", true);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
-            .defineInRange("staircaseExclusionHeight", 3, 1, 10);
+            .defineInRange("staircaseExclusionHeight", 2, 1, 10);
 
     // 階段視線遮蔽時の透明度設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
@@ -170,7 +170,7 @@ public class Config {
 
     // ブロック配置方向手動指定
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
-            .define("placementRotationEnabled", false);
+            .define("placementRotationEnabled", true);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

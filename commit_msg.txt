@@ -1,0 +1,13 @@
+設定画面とデフォルト値の全面的な見直し・同期および用語の変更
+
+* Configのデフォルト値を使いやすい設定に更新
+  - 階段検出(staircaseExclusionEnabled)をデフォルトでオンに変更
+  - 検出高さ(staircaseExclusionHeight)をデフォルト2に変更
+  - クリック位置配置(clickPositionPlacementEnabled)をデフォルトでオフに変更
+  - 配置方向指定(placementRotationEnabled)をデフォルトでオンに変更
+* ConfigScreen内の resetToDefaults() における初期化値の抜け漏れ・不整合を修正
+  - playerScreenOffsetの初期化値をConfig側のデフォルト値(0.5)と同期
+  - 初期化処理から漏れていた設定項目(staircaseOccludeEnabled, independentMountAim, 各種Mount関連設定など)を追加し、全てのConfig値が正しくリセットされるよう修正
+* UI上の名称「階段除外 (Staircase Exclusion)」を「階段検出 (Staircase Detection)」に変更
+  - ja_jp.json: 「階段除外」→「階段検出」、「除外高さ」→「検出高さ」に変更
+  - en_us.json: Staircase Exclusion → Staircase Detection、Exclusion Height → Detection Heightに変更
