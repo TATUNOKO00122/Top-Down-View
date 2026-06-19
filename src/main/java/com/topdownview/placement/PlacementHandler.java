@@ -72,10 +72,13 @@ public final class PlacementHandler {
 
         // SLAB_TYPE プロパティ（ハーフブロック: top/bottom/double）
         if (state.hasProperty(BlockStateProperties.SLAB_TYPE)) {
-            SlabType slabType = (facing == Direction.UP) ? SlabType.TOP : SlabType.BOTTOM;
-            if (BlockStateProperties.SLAB_TYPE.getPossibleValues().contains(slabType)) {
-                state = state.setValue(BlockStateProperties.SLAB_TYPE, slabType);
-                changed = true;
+            // すでにダブルハーフブロック（DOUBLE）になっている場合は、向きの適用をスキップしてダブル状態を維持する
+            if (state.getValue(BlockStateProperties.SLAB_TYPE) != SlabType.DOUBLE) {
+                SlabType slabType = (facing == Direction.UP) ? SlabType.TOP : SlabType.BOTTOM;
+                if (BlockStateProperties.SLAB_TYPE.getPossibleValues().contains(slabType)) {
+                    state = state.setValue(BlockStateProperties.SLAB_TYPE, slabType);
+                    changed = true;
+                }
             }
         }
 
