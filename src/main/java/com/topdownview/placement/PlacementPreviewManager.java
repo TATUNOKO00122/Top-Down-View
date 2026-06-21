@@ -206,7 +206,7 @@ public final class PlacementPreviewManager {
             }
 
             // 配置方向手動指定が有効なら向きを反映
-            stateToBePlaced = applyPlacementRotation(stateToBePlaced);
+            stateToBePlaced = applyPlacementRotation(stateToBePlaced, placeCtx);
 
             fakeBlockGetter.setFakeBlock(actualPos, stateToBePlaced);
             handleMultiBlockPlacement(actualPos, stateToBePlaced);
@@ -227,15 +227,22 @@ public final class PlacementPreviewManager {
     }
 
     /**
-     * 配置方向手動指定が有効な場合、BlockState の DirectionProperty を
-     * PlacementRotationState.currentFacing で差し替える。
+     * 配置方向手動指定が有効な場合、またはクリック位置配置が有効な場合、
+     * BlockState の向き関連プロパティを差し替える。
      */
-    private BlockState applyPlacementRotation(BlockState state) {
-        if (!ModState.PLACEMENT_ROTATION.hasOverride()) {
-            return state;
+    private BlockState applyPlacementRotation(BlockState state, BlockPlaceContext context) {
+        if (ModState.PLACEMENT_ROTATION.hasOverride()) {
+            Direction facing = ModState.PLACEMENT_ROTATION.getCurrentFacing();
+            return PlacementHandler.applyFacing(state, facing);
         }
-        Direction facing = ModState.PLACEMENT_ROTATION.getCurrentFacing();
-        return PlacementHandler.applyFacing(state, facing);
+
+        if (Config.isClickPositionPlacementEnabled() && ModState.STATUS.isEnabled()) {
+            Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
+            if (calculated != null) {
+                return PlacementHandler.applyFacing(state, calculated);
+            }
+        }
+        return state;
     }
 
     /**

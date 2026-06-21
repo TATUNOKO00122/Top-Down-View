@@ -89,17 +89,17 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue TARGET_GLOW_ENABLED = BUILDER
             .define("targetGlowEnabled", true);
     private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
-            .defineInRange("rotateAngleMode", 0, 0, 2);
+            .defineInRange("rotateAngleMode", 1, 0, 2);
     private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
             .defineInRange("cameraSnapRotationSpeed", 0.2, 0.05, 0.5);
     private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-            .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+            .defineInRange("cameraPitch", 40.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
             .defineInRange("miningModePitch", 45.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
             .defineInRange("maxCameraDistance", 50.0, 0.0, 200.0);
     private static final ForgeConfigSpec.DoubleValue DEFAULT_CAMERA_DISTANCE = BUILDER
-            .defineInRange("defaultCameraDistance", 9.0, 0.0, 100.0);
+            .defineInRange("defaultCameraDistance", 30.0, 0.0, 100.0);
     private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
             .define("dragRotationEnabled", true);
     private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER
@@ -131,7 +131,7 @@ public class Config {
     private static final ForgeConfigSpec.IntValue BOAT_BODY_MAX_TWIST = BUILDER
             .defineInRange("boatBodyMaxTwist", 45, 15, 90);
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
-            .defineInRange("topDownFov", 70, 30, 110);
+            .defineInRange("topDownFov", 30, 30, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
             .comment("Locks the camera to top-down view. Prevents switching back to first-person via F5 or toggle key.", "This setting is not available in the in-game GUI. Edit the config file directly to change it.")
             .define("lockedTopDown", false);
@@ -154,7 +154,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue PLACEMENT_TRANSPARENCY = BUILDER
             .defineInRange("placementTransparency", 0.5, 0.1, 0.9);
     private static final ForgeConfigSpec.BooleanValue CLICK_POSITION_PLACEMENT_ENABLED = BUILDER
-            .define("clickPositionPlacementEnabled", false);
+            .define("clickPositionPlacementEnabled", true);
 
     // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
@@ -582,6 +582,80 @@ public class Config {
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
+    }
+
+    public static void resetToDefaults() {
+        cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.getDefault();
+        cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.getDefault();
+        cylinderForwardShift = CYLINDER_FORWARD_SHIFT.getDefault();
+        miningCylinderRadius = MINING_CYLINDER_RADIUS.getDefault();
+        miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.getDefault();
+        miningModeEnabled = MINING_MODE_ENABLED.getDefault();
+        clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.getDefault();
+        arrivalThreshold = ARRIVAL_THRESHOLD.getDefault();
+        forceAutoJump = FORCE_AUTO_JUMP.getDefault();
+        sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.getDefault();
+        autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.getDefault();
+        autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.getDefault();
+        autoAlignCooldownTicks = AUTO_ALIGN_COOLDOWN_TICKS.getDefault();
+        stableDirectionAngle = STABLE_DIRECTION_ANGLE.getDefault();
+        stableDirectionTicks = STABLE_DIRECTION_TICKS.getDefault();
+        autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.getDefault();
+        mobCullingEnabled = MOB_CULLING_ENABLED.getDefault();
+        trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.getDefault();
+        trapdoorTransparency = TRAPDOOR_TRANSPARENCY.getDefault();
+        fadeEnabled = FADE_ENABLED.getDefault();
+        fadeBlockHitThreshold = FADE_BLOCK_HIT_THRESHOLD.getDefault();
+        fadeStart = FADE_START.getDefault();
+        fadeNearAlpha = FADE_NEAR_ALPHA.getDefault();
+        rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.getDefault();
+        destinationHighlightEnabled = DESTINATION_HIGHLIGHT_ENABLED.getDefault();
+        rangeEmptyHand = RANGE_EMPTY_HAND.getDefault();
+        rangeSword = RANGE_SWORD.getDefault();
+        rangeAxe = RANGE_AXE.getDefault();
+        rangePickaxe = RANGE_PICKAXE.getDefault();
+        rangeShovel = RANGE_SHOVEL.getDefault();
+        rangeOther = RANGE_OTHER.getDefault();
+        defaultEnabled = DEFAULT_ENABLED.getDefault();
+        targetGlowEnabled = TARGET_GLOW_ENABLED.getDefault();
+        rotateAngleMode = ROTATE_ANGLE_MODE.getDefault();
+        cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.getDefault();
+        cameraPitch = CAMERA_PITCH.getDefault();
+        miningModePitch = MINING_MODE_PITCH.getDefault();
+        maxCameraDistance = MAX_CAMERA_DISTANCE.getDefault();
+        defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.getDefault();
+        dragRotationEnabled = DRAG_ROTATION_ENABLED.getDefault();
+        cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.getDefault();
+        cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.getDefault();
+        cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.getDefault();
+        cameraXFollowDelay = CAMERA_X_FOLLOW_DELAY.getDefault();
+        cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.getDefault();
+        cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.getDefault();
+        followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.getDefault();
+        playerScreenOffset = PLAYER_SCREEN_OFFSET.getDefault();
+        headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.getDefault();
+        independentMountAim = INDEPENDENT_MOUNT_AIM.getDefault();
+        mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.getDefault();
+        mountTurnSmoothing = MOUNT_TURN_SMOOTHING.getDefault();
+        boatHeadMaxTwist = BOAT_HEAD_MAX_TWIST.getDefault();
+        boatBodyMaxTwist = BOAT_BODY_MAX_TWIST.getDefault();
+        topDownFov = TOP_DOWN_FOV.getDefault();
+        lockedTopDown = LOCKED_TOP_DOWN.getDefault();
+        scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.getDefault();
+        targetLockEnabled = TARGET_LOCK_ENABLED.getDefault();
+        targetLockDuration = TARGET_LOCK_DURATION.getDefault();
+        targetHitboxExpansion = TARGET_HITBOX_EXPANSION.getDefault();
+        screenReachEnabled = SCREEN_REACH_ENABLED.getDefault();
+        reachDistance = REACH_DISTANCE.getDefault();
+        placementPreviewEnabled = PLACEMENT_PREVIEW_ENABLED.getDefault();
+        placementTransparency = PLACEMENT_TRANSPARENCY.getDefault();
+        clickPositionPlacementEnabled = CLICK_POSITION_PLACEMENT_ENABLED.getDefault();
+        staircaseExclusionEnabled = STAIRCASE_EXCLUSION_ENABLED.getDefault();
+        staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.getDefault();
+        staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.getDefault();
+        staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
+        placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.getDefault();
+        ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {

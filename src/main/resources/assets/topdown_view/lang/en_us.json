@@ -174,7 +174,7 @@
   "topdown_view.config.placement_transparency": "Preview Transparency: %.2f",
   "topdown_view.config.placement_transparency.tooltip": "Sets the transparency of the placement preview.\n0.1 = nearly invisible, 0.9 = nearly opaque.",
   "topdown_view.config.click_position_placement_enabled": "Click-Position Placement: %s",
-  "topdown_view.config.click_position_placement_enabled.tooltip": "When enabled, directional blocks (stairs, slabs, etc.) face toward\nthe side of the block you click, rather than your character's orientation.",
+  "topdown_view.config.click_position_placement_enabled.tooltip": "When enabled, the orientation of directional blocks (stairs, pistons, etc.)\nis determined based on the clicked position or side of the block, rather than your character's orientation.",
   "topdown_view.config.section.placement_rotation": "Manual Block Facing",
   "topdown_view.config.placement_rotation_enabled": "Manual Block Facing: %s",
   "topdown_view.config.placement_rotation_enabled.tooltip": "Allows manually specifying the placement orientation of blocks\n(pistons, logs, etc.) via keybindings, independent of look direction.\nSupports all 6 directions (up/down + 4 horizontal).\n§cRequires TopDownView on the server (except singleplayer).",

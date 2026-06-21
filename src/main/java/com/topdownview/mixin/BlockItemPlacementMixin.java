@@ -3,6 +3,7 @@ package com.topdownview.mixin;
 import com.topdownview.placement.PlacementHandler;
 import com.topdownview.server.ServerPlacementRotationHandler;
 import com.topdownview.state.ModState;
+import com.topdownview.Config;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,11 +44,21 @@ public abstract class BlockItemPlacementMixin {
         BlockState original = block.getStateForPlacement(context);
         if (original == null) return null;
 
+        // 手動の配置方向指定（PlacementRotation）が有効な場合はそれを優先
         Direction facing = resolveFacing(context.getPlayer());
-        if (facing == null) {
-            return original;
+        if (facing != null) {
+            return PlacementHandler.applyFacing(original, facing);
         }
-        return PlacementHandler.applyFacing(original, facing);
+
+        // クリック位置ベースの自動配置が有効な場合
+        if (Config.isClickPositionPlacementEnabled() && ModState.STATUS.isEnabled()) {
+            Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
+            if (calculated != null) {
+                return PlacementHandler.applyFacing(original, calculated);
+            }
+        }
+
+        return original;
     }
 
     /**

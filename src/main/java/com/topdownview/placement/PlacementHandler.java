@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.SlabType;
 
+import net.minecraft.world.item.context.BlockPlaceContext;
 import javax.annotation.Nullable;
 
 /**
@@ -98,5 +99,36 @@ public final class PlacementHandler {
             }
         }
         return state;
+    }
+
+    /**
+     * ブロックのクリック位置から自動的に設置の向きを算出する。
+     *
+     * @param context 配置コンテキスト
+     * @return 算出された向き（null の場合は適用しない）
+     */
+    @Nullable
+    public static Direction calculateClickPositionFacing(BlockPlaceContext context) {
+        net.minecraft.world.phys.Vec3 hitPos = context.getClickLocation();
+        net.minecraft.core.BlockPos blockPos = context.getClickedPos();
+        Direction clickedFace = context.getClickedFace();
+
+        // 側面をクリックした場合は、その反対方向を設置向きとする（壁吸着）
+        if (clickedFace.getAxis() != Direction.Axis.Y) {
+            return clickedFace.getOpposite();
+        }
+
+        // 上面または下面をクリックした場合は、クリック位置がブロック中心から見てどの方向にあるかで判定する
+        double centerX = blockPos.getX() + 0.5;
+        double centerZ = blockPos.getZ() + 0.5;
+        double dx = hitPos.x - centerX;
+        double dz = hitPos.z - centerZ;
+
+        double horizDistSqr = dx * dx + dz * dz;
+        if (horizDistSqr < 0.001) {
+            return null;
+        }
+
+        return Direction.getNearest(dx, 0.0, dz);
     }
 }

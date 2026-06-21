@@ -181,6 +181,18 @@ public class ConfigScreen extends Screen {
                         .build());
         y += sp;
 
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
+                        Config.isClickPositionPlacementEnabled()), btn -> {
+                    Config.setClickPositionPlacementEnabled(!Config.isClickPositionPlacementEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
+                            Config.isClickPositionPlacementEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.click_position_placement_enabled.tooltip")))
+                        .build());
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.target_lock", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()), btn -> {
@@ -509,18 +521,6 @@ public class ConfigScreen extends Screen {
                 Config.getPlacementTransparency(), 0.1, 0.9,
                 val -> Config.setPlacementTransparency(val)));
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
-                        Config.isClickPositionPlacementEnabled()), btn -> {
-                    Config.setClickPositionPlacementEnabled(!Config.isClickPositionPlacementEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
-                            Config.isClickPositionPlacementEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable(
-                                "topdown_view.config.click_position_placement_enabled.tooltip")))
-                        .build());
-        y += sp;
-
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -559,89 +559,7 @@ public class ConfigScreen extends Screen {
     }
 
     private void resetToDefaults() {
-        Config.setDefaultEnabled(true);
-        Config.setIgnoreLeavesInRaycast(false);
-
-        Config.setMobCullingEnabled(false);
-        Config.setCylinderRadiusHorizontal(5);
-        Config.setCylinderRadiusVertical(5);
-        Config.setCylinderForwardShift(1);
-
-        Config.setMiningCylinderRadius(5);
-        Config.setMiningCylinderForwardShift(0);
-        Config.setMiningModeEnabled(false);
-
-        Config.setClickToMoveEnabled(false);
-        Config.setDestinationHighlightEnabled(true);
-        Config.setArrivalThreshold(1.5);
-        Config.setSprintDistanceThreshold(5.0);
-        Config.setForceAutoJump(true);
-
-        Config.setScrollOnlyZoomEnabled(false);
-
-        Config.setDragRotationEnabled(true);
-
-        Config.setAutoAlignToMovementEnabled(false);
-        Config.setAutoAlignAngleThreshold(45);
-        Config.setAutoAlignCooldownTicks(30);
-        Config.setStableDirectionAngle(15);
-        Config.setStableDirectionTicks(20);
-        Config.setAutoAlignAnimationSpeed(0.1);
-
-        Config.setTrapdoorTranslucencyEnabled(false);
-        Config.setTrapdoorTransparency(0.3);
-
-        Config.setFadeEnabled(true);
-        Config.setFadeBlockHitThreshold(0.5);
-        Config.setFadeStart(0.7);
-        Config.setFadeNearAlpha(0.0);
-
-        Config.setRotateAngleMode(0);
-        Config.setCameraSnapRotationSpeed(0.2);
-        Config.setCameraPitch(45.0);
-        Config.setTopDownFov(70);
-        Config.setMiningModePitch(45.0);
-        Config.setMaxCameraDistance(50.0);
-        Config.setDefaultCameraDistance(9.0);
-
-        Config.setPlayerScreenOffset(0.5);
-
-        Config.setHeadBodyRotationEnabled(true);
-        Config.setLockedTopDown(false);
-
-        Config.setCameraYFollowDelayEnabled(true);
-        Config.setCameraYFollowDelay(1.0);
-        Config.setFollowDelayWhileMounted(false);
-
-        Config.setCameraXFollowDelayEnabled(false);
-        Config.setCameraXFollowDelay(1.0);
-
-        Config.setCameraZFollowDelayEnabled(false);
-        Config.setCameraZFollowDelay(1.0);
-
-        Config.setTargetLockEnabled(true);
-        Config.setTargetLockDuration(120);
-        Config.setTargetHitboxExpansion(1.0);
-
-        Config.setScreenReachEnabled(false);
-        Config.setReachDistance(10.0);
-
-        Config.setPlacementPreviewEnabled(true);
-        Config.setPlacementTransparency(0.5);
-        Config.setClickPositionPlacementEnabled(false);
-        Config.setPlacementRotationEnabled(false);
-
-        Config.setStaircaseExclusionEnabled(true);
-        Config.setStaircaseExclusionHeight(2);
-        Config.setStaircaseOccludeEnabled(false);
-        Config.setStaircaseOccludeAlpha(0.0);
-
-        Config.setIndependentMountAim(true);
-        Config.setMountAimMaxTwist(90);
-        Config.setMountTurnSmoothing(0.25);
-        Config.setBoatHeadMaxTwist(60);
-        Config.setBoatBodyMaxTwist(45);
-
+        Config.resetToDefaults();
         this.init();
     }
 
