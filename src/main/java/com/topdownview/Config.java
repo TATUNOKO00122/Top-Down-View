@@ -172,6 +172,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
             .define("placementRotationEnabled", false);
 
+    private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
+            .define("ignoreLeavesInRaycast", false);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -252,6 +255,7 @@ public class Config {
     private static boolean staircaseOccludeEnabled;
     private static double staircaseOccludeAlpha;
     private static boolean placementRotationEnabled;
+    private static boolean ignoreLeavesInRaycast;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -324,6 +328,7 @@ public class Config {
     public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
     public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
+    public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -401,6 +406,7 @@ public class Config {
     public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
+    public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -492,6 +498,7 @@ public class Config {
         staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
+        ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
     }
 
     private static void loadCommonConfig() {
@@ -571,6 +578,7 @@ public class Config {
         STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
         PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
+        IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();

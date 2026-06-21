@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -246,7 +247,9 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
                 // カリング済みブロックは透過として扱う
             } else {
                 BlockState state = mc.level.getBlockState(mutablePos);
-                if (!state.isAir()) {
+                if (Config.isIgnoreLeavesInRaycast() && state.is(BlockTags.LEAVES)) {
+                    // 木の葉は透過として扱う
+                } else if (!state.isAir()) {
                     var shape = state.getShape(mc.level, mutablePos, CollisionContext.of(mc.player));
                     if (!shape.isEmpty()) {
                         var clipResult = shape.clip(start, end, mutablePos);

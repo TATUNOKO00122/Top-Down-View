@@ -164,6 +164,15 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.ignore_leaves_in_raycast", Config.isIgnoreLeavesInRaycast()), btn -> {
+                    Config.setIgnoreLeavesInRaycast(!Config.isIgnoreLeavesInRaycast());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.ignore_leaves_in_raycast", Config.isIgnoreLeavesInRaycast()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.ignore_leaves_in_raycast.tooltip")))
+                        .build());
+        y += sp;
+
+        addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()), btn -> {
                     Config.setScrollOnlyZoomEnabled(!Config.isScrollOnlyZoomEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()));
@@ -446,35 +455,19 @@ public class ConfigScreen extends Screen {
                 Config.getMiningCylinderForwardShift(), 0, 10, val -> Config.setMiningCylinderForwardShift(val)));
         y += sp;
 
-        // 射程設定
-        y = addSection(y, "topdown_view.config.section.weapon_range", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.range_indicator_enabled", Config.isRangeIndicatorEnabled()),
-                btn -> {
-                    Config.setRangeIndicatorEnabled(!Config.isRangeIndicatorEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.range_indicator_enabled",
-                            Config.isRangeIndicatorEnabled()));
+        // 配置方向指定
+        y = addSection(y, "topdown_view.config.section.placement_rotation", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
+                        Config.isPlacementRotationEnabled()), btn -> {
+                    Config.setPlacementRotationEnabled(!Config.isPlacementRotationEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
+                            Config.isPlacementRotationEnabled()));
+                    com.topdownview.client.PlacementRotationController.onConfigChanged();
                 }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.range_indicator_enabled.tooltip")))
-                .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_empty_hand",
-                Config.getRangeEmptyHand(), 1.0, 10.0, val -> Config.setRangeEmptyHand(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_sword",
-                Config.getRangeSword(), 1.0, 10.0, val -> Config.setRangeSword(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_axe",
-                Config.getRangeAxe(), 1.0, 10.0, val -> Config.setRangeAxe(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_pickaxe",
-                Config.getRangePickaxe(), 1.0, 10.0, val -> Config.setRangePickaxe(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_shovel",
-                Config.getRangeShovel(), 1.0, 10.0, val -> Config.setRangeShovel(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.range_other",
-                Config.getRangeOther(), 1.0, 10.0, val -> Config.setRangeOther(val)));
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.placement_rotation_enabled.tooltip")))
+                        .build());
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -528,20 +521,6 @@ public class ConfigScreen extends Screen {
                         .build());
         y += sp;
 
-        y = addSection(y, "topdown_view.config.section.placement_rotation", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
-                        Config.isPlacementRotationEnabled()), btn -> {
-                    Config.setPlacementRotationEnabled(!Config.isPlacementRotationEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
-                            Config.isPlacementRotationEnabled()));
-                    com.topdownview.client.PlacementRotationController.onConfigChanged();
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable(
-                                "topdown_view.config.placement_rotation_enabled.tooltip")))
-                        .build());
-        y += sp;
-
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -581,6 +560,7 @@ public class ConfigScreen extends Screen {
 
     private void resetToDefaults() {
         Config.setDefaultEnabled(true);
+        Config.setIgnoreLeavesInRaycast(false);
 
         Config.setMobCullingEnabled(false);
         Config.setCylinderRadiusHorizontal(5);
@@ -596,14 +576,6 @@ public class ConfigScreen extends Screen {
         Config.setArrivalThreshold(1.5);
         Config.setSprintDistanceThreshold(5.0);
         Config.setForceAutoJump(true);
-
-        Config.setRangeIndicatorEnabled(false);
-        Config.setRangeEmptyHand(3.0);
-        Config.setRangeSword(3.0);
-        Config.setRangeAxe(3.0);
-        Config.setRangePickaxe(3.0);
-        Config.setRangeShovel(3.0);
-        Config.setRangeOther(3.0);
 
         Config.setScrollOnlyZoomEnabled(false);
 
