@@ -25,6 +25,65 @@ public final class PlayerRotationController {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    public static void onRenderTick(Minecraft mc, float partialTick) {
+        if (!ModState.STATUS.isEnabled()) return;
+        if (mc.player == null || mc.level == null) return;
+        if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
+        if (mc.player.isPassenger() || mc.player.isFallFlying()) return;
+
+        // 描画フレームの正確なカメラ位置とマウス方向でレイキャストを更新
+        MouseRaycast.INSTANCE.update(mc, partialTick, MouseRaycast.getCustomReachDistance());
+
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+        float targetYaw;
+        float targetPitch;
+
+        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
+            Vec3 playerEyePos = mc.player.getEyePosition(partialTick);
+            Vec3 targetPos = hitResult.getLocation();
+
+            if (hitResult instanceof EntityHitResult entityHit) {
+                Entity hitEntity = entityHit.getEntity();
+                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
+                    targetPos = hitEntity.getPosition(partialTick).add(0, hitEntity.getEyeHeight() * 0.8, 0);
+                }
+            }
+
+            double dx = targetPos.x - playerEyePos.x;
+            double dy = targetPos.y - playerEyePos.y;
+            double dz = targetPos.z - playerEyePos.z;
+            double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+            targetYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
+            targetPitch = Mth.clamp((float) -(Math.atan2(dy, horizontalDist) * (180.0 / Math.PI)), -90.0f, 90.0f);
+        } else {
+            float[] yawPitch = MouseRaycast.INSTANCE.getMouseTargetYawPitch(mc, partialTick);
+            if (yawPitch == null) return;
+            targetYaw = yawPitch[0];
+            targetPitch = Mth.clamp(yawPitch[1], -90.0f, 90.0f);
+        }
+
+        // 目標値を更新
+        PlayerRotationState state = ModState.PLAYER_ROTATION;
+        state.updateTargetHeadYawDirect(targetYaw);
+        state.updateTargetPitch(targetPitch);
+
+        // 描画用の角度をプレイヤーに適用
+        float headYaw = state.getLerpHeadYaw(partialTick);
+        float bodyYaw = state.getLerpBodyYaw(partialTick);
+        float pitch = targetPitch;
+
+        mc.player.setYHeadRot(headYaw);
+        mc.player.setYRot(bodyYaw);
+        mc.player.setXRot(pitch);
+        // xRotO = pitch にして lerp(xRotO, xRot, partialTick) の補間ノイズを排除する
+        mc.player.xRotO = pitch;
+
+        if (!state.isUsingItem()) {
+            mc.player.setYBodyRot(bodyYaw);
+        }
+    }
+
     public static void onClientTick(Minecraft mc) {
         if (!ModState.STATUS.isEnabled()) return;
         if (mc.player == null || mc.level == null) return;
@@ -37,7 +96,7 @@ public final class PlayerRotationController {
 
         PlayerRotationState state = ModState.PLAYER_ROTATION;
 
-        updateHeadYawFromMouse(mc, state);
+        updateHeadRotationFromMouse(mc, state);
         updateBodyYawFromMovement(mc, state);
         handleItemUsage(mc, state);
 
@@ -46,28 +105,45 @@ public final class PlayerRotationController {
         applyToPlayer(mc.player, state);
     }
 
-    private static void updateHeadYawFromMouse(Minecraft mc, PlayerRotationState state) {
+    private static void updateHeadRotationFromMouse(Minecraft mc, PlayerRotationState state) {
         if (ModState.CAMERA.isDragging() || ModState.CAMERA.isFreeCameraMode()) {
             return;
         }
 
+        // ティック時点の正確なカメラ位置とマウス方向でレイキャストを更新する
+        MouseRaycast.INSTANCE.update(mc, 1.0f, MouseRaycast.getCustomReachDistance());
+
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
-        if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
-            return;
-        }
+        float targetYaw;
+        float targetPitch;
 
-        Vec3 playerEyePos = mc.player.getEyePosition(1.0f);
-        Vec3 targetPos = hitResult.getLocation();
+        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
+            Vec3 playerEyePos = mc.player.getEyePosition(1.0f);
+            Vec3 targetPos = hitResult.getLocation();
 
-        // ターゲットロック中：拡大ヒットボックスによるYずれを補正
-        if (hitResult instanceof EntityHitResult entityHit) {
-            Entity hitEntity = entityHit.getEntity();
-            if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
-                targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
+            if (hitResult instanceof EntityHitResult entityHit) {
+                Entity hitEntity = entityHit.getEntity();
+                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
+                    targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
+                }
             }
+
+            double dx = targetPos.x - playerEyePos.x;
+            double dy = targetPos.y - playerEyePos.y;
+            double dz = targetPos.z - playerEyePos.z;
+            double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+
+            targetYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
+            targetPitch = Mth.clamp((float) -(Math.atan2(dy, horizontalDist) * (180.0 / Math.PI)), -90.0f, 90.0f);
+        } else {
+            float[] yawPitch = MouseRaycast.INSTANCE.getMouseTargetYawPitch(mc, 1.0f);
+            if (yawPitch == null) return;
+            targetYaw = yawPitch[0];
+            targetPitch = Mth.clamp(yawPitch[1], -90.0f, 90.0f);
         }
 
-        state.updateTargetHeadYaw(playerEyePos, targetPos);
+        state.updateTargetHeadYawDirect(targetYaw);
+        state.updateTargetPitch(targetPitch);
     }
 
     private static void updateBodyYawFromMovement(Minecraft mc, PlayerRotationState state) {
@@ -116,16 +192,21 @@ public final class PlayerRotationController {
             player.yHeadRotO = state.getLockedHeadYaw();
             player.setYBodyRot(yaw);
             player.setXRot(state.getLockedPitch());
+            player.xRotO = state.getLockedPitch();
             return;
         }
 
         float headYaw = state.getCurrentHeadYaw();
         float bodyYaw = state.getCurrentBodyYaw();
+        float pitch = state.getCurrentPitch();
 
         player.setYHeadRot(headYaw);
         player.setYRot(bodyYaw);
         player.yHeadRotO = state.getPrevHeadYaw();
         player.yRotO = state.getPrevBodyYaw();
+        player.setXRot(pitch);
+        // xRotO = pitch にして onRenderTick との競合によるジッターを防止する
+        player.xRotO = pitch;
 
         if (!state.isUsingItem()) {
             player.setYBodyRot(bodyYaw);
@@ -142,6 +223,6 @@ public final class PlayerRotationController {
 
     public static void initializeFromPlayer(Player player) {
         if (player == null) return;
-        ModState.PLAYER_ROTATION.initializeFromPlayer(player.getYHeadRot(), player.getYRot());
+        ModState.PLAYER_ROTATION.initializeFromPlayer(player.getYHeadRot(), player.getYRot(), player.getXRot());
     }
 }
