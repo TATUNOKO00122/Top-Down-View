@@ -17,6 +17,10 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Camera;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -111,5 +115,17 @@ public class LevelRendererMixin {
 
         int[] color = ModState.TARGET_HIGHLIGHT.getOutlineColor();
         this.renderBuffers.outlineBufferSource().setColor(color[0], color[1], color[2], color[3]);
+    }
+
+    @Redirect(
+        method = "tickRain",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"),
+        require = 0
+    )
+    private Vec3 redirectCameraPositionForRain(Camera camera) {
+        if (ModState.STATUS.isEnabled() && Minecraft.getInstance().player != null) {
+            return Minecraft.getInstance().player.getEyePosition();
+        }
+        return camera.getPosition();
     }
 }

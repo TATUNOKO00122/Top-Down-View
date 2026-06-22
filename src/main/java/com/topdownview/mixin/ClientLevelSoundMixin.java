@@ -11,7 +11,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(value = net.minecraft.client.multiplayer.ClientLevel.class)
 public class ClientLevelSoundMixin {
 
-    @Redirect(method = "playSound", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;"))
+    @Redirect(
+        method = { "playSound", "playLocalSound", "playSeededSound" },
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;getPosition()Lnet/minecraft/world/phys/Vec3;")
+    )
     private Vec3 redirectCameraPositionForSound(Camera camera) {
         if (ModState.STATUS.isEnabled() && Minecraft.getInstance().player != null) {
             return Minecraft.getInstance().player.getEyePosition();

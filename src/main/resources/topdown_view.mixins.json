@@ -22,7 +22,8 @@
     "AbstractHorseEntityMixin",
     "BoatEntityMixin",
     "LivingEntityMixin",
-    "MultiPlayerGameModeMixin"
+    "MultiPlayerGameModeMixin",
+    "ListenerMixin"
   ],
   "mixins": [
     "BlockItemPlacementMixin"
