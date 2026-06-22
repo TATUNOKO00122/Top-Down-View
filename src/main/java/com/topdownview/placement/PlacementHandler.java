@@ -131,4 +131,21 @@ public final class PlacementHandler {
 
         return Direction.getNearest(dx, 0.0, dz);
     }
+
+    /**
+     * ブロックがすでにクリックされた面に沿って適切に配向されているか判定する（看板や松明などの壁設置ブロック判定）。
+     *
+     * @param state 元の BlockState
+     * @param clickedFace クリックされた面
+     * @return すでにクリック面と一致する方向に配向されている場合 true
+     */
+    public static boolean isAlreadyAlignedToFace(BlockState state, Direction clickedFace) {
+        if (state.hasProperty(BlockStateProperties.FACING)) {
+            return state.getValue(BlockStateProperties.FACING) == clickedFace;
+        }
+        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            return state.getValue(BlockStateProperties.HORIZONTAL_FACING) == clickedFace;
+        }
+        return false;
+    }
 }

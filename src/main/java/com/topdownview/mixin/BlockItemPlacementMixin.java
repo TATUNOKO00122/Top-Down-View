@@ -52,9 +52,12 @@ public abstract class BlockItemPlacementMixin {
 
         // クリック位置ベースの自動配置が有効な場合
         if (Config.isClickPositionPlacementEnabled() && ModState.STATUS.isEnabled()) {
-            Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
-            if (calculated != null) {
-                return PlacementHandler.applyFacing(original, calculated);
+            // 看板や松明など、すでにバニラでクリック面に沿って配向されているブロックは上書きしない
+            if (!PlacementHandler.isAlreadyAlignedToFace(original, context.getClickedFace())) {
+                Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
+                if (calculated != null) {
+                    return PlacementHandler.applyFacing(original, calculated);
+                }
             }
         }
 

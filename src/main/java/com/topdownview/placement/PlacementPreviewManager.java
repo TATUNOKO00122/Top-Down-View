@@ -237,9 +237,12 @@ public final class PlacementPreviewManager {
         }
 
         if (Config.isClickPositionPlacementEnabled() && ModState.STATUS.isEnabled()) {
-            Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
-            if (calculated != null) {
-                return PlacementHandler.applyFacing(state, calculated);
+            // 看板や松明など、すでにバニラでクリック面に沿って配向されているブロックは上書きしない
+            if (!PlacementHandler.isAlreadyAlignedToFace(state, context.getClickedFace())) {
+                Direction calculated = PlacementHandler.calculateClickPositionFacing(context);
+                if (calculated != null) {
+                    return PlacementHandler.applyFacing(state, calculated);
+                }
             }
         }
         return state;
