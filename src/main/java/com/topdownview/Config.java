@@ -172,6 +172,12 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
             .define("placementRotationEnabled", false);
 
+    private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
+            .defineInRange("signHoverDisplayMode", 2, 0, 2);
+
+    private static final ForgeConfigSpec.DoubleValue SIGN_HOVER_SCALE = BUILDER
+            .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
+
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
 
@@ -256,6 +262,8 @@ public class Config {
     private static double staircaseOccludeAlpha;
     private static boolean placementRotationEnabled;
     private static boolean ignoreLeavesInRaycast;
+    private static int signHoverDisplayMode;
+    private static double signHoverScale;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -329,6 +337,8 @@ public class Config {
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
     public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
+    public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
+    public static double getSignHoverScale() { return signHoverScale; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -407,6 +417,8 @@ public class Config {
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
+    public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
+    public static void setSignHoverScale(double value) { signHoverScale = clamp(value, 0.0, 1.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -499,6 +511,8 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
+        signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
+        signHoverScale = SIGN_HOVER_SCALE.get();
     }
 
     private static void loadCommonConfig() {
@@ -579,6 +593,8 @@ public class Config {
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
         PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
+        SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
+        SIGN_HOVER_SCALE.set(signHoverScale);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
@@ -656,6 +672,8 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.getDefault();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
+        signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();
+        signHoverScale = SIGN_HOVER_SCALE.getDefault();
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {

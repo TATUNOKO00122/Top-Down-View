@@ -41,6 +41,15 @@ public final class ClientForgeEvents {
     }
 
     @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null && mc.player != null) {
+            PlayerRotationController.onRenderTick(mc, event.renderTickTime);
+        }
+    }
+
+    @SubscribeEvent
     public static void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
         LOGGER.info("[TopDownView] Player joined world, resetting state");
         ModState.resetAll();

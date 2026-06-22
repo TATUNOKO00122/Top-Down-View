@@ -521,7 +521,30 @@ public class ConfigScreen extends Screen {
                 Config.getPlacementTransparency(), 0.1, 0.9,
                 val -> Config.setPlacementTransparency(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.sign_hover", tx);
+        addRightWidget(Button.builder(getSignHoverModeComponent(Config.getSignHoverDisplayMode()), btn -> {
+            Config.setSignHoverDisplayMode((Config.getSignHoverDisplayMode() + 1) % 3);
+            btn.setMessage(getSignHoverModeComponent(Config.getSignHoverDisplayMode()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.sign_hover_display_mode.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.sign_hover_scale", Config.getSignHoverScale(), 0.0,
+                1.0, val -> Config.setSignHoverScale(val), 1));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
+    }
+
+    private Component getSignHoverModeComponent(int mode) {
+        String modeKey = switch (mode) {
+            case 1 -> "mode_world";
+            case 2 -> "mode_tooltip";
+            default -> "mode_none";
+        };
+        return Component.translatable("topdown_view.config.sign_hover_display_mode",
+                Component.translatable("topdown_view.config.sign_hover_display_mode." + modeKey).getString());
     }
 
     private Component getRotateModeComponent(int mode) {

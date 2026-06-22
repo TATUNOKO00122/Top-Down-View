@@ -188,5 +188,13 @@
   "topdown_view.placement_rotation.facing.north": "North",
   "topdown_view.placement_rotation.facing.south": "South",
   "topdown_view.placement_rotation.facing.west": "West",
-  "topdown_view.placement_rotation.facing.east": "East"
+  "topdown_view.placement_rotation.facing.east": "East",
+  "topdown_view.config.section.sign_hover": "Sign Text Display",
+  "topdown_view.config.sign_hover_display_mode": "Sign Text Display: %s",
+  "topdown_view.config.sign_hover_display_mode.mode_none": "Disabled",
+  "topdown_view.config.sign_hover_display_mode.mode_world": "3D Name Tag",
+  "topdown_view.config.sign_hover_display_mode.mode_tooltip": "2D Tooltip",
+  "topdown_view.config.sign_hover_display_mode.tooltip": "Sets the mode for displaying the text of a sign when hovered with the cursor.",
+  "topdown_view.config.sign_hover_scale": "Display Scale: %.1f",
+  "topdown_view.config.sign_hover_scale.tooltip": "Changes the display size of the sign hover text (both 3D Name Tag and 2D Tooltip)."
 }

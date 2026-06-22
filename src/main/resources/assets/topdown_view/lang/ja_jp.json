@@ -188,5 +188,13 @@
   "topdown_view.placement_rotation.facing.north": "北",
   "topdown_view.placement_rotation.facing.south": "南",
   "topdown_view.placement_rotation.facing.west": "西",
-  "topdown_view.placement_rotation.facing.east": "東"
+  "topdown_view.placement_rotation.facing.east": "東",
+  "topdown_view.config.section.sign_hover": "看板テキスト表示",
+  "topdown_view.config.sign_hover_display_mode": "看板テキスト表示: %s",
+  "topdown_view.config.sign_hover_display_mode.mode_none": "非表示",
+  "topdown_view.config.sign_hover_display_mode.mode_world": "3Dネームタグ",
+  "topdown_view.config.sign_hover_display_mode.mode_tooltip": "2Dツールチップ",
+  "topdown_view.config.sign_hover_display_mode.tooltip": "看板にカーソルを合わせた際に、書かれているテキストを表示するモードを設定します。",
+  "topdown_view.config.sign_hover_scale": "表示サイズ: %.1f",
+  "topdown_view.config.sign_hover_scale.tooltip": "看板テキスト表示（3Dネームタグおよび2Dツールチップ）のサイズを変更します。"
 }

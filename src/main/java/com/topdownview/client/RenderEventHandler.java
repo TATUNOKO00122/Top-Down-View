@@ -35,6 +35,7 @@ public final class RenderEventHandler {
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             TargetHighlightRenderer.onRenderLevelStage(event);
+            SignHoverRenderer.onRenderLevelStage(event);
         }
     }
 
@@ -43,5 +44,10 @@ public final class RenderEventHandler {
         if (ModState.SPACE_DEBUG.isEnabled()) {
             SpaceDebugRenderer.onRenderGui(event);
         }
+    }
+
+    @SubscribeEvent
+    public static void onRenderGuiPost(RenderGuiEvent.Post event) {
+        SignHoverRenderer.onRenderGuiPost(event);
     }
 }
