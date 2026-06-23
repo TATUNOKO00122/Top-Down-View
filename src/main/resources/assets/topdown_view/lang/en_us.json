@@ -82,7 +82,7 @@
   "topdown_view.config.section.culling": "Culling Area",
   "topdown_view.config.section.staircase_exclusion": "Staircase Detection",
   "topdown_view.config.staircase_exclusion_enabled": "Staircase Detection: %s",
-  "topdown_view.config.staircase_exclusion_enabled.tooltip": "Detects staircases around the player and excludes their blocks from culling.\nStairs within the configured height above the player's feet are kept visible.",
+  "topdown_view.config.staircase_exclusion_enabled.tooltip": "Detects staircases around the player and excludes their blocks from culling.\nStairs within the configured height above the player's feet are kept visible.\n(Note: May impact performance)",
   "topdown_view.config.staircase_exclusion_height": "Detection Height: %d",
   "topdown_view.config.staircase_exclusion_height.tooltip": "Vertical range (in blocks) above the player's feet within which staircase blocks are excluded from culling.",
   "topdown_view.config.staircase_occlude_enabled": "Occlusion Transparency: %s",

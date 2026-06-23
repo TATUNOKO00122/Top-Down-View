@@ -158,7 +158,8 @@ public class Config {
 
     // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
-            .define("staircaseExclusionEnabled", true);
+            .comment("Excludes staircase blocks from culling. (May impact performance / 動作が少し重くなります)")
+            .define("staircaseExclusionEnabled", false);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
             .defineInRange("staircaseExclusionHeight", 2, 1, 10);
 

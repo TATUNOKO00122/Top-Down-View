@@ -82,7 +82,7 @@
   "topdown_view.config.section.culling": "カリング領域",
   "topdown_view.config.section.staircase_exclusion": "階段検出",
   "topdown_view.config.staircase_exclusion_enabled": "階段検出: %s",
-  "topdown_view.config.staircase_exclusion_enabled.tooltip": "プレイヤー周辺の階段を検出し、そのブロックをカリングから除外します。\n設定した高さ以内の階段が表示されます。",
+  "topdown_view.config.staircase_exclusion_enabled.tooltip": "プレイヤー周辺の階段を検出し、そのブロックをカリングから除外します。\n設定した高さ以内の階段が表示されます。\n(注意: 動作が少し重くなる場合があります)",
   "topdown_view.config.staircase_exclusion_height": "検出高さ: %d",
   "topdown_view.config.staircase_exclusion_height.tooltip": "プレイヤーの足元から上方向への検出範囲（ブロック数）。",
   "topdown_view.config.staircase_occlude_enabled": "視線遮蔽時透明化: %s",
