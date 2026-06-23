@@ -11,9 +11,11 @@ import com.topdownview.spatial.SpaceRegion;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
+import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -186,7 +188,7 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        if (isProtectedBlock(pos, state, pY)) {
+        if (isProtectedBlock(pos, state, pY, level)) {
             return 1.0f;
         }
 
@@ -213,7 +215,14 @@ public final class TopDownCuller {
         return (float) Math.max(cylinderAlpha, pyramidFactor);
     }
 
-    private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY) {
+    private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY, BlockGetter level) {
+        if (state.getBlock() instanceof TrapDoorBlock) {
+            Vec3 pPos = new Vec3(playerX, playerY, playerZ);
+            Vec3 cPos = new Vec3(cameraX, cameraY, cameraZ);
+            // TrapdoorHelperを使用して、カリング対象外（保護対象）であればtrueを返す
+            return !TrapdoorHelper.shouldCull(pos, level, state, pPos, cPos);
+        }
+
         if (pos.getY() + 0.5 < pY) {
             return true;
         }
