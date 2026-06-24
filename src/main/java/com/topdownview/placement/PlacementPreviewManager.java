@@ -95,11 +95,9 @@ public final class PlacementPreviewManager {
             return;
         }
 
-        // 手持ちアイテムがブロックアイテムでなければスキップ
+        // 手持ちアイテムがブロックアイテムでなければスキップ（オフハンドはプレビュー対象外）
         ItemStack mainHand = player.getMainHandItem();
-        ItemStack offHand = player.getOffhandItem();
-        boolean hasBlock = isPlaceableItem(mainHand) || isPlaceableItem(offHand);
-        if (!hasBlock) {
+        if (!isPlaceableItem(mainHand)) {
             entries.clear();
             lastPos = null;
             return;
@@ -130,14 +128,14 @@ public final class PlacementPreviewManager {
         lastPlacementFacing = currentPlacementFacing;
 
         // 周辺ブロックをFakeBlockGetterにコピーして配置シミュレーション
-        updateEntries(level, player, hitResult, mainHand, offHand);
+        updateEntries(level, player, hitResult, mainHand);
     }
 
     /**
      * アイテム使用をシミュレートし、変更されたブロックをentriesに記録する。
      */
     private void updateEntries(Level level, LocalPlayer player,
-                               BlockHitResult hitResult, ItemStack mainHand, ItemStack offHand) {
+                               BlockHitResult hitResult, ItemStack mainHand) {
         if (fakeBlockGetter == null) {
             fakeBlockGetter = new FakeBlockGetter(level);
         } else {
@@ -147,14 +145,9 @@ public final class PlacementPreviewManager {
         // 半径分の実ブロックをコピー（FakeBlockGetterはdelegateから読むので不要）
         // → FakeBlockGetter は実ワールドに委譲するため、コピー不要
 
-        // メインハンドで試行
-        boolean success = false;
+        // メインハンドで試行（オフハンドはプレビュー対象外）
         if (isPlaceableItem(mainHand)) {
-            success = trySimulatePlacement(level, player, hitResult, mainHand, InteractionHand.MAIN_HAND);
-        }
-        // メインハンドで失敗したらオフハンドで試行
-        if (!success && isPlaceableItem(offHand)) {
-            trySimulatePlacement(level, player, hitResult, offHand, InteractionHand.OFF_HAND);
+            trySimulatePlacement(level, player, hitResult, mainHand, InteractionHand.MAIN_HAND);
         }
 
         // 変更位置をentriesに変換
@@ -253,15 +246,11 @@ public final class PlacementPreviewManager {
      * （毎tick の再計算を回避するための簡易チェック）
      */
     private ItemStack lastMain = ItemStack.EMPTY;
-    private ItemStack lastOff = ItemStack.EMPTY;
 
     private boolean hasItemChanged(LocalPlayer player) {
         ItemStack main = player.getMainHandItem();
-        ItemStack off = player.getOffhandItem();
-        boolean changed = !ItemStack.isSameItem(main, lastMain)
-                || !ItemStack.isSameItem(off, lastOff);
+        boolean changed = !ItemStack.isSameItem(main, lastMain);
         lastMain = main.copy();
-        lastOff = off.copy();
         return changed;
     }
 
@@ -285,7 +274,6 @@ public final class PlacementPreviewManager {
         lastHitVec = null;
         lastPlacementFacing = null;
         lastMain = ItemStack.EMPTY;
-        lastOff = ItemStack.EMPTY;
     }
 
     /**
