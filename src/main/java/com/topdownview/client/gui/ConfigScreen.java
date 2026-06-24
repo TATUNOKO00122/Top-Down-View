@@ -509,6 +509,32 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
 
+        // 空間プロンプト設定 (吹き出し表示)
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.show_spatial_prompt", Config.isShowSpatialPrompt()),
+                btn -> {
+                    Config.setShowSpatialPrompt(!Config.isShowSpatialPrompt());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.show_spatial_prompt",
+                            Config.isShowSpatialPrompt()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_spatial_prompt.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.spatial_prompt_radius",
+                Config.getSpatialPromptRadius(), 1.0, 16.0,
+                val -> Config.setSpatialPromptRadius(val), 1));
+        y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.spatial_prompt_all_blocks", Config.isSpatialPromptAllBlocks()),
+                btn -> {
+                    Config.setSpatialPromptAllBlocks(!Config.isSpatialPromptAllBlocks());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.spatial_prompt_all_blocks",
+                            Config.isSpatialPromptAllBlocks()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.spatial_prompt_all_blocks.tooltip")))
+                .build());
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

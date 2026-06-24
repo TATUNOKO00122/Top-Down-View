@@ -188,6 +188,15 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue INTERACTION_PROMPT_SHADOW = BUILDER
             .define("interactionPromptShadow", true);
 
+    private static final ForgeConfigSpec.BooleanValue SHOW_SPATIAL_PROMPT = BUILDER
+            .define("showSpatialPrompt", true);
+
+    private static final ForgeConfigSpec.DoubleValue SPATIAL_PROMPT_RADIUS = BUILDER
+            .defineInRange("spatialPromptRadius", 8.0, 1.0, 16.0);
+
+    private static final ForgeConfigSpec.BooleanValue SPATIAL_PROMPT_ALL_BLOCKS = BUILDER
+            .define("spatialPromptAllBlocks", false);
+
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
 
@@ -277,6 +286,9 @@ public class Config {
     private static boolean showInteractionPrompt;
     private static double interactionPromptScale;
     private static boolean interactionPromptShadow;
+    private static boolean showSpatialPrompt;
+    private static double spatialPromptRadius;
+    private static boolean spatialPromptAllBlocks;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -355,6 +367,9 @@ public class Config {
     public static boolean isShowInteractionPrompt() { return showInteractionPrompt; }
     public static double getInteractionPromptScale() { return interactionPromptScale; }
     public static boolean isInteractionPromptShadow() { return interactionPromptShadow; }
+    public static boolean isShowSpatialPrompt() { return showSpatialPrompt; }
+    public static double getSpatialPromptRadius() { return spatialPromptRadius; }
+    public static boolean isSpatialPromptAllBlocks() { return spatialPromptAllBlocks; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -438,6 +453,9 @@ public class Config {
     public static void setShowInteractionPrompt(boolean value) { showInteractionPrompt = value; }
     public static void setInteractionPromptScale(double value) { interactionPromptScale = clamp(value, 0.0, 1.0); }
     public static void setInteractionPromptShadow(boolean value) { interactionPromptShadow = value; }
+    public static void setShowSpatialPrompt(boolean value) { showSpatialPrompt = value; }
+    public static void setSpatialPromptRadius(double value) { spatialPromptRadius = clamp(value, 1.0, 16.0); }
+    public static void setSpatialPromptAllBlocks(boolean value) { spatialPromptAllBlocks = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -535,6 +553,9 @@ public class Config {
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.get();
         interactionPromptScale = INTERACTION_PROMPT_SCALE.get();
         interactionPromptShadow = INTERACTION_PROMPT_SHADOW.get();
+        showSpatialPrompt = SHOW_SPATIAL_PROMPT.get();
+        spatialPromptRadius = SPATIAL_PROMPT_RADIUS.get();
+        spatialPromptAllBlocks = SPATIAL_PROMPT_ALL_BLOCKS.get();
     }
 
     private static void loadCommonConfig() {
@@ -620,6 +641,9 @@ public class Config {
         SHOW_INTERACTION_PROMPT.set(showInteractionPrompt);
         INTERACTION_PROMPT_SCALE.set(interactionPromptScale);
         INTERACTION_PROMPT_SHADOW.set(interactionPromptShadow);
+        SHOW_SPATIAL_PROMPT.set(showSpatialPrompt);
+        SPATIAL_PROMPT_RADIUS.set(spatialPromptRadius);
+        SPATIAL_PROMPT_ALL_BLOCKS.set(spatialPromptAllBlocks);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
@@ -702,6 +726,9 @@ public class Config {
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.getDefault();
         interactionPromptScale = INTERACTION_PROMPT_SCALE.getDefault();
         interactionPromptShadow = INTERACTION_PROMPT_SHADOW.getDefault();
+        showSpatialPrompt = SHOW_SPATIAL_PROMPT.getDefault();
+        spatialPromptRadius = SPATIAL_PROMPT_RADIUS.getDefault();
+        spatialPromptAllBlocks = SPATIAL_PROMPT_ALL_BLOCKS.getDefault();
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {

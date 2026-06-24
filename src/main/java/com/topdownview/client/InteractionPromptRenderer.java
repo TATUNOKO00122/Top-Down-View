@@ -33,6 +33,10 @@ import org.joml.Matrix4f;
  */
 public final class InteractionPromptRenderer {
 
+    private static final java.util.List<BlockPos> scanCache = new java.util.ArrayList<>();
+    private static Vec3 lastScanPlayerPos = null;
+    private static int scanCooldown = 0;
+
     private record BlockTargetInfo(BlockPos pos, Component blockName, Component guideText, AABB localBounds) {}
 
     private InteractionPromptRenderer() {
@@ -40,7 +44,8 @@ public final class InteractionPromptRenderer {
     }
 
     /**
-     * 3Dワールド内のターゲットブロックにSF風のターゲットUIを描画します。
+     * 3Dワールド内のターゲットブロックにSF風 of values ターゲットUIを描画し、
+     * 周辺ブロックに空間プロンプト（はてなアイコン）を描画します。
      * RenderLevelStageEvent で呼び出されます。
      */
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -60,11 +65,38 @@ public final class InteractionPromptRenderer {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        BlockTargetInfo info = getTargetInfo(mc);
-        if (info == null) {
+        if (mc.level == null || mc.player == null) {
             return;
         }
 
+        // 周辺スキャンの更新
+        updateScan(mc);
+
+        // 照準が合っているターゲットブロック情報を取得
+        BlockTargetInfo targetInfo = getTargetInfo(mc);
+        BlockPos targetPos = targetInfo != null ? targetInfo.pos() : null;
+
+        // 1. ターゲットがある場合、操作ガイドプロンプトを描画
+        if (targetInfo != null) {
+            renderTargetPrompt(event, mc, targetInfo);
+        }
+
+        // 2. 周辺ブロックの空間プロンプト（はてなマーク）を描画
+        if (Config.isShowSpatialPrompt() && !scanCache.isEmpty()) {
+            for (BlockPos pos : scanCache) {
+                // ターゲット中のブロック（および同じ結合ブロック）はスキップ
+                if (targetPos != null && isSameInteractionBlock(mc.level, pos, targetPos)) {
+                    continue;
+                }
+                renderSpatialBubble(event, mc, pos);
+            }
+        }
+    }
+
+    /**
+     * 照準が合っているターゲットブロックに対し、白いブラケットと操作ガイドを描画します。
+     */
+    private static void renderTargetPrompt(RenderLevelStageEvent event, Minecraft mc, BlockTargetInfo info) {
         Camera camera = event.getCamera();
         Vec3 cameraPos = camera.getPosition();
         BlockPos pos = info.pos();
@@ -84,7 +116,7 @@ public final class InteractionPromptRenderer {
         poseStack.mulPose(Axis.YP.rotationDegrees(-camera.getYRot()));
         poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
 
-        // スケール調整（カメラからの距離とサイズ設定（Config.getInteractionPromptScale）を適用）
+        // スケール調整（カメラからの距離とサイズ設定を適用）
         double distance = cameraPos.distanceTo(new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
         float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
         
@@ -96,7 +128,7 @@ public final class InteractionPromptRenderer {
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         Font font = mc.font;
 
-        // 8つの頂点をビルボード空間（カメラの視線方向）に射影して、見かけ上のサイズ（幅・高さ）を計算する
+        // 8つの頂点をビルボード空間（カメラ of the line 視線方向）に射影して、見かけ上のサイズ（幅・高さ）を計算する
         double ry = Math.toRadians(camera.getYRot());
         double rx = Math.toRadians(camera.getXRot());
 
@@ -172,6 +204,181 @@ public final class InteractionPromptRenderer {
         bufferSource.endBatch();
 
         // 深度テストを有効化に戻す
+        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
+    }
+
+    /**
+     * 指定されたブロックが空間プロンプト（吹き出し）の表示対象か判定します。
+     */
+    private static boolean isTargetForSpatialPrompt(BlockState state, Level level, BlockPos pos) {
+        if (state.isAir()) {
+            return false;
+        }
+
+        Block block = state.getBlock();
+        // 看板は除外（SignHoverRendererが別で動作するため）
+        if (block instanceof net.minecraft.world.level.block.SignBlock || 
+            block instanceof net.minecraft.world.level.block.WallSignBlock) {
+            return false;
+        }
+
+        // すべてのインタラクトブロックを表示しない設定の場合、主要なコンテナや設備に制限
+        if (!Config.isSpatialPromptAllBlocks()) {
+            return block instanceof ChestBlock
+                    || block instanceof net.minecraft.world.level.block.BarrelBlock
+                    || block instanceof net.minecraft.world.level.block.ShulkerBoxBlock
+                    || block instanceof net.minecraft.world.level.block.EnderChestBlock
+                    || block instanceof net.minecraft.world.level.block.CraftingTableBlock
+                    || block instanceof net.minecraft.world.level.block.AbstractFurnaceBlock
+                    || block instanceof net.minecraft.world.level.block.BrewingStandBlock
+                    || block instanceof net.minecraft.world.level.block.BedBlock
+                    || block instanceof net.minecraft.world.level.block.EnchantmentTableBlock
+                    || block instanceof net.minecraft.world.level.block.AnvilBlock;
+        }
+
+        // すべて表示する場合、アクションコンポーネントが取得できるもの（インタラクト可能）を対象とする
+        return getActionComponent(state, level, pos) != null;
+    }
+
+    /**
+     * プレイヤー周辺のインタラクト可能ブロックをスキャンしてキャッシュします。
+     */
+    private static void updateScan(Minecraft mc) {
+        if (mc.level == null || mc.player == null) {
+            scanCache.clear();
+            lastScanPlayerPos = null;
+            return;
+        }
+
+        Vec3 playerPosVec = mc.player.position();
+        if (scanCooldown > 0) {
+            scanCooldown--;
+            // プレイヤーが大きく移動した場合は強制的にスキャンをアップデート
+            if (lastScanPlayerPos != null && playerPosVec.distanceToSqr(lastScanPlayerPos) > 4.0D) {
+                // cooldown を無視してスキャンを実行
+            } else {
+                return;
+            }
+        }
+
+        scanCooldown = 10; // 0.5秒（10 tick）ごとに実行
+        lastScanPlayerPos = playerPosVec;
+
+        double radius = Config.getSpatialPromptRadius();
+        BlockPos playerPos = mc.player.blockPosition();
+
+        scanCache.clear();
+        java.util.Set<AABB> scannedBounds = new java.util.HashSet<>();
+
+        int rxLimit = (int) Math.ceil(radius);
+        int ryLimit = 4; // 垂直方向は ±4 ブロックで十分
+
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        for (int dx = -rxLimit; dx <= rxLimit; dx++) {
+            for (int dy = -ryLimit; dy <= ryLimit; dy++) {
+                for (int dz = -rxLimit; dz <= rxLimit; dz++) {
+                    if (dx * dx + dz * dz > radius * radius) {
+                        continue;
+                    }
+
+                    mutablePos.set(playerPos.getX() + dx, playerPos.getY() + dy, playerPos.getZ() + dz);
+                    BlockState state = mc.level.getBlockState(mutablePos);
+
+                    if (isTargetForSpatialPrompt(state, mc.level, mutablePos)) {
+                        // 結合ブロックを含む境界ボックスを取得
+                        AABB worldBounds = getBlockInteractionBounds(state, mc.level, mutablePos)
+                                .move(mutablePos.getX(), mutablePos.getY(), mutablePos.getZ());
+
+                        // すでに重複するバウンディングボックスがスキャン済みか確認
+                        boolean duplicate = false;
+                        for (AABB bounds : scannedBounds) {
+                            if (bounds.minmax(worldBounds).getSize() < worldBounds.getSize() + 0.1D) {
+                                duplicate = true;
+                                break;
+                            }
+                        }
+
+                        if (!duplicate) {
+                            scannedBounds.add(worldBounds);
+                            scanCache.add(mutablePos.immutable());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 2つの座標が同じインタラクト可能ブロック（または同一のダブルチェスト等結合ブロック）に属するか判定します。
+     */
+    private static boolean isSameInteractionBlock(Level level, BlockPos posA, BlockPos posB) {
+        if (posA.equals(posB)) {
+            return true;
+        }
+        BlockState stateA = level.getBlockState(posA);
+        BlockState stateB = level.getBlockState(posB);
+        if (stateA.getBlock() != stateB.getBlock()) {
+            return false;
+        }
+
+        AABB boundsA = getBlockInteractionBounds(stateA, level, posA).move(posA.getX(), posA.getY(), posA.getZ());
+        AABB boundsB = getBlockInteractionBounds(stateB, level, posB).move(posB.getX(), posB.getY(), posB.getZ());
+        return boundsA.getCenter().distanceToSqr(boundsB.getCenter()) < 0.01D;
+    }
+
+    /**
+     * 指定されたブロックの中心に「?」アイコンを描画します。
+     */
+    private static void renderSpatialBubble(RenderLevelStageEvent event, Minecraft mc, BlockPos pos) {
+        BlockState state = mc.level.getBlockState(pos);
+        Component iconText = Component.literal("?");
+
+        AABB localBounds = getBlockInteractionBounds(state, mc.level, pos);
+        Vec3 center = localBounds.getCenter();
+
+        Camera camera = event.getCamera();
+        Vec3 cameraPos = camera.getPosition();
+
+        double x = pos.getX() + center.x - cameraPos.x;
+        double y = pos.getY() + center.y - cameraPos.y;
+        double z = pos.getZ() + center.z - cameraPos.z;
+
+        PoseStack poseStack = event.getPoseStack();
+        poseStack.pushPose();
+        poseStack.translate(x, y, z);
+
+        // ビルボード処理（常にカメラの正面に向くように回転）
+        poseStack.mulPose(Axis.YP.rotationDegrees(-camera.getYRot()));
+        poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
+
+        // スケール調整
+        double distance = cameraPos.distanceTo(new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
+        float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
+        scale = Math.max(0.005F * (float) Config.getInteractionPromptScale(), Math.min(0.15F * (float) Config.getInteractionPromptScale(), scale));
+        
+        // 空間プロンプトはターゲットプロンプトよりも少し控えめ（75%スケール）で表示
+        scale *= 0.75F;
+        poseStack.scale(-scale, -scale, scale);
+
+        Matrix4f matrix = poseStack.last().pose();
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        Font font = mc.font;
+
+        float textX = -font.width(iconText) / 2.0F;
+        float textY = -font.lineHeight / 2.0F;
+
+        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+
+        boolean shadow = Config.isInteractionPromptShadow();
+
+        // 白色の「?」アイコン描画 (壁透過モード)
+        font.drawInBatch(iconText, textX, textY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
+
+        poseStack.popPose();
+
+        bufferSource.endBatch(RenderType.textBackgroundSeeThrough());
+        bufferSource.endBatch();
+
         com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
     }
 
