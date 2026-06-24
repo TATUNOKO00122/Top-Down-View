@@ -75,7 +75,7 @@
   "topdown_view.config.scroll_only_zoom_enabled": "ホイールのみでズーム: %s",
   "topdown_view.config.scroll_only_zoom_enabled.tooltip": "マウスホイール操作のみでカメラ距離（ズーム）を変更できるようにします。\nオフ時は Alt + スクロール での操作が必要です。",
   "topdown_view.config.ignore_leaves_in_raycast": "葉ブロックをターゲットから除外: %s",
-  "topdown_view.config.ignore_leaves_in_raycast.tooltip": "マウスのターゲット判定（ブロック選択やクリック移動など）で葉ブロックを無視して透過します。",
+  "topdown_view.config.ignore_leaves_in_raycast.tooltip": "マウスのターゲット判定（ブロック選択やクリック移動など）で葉ブロックを無視して透過します。\n※クワやハサミを持っている場合は、透過せずにターゲットすることができます。",
   "topdown_view.config.on": "§aオン",
   "topdown_view.config.off": "§cオフ",
   "topdown_view.config.section.basic": "基本設定",

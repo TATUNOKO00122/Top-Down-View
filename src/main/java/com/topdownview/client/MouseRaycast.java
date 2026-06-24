@@ -8,6 +8,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.item.HoeItem;
+import net.minecraft.world.item.ShearsItem;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -249,7 +251,16 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
                 // カリング済みブロックは透過として扱う
             } else {
                 BlockState state = mc.level.getBlockState(mutablePos);
-                if (Config.isIgnoreLeavesInRaycast() && state.is(BlockTags.LEAVES)) {
+                boolean isHoldingBypassTool = false;
+                if (mc.player != null) {
+                    var mainHand = mc.player.getMainHandItem().getItem();
+                    var offHand = mc.player.getOffhandItem().getItem();
+                    if (mainHand instanceof HoeItem || mainHand instanceof ShearsItem ||
+                        offHand instanceof HoeItem || offHand instanceof ShearsItem) {
+                        isHoldingBypassTool = true;
+                    }
+                }
+                if (Config.isIgnoreLeavesInRaycast() && state.is(BlockTags.LEAVES) && !isHoldingBypassTool) {
                     // 木の葉は透過として扱う
                 } else if (!state.isAir()) {
                     var shape = state.getShape(mc.level, mutablePos, collisionContext);

@@ -75,7 +75,7 @@
   "topdown_view.config.scroll_only_zoom_enabled": "Direct Wheel Zoom: %s",
   "topdown_view.config.scroll_only_zoom_enabled.tooltip": "Enable camera zoom with mouse scroll wheel alone (no modifier key required).\nWhen disabled, Alt + Scroll is required to zoom.",
   "topdown_view.config.ignore_leaves_in_raycast": "Ignore Leaves for Targeting: %s",
-  "topdown_view.config.ignore_leaves_in_raycast.tooltip": "Ignore leaf blocks during mouse targeting (block selection, click-to-move, etc.).",
+  "topdown_view.config.ignore_leaves_in_raycast.tooltip": "Ignore leaf blocks during mouse targeting (block selection, click-to-move, etc.).\n* Holding a hoe or shears allows targeting and breaking leaves normally.",
   "topdown_view.config.on": "§aON",
   "topdown_view.config.off": "§cOFF",
   "topdown_view.config.section.basic": "Basic Settings",
