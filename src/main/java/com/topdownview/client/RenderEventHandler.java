@@ -36,6 +36,7 @@ public final class RenderEventHandler {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             TargetHighlightRenderer.onRenderLevelStage(event);
             SignHoverRenderer.onRenderLevelStage(event);
+            InteractionPromptRenderer.onRenderLevelStage(event);
         }
     }
 

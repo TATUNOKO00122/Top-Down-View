@@ -474,12 +474,39 @@ public class ConfigScreen extends Screen {
                         Config.isPlacementRotationEnabled()), btn -> {
                     Config.setPlacementRotationEnabled(!Config.isPlacementRotationEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.placement_rotation_enabled",
-                            Config.isPlacementRotationEnabled()));
+                             Config.isPlacementRotationEnabled()));
                     com.topdownview.client.PlacementRotationController.onConfigChanged();
                 }).bounds(x, y, w, h)
                         .tooltip(Tooltip.create(Component.translatable(
                                 "topdown_view.config.placement_rotation_enabled.tooltip")))
                         .build());
+        y += sp;
+
+        // 操作プロンプト設定
+        y = addSection(y, "topdown_view.config.section.interaction_prompt", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.show_interaction_prompt", Config.isShowInteractionPrompt()),
+                btn -> {
+                    Config.setShowInteractionPrompt(!Config.isShowInteractionPrompt());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.show_interaction_prompt",
+                            Config.isShowInteractionPrompt()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_interaction_prompt.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.interaction_prompt_scale",
+                Config.getInteractionPromptScale(), 0.0, 1.0,
+                val -> Config.setInteractionPromptScale(val), 1));
+        y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.show_interaction_prompt_shadow", Config.isInteractionPromptShadow()),
+                btn -> {
+                    Config.setInteractionPromptShadow(!Config.isInteractionPromptShadow());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.show_interaction_prompt_shadow",
+                            Config.isInteractionPromptShadow()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_interaction_prompt_shadow.tooltip")))
+                .build());
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;

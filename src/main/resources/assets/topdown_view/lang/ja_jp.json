@@ -196,5 +196,18 @@
   "topdown_view.config.sign_hover_display_mode.mode_tooltip": "2Dツールチップ",
   "topdown_view.config.sign_hover_display_mode.tooltip": "看板にカーソルを合わせた際に、書かれているテキストを表示するモードを設定します。",
   "topdown_view.config.sign_hover_scale": "表示サイズ: %.1f",
-  "topdown_view.config.sign_hover_scale.tooltip": "看板テキスト表示（3Dネームタグおよび2Dツールチップ）のサイズを変更します。"
+  "topdown_view.config.sign_hover_scale.tooltip": "看板テキスト表示（3Dネームタグおよび2Dツールチップ）のサイズを変更します。",
+  "topdown_view.config.section.interaction_prompt": "操作プロンプト表示",
+  "topdown_view.config.show_interaction_prompt": "操作プロンプトを表示: %s",
+  "topdown_view.config.show_interaction_prompt.tooltip": "チェストやドアなどインタラクト可能なブロックに照準を合わせた時、「[右クリック] 開く」のような操作ガイドテキストを表示します。",
+  "topdown_view.config.interaction_prompt_scale": "表示サイズ: %.1f",
+  "topdown_view.config.interaction_prompt_scale.tooltip": "操作プロンプト表示のサイズを変更します。",
+  "topdown_view.interaction.open": "開く",
+  "topdown_view.interaction.open_close": "開閉",
+  "topdown_view.interaction.toggle": "切り替え",
+  "topdown_view.interaction.sleep": "眠る",
+  "topdown_view.interaction.use": "使う",
+  "topdown_view.interaction.interact": "インタラクト",
+  "topdown_view.config.show_interaction_prompt_shadow": "プロンプトの影を表示: %s",
+  "topdown_view.config.show_interaction_prompt_shadow.tooltip": "操作プロンプトテキストの影（ドロップシャドウ）の有効/無効を切り替えます。"
 }

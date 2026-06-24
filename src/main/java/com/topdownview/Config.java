@@ -179,6 +179,15 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue SIGN_HOVER_SCALE = BUILDER
             .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
 
+    private static final ForgeConfigSpec.BooleanValue SHOW_INTERACTION_PROMPT = BUILDER
+            .define("showInteractionPrompt", true);
+
+    private static final ForgeConfigSpec.DoubleValue INTERACTION_PROMPT_SCALE = BUILDER
+            .defineInRange("interactionPromptScale", 0.5, 0.0, 1.0);
+
+    private static final ForgeConfigSpec.BooleanValue INTERACTION_PROMPT_SHADOW = BUILDER
+            .define("interactionPromptShadow", true);
+
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
 
@@ -265,6 +274,9 @@ public class Config {
     private static boolean ignoreLeavesInRaycast;
     private static int signHoverDisplayMode;
     private static double signHoverScale;
+    private static boolean showInteractionPrompt;
+    private static double interactionPromptScale;
+    private static boolean interactionPromptShadow;
 
     public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
@@ -340,6 +352,9 @@ public class Config {
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
     public static double getSignHoverScale() { return signHoverScale; }
+    public static boolean isShowInteractionPrompt() { return showInteractionPrompt; }
+    public static double getInteractionPromptScale() { return interactionPromptScale; }
+    public static boolean isInteractionPromptShadow() { return interactionPromptShadow; }
     public static double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
     }
@@ -420,6 +435,9 @@ public class Config {
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
     public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
     public static void setSignHoverScale(double value) { signHoverScale = clamp(value, 0.0, 1.0); }
+    public static void setShowInteractionPrompt(boolean value) { showInteractionPrompt = value; }
+    public static void setInteractionPromptScale(double value) { interactionPromptScale = clamp(value, 0.0, 1.0); }
+    public static void setInteractionPromptShadow(boolean value) { interactionPromptShadow = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
@@ -514,6 +532,9 @@ public class Config {
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
         signHoverScale = SIGN_HOVER_SCALE.get();
+        showInteractionPrompt = SHOW_INTERACTION_PROMPT.get();
+        interactionPromptScale = INTERACTION_PROMPT_SCALE.get();
+        interactionPromptShadow = INTERACTION_PROMPT_SHADOW.get();
     }
 
     private static void loadCommonConfig() {
@@ -596,6 +617,9 @@ public class Config {
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
         SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
         SIGN_HOVER_SCALE.set(signHoverScale);
+        SHOW_INTERACTION_PROMPT.set(showInteractionPrompt);
+        INTERACTION_PROMPT_SCALE.set(interactionPromptScale);
+        INTERACTION_PROMPT_SHADOW.set(interactionPromptShadow);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
         notifyConfigChanged();
@@ -675,6 +699,9 @@ public class Config {
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();
         signHoverScale = SIGN_HOVER_SCALE.getDefault();
+        showInteractionPrompt = SHOW_INTERACTION_PROMPT.getDefault();
+        interactionPromptScale = INTERACTION_PROMPT_SCALE.getDefault();
+        interactionPromptShadow = INTERACTION_PROMPT_SHADOW.getDefault();
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {
