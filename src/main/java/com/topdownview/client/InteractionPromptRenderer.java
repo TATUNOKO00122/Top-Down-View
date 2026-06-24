@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -13,6 +14,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChestBlock;
@@ -37,7 +39,7 @@ public final class InteractionPromptRenderer {
     private static Vec3 lastScanPlayerPos = null;
     private static int scanCooldown = 0;
 
-    private record BlockTargetInfo(BlockPos pos, Component blockName, Component guideText, AABB localBounds) {}
+    private record BlockTargetInfo(BlockPos pos, Component blockName, Component actionText, InputConstants.Key key, AABB localBounds) {}
 
     private InteractionPromptRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -190,12 +192,24 @@ public final class InteractionPromptRenderer {
         float nameY = yMin - font.lineHeight - 2.0F; // 枠の少し上
         font.drawInBatch(blockName, nameX, nameY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
 
-        // 3. 操作ガイドテキスト（左側、右揃え）の描画
-        Component guideText = info.guideText();
-        float guideWidth = font.width(guideText);
-        float guideX = xMin - guideWidth - 6.0F; // 枠の左端から6px左に離す
-        float guideY = -font.lineHeight / 2.0F;  // 縦軸中央
-        font.drawInBatch(guideText, guideX, guideY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
+        // 3. アクション名 + キーアイコン（左側、右揃え）の描画
+        Component actionText = info.actionText();
+        InputConstants.Key key = info.key();
+        ResourceLocation icon = KeyIconMapper.getIcon(key);
+
+        float actionWidth = font.width(actionText);
+        float iconSize = font.lineHeight + 2.0F; // フォントより少し大きめ（視認性向上）
+        float gap = 3.0F;
+        float totalWidth = actionWidth + gap + iconSize;
+        float startX = xMin - totalWidth - 6.0F; // 枠の左端から6px左に離す
+        float actionY = -font.lineHeight / 2.0F; // 縦軸中央
+        float iconY = -iconSize / 2.0F;          // アイコンも縦中央
+
+        // アクション名テキスト
+        font.drawInBatch(actionText, startX, actionY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
+
+        // キーアイコン（アクション名の右側に配置）
+        drawKeyIcon(bufferSource, matrix, icon, startX + actionWidth + gap, iconY, iconSize);
 
         poseStack.popPose();
 
@@ -427,6 +441,31 @@ public final class InteractionPromptRenderer {
     }
 
     /**
+     * キーアイコン画像を描画する（壁透過・深度テスト無視）。
+     * 呼び出し元で深度テスト無効化済みであること。
+     *
+     * @param bufferSource バッファソース
+     * @param matrix       現在のポーズ行列
+     * @param icon         アイコンの ResourceLocation
+     * @param x            描画左端X（ビルボード座標系）
+     * @param y            描画下端Y（ビルボード座標系）
+     * @param size         アイコンの幅・高さ（正方形）
+     */
+    private static void drawKeyIcon(MultiBufferSource.BufferSource bufferSource, Matrix4f matrix,
+                                    ResourceLocation icon, float x, float y, float size) {
+        VertexConsumer builder = bufferSource.getBuffer(RenderType.textSeeThrough(icon));
+        int light = 15728880; // full bright
+        float r = 1.0F, g = 1.0F, b = 1.0F, a = 1.0F;
+
+        // scale(-1, -1, 1) で反転しているため、UV も反転して割り当てる
+        // 頂点順序は drawRect に合わせる（見かけ上：右上→右下→左下→左上）
+        builder.vertex(matrix, x, y, 0.0F).color(r, g, b, a).uv(1.0F, 0.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x, y + size, 0.0F).color(r, g, b, a).uv(1.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x + size, y + size, 0.0F).color(r, g, b, a).uv(0.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x + size, y, 0.0F).color(r, g, b, a).uv(0.0F, 0.0F).uv2(light).endVertex();
+    }
+
+    /**
      * 現在ターゲットしているブロックの情報を取得します。
      */
     private static BlockTargetInfo getTargetInfo(Minecraft mc) {
@@ -455,17 +494,15 @@ public final class InteractionPromptRenderer {
             return null;
         }
 
-        // キー名を動的に取得
-        String keyName = mc.options.keyUse.getTranslatedKeyMessage().getString();
-        
         Component blockName = block.getName();
-        // 「アクション名 - [キー名]」
-        Component guideText = Component.literal(action.getString() + " - [" + keyName + "]");
+
+        // バインドされているキーを取得（アイコン表示用）
+        InputConstants.Key key = mc.options.keyUse.getKey();
 
         // ブロック形状の取得（ドアやベッドなどの結合ブロックに対応）
         AABB localBounds = getBlockInteractionBounds(state, mc.level, pos);
 
-        return new BlockTargetInfo(pos, blockName, guideText, localBounds);
+        return new BlockTargetInfo(pos, blockName, action, key, localBounds);
     }
 
     /**
