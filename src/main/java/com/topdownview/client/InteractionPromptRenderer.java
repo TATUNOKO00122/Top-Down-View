@@ -238,18 +238,12 @@ public final class InteractionPromptRenderer {
             }
         }
 
-        // すべてのインタラクトブロックを表示しない設定の場合、主要なコンテナや設備に制限
+        // 主要なコンテナ（チェスト類）のみに制限
         if (!Config.isSpatialPromptAllBlocks()) {
             return block instanceof ChestBlock
                     || block instanceof net.minecraft.world.level.block.BarrelBlock
                     || block instanceof net.minecraft.world.level.block.ShulkerBoxBlock
-                    || block instanceof net.minecraft.world.level.block.EnderChestBlock
-                    || block instanceof net.minecraft.world.level.block.CraftingTableBlock
-                    || block instanceof net.minecraft.world.level.block.AbstractFurnaceBlock
-                    || block instanceof net.minecraft.world.level.block.BrewingStandBlock
-                    || block instanceof net.minecraft.world.level.block.BedBlock
-                    || block instanceof net.minecraft.world.level.block.EnchantmentTableBlock
-                    || block instanceof net.minecraft.world.level.block.AnvilBlock;
+                    || block instanceof net.minecraft.world.level.block.EnderChestBlock;
         }
 
         // すべて表示する場合、アクションコンポーネントが取得できるもの（インタラクト可能）を対象とする
@@ -449,12 +443,11 @@ public final class InteractionPromptRenderer {
         int light = 15728880; // full bright
         float r = 1.0F, g = 1.0F, b = 1.0F, a = 1.0F;
 
-        // scale(-1, -1, 1) で反転しているため、UV も反転して割り当てる
-        // 頂点順序は drawRect に合わせる（見かけ上：右上→右下→左下→左上）
-        builder.vertex(matrix, x, y, 0.0F).color(r, g, b, a).uv(1.0F, 0.0F).uv2(light).endVertex();
-        builder.vertex(matrix, x, y + size, 0.0F).color(r, g, b, a).uv(1.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(matrix, x + size, y + size, 0.0F).color(r, g, b, a).uv(0.0F, 1.0F).uv2(light).endVertex();
-        builder.vertex(matrix, x + size, y, 0.0F).color(r, g, b, a).uv(0.0F, 0.0F).uv2(light).endVertex();
+        // 頂点順序は drawRect に合わせる（見かけ上：左上→左下→右下→右上）
+        builder.vertex(matrix, x, y, 0.0F).color(r, g, b, a).uv(0.0F, 0.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x, y + size, 0.0F).color(r, g, b, a).uv(0.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x + size, y + size, 0.0F).color(r, g, b, a).uv(1.0F, 1.0F).uv2(light).endVertex();
+        builder.vertex(matrix, x + size, y, 0.0F).color(r, g, b, a).uv(1.0F, 0.0F).uv2(light).endVertex();
     }
 
     /**
