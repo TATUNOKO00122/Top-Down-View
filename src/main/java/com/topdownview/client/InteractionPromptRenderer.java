@@ -192,24 +192,16 @@ public final class InteractionPromptRenderer {
         float nameY = yMin - font.lineHeight - 2.0F; // 枠の少し上
         font.drawInBatch(blockName, nameX, nameY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
 
-        // 3. アクション名 + キーアイコン（左側、右揃え）の描画
-        Component actionText = info.actionText();
+        // 3. キーアイコンのみの描画（アクション名テキストは非表示）
         InputConstants.Key key = info.key();
         ResourceLocation icon = KeyIconMapper.getIcon(key);
 
-        float actionWidth = font.width(actionText);
         float iconSize = font.lineHeight + 2.0F; // フォントより少し大きめ（視認性向上）
-        float gap = 3.0F;
-        float totalWidth = actionWidth + gap + iconSize;
-        float startX = xMin - totalWidth - 6.0F; // 枠の左端から6px左に離す
-        float actionY = -font.lineHeight / 2.0F; // 縦軸中央
+        float startX = xMin - iconSize - 6.0F; // 枠の左端から6px左に離す
         float iconY = -iconSize / 2.0F;          // アイコンも縦中央
 
-        // アクション名テキスト
-        font.drawInBatch(actionText, startX, actionY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
-
-        // キーアイコン（アクション名の右側に配置）
-        drawKeyIcon(bufferSource, matrix, icon, startX + actionWidth + gap, iconY, iconSize);
+        // キーアイコンを描画
+        drawKeyIcon(bufferSource, matrix, icon, startX, iconY, iconSize);
 
         poseStack.popPose();
 
