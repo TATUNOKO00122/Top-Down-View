@@ -180,16 +180,16 @@ public class Config {
             .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
 
     private static final ForgeConfigSpec.BooleanValue SHOW_INTERACTION_PROMPT = BUILDER
-            .define("showInteractionPrompt", true);
+            .define("showInteractionPrompt", false);
 
     private static final ForgeConfigSpec.DoubleValue INTERACTION_PROMPT_SCALE = BUILDER
-            .defineInRange("interactionPromptScale", 0.5, 0.0, 1.0);
+            .defineInRange("interactionPromptScale", 0.8, 0.0, 1.0);
 
     private static final ForgeConfigSpec.BooleanValue INTERACTION_PROMPT_SHADOW = BUILDER
-            .define("interactionPromptShadow", true);
+            .define("interactionPromptShadow", false);
 
     private static final ForgeConfigSpec.BooleanValue SHOW_SPATIAL_PROMPT = BUILDER
-            .define("showSpatialPrompt", true);
+            .define("showSpatialPrompt", false);
 
     private static final ForgeConfigSpec.DoubleValue SPATIAL_PROMPT_RADIUS = BUILDER
             .defineInRange("spatialPromptRadius", 8.0, 1.0, 16.0);
