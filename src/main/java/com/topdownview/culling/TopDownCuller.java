@@ -48,6 +48,10 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
+    // プレイヤーがこのブロック距離以上移動した時のみカリング/フェードキャッシュをクリア。
+    // 1ブロック毎のクリアは地下の階段昇降・洞穴の起伏で頻発しキャッシュミス連鎖を起こすため、
+    // マンハッタン距離3まではキャッシュを再利用する（フェード描画で境界変化を補間）。
+    private static final int CACHE_CLEAR_MOVE_THRESHOLD = 3;
 
     private double playerX;
     private double playerY;
@@ -61,7 +65,14 @@ public final class TopDownCuller {
     private int lastPlayerBlockY = Integer.MIN_VALUE;
     private int lastPlayerBlockZ = Integer.MIN_VALUE;
 
-    private long lastFadeBlocksUpdateTick = -1;
+    // フェードブロック再構築判定用: 前回走査時のプレイヤー/カメラブロック座標。
+    // 座標が変化した時のみ collectFadeBlocks を再実行し、プレイヤー静止時の毎tick全走査を回避。
+    private int lastFadePBlockX = Integer.MIN_VALUE;
+    private int lastFadePBlockY = Integer.MIN_VALUE;
+    private int lastFadePBlockZ = Integer.MIN_VALUE;
+    private int lastFadeCBlockX = Integer.MIN_VALUE;
+    private int lastFadeCBlockY = Integer.MIN_VALUE;
+    private int lastFadeCBlockZ = Integer.MIN_VALUE;
     private boolean cacheClearedOnDisabled = false;
 
     // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロックはカリングから除外
@@ -91,6 +102,12 @@ public final class TopDownCuller {
         lastStairScanBlockX = Integer.MIN_VALUE;
         lastStairScanBlockY = Integer.MIN_VALUE;
         lastStairScanBlockZ = Integer.MIN_VALUE;
+        lastFadePBlockX = Integer.MIN_VALUE;
+        lastFadePBlockY = Integer.MIN_VALUE;
+        lastFadePBlockZ = Integer.MIN_VALUE;
+        lastFadeCBlockX = Integer.MIN_VALUE;
+        lastFadeCBlockY = Integer.MIN_VALUE;
+        lastFadeCBlockZ = Integer.MIN_VALUE;
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -271,9 +288,19 @@ public final class TopDownCuller {
         int currentBlockY = (int) Math.floor(eyeY);
         int currentBlockZ = (int) Math.floor(eyeZ);
 
-        if (currentBlockX != lastPlayerBlockX || currentBlockY != lastPlayerBlockY || currentBlockZ != lastPlayerBlockZ) {
-            cullingCache.clear();
-            fadeCache.clear();
+        // マンハッタン距離が閾値以上の時のみキャッシュクリア（地下の微小移動での頻発を抑制）
+        if (lastPlayerBlockX != Integer.MIN_VALUE) {
+            int moveDist = Math.abs(currentBlockX - lastPlayerBlockX)
+                    + Math.abs(currentBlockY - lastPlayerBlockY)
+                    + Math.abs(currentBlockZ - lastPlayerBlockZ);
+            if (moveDist >= CACHE_CLEAR_MOVE_THRESHOLD) {
+                cullingCache.clear();
+                fadeCache.clear();
+                lastPlayerBlockX = currentBlockX;
+                lastPlayerBlockY = currentBlockY;
+                lastPlayerBlockZ = currentBlockZ;
+            }
+        } else {
             lastPlayerBlockX = currentBlockX;
             lastPlayerBlockY = currentBlockY;
             lastPlayerBlockZ = currentBlockZ;
@@ -503,6 +530,12 @@ public final class TopDownCuller {
         lastPlayerBlockX = Integer.MIN_VALUE;
         lastPlayerBlockY = Integer.MIN_VALUE;
         lastPlayerBlockZ = Integer.MIN_VALUE;
+        lastFadePBlockX = Integer.MIN_VALUE;
+        lastFadePBlockY = Integer.MIN_VALUE;
+        lastFadePBlockZ = Integer.MIN_VALUE;
+        lastFadeCBlockX = Integer.MIN_VALUE;
+        lastFadeCBlockY = Integer.MIN_VALUE;
+        lastFadeCBlockZ = Integer.MIN_VALUE;
     }
 
     public int getCulledBlockCount() {
@@ -571,23 +604,36 @@ public final class TopDownCuller {
             return fadeCache.getFadeBlocksCache();
         }
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            long currentTick = mc.level.getGameTime();
-            if (currentTick == lastFadeBlocksUpdateTick) {
-                return fadeCache.getFadeBlocksCache();
-            }
-            lastFadeBlocksUpdateTick = currentTick;
-        }
-
-        fadeCache.clearFadeBlocks();
-
         double pX = this.playerX;
         double pY = this.playerY;
         double pZ = this.playerZ;
         double cX = this.cameraX;
         double cY = this.cameraY;
         double cZ = this.cameraZ;
+
+        // プレイヤー/カメラのブロック座標が変化した時のみフェードブロックを再構築。
+        // プレイヤー静止時は毎tickの3重ループ全走査を回避（地下での主要な負荷源）。
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            int pBX = (int) Math.floor(pX);
+            int pBY = (int) Math.floor(pY);
+            int pBZ = (int) Math.floor(pZ);
+            int cBX = (int) Math.floor(cX);
+            int cBY = (int) Math.floor(cY);
+            int cBZ = (int) Math.floor(cZ);
+            if (pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
+                    && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ) {
+                return fadeCache.getFadeBlocksCache();
+            }
+            lastFadePBlockX = pBX;
+            lastFadePBlockY = pBY;
+            lastFadePBlockZ = pBZ;
+            lastFadeCBlockX = cBX;
+            lastFadeCBlockY = cBY;
+            lastFadeCBlockZ = cBZ;
+        }
+
+        fadeCache.clearFadeBlocks();
 
         // 階段視線遮蔽ブロック収集を先に行う（優先度高、フェード有無に関わらず動作）
         if (stairOccludeEnabled) {

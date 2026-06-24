@@ -238,6 +238,8 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
         TopDownCuller culler = TopDownCuller.getInstance();
+        // CollisionContextはレイキャスト中プレイヤー位置で不変なためループ外で1回だけ生成（per-stepアロケーション回避）
+        CollisionContext collisionContext = CollisionContext.of(mc.player);
         int maxSteps = (int) Math.min(maxDistance * 3, 3000);
 
         for (int i = 0; i < maxSteps; i++) {
@@ -250,7 +252,7 @@ public void update(Minecraft mc, float partialTick, double reachDistance) {
                 if (Config.isIgnoreLeavesInRaycast() && state.is(BlockTags.LEAVES)) {
                     // 木の葉は透過として扱う
                 } else if (!state.isAir()) {
-                    var shape = state.getShape(mc.level, mutablePos, CollisionContext.of(mc.player));
+                    var shape = state.getShape(mc.level, mutablePos, collisionContext);
                     if (!shape.isEmpty()) {
                         var clipResult = shape.clip(start, end, mutablePos);
                         if (clipResult != null) {
