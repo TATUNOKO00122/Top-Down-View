@@ -38,6 +38,7 @@ public final class ClientForgeEvents {
         if (event.phase != TickEvent.Phase.END) return;
         ReachManager.onClientTick();
         PlacementPreviewManager.getInstance().onClientTick();
+        OpenedContainerTracker.onTick();
     }
 
     @SubscribeEvent
@@ -55,6 +56,7 @@ public final class ClientForgeEvents {
         ModState.resetAll();
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
         ReachManager.forceUpdate();
+        OpenedContainerTracker.init();
         
         if (Minecraft.getInstance().player != null) {
             PlayerRotationController.initializeFromPlayer(Minecraft.getInstance().player);
@@ -70,6 +72,20 @@ public final class ClientForgeEvents {
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
         Config.clearSyncedServerReach();
         PlacementPreviewManager.getInstance().reset();
+        OpenedContainerTracker.saveCurrentDimension();
+        OpenedContainerTracker.clearAll();
+    }
+
+    @SubscribeEvent
+    public static void onRightClickBlock(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        if (!event.getLevel().isClientSide()) return;
+        net.minecraft.world.level.block.Block block = event.getLevel().getBlockState(event.getPos()).getBlock();
+        if (block instanceof net.minecraft.world.level.block.ChestBlock ||
+            block instanceof net.minecraft.world.level.block.BarrelBlock ||
+            block instanceof net.minecraft.world.level.block.ShulkerBoxBlock ||
+            block instanceof net.minecraft.world.level.block.EnderChestBlock) {
+            OpenedContainerTracker.markOpened(event.getPos());
+        }
     }
 
     @SubscribeEvent

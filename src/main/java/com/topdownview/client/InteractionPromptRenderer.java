@@ -222,6 +222,16 @@ public final class InteractionPromptRenderer {
             return false;
         }
 
+        // 一度開いたことのあるコンテナ類は空間プロンプトを表示しない
+        if (block instanceof ChestBlock ||
+            block instanceof net.minecraft.world.level.block.BarrelBlock ||
+            block instanceof net.minecraft.world.level.block.ShulkerBoxBlock ||
+            block instanceof net.minecraft.world.level.block.EnderChestBlock) {
+            if (OpenedContainerTracker.isOpened(pos)) {
+                return false;
+            }
+        }
+
         // すべてのインタラクトブロックを表示しない設定の場合、主要なコンテナや設備に制限
         if (!Config.isSpatialPromptAllBlocks()) {
             return block instanceof ChestBlock
