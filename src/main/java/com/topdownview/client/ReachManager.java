@@ -5,11 +5,11 @@ import com.topdownview.network.PacketHandler;
 import com.topdownview.network.ReachTogglePacket;
 import com.topdownview.state.ModStatus;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.ForgeMod;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -33,7 +33,6 @@ public final class ReachManager {
 
     private static boolean isReachAllowed() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return false;
         if (mc.getSingleplayerServer() != null) return true;
         return Config.hasSyncedServerReach();
     }
@@ -43,7 +42,7 @@ public final class ReachManager {
         if (tickCounter % 20 != 0) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) return;
+        if (mc.player == null) return;
 
         boolean shouldApply = ModStatus.INSTANCE.isEnabled()
                 && Config.isScreenReachEnabled()
@@ -61,7 +60,7 @@ public final class ReachManager {
         applied = false;
         lastAppliedReach = -1;
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) return;
+        if (mc.player == null) return;
 
         boolean shouldApply = ModStatus.INSTANCE.isEnabled()
                 && Config.isScreenReachEnabled()
@@ -79,7 +78,7 @@ public final class ReachManager {
 
     private static void applyAll() {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer localPlayer = mc.player;
+        Player localPlayer = mc.player;
         if (localPlayer == null) return;
 
         double effectiveReach = Config.getEffectiveReachDistance();
@@ -107,7 +106,7 @@ public final class ReachManager {
 
     private static void removeAll() {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer localPlayer = mc.player;
+        Player localPlayer = mc.player;
         if (localPlayer != null) {
             removeFromPlayer(localPlayer);
         }
@@ -128,7 +127,7 @@ public final class ReachManager {
         LOGGER.info("[TopDownView] Screen reach modifiers removed");
     }
 
-    private static void applyToPlayer(LocalPlayer player, double extendedReach) {
+    private static void applyToPlayer(Player player, double extendedReach) {
         AttributeInstance blockReach = player.getAttribute(ForgeMod.BLOCK_REACH.get());
         if (blockReach != null) {
             if (blockReach.getModifier(BLOCK_REACH_UUID) != null) {
@@ -150,41 +149,7 @@ public final class ReachManager {
         }
     }
 
-    private static void applyToPlayer(ServerPlayer player, double extendedReach) {
-        AttributeInstance blockReach = player.getAttribute(ForgeMod.BLOCK_REACH.get());
-        if (blockReach != null) {
-            if (blockReach.getModifier(BLOCK_REACH_UUID) != null) {
-                blockReach.removeModifier(BLOCK_REACH_UUID);
-            }
-            blockReach.addPermanentModifier(new AttributeModifier(
-                    BLOCK_REACH_UUID, "topdown_view.block_reach",
-                    extendedReach, AttributeModifier.Operation.ADDITION));
-        }
-
-        AttributeInstance entityReach = player.getAttribute(ForgeMod.ENTITY_REACH.get());
-        if (entityReach != null) {
-            if (entityReach.getModifier(ENTITY_REACH_UUID) != null) {
-                entityReach.removeModifier(ENTITY_REACH_UUID);
-            }
-            entityReach.addPermanentModifier(new AttributeModifier(
-                    ENTITY_REACH_UUID, "topdown_view.entity_reach",
-                    extendedReach, AttributeModifier.Operation.ADDITION));
-        }
-    }
-
-    private static void removeFromPlayer(LocalPlayer player) {
-        AttributeInstance blockReach = player.getAttribute(ForgeMod.BLOCK_REACH.get());
-        if (blockReach != null) {
-            blockReach.removeModifier(BLOCK_REACH_UUID);
-        }
-
-        AttributeInstance entityReach = player.getAttribute(ForgeMod.ENTITY_REACH.get());
-        if (entityReach != null) {
-            entityReach.removeModifier(ENTITY_REACH_UUID);
-        }
-    }
-
-    private static void removeFromPlayer(ServerPlayer player) {
+    private static void removeFromPlayer(Player player) {
         AttributeInstance blockReach = player.getAttribute(ForgeMod.BLOCK_REACH.get());
         if (blockReach != null) {
             blockReach.removeModifier(BLOCK_REACH_UUID);

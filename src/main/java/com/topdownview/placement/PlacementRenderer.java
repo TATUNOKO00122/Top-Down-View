@@ -2,6 +2,7 @@ package com.topdownview.placement;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.logging.LogUtils;
 import com.topdownview.Config;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -21,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.List;
 
@@ -33,6 +35,7 @@ import java.util.List;
  */
 public final class PlacementRenderer {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final RandomSource RANDOM = RandomSource.create();
 
     private PlacementRenderer() {
@@ -118,6 +121,7 @@ public final class PlacementRenderer {
                     RenderType.translucent());
         } catch (Throwable t) {
             // 例外時は静かに無視（クラッシュ防止）
+            LOGGER.debug("[TopDownView] Ghost block render failed, skipping", t);
         } finally {
             poseStack.popPose();
         }

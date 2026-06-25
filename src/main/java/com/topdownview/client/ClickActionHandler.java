@@ -28,6 +28,13 @@ public final class ClickActionHandler {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    /**
+     * level/player が揃っているか。トップダウン処理の前提チェック。
+     */
+    private static boolean hasWorldContext(Minecraft mc) {
+        return mc.level != null && mc.player != null;
+    }
+
     public static boolean isLeftClickDown() {
         return isLeftClickDown;
     }
@@ -60,7 +67,7 @@ public final class ClickActionHandler {
     }
 
     private static void handleTargetLockOnly(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return;
+        if (!hasWorldContext(mc)) return;
 
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
@@ -75,7 +82,7 @@ public final class ClickActionHandler {
     }
 
     private static void handleLeftClickPress(Minecraft mc) {
-        if (mc.level == null || mc.player == null) return;
+        if (!hasWorldContext(mc)) return;
 
         boolean destroyMode = ClientModBusEvents.DESTROY_KEY.isDown();
 
@@ -135,7 +142,7 @@ public final class ClickActionHandler {
     }
 
     private static void handleDestroyMode(Minecraft mc, HitResult result) {
-        if (mc.level == null || mc.player == null) return;
+        if (!hasWorldContext(mc)) return;
 
         if (result.getType() == HitResult.Type.ENTITY) {
             EntityHitResult entityHit = (EntityHitResult) result;

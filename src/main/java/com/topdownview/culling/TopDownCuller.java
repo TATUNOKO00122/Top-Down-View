@@ -12,6 +12,7 @@ import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -27,6 +28,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,8 @@ import java.util.Set;
  * </ul>
  */
 public final class TopDownCuller {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
@@ -99,6 +103,14 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        resetLastBlockCoords();
+    }
+
+    /**
+     * スキャン/フェードキャッシュ用の前回座標を初期値にリセット。
+     * clearCache / reset / disable 時のキャッシュ無効化で共有。
+     */
+    private void resetLastBlockCoords() {
         lastStairScanBlockX = Integer.MIN_VALUE;
         lastStairScanBlockY = Integer.MIN_VALUE;
         lastStairScanBlockZ = Integer.MIN_VALUE;
@@ -108,6 +120,9 @@ public final class TopDownCuller {
         lastFadeCBlockX = Integer.MIN_VALUE;
         lastFadeCBlockY = Integer.MIN_VALUE;
         lastFadeCBlockZ = Integer.MIN_VALUE;
+        lastPlayerBlockX = Integer.MIN_VALUE;
+        lastPlayerBlockY = Integer.MIN_VALUE;
+        lastPlayerBlockZ = Integer.MIN_VALUE;
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -448,6 +463,7 @@ public final class TopDownCuller {
             }
         } catch (java.util.ConcurrentModificationException e) {
             // エンティティリストが別スレッドで変更された - 次フレームで再試行
+            LOGGER.debug("[TopDownView] Entity list modified concurrently during culling update, will retry next frame", e);
         }
     }
 
@@ -525,9 +541,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
-        lastStairScanBlockX = Integer.MIN_VALUE;
-        lastStairScanBlockY = Integer.MIN_VALUE;
-        lastStairScanBlockZ = Integer.MIN_VALUE;
+        resetLastBlockCoords();
         contextValid = false;
         playerX = 0.0;
         playerY = 0.0;
@@ -535,15 +549,6 @@ public final class TopDownCuller {
         cameraX = 0.0;
         cameraY = 0.0;
         cameraZ = 0.0;
-        lastPlayerBlockX = Integer.MIN_VALUE;
-        lastPlayerBlockY = Integer.MIN_VALUE;
-        lastPlayerBlockZ = Integer.MIN_VALUE;
-        lastFadePBlockX = Integer.MIN_VALUE;
-        lastFadePBlockY = Integer.MIN_VALUE;
-        lastFadePBlockZ = Integer.MIN_VALUE;
-        lastFadeCBlockX = Integer.MIN_VALUE;
-        lastFadeCBlockY = Integer.MIN_VALUE;
-        lastFadeCBlockZ = Integer.MIN_VALUE;
     }
 
     public int getCulledBlockCount() {
@@ -731,9 +736,6 @@ public final class TopDownCuller {
         double minX = pos.getX();
         double minY = pos.getY();
         double minZ = pos.getZ();
-        double maxX = pos.getX() + 1.0;
-        double maxY = pos.getY() + 1.0;
-        double maxZ = pos.getZ() + 1.0;
 
         double dirX = player.x - camera.x;
         double dirY = player.y - camera.y;
@@ -744,74 +746,37 @@ public final class TopDownCuller {
             return false;
         }
 
-        double tmin = 0.0;
-        double tmax = 1.0; // カメラ〜プレイヤー間のみ
+        // t[0]=tmin, t[1]=tmax。カメラ〜プレイヤー間の範囲のみ判定
+        double[] t = {0.0, 1.0};
 
-        // X軸スラブ
-        if (Math.abs(dirX) < 1.0E-9) {
-            // レイがX軸に平行: カメラXがスラブ内にあるか
-            if (camera.x < minX || camera.x > maxX) {
-                return false;
-            }
-        } else {
-            double invDirX = 1.0 / dirX;
-            double t1 = (minX - camera.x) * invDirX;
-            double t2 = (maxX - camera.x) * invDirX;
-            if (t1 > t2) {
-                double tmp = t1;
-                t1 = t2;
-                t2 = tmp;
-            }
-            tmin = Math.max(tmin, t1);
-            tmax = Math.min(tmax, t2);
-            if (tmin > tmax) {
-                return false;
-            }
-        }
-
-        // Y軸スラブ
-        if (Math.abs(dirY) < 1.0E-9) {
-            if (camera.y < minY || camera.y > maxY) {
-                return false;
-            }
-        } else {
-            double invDirY = 1.0 / dirY;
-            double t1 = (minY - camera.y) * invDirY;
-            double t2 = (maxY - camera.y) * invDirY;
-            if (t1 > t2) {
-                double tmp = t1;
-                t1 = t2;
-                t2 = tmp;
-            }
-            tmin = Math.max(tmin, t1);
-            tmax = Math.min(tmax, t2);
-            if (tmin > tmax) {
-                return false;
-            }
-        }
-
-        // Z軸スラブ
-        if (Math.abs(dirZ) < 1.0E-9) {
-            if (camera.z < minZ || camera.z > maxZ) {
-                return false;
-            }
-        } else {
-            double invDirZ = 1.0 / dirZ;
-            double t1 = (minZ - camera.z) * invDirZ;
-            double t2 = (maxZ - camera.z) * invDirZ;
-            if (t1 > t2) {
-                double tmp = t1;
-                t1 = t2;
-                t2 = tmp;
-            }
-            tmin = Math.max(tmin, t1);
-            tmax = Math.min(tmax, t2);
-            if (tmin > tmax) {
-                return false;
-            }
-        }
+        if (!slabIntersect(camera.x, dirX, minX, minX + 1.0, t)) return false;
+        if (!slabIntersect(camera.y, dirY, minY, minY + 1.0, t)) return false;
+        if (!slabIntersect(camera.z, dirZ, minZ, minZ + 1.0, t)) return false;
 
         return true;
+    }
+
+    /**
+     * スラブ法による1軸のレイ-AABB交差判定。
+     * t[0]=tmin, t[1]=tmax を直接更新する（呼び出し側で配列を再利用）。
+     * レイが軸に平行な場合は原点がスラブ内にあるかのみ判定。
+     */
+    private static boolean slabIntersect(double origin, double dir, double min, double max, double[] t) {
+        if (Math.abs(dir) < 1.0E-9) {
+            // レイが軸に平行: 原点がスラブ内にあるか
+            return origin >= min && origin <= max;
+        }
+        double invDir = 1.0 / dir;
+        double t1 = (min - origin) * invDir;
+        double t2 = (max - origin) * invDir;
+        if (t1 > t2) {
+            double tmp = t1;
+            t1 = t2;
+            t2 = tmp;
+        }
+        t[0] = Math.max(t[0], t1);
+        t[1] = Math.min(t[1], t2);
+        return t[0] <= t[1];
     }
 
     public Map<BlockPos, Float> getFadeBlocksCache() {

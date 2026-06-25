@@ -33,7 +33,7 @@ import java.lang.invoke.MethodType;
  * 2. Entity Culling MOD対応（プレイヤー保護）
  * 3. ターゲットアウトライン色変更
  */
-@Mixin(value = LevelRenderer.class, priority = 100)
+@Mixin(value = LevelRenderer.class, priority = 1000)
 public class LevelRendererMixin {
 
     private static final Logger LOGGER = LogUtils.getLogger();

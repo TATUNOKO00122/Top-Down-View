@@ -19,11 +19,14 @@ public final class FadeCacheManager {
     }
 
     public void putFadeAlpha(BlockPos pos, float alpha) {
-        if (fadeAlphaCacheSize.incrementAndGet() > MAX_FADE_ALPHA_CACHE_SIZE) {
-            fadeAlphaCache.clear();
-            fadeAlphaCacheSize.set(1);
+        // 既存キー上書き時はカウント増加させない（CullingCacheManager と同じ戦略）
+        Float oldValue = fadeAlphaCache.put(pos.immutable(), alpha);
+        if (oldValue == null) {
+            if (fadeAlphaCacheSize.incrementAndGet() > MAX_FADE_ALPHA_CACHE_SIZE) {
+                fadeAlphaCache.clear();
+                fadeAlphaCacheSize.set(1);
+            }
         }
-        fadeAlphaCache.put(pos.immutable(), alpha);
     }
 
     public void putFadeBlock(BlockPos pos, float alpha) {

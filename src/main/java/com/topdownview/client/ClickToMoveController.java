@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.baritone.BaritoneIntegration;
+import com.topdownview.state.CameraState;
 import com.topdownview.state.ClickToMoveState;
 import com.topdownview.state.ModState;
 import com.topdownview.mixin.MinecraftInvoker;
@@ -295,9 +296,7 @@ public final class ClickToMoveController {
         double moveAngle = Math.atan2(-direction.x, direction.z);
         float playerYaw = mc.player.getYRot();
         float relativeAngle = (float) Math.toDegrees(moveAngle) - playerYaw;
-
-        while (relativeAngle > 180) relativeAngle -= 360;
-        while (relativeAngle < -180) relativeAngle += 360;
+        relativeAngle = CameraState.normalizeAngle(relativeAngle);
 
         float rad = (float) Math.toRadians(relativeAngle);
         float forward = Mth.cos(rad);
@@ -446,7 +445,9 @@ public final class ClickToMoveController {
 
         if (distSq <= destroyRange * destroyRange) {
             Direction dir = ModState.CLICK_TO_MOVE.getDestroyDirection();
-            if (dir == null) dir = Direction.UP;
+            if (dir == null) {
+                dir = Direction.UP;
+            }
 
             if (!ModState.CLICK_TO_MOVE.isDestroying()) {
                 startDestroying(mc, currentTarget, dir);

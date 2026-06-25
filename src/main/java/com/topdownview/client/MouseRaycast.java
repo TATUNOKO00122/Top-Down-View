@@ -64,7 +64,7 @@ public final class MouseRaycast {
         return RAYCAST_DISTANCE;
     }
 
-public void update(Minecraft mc, float partialTick, double reachDistance) {
+    public void update(Minecraft mc, float partialTick, double reachDistance) {
         // フリーカム中またはドラッグ回転中はレイキャストを停止
         if (ModState.CAMERA.isFreeCameraMode() || ModState.CAMERA.isDragging()) {
             clearResults();

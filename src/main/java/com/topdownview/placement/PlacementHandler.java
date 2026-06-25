@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
 public final class PlacementHandler {
 
     private PlacementHandler() {
-        throw new IllegalStateException("ユティリティクラス");
+        throw new IllegalStateException("ユーティリティクラス");
     }
 
     /**
@@ -83,7 +83,7 @@ public final class PlacementHandler {
             }
         }
 
-        return changed ? state : state;
+        return state;
     }
 
     /**

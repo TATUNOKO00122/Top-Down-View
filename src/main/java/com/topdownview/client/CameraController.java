@@ -102,7 +102,7 @@ public final class CameraController {
         float targetYaw = ModState.CAMERA.getTargetYaw();
 
         // 角度の差分を計算（最短距離で回転）
-float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
+        float diff = CameraState.normalizeAngle(targetYaw - currentYaw);
 
         if (Math.abs(diff) < 0.1f) {
             ModState.CAMERA.setYaw(targetYaw);
