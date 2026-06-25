@@ -229,7 +229,15 @@ public final class TopDownCuller {
             cylinderAlpha = (float) (fadeNearAlpha + t * (1.0 - fadeNearAlpha));
         }
 
-        return (float) Math.max(cylinderAlpha, pyramidFactor);
+        float finalAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
+
+        // 葉ブロックで、グラフィックス設定がFAST（透過しない設定）の場合、フェード（半透明描画）させず瞬時にカリングする
+        if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) &&
+                net.minecraft.client.Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
+            return 0.0f;
+        }
+
+        return finalAlpha;
     }
 
     private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY, BlockGetter level) {
