@@ -37,4 +37,11 @@ public abstract class MouseHandlerMixin {
 
         ci.cancel();
     }
+
+    @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
+    private void onTurnPlayer(CallbackInfo ci) {
+        if (ModState.STATUS.isEnabled()) {
+            ci.cancel();
+        }
+    }
 }
