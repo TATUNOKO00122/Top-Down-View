@@ -14,8 +14,21 @@ public final class CylinderCalculator {
     private static final double MIN_SEGMENT_LENGTH_SQ = 1.0E-8;
     private static final double EXTENSION_BLOCKS = 3.0;
 
+    // フレーム毎にキャッシュされる値（アロケーション・重複計算削減用）
+    private static double cachedShiftedXOffset = 0.0;
+    private static double cachedShiftedZOffset = 0.0;
+
     private CylinderCalculator() {
         throw new IllegalStateException("ユーティリティクラス");
+    }
+
+    /**
+     * フレーム毎のシリンダー計算用の事前パラメータを更新します。
+     */
+    public static void updateCache(double yaw, double forwardShift) {
+        double yawRad = Math.toRadians(yaw);
+        cachedShiftedXOffset = forwardShift * (-Math.sin(yawRad));
+        cachedShiftedZOffset = forwardShift * Math.cos(yawRad);
     }
 
     /**
@@ -65,10 +78,9 @@ public final class CylinderCalculator {
         double shiftedPlayerZ = playerZ;
 
         if (useShift) {
-            double yawRad = Math.toRadians(explicitYaw);
-            double shift = Config.getCylinderForwardShift();
-            shiftedPlayerX = playerX + shift * (-Math.sin(yawRad));
-            shiftedPlayerZ = playerZ + shift * Math.cos(yawRad);
+            // updateCache() で事前計算されたオフセット値を使用
+            shiftedPlayerX = playerX + cachedShiftedXOffset;
+            shiftedPlayerZ = playerZ + cachedShiftedZOffset;
         }
 
         double segX = shiftedPlayerX - cameraX;
@@ -113,13 +125,13 @@ public final class CylinderCalculator {
         double perpY = relY - normDirY * alongAxis;
         double perpZ = relZ - normDirZ * alongAxis;
 
-        double distXZ = Math.sqrt(perpX * perpX + perpZ * perpZ);
+        double distXZSq = perpX * perpX + perpZ * perpZ; // Math.sqrt() を排除して二乗値のまま処理
         double distY = Math.abs(perpY);
 
         double radiusH = Config.getCylinderRadiusHorizontal();
         double radiusV = Config.getCylinderRadiusVertical();
 
-        return (distXZ * distXZ) / (radiusH * radiusH)
+        return distXZSq / (radiusH * radiusH)
                 + (distY * distY) / (radiusV * radiusV);
     }
 
@@ -133,10 +145,16 @@ public final class CylinderCalculator {
     }
 
     public static boolean isInCylinderForTrapdoor(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
+        return isInCylinderForTrapdoor(pos, playerPos.x, playerPos.y, playerPos.z, cameraPos.x, cameraPos.y, cameraPos.z);
+    }
+
+    public static boolean isInCylinderForTrapdoor(BlockPos pos,
+            double playerX, double playerY, double playerZ,
+            double cameraX, double cameraY, double cameraZ) {
         double normalizedDistSq = computeNormalizedDistSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                playerPos.x, playerPos.y, playerPos.z,
-                cameraPos.x, cameraPos.y, cameraPos.z,
+                playerX, playerY, playerZ,
+                cameraX, cameraY, cameraZ,
                 false, 0.0);
         return normalizedDistSq >= 0 && normalizedDistSq <= 1.0;
     }

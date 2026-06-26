@@ -87,6 +87,14 @@ public final class TopDownCuller {
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
+    private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
+
+    // フレーム毎にキャッシュされる Config 値
+    private double cachedFadeStart;
+    private double cachedFadeNearAlpha;
+    private double cachedFadeBlockHitThreshold;
+    private int cachedCylinderRadiusHorizontal;
+    private int cachedCylinderRadiusVertical;
 
     private TopDownCuller() {
     }
@@ -148,13 +156,14 @@ public final class TopDownCuller {
             return false;
         }
 
-        Boolean cached = cullingCache.get(pos);
+        long posLong = pos.asLong();
+        Boolean cached = cullingCache.get(posLong);
         if (cached != null) {
             return cached;
         }
 
         if (!contextValid) {
-            cullingCache.put(pos, false);
+            cullingCache.put(posLong, false);
             return false;
         }
 
@@ -167,71 +176,56 @@ public final class TopDownCuller {
 
         if (ModState.STATUS.isMiningMode()) {
             boolean cull = MiningModeCuller.isBlockCulled(pos, level, pX, pY, pZ, cX, cY, cZ);
-            cullingCache.put(pos, cull);
+            cullingCache.put(posLong, cull);
             return cull;
         }
 
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) {
-            cullingCache.put(pos, false);
+            cullingCache.put(posLong, false);
             return false;
         }
 
-        if (InteractableBlocks.isInteractableSimple(state)) {
-            if (pos.getY() <= Math.floor(pY)) {
-                cullingCache.put(pos, false);
-                return false;
-            }
-        }
-
+        // プレイヤー自身のいる場所（足元〜頭上まで保護）
         int playerBlockX = (int) Math.floor(pX);
         int playerBlockZ = (int) Math.floor(pZ);
         int playerFeetY = (int) Math.floor(pY) - 1;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
             if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
-                cullingCache.put(pos, false);
+                cullingCache.put(posLong, false);
                 return false;
             }
         }
 
+        // その他保護対象ブロック判定（Trapdoor, 足元より下, インタラクト可能ブロック等）
+        if (isProtectedBlock(pos, state, pY, level)) {
+            cullingCache.put(posLong, false);
+            return false;
+        }
+
         // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロック
         if (Config.isStaircaseExclusionEnabled() && isExcludedStairBlock(pos, playerFeetY)) {
-            // 視線遮蔽時透明化が有効な場合、階段ブロックは常にカリング（通常描画キャンセル）し、
-            // TranslucentBlockRenderer 経路で alpha 付き描画する。
-            // alpha 値は視線遮蔽の有無で getFadeBlocks() が決定する。
             boolean occludeEnabled = Config.isStaircaseOccludeEnabled();
-            cullingCache.put(pos, occludeEnabled);
+            cullingCache.put(posLong, occludeEnabled);
             return occludeEnabled;
         }
 
         float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cY, cZ);
         boolean isCulled = alpha < 1.0f;
-        cullingCache.put(pos, isCulled);
+        cullingCache.put(posLong, isCulled);
         return isCulled;
     }
 
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
-        if (level == null) {
-            return 1.0f;
-        }
-
-        if (state.isAir()) {
-            return 1.0f;
-        }
-
-        if (isProtectedBlock(pos, state, pY, level)) {
-            return 1.0f;
-        }
-
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
                 pX, pY, pZ, cX, cY, cZ);
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
                 pos, pX, pY, pZ, cX, cZ);
 
-        double fadeStart = Config.getFadeStart();
-        double fadeNearAlpha = Config.getFadeNearAlpha();
+        double fadeStart = this.cachedFadeStart;
+        double fadeNearAlpha = this.cachedFadeNearAlpha;
 
         float cylinderAlpha;
 
@@ -257,10 +251,9 @@ public final class TopDownCuller {
 
     private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY, BlockGetter level) {
         if (state.getBlock() instanceof TrapDoorBlock) {
-            Vec3 pPos = new Vec3(playerX, playerY, playerZ);
-            Vec3 cPos = new Vec3(cameraX, cameraY, cameraZ);
             // TrapdoorHelperを使用して、カリング対象外（保護対象）であればtrueを返す
-            return !TrapdoorHelper.shouldCull(pos, level, state, pPos, cPos);
+            // プリミティブ値版 shouldCull() を呼び出して Vec3 生成を回避
+            return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         }
 
         if (pos.getY() + 0.5 < pY) {
@@ -306,6 +299,16 @@ public final class TopDownCuller {
         cameraY = Math.floor(rawCameraY) + 0.5;
         cameraZ = Math.floor(rawCameraZ) + 0.5;
         contextValid = true;
+
+        // シリンダー計算用の事前パラメータ（sin/cos/シフト）を更新
+        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift());
+
+        // Config値をフレームキャッシュ
+        cachedFadeStart = Config.getFadeStart();
+        cachedFadeNearAlpha = Config.getFadeNearAlpha();
+        cachedFadeBlockHitThreshold = Config.getFadeBlockHitThreshold();
+        cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
+        cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
 
         int currentBlockX = (int) Math.floor(eyeX);
         int currentBlockY = (int) Math.floor(eyeY);
@@ -515,11 +518,10 @@ public final class TopDownCuller {
         }
 
         int entityBlockY = entity.getBlockY();
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (int yOffset = 0; yOffset <= 2; yOffset++) {
-            mutablePos.set(entity.getBlockX(), entityBlockY - yOffset, entity.getBlockZ());
-            if (!mc.level.getBlockState(mutablePos).isAir()) {
+            entityGroundedPos.set(entity.getBlockX(), entityBlockY - yOffset, entity.getBlockZ());
+            if (!mc.level.getBlockState(entityGroundedPos).isAir()) {
                 return true;
             }
         }
@@ -572,7 +574,8 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        Float cached = fadeCache.getFadeAlpha(pos);
+        long posLong = pos.asLong();
+        Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) {
             return cached;
         }
@@ -580,7 +583,7 @@ public final class TopDownCuller {
         BlockState state = level.getBlockState(pos);
         float alpha = calculateFadeAlpha(pos, level, state,
                 playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
-        fadeCache.putFadeAlpha(pos, alpha);
+        fadeCache.putFadeAlpha(posLong, alpha);
 
         return alpha;
     }
@@ -599,10 +602,10 @@ public final class TopDownCuller {
         }
 
         float alpha = getFadeAlpha(pos, level);
-        return alpha > Config.getFadeBlockHitThreshold();
+        return alpha > this.cachedFadeBlockHitThreshold;
     }
 
-    public Map<BlockPos, Float> getFadeBlocks(BlockGetter level) {
+    public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
         boolean fadeEnabled = Config.isFadeEnabled();
         boolean stairOccludeEnabled = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
 
@@ -663,8 +666,8 @@ public final class TopDownCuller {
 
     private void collectFadeBlocks(BlockGetter level, double pX, double pY, double pZ,
             double cX, double cY, double cZ) {
-        int radiusH = Config.getCylinderRadiusHorizontal();
-        int radiusV = Config.getCylinderRadiusVertical();
+        int radiusH = this.cachedCylinderRadiusHorizontal;
+        int radiusV = this.cachedCylinderRadiusVertical;
         int margin = 2;
 
         int minX = (int) Math.floor(Math.min(pX, cX)) - radiusH - margin;
@@ -677,8 +680,8 @@ public final class TopDownCuller {
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
                     BlockState state = level.getBlockState(mutablePos);
 
@@ -686,16 +689,21 @@ public final class TopDownCuller {
                         continue;
                     }
 
+                    // 保護対象ブロック（プレイヤー足元、Trapdoor、インタラクト可能など）はフェードさせない
+                    if (isProtectedBlock(mutablePos, state, pY, level)) {
+                        continue;
+                    }
+
                     float alpha = calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ);
                     if (alpha > 0.0f && alpha < 1.0f) {
-                        fadeCache.putFadeBlock(new BlockPos(x, y, z), alpha);
+                        fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
 
                         if (fadeCache.isFadeBlocksFull()) {
                             return;
                         }
                     } else if (alpha >= 1.0f && isNearCullingBoundary(mutablePos, pX, pY, pZ, cX, cY, cZ)) {
                         // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
-                        fadeCache.putFadeBlock(new BlockPos(x, y, z), 1.0f);
+                        fadeCache.putFadeBlock(mutablePos.asLong(), 1.0f);
 
                         if (fadeCache.isFadeBlocksFull()) {
                             return;
@@ -719,8 +727,6 @@ public final class TopDownCuller {
         }
 
         float occludeAlpha = (float) Config.getStaircaseOccludeAlpha();
-        Vec3 camera = new Vec3(cX, cY, cZ);
-        Vec3 player = new Vec3(pX, pY, pZ);
 
         for (BlockPos pos : excludedStairBlocks) {
             if (fadeCache.isFadeBlocksFull()) {
@@ -730,8 +736,8 @@ public final class TopDownCuller {
             if (state.isAir()) {
                 continue;
             }
-            float alpha = isStairOccludingView(pos, camera, player) ? occludeAlpha : 1.0f;
-            fadeCache.putFadeBlock(pos.immutable(), alpha);
+            float alpha = isStairOccludingView(pos, cX, cY, cZ, pX, pY, pZ) ? occludeAlpha : 1.0f;
+            fadeCache.putFadeBlock(pos.asLong(), alpha);
         }
     }
 
@@ -739,14 +745,14 @@ public final class TopDownCuller {
      * 視線遮蔽判定: カメラ→プレイヤーの視線レイがブロックの単位立方体AABBを通過するか。
      * スラブ法によるレイ-AABB交差判定。カメラ〜プレイヤー間の範囲のみ判定。
      */
-    private boolean isStairOccludingView(BlockPos pos, Vec3 camera, Vec3 player) {
+    private boolean isStairOccludingView(BlockPos pos, double cX, double cY, double cZ, double pX, double pY, double pZ) {
         double minX = pos.getX();
         double minY = pos.getY();
         double minZ = pos.getZ();
 
-        double dirX = player.x - camera.x;
-        double dirY = player.y - camera.y;
-        double dirZ = player.z - camera.z;
+        double dirX = pX - cX;
+        double dirY = pY - cY;
+        double dirZ = pZ - cZ;
         double rayLengthSq = dirX * dirX + dirY * dirY + dirZ * dirZ;
         if (rayLengthSq < 1.0E-12) {
             // カメラとプレイヤーが同一位置: 視線なし
@@ -756,9 +762,9 @@ public final class TopDownCuller {
         // t[0]=tmin, t[1]=tmax。カメラ〜プレイヤー間の範囲のみ判定
         double[] t = {0.0, 1.0};
 
-        if (!slabIntersect(camera.x, dirX, minX, minX + 1.0, t)) return false;
-        if (!slabIntersect(camera.y, dirY, minY, minY + 1.0, t)) return false;
-        if (!slabIntersect(camera.z, dirZ, minZ, minZ + 1.0, t)) return false;
+        if (!slabIntersect(cX, dirX, minX, minX + 1.0, t)) return false;
+        if (!slabIntersect(cY, dirY, minY, minY + 1.0, t)) return false;
+        if (!slabIntersect(cZ, dirZ, minZ, minZ + 1.0, t)) return false;
 
         return true;
     }
@@ -786,7 +792,7 @@ public final class TopDownCuller {
         return t[0] <= t[1];
     }
 
-    public Map<BlockPos, Float> getFadeBlocksCache() {
+    public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocksCache() {
         return fadeCache.getFadeBlocksCache();
     }
 

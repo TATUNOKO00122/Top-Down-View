@@ -19,6 +19,7 @@ final class MiningModeCuller {
     private static final int SLICE_OFFSET = -3;
     private static final int SLICE_HEIGHT = 5;
     private static final double ORE_EXCLUDE_RADIUS = 2.0;
+    private static final double ORE_EXCLUDE_RADIUS_SQ = ORE_EXCLUDE_RADIUS * ORE_EXCLUDE_RADIUS;
     private static final int CAMERA_SIDE_REDUCTION = 5;
     private static final int MAX_BACKWARD_LAYERS = 5;
     private static final double CAMERA_INVALID_THRESHOLD_SQ = 1.0E-8;
@@ -41,8 +42,8 @@ final class MiningModeCuller {
         if (OreBlocks.isOre(state)) {
             double dx = (pos.getX() + 0.5) - playerX;
             double dz = (pos.getZ() + 0.5) - playerZ;
-            double distXZ = Math.sqrt(dx * dx + dz * dz);
-            if (distXZ <= ORE_EXCLUDE_RADIUS) {
+            double distXZSq = dx * dx + dz * dz;
+            if (distXZSq <= ORE_EXCLUDE_RADIUS_SQ) {
                 int playerFeetY = (int) Math.floor(playerY) - 1;
                 if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 3) {
                     return false;

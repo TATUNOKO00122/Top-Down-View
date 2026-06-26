@@ -1,53 +1,56 @@
 package com.topdownview.culling.cache;
 
-import net.minecraft.core.BlockPos;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2FloatMap;
 
+/**
+ * フェード用のアルファ値キャッシュおよびフェード表示対象ブロックリストを管理するマネージャ。
+ * アロケーション削減のため、BlockPos の代わりに long (pos.asLong()) をキーとして使用します。
+ */
 public final class FadeCacheManager {
 
     private static final int MAX_FADE_ALPHA_CACHE_SIZE = 2000;
     private static final int MAX_FADE_BLOCKS_CACHE_SIZE = 4000;
 
-    private final Map<BlockPos, Float> fadeAlphaCache = new ConcurrentHashMap<>(500);
-    private final Map<BlockPos, Float> fadeBlocksCache = new ConcurrentHashMap<>(500);
-    private final AtomicInteger fadeAlphaCacheSize = new AtomicInteger(0);
+    private final Long2FloatOpenHashMap fadeAlphaCache = new Long2FloatOpenHashMap(500);
+    private final Long2FloatOpenHashMap fadeBlocksCache = new Long2FloatOpenHashMap(500);
 
-    public Float getFadeAlpha(BlockPos pos) {
-        return fadeAlphaCache.get(pos);
+    public FadeCacheManager() {
+        fadeBlocksCache.defaultReturnValue(-1.0f);
     }
 
-    public void putFadeAlpha(BlockPos pos, float alpha) {
-        // 既存キー上書き時はカウント増加させない（CullingCacheManager と同じ戦略）
-        Float oldValue = fadeAlphaCache.put(pos.immutable(), alpha);
-        if (oldValue == null) {
-            if (fadeAlphaCacheSize.incrementAndGet() > MAX_FADE_ALPHA_CACHE_SIZE) {
-                fadeAlphaCache.clear();
-                fadeAlphaCacheSize.set(1);
-            }
+    public synchronized Float getFadeAlpha(long posLong) {
+        if (fadeAlphaCache.containsKey(posLong)) {
+            return fadeAlphaCache.get(posLong);
+        }
+        return null;
+    }
+
+    public synchronized void putFadeAlpha(long posLong, float alpha) {
+        fadeAlphaCache.put(posLong, alpha);
+        if (fadeAlphaCache.size() > MAX_FADE_ALPHA_CACHE_SIZE) {
+            fadeAlphaCache.clear();
         }
     }
 
-    public void putFadeBlock(BlockPos pos, float alpha) {
-        fadeBlocksCache.put(pos.immutable(), alpha);
+    public synchronized void putFadeBlock(long posLong, float alpha) {
+        fadeBlocksCache.put(posLong, alpha);
     }
 
-    public Map<BlockPos, Float> getFadeBlocksCache() {
+    public synchronized Long2FloatMap getFadeBlocksCache() {
         return fadeBlocksCache;
     }
 
-    public void clearFadeBlocks() {
+    public synchronized void clearFadeBlocks() {
         fadeBlocksCache.clear();
     }
 
-    public void clear() {
+    public synchronized void clear() {
         fadeAlphaCache.clear();
-        fadeAlphaCacheSize.set(0);
         fadeBlocksCache.clear();
     }
 
-    public boolean isFadeBlocksFull() {
+    public synchronized boolean isFadeBlocksFull() {
         return fadeBlocksCache.size() >= MAX_FADE_BLOCKS_CACHE_SIZE;
     }
 }

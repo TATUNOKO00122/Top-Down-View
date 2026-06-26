@@ -23,7 +23,6 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
 
 /**
  * カリング境界フェード描画 & マイニングモード動的描画
@@ -46,8 +45,7 @@ public final class TranslucentBlockRenderer {
         TopDownCuller culler = TopDownCuller.getInstance();
 
         // フェード有効/無効の判定は getFadeBlocks() 側で行う。
-        // フェード無効でも階段視線遮蔽が有効な場合はブロックを返すため、ここでは早期リターンしない。
-        Map<BlockPos, Float> fadeBlocks = culler.getFadeBlocks(mc.level);
+        it.unimi.dsi.fastutil.longs.Long2FloatMap fadeBlocks = culler.getFadeBlocks(mc.level);
 
         if (fadeBlocks.isEmpty()) {
             return;
@@ -59,16 +57,33 @@ public final class TranslucentBlockRenderer {
         BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
 
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
+        double pX = mc.player.getX();
+        double pY = mc.player.getY();
+        double pZ = mc.player.getZ();
+        double maxDistSq = 24.0 * 24.0; // 24ブロックより遠いフェードブロックは描画をスキップ
 
         // パフォーマンス最適化: ラッパーオブジェクトを再利用
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
         FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
 
-        for (Map.Entry<BlockPos, Float> entry : fadeBlocks.entrySet()) {
-            BlockPos pos = entry.getKey();
-            float alpha = entry.getValue();
-            renderFadeBlock(mc.level, pos, poseStack, blockRenderer, alphaConsumer, fadeLevel, alpha, cameraPos);
+        for (it.unimi.dsi.fastutil.longs.Long2FloatMap.Entry entry : fadeBlocks.long2FloatEntrySet()) {
+            long posLong = entry.getLongKey();
+            int bx = BlockPos.getX(posLong);
+            int by = BlockPos.getY(posLong);
+            int bz = BlockPos.getZ(posLong);
+
+            // 距離カリング：遠すぎるフェードブロックの描画・アロケーションをスキップ
+            double dx = bx + 0.5 - pX;
+            double dy = by + 0.5 - pY;
+            double dz = bz + 0.5 - pZ;
+            if (dx * dx + dy * dy + dz * dz > maxDistSq) {
+                continue;
+            }
+
+            BlockPos pos = new BlockPos(bx, by, bz);
+            float alpha = entry.getFloatValue();
+            renderFadeBlock(mc.level, pos, posLong, poseStack, blockRenderer, alphaConsumer, fadeLevel, alpha, cameraPos);
         }
 
         bufferSource.endBatch(RenderType.translucent());
@@ -77,6 +92,7 @@ public final class TranslucentBlockRenderer {
     private static void renderFadeBlock(
             BlockAndTintGetter level,
             BlockPos pos,
+            long posLong,
             PoseStack poseStack,
             BlockRenderDispatcher blockRenderer,
             ReusableAlphaVertexConsumer alphaConsumer,
@@ -97,7 +113,7 @@ public final class TranslucentBlockRenderer {
         poseStack.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
 
         alphaConsumer.setAlpha(alpha);
-        fadeLevel.setRenderContext(pos, alpha);
+        fadeLevel.setRenderContext(pos, posLong, alpha);
 
         long seed = state.getSeed(pos);
         RANDOM.setSeed(seed);
@@ -212,17 +228,19 @@ public final class TranslucentBlockRenderer {
      */
     private static class FadeBlockGetter implements BlockAndTintGetter {
         private final BlockAndTintGetter delegate;
-        private final Map<BlockPos, Float> fadeBlocks;
+        private final it.unimi.dsi.fastutil.longs.Long2FloatMap fadeBlocks;
         private BlockPos renderPos;
+        private long renderPosLong;
         private float renderAlpha;
 
-        FadeBlockGetter(BlockAndTintGetter delegate, Map<BlockPos, Float> fadeBlocks) {
+        FadeBlockGetter(BlockAndTintGetter delegate, it.unimi.dsi.fastutil.longs.Long2FloatMap fadeBlocks) {
             this.delegate = delegate;
             this.fadeBlocks = fadeBlocks;
         }
 
-        void setRenderContext(BlockPos pos, float alpha) {
+        void setRenderContext(BlockPos pos, long posLong, float alpha) {
             this.renderPos = pos;
+            this.renderPosLong = posLong;
             this.renderAlpha = alpha;
         }
 
@@ -249,11 +267,12 @@ public final class TranslucentBlockRenderer {
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            Float neighborAlpha = fadeBlocks.get(pos);
-            if (neighborAlpha == null) {
+            long queryPosLong = pos.asLong();
+            float neighborAlpha = fadeBlocks.get(queryPosLong);
+            if (neighborAlpha < 0) {
                 return AIR_STATE;
             }
-            if (pos.equals(renderPos)) {
+            if (queryPosLong == renderPosLong) {
                 return delegate.getBlockState(pos);
             }
             float diff = Math.abs(renderAlpha - neighborAlpha);
