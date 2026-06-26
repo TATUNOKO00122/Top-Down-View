@@ -403,9 +403,12 @@ public final class TopDownCuller {
         int maxY = playerFeetY + exclusionHeight;
 
         for (Staircase stair : staircases) {
-            for (BlockPos step : stair.getSteps()) {
-                if (step.getY() >= minY && step.getY() <= maxY) {
-                    excludedStairBlocks.add(step.immutable());
+            // 天井の階段などを誤検出・除外しないよう、階段の最下段がプレイヤーの足元+1以下から始まるもののみに限定
+            if (stair.getBottomPos().getY() <= playerFeetY + 1) {
+                for (BlockPos step : stair.getSteps()) {
+                    if (step.getY() >= minY && step.getY() <= maxY) {
+                        excludedStairBlocks.add(step.immutable());
+                    }
                 }
             }
         }
