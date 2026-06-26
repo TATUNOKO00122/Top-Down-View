@@ -174,8 +174,8 @@ public final class CameraController {
             com.topdownview.TopDownViewMod.getLogger().warn("[TopDownView][CameraController] Cannot initialize: options or mouseHandler is null");
             return;
         }
-        ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         ModState.STATUS.setInternalCameraChange(true);
+        ModState.CAMERA.setPreviousCameraType(mc.options.getCameraType());
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
         ModState.STATUS.setInternalCameraChange(false);
         mc.mouseHandler.grabMouse();

@@ -39,7 +39,7 @@ public abstract class GameOptionsMixin {
 
     @Inject(method = "getCameraType", at = @At("HEAD"), cancellable = true)
     public void topdownview$getCameraType(CallbackInfoReturnable<CameraType> cir) {
-        if (ModState.STATUS.isEnabled()) {
+        if (ModState.STATUS.isEnabled() && !ModState.STATUS.isInternalCameraChange()) {
             // TACZ等のMODがフィールドを直接書き換えて一人称視点に強制した場合でも、
             // トップダウン視点中は三人称後方として振る舞うようにしてプレイヤーの描画消失を防ぐ
             cir.setReturnValue(CameraType.THIRD_PERSON_BACK);
