@@ -689,31 +689,65 @@ public final class TopDownCuller {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
-                    BlockState state = level.getBlockState(mutablePos);
 
+                    // 1. 重い getBlockState を呼ぶ前に、数学的なアルファ値を先に計算して判定する
+                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                            x + 0.5, y + 0.5, z + 0.5,
+                            pX, pY, pZ, cX, cY, cZ);
+                    double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
+                            mutablePos, pX, pY, pZ, cX, cZ);
+
+                    float cylinderAlpha;
+                    if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
+                        cylinderAlpha = 1.0f;
+                    } else if (normalizedDistSq <= this.cachedFadeStart) {
+                        cylinderAlpha = (float) this.cachedFadeNearAlpha;
+                    } else {
+                        double t = (normalizedDistSq - this.cachedFadeStart) / (1.0 - this.cachedFadeStart);
+                        cylinderAlpha = (float) (this.cachedFadeNearAlpha + t * (1.0 - this.cachedFadeNearAlpha));
+                    }
+
+                    float tempAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
+
+                    // フェード対象ブロック、または境界マージン内のブロックか判定
+                    boolean isTarget = false;
+                    float finalAlpha = tempAlpha;
+                    if (tempAlpha > 0.0f && tempAlpha < 1.0f) {
+                        isTarget = true;
+                    } else if (tempAlpha >= 1.0f) {
+                        // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
+                        if (normalizedDistSq > 1.0 && normalizedDistSq <= 1.5) {
+                            isTarget = true;
+                            finalAlpha = 1.0f;
+                        }
+                    }
+
+                    if (!isTarget) {
+                        continue;
+                    }
+
+                    // 2. フェード対象の場合のみ、重い getBlockState を呼び出す
+                    BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
                         continue;
                     }
 
-                    // 保護対象ブロック（プレイヤー足元、Trapdoor、インタラクト可能など）はフェードさせない
+                    // 3. 保護対象ブロック（プレイヤー足元、Trapdoor、インタラクト可能など）はフェードさせない
                     if (isProtectedBlock(mutablePos, state, pY, level)) {
                         continue;
                     }
 
-                    float alpha = calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ);
-                    if (alpha > 0.0f && alpha < 1.0f) {
-                        fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
+                    // 4. 葉ブロックのFASTグラフィックス設定の処理
+                    if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) &&
+                            net.minecraft.client.Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
+                        continue;
+                    }
 
-                        if (fadeCache.isFadeBlocksFull()) {
-                            return;
-                        }
-                    } else if (alpha >= 1.0f && isNearCullingBoundary(mutablePos, pX, pY, pZ, cX, cY, cZ)) {
-                        // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
-                        fadeCache.putFadeBlock(mutablePos.asLong(), 1.0f);
+                    // 5. キャッシュへ追加
+                    fadeCache.putFadeBlock(mutablePos.asLong(), finalAlpha);
 
-                        if (fadeCache.isFadeBlocksFull()) {
-                            return;
-                        }
+                    if (fadeCache.isFadeBlocksFull()) {
+                        return;
                     }
                 }
             }

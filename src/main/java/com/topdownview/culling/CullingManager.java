@@ -30,6 +30,13 @@ public final class CullingManager {
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
 
+    private static int lastRebuildPlayerX = Integer.MIN_VALUE;
+    private static int lastRebuildPlayerY = Integer.MIN_VALUE;
+    private static int lastRebuildPlayerZ = Integer.MIN_VALUE;
+    private static int lastRebuildCameraX = Integer.MIN_VALUE;
+    private static int lastRebuildCameraY = Integer.MIN_VALUE;
+    private static int lastRebuildCameraZ = Integer.MIN_VALUE;
+
     private CullingManager() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -87,16 +94,28 @@ public final class CullingManager {
             return;
         }
 
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
-            return;
-        }
-
         Minecraft mc = Minecraft.getInstance();
         Vec3 playerPos = mc.player.getEyePosition(1.0f);
         Vec3 cameraPos = ModState.CAMERA.getCameraPosition();
 
         if (!com.topdownview.state.CameraState.isPositionValid(cameraPos)) {
+            return;
+        }
+
+        int pX = (int) Math.floor(playerPos.x);
+        int pY = (int) Math.floor(playerPos.y);
+        int pZ = (int) Math.floor(playerPos.z);
+        int cX = (int) Math.floor(cameraPos.x);
+        int cY = (int) Math.floor(cameraPos.y);
+        int cZ = (int) Math.floor(cameraPos.z);
+
+        if (pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
+                && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
             return;
         }
 
@@ -113,6 +132,12 @@ public final class CullingManager {
 
         if (scheduleChunkRebuildInternal(box)) {
             lastChunkRebuildTime = currentTime;
+            lastRebuildPlayerX = pX;
+            lastRebuildPlayerY = pY;
+            lastRebuildPlayerZ = pZ;
+            lastRebuildCameraX = cX;
+            lastRebuildCameraY = cY;
+            lastRebuildCameraZ = cZ;
         }
     }
 
@@ -152,6 +177,16 @@ public final class CullingManager {
     public static void reset() {
         CULLER.reset();
         lastChunkRebuildTime = 0;
+        resetLastRebuildCoords();
+    }
+
+    private static void resetLastRebuildCoords() {
+        lastRebuildPlayerX = Integer.MIN_VALUE;
+        lastRebuildPlayerY = Integer.MIN_VALUE;
+        lastRebuildPlayerZ = Integer.MIN_VALUE;
+        lastRebuildCameraX = Integer.MIN_VALUE;
+        lastRebuildCameraY = Integer.MIN_VALUE;
+        lastRebuildCameraZ = Integer.MIN_VALUE;
     }
 
     public static void forceChunkRebuild(Minecraft mc) {
@@ -161,6 +196,7 @@ public final class CullingManager {
 
         CULLER.reset();
         lastChunkRebuildTime = 0;
+        resetLastRebuildCoords();
 
         if (initializeReflection()) {
             Vec3 playerPos = mc.player.getEyePosition(1.0f);

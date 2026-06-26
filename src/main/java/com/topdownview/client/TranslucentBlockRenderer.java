@@ -66,6 +66,7 @@ public final class TranslucentBlockRenderer {
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
         FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (it.unimi.dsi.fastutil.longs.Long2FloatMap.Entry entry : fadeBlocks.long2FloatEntrySet()) {
             long posLong = entry.getLongKey();
@@ -81,9 +82,9 @@ public final class TranslucentBlockRenderer {
                 continue;
             }
 
-            BlockPos pos = new BlockPos(bx, by, bz);
+            mutablePos.set(bx, by, bz);
             float alpha = entry.getFloatValue();
-            renderFadeBlock(mc.level, pos, posLong, poseStack, blockRenderer, alphaConsumer, fadeLevel, alpha, cameraPos);
+            renderFadeBlock(mc.level, mutablePos, posLong, poseStack, blockRenderer, alphaConsumer, fadeLevel, alpha, cameraPos);
         }
 
         bufferSource.endBatch(RenderType.translucent());
@@ -229,7 +230,6 @@ public final class TranslucentBlockRenderer {
     private static class FadeBlockGetter implements BlockAndTintGetter {
         private final BlockAndTintGetter delegate;
         private final it.unimi.dsi.fastutil.longs.Long2FloatMap fadeBlocks;
-        private BlockPos renderPos;
         private long renderPosLong;
         private float renderAlpha;
 
@@ -239,7 +239,6 @@ public final class TranslucentBlockRenderer {
         }
 
         void setRenderContext(BlockPos pos, long posLong, float alpha) {
-            this.renderPos = pos;
             this.renderPosLong = posLong;
             this.renderAlpha = alpha;
         }

@@ -5,41 +5,63 @@ import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 /**
  * カリング結果をキャッシュするマネージャ。
  * アロケーション削減のため、BlockPos の代わりに long (pos.asLong()) をキーとして使用します。
- * Embeddium のマルチスレッドアクセスに対応するため、synchronized で同期化を行います。
+ * マルチスレッドでのロック競合を防ぐため、ThreadLocal とエポックベース無効化を使用します。
  */
 public final class CullingCacheManager {
 
     private static final int MAX_CACHE_SIZE = 8000;
     private static final int INITIAL_CAPACITY = 1000;
 
-    private final Long2BooleanOpenHashMap cache = new Long2BooleanOpenHashMap(INITIAL_CAPACITY);
+    // キャッシュ無効化用エポック（世代）
+    private volatile int currentEpoch = 0;
+
+    // スレッドごとのキャッシュ
+    private static class ThreadLocalCache {
+        final Long2BooleanOpenHashMap cache = new Long2BooleanOpenHashMap(INITIAL_CAPACITY);
+        int epoch = -1;
+    }
+
+    private final ThreadLocal<ThreadLocalCache> threadLocalCache = ThreadLocal.withInitial(ThreadLocalCache::new);
 
     public CullingCacheManager() {
     }
 
-    public synchronized Boolean get(long posLong) {
-        if (cache.containsKey(posLong)) {
-            return cache.get(posLong);
+    private ThreadLocalCache getLocalCache() {
+        ThreadLocalCache local = threadLocalCache.get();
+        int globalEpoch = currentEpoch;
+        if (local.epoch != globalEpoch) {
+            local.cache.clear();
+            local.epoch = globalEpoch;
+        }
+        return local;
+    }
+
+    public Boolean get(long posLong) {
+        ThreadLocalCache local = getLocalCache();
+        if (local.cache.containsKey(posLong)) {
+            return local.cache.get(posLong);
         }
         return null;
     }
 
-    public synchronized void put(long posLong, boolean result) {
-        if (cache.size() >= MAX_CACHE_SIZE) {
-            cache.clear();
+    public void put(long posLong, boolean result) {
+        ThreadLocalCache local = getLocalCache();
+        if (local.cache.size() >= MAX_CACHE_SIZE) {
+            local.cache.clear();
         }
-        cache.put(posLong, result);
+        local.cache.put(posLong, result);
     }
 
-    public synchronized void clear() {
-        cache.clear();
+    public void clear() {
+        // エポックをインクリメントして全スレッドのキャッシュを無効化
+        currentEpoch++;
     }
 
-    public synchronized int size() {
-        return cache.size();
+    public int size() {
+        return threadLocalCache.get().cache.size();
     }
 
     public int getCulledCount() {
-        return 0; // パフォーマンス悪化を防ぐため AtomicInteger 追跡は廃止（ダミー値を返却）
+        return 0;
     }
 }
