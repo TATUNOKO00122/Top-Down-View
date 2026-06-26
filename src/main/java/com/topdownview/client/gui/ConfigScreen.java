@@ -238,6 +238,16 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
                 Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.mob_culling_enabled", Config.isMobCullingEnabled()),
+                btn -> {
+                    Config.setMobCullingEnabled(!Config.isMobCullingEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_culling_enabled",
+                            Config.isMobCullingEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mob_culling_enabled.tooltip")))
+                .build());
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
         addRightWidget(Button.builder(
