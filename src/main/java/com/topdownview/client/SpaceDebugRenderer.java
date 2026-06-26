@@ -41,8 +41,9 @@ public final class SpaceDebugRenderer {
     private static final float SEED_BOX_SIZE = 0.5f;
     private static final float OPENING_BOX_SIZE = 0.4f;
     private static final float STAIR_BOX_SIZE = 0.45f;
+    private static final float WALL_BOX_SIZE = 0.15f;
     private static final int OPENING_SAMPLE_LIMIT = 30;
-    private static final int WALL_SAMPLE_LIMIT = 150;
+    private static final int WALL_SAMPLE_LIMIT = 50;
     /** プレイヤーがこのブロック数以上移動したら再探索 */
     private static final int REEXPLORE_DISTANCE = 2;
 
@@ -113,7 +114,7 @@ public final class SpaceDebugRenderer {
         double dz = region.getMaxZ() - region.getMinZ() + 1;
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(3.0f);
+        RenderSystem.lineWidth(1.5f);
 
         poseStack.pushPose();
         poseStack.translate(x, y, z);
@@ -132,7 +133,7 @@ public final class SpaceDebugRenderer {
         AABB box = new AABB(0, 0, 0, SEED_BOX_SIZE, SEED_BOX_SIZE, SEED_BOX_SIZE);
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(4.0f);
+        RenderSystem.lineWidth(2.0f);
 
         poseStack.pushPose();
         poseStack.translate(x, y, z);
@@ -147,7 +148,7 @@ public final class SpaceDebugRenderer {
         int step = Math.max(1, region.getOpenings().size() / OPENING_SAMPLE_LIMIT);
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.5f);
+        RenderSystem.lineWidth(1.0f);
 
         int idx = 0;
         int drawn = 0;
@@ -189,13 +190,14 @@ public final class SpaceDebugRenderer {
             if (idx++ % step != 0) continue;
             if (drawn++ >= WALL_SAMPLE_LIMIT) break;
 
-            double x = pos.getX() - cameraPos.x;
-            double y = pos.getY() - cameraPos.y;
-            double z = pos.getZ() - cameraPos.z;
+            double x = pos.getX() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.x;
+            double y = pos.getY() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.y;
+            double z = pos.getZ() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.z;
+            AABB box = new AABB(0, 0, 0, WALL_BOX_SIZE, WALL_BOX_SIZE, WALL_BOX_SIZE);
+
             poseStack.pushPose();
             poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, 0, 0, 0, 1, 1, 1,
-                    1.0f, 0.2f, 0.2f, 0.5f);
+            LevelRenderer.renderLineBox(poseStack, vertices, box, 1.0f, 0.2f, 0.2f, 0.3f);
             poseStack.popPose();
         }
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
@@ -210,7 +212,7 @@ public final class SpaceDebugRenderer {
         if (staircases.isEmpty()) return;
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(2.5f);
+        RenderSystem.lineWidth(1.25f);
 
         for (Staircase stair : staircases) {
             float r, g, b;
