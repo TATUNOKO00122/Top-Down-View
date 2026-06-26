@@ -687,8 +687,15 @@ public final class TopDownCuller {
                     }
 
                     float alpha = calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ);
-                    if (alpha < 1.0f && alpha > 0.0f) {
+                    if (alpha > 0.0f && alpha < 1.0f) {
                         fadeCache.putFadeBlock(new BlockPos(x, y, z), alpha);
+
+                        if (fadeCache.isFadeBlocksFull()) {
+                            return;
+                        }
+                    } else if (alpha >= 1.0f && isNearCullingBoundary(mutablePos, pX, pY, pZ, cX, cY, cZ)) {
+                        // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
+                        fadeCache.putFadeBlock(new BlockPos(x, y, z), 1.0f);
 
                         if (fadeCache.isFadeBlocksFull()) {
                             return;
@@ -791,5 +798,18 @@ public final class TopDownCuller {
             return ((Cullable) entity).topdownview_isCulled();
         }
         return false;
+    }
+
+    /**
+     * 指定されたブロック位置がカリング境界のすぐ外側（シリンダー正規化距離の二乗が 1.0 から 1.5 の間）にあるかを判定します。
+     * メッシュの再構築遅延によるブロックの一瞬の消失（点滅）を防ぐための安全マージンとして使用します。
+     */
+    private boolean isNearCullingBoundary(BlockPos pos, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                pX, pY, pZ, cX, cY, cZ);
+        // シリンダー外（normalizedDistSq > 1.0）だが、境界の近く（1.5以内）のブロック
+        return normalizedDistSq > 1.0 && normalizedDistSq <= 1.5;
     }
 }
