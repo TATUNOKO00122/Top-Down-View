@@ -181,6 +181,9 @@ dependencies {
     compileOnly files('libs/baritone-api-forge-1.10.3.jar')
 
     // BetterThirdPerson - 互換性対応（オプショナル）
+    // 注意: 本JARは All Rights Reserved のためリポジトリに含まれません。
+    // BTP連携を使用する場合は CurseForge 等から入手して libs/ に配置してください。
+    // https://www.curseforge.com/minecraft/mc-mods/better-third-person
     compileOnly files('libs/BetterThirdPerson-Forge-1.20-1.9.0.jar')
 }
 

@@ -1,0 +1,76 @@
+Third-Party Licenses for Bundled Libraries
+==========================================
+
+This repository ships the following pre-built JAR files under libs/ for
+compile-time use only. They are declared as `compileOnly` in build.gradle
+and are NOT included in the distributed mod JAR.
+
+The copyright and license of each library remains with its respective
+authors.
+
+
+------------------------------------------------------------------------------
+1. Baritone API
+    libs/baritone-api-forge-1.10.3.jar
+------------------------------------------------------------------------------
+
+  Author:    leijurv, Brady
+  Source:    https://github.com/cabaletta/baritone
+  License:   GNU Lesser General Public License v3.0 or later
+             (LGPL-3.0-or-later)
+  Full text: https://www.gnu.org/licenses/lgpl-3.0.html
+
+  Used for pathfinding in the click-to-move feature.
+
+  LGPL-3.0 permits redistribution of the unmodified library provided the
+  license, copyright notices and source-code availability statement are
+  preserved. The full LGPL-3.0 text is available at the URL above.
+
+
+------------------------------------------------------------------------------
+2. BetterThirdPerson
+    (JAR NOT included in this repository)
+------------------------------------------------------------------------------
+
+  Author:    Socolio
+  Source:    https://www.curseforge.com/minecraft/mc-mods/better-third-person
+  License:   All Rights Reserved
+
+  *** IMPORTANT ***
+
+  All Rights Reserved means redistribution of this JAR without the
+  explicit written permission of the author (Socolio) is NOT permitted.
+
+  Therefore this repository does NOT ship the JAR. Developers who need to
+  compile the BetterThirdPerson compatibility mixin must obtain the JAR
+  themselves from the source above and place it under libs/:
+
+      libs/BetterThirdPerson-Forge-1.20-1.9.0.jar
+
+  The file is listed in .gitignore and will never be committed.
+
+  The Top Down View mod does not bundle this JAR in its distributed
+  artifact; the compatibility mixin is loaded only when the user has
+  BetterThirdPerson installed at runtime.
+
+
+------------------------------------------------------------------------------
+Optional runtime integrations (NOT bundled)
+------------------------------------------------------------------------------
+
+The following mods are supported via reflection or compatibility mixins
+but are not shipped in this repository. Users install them separately
+under their own licenses.
+
+  - Embeddium                          https://modrinth.com/mod/embeddium
+  - Timeless and Classics Zero (TacZ)
+
+
+------------------------------------------------------------------------------
+Mapping data
+------------------------------------------------------------------------------
+
+This project uses official Mojang mappings (channel: official, version
+1.20.1) for development. Usage of these mappings is governed by the
+Mojang license:
+  https://github.com/MinecraftForge/MCPConfig/blob/master/Mojang.md
