@@ -5,42 +5,31 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.Camera;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Embeddium(Sodium)用 RenderSectionManager Mixin
- * トップダウンビューでのチャンク欠け・高さ欠け（Occlusion Culling）を回避しつつ、パフォーマンスを最大化する
+ * トップダウンビューでのチャンク欠け・高さ欠け（Occlusion Culling）を回避する
+ *
+ * 注意: トップダウンビューではカメラが壁・天井・地下に埋まるケースが頻発する。
+ * CameraMixin で getBlockPosition() をプレイヤー位置に偽装しているため、
+ * 「カメラ位置の実際の埋まり」を正確に判定できず、条件付き無効化は
+ * カメラ埋め込み時のチャンク欠け（奈落が見える現象）を招く。
+ * よって有効時は常時オクルージョンカリングを無効化する。
  */
 @SuppressWarnings("all")
 @Mixin(value = me.jellysquid.mods.sodium.client.render.chunk.RenderSectionManager.class, remap = false)
 public class RenderSectionManagerMixin {
 
     /**
-     * カメラが固体ブロック（岩盤、石、土など）の中に埋まった際に、
-     * そこから周囲が見えないと判定され、周囲や別のセクションのチャンク描画がごっそり欠けるバグを修正する。
-     * カメラが固体ブロックに埋まっている場合のみオクルージョンカリングを無効化し、
-     * 空中や開けた場所にカメラがある場合はオクルージョンカリングを有効に保つことでFPSを向上させる。
+     * カメラが壁や地面の中に埋まった際に、そこから見える範囲がないと判定され
+     * 周囲や別のセクションのチャンク描画がごっそり欠けるバグを修正する。
+     * トップダウンビューが有効な間は、EmbeddiumのOcclusion Culling自体を無効化する。
      */
     @Inject(method = "shouldUseOcclusionCulling", at = @At("HEAD"), cancellable = true)
-    private void onShouldUseOcclusionCulling(Camera camera, boolean spectator,
+    private void onShouldUseOcclusionCulling(net.minecraft.client.Camera camera, boolean spectator,
             CallbackInfoReturnable<Boolean> cir) {
         if (ModState.STATUS.isEnabled()) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.level != null) {
-                BlockPos camPos = camera.getBlockPosition();
-                BlockState state = mc.level.getBlockState(camPos);
-                
-                // カメラ位置が固体かつ光を遮蔽するブロックに埋まっているかどうか判定
-                boolean isCameraOccluded = !state.isAir() && state.isSolidRender(mc.level, camPos);
-                if (isCameraOccluded) {
-                    cir.setReturnValue(false);
-                }
-            } else {
-                cir.setReturnValue(false);
-            }
+            cir.setReturnValue(false);
         }
     }
 }
