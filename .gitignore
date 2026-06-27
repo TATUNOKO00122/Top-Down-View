@@ -53,8 +53,8 @@ docs/AI/
 embeddium_decompiled/
 embeddium_extracted/
 
-# All Rights Reserved JAR (要各自手配: CurseForge等から入手)
-libs/BetterThirdPerson*.jar
+# 再配布不可JAR（要各自手配: CurseForge/Maven等から入手）
+libs/*.jar
 
 # Investigation reports
 SOUND_ISSUE_REPORT.md
