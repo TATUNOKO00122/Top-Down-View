@@ -69,5 +69,13 @@ description='''${mod_description}'''
     ordering="NONE"
     side="BOTH"
 
+# Oculus (Iris Forge port) - shader連携用（オプショナル）
+[[dependencies.${mod_id}]]
+    modId="oculus"
+    mandatory=false
+    versionRange="[1.6,)"
+    ordering="AFTER"
+    side="CLIENT"
+
 # IMPORTANT: [[mixins]] section is NOT supported in Forge 1.20.1
 # Mixins are loaded via ILateMixinLoader interface in the mod's main class
