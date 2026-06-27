@@ -30,6 +30,7 @@ public final class PlayerRotationController {
         if (mc.player == null || mc.level == null) return;
         if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
         if (mc.player.isPassenger() || mc.player.isFallFlying()) return;
+        if (ModState.CAMERA.isDragging() || ModState.CAMERA.isFreeCameraMode()) return;
 
         // 描画フレームの正確なカメラ位置とマウス方向でレイキャストを更新
         MouseRaycast.INSTANCE.update(mc, partialTick, MouseRaycast.getCustomReachDistance());
