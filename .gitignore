@@ -23,6 +23,7 @@ run
 
 # Files from Forge MDK
 forge*changelog.txt
+THIRD-PARTY-LICENSES.txt
 
 # Custom ignores
 *.log
