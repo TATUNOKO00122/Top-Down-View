@@ -312,6 +312,24 @@ public final class MouseRaycast {
         return new float[]{yaw, pitch};
     }
 
+    /**
+     * マウスレイと指定高さの水平面との交点を返す（raycast ヒットに依存しない）。
+     * 壁・天井にレイが当たってもマウスの水平方向が安定する。
+     * トップダウン視点の視界コーン向き計算用。
+     *
+     * @param planeY 交点を求める水平面のY座標
+     * @return 交点。レイが水平、または平面の裏側にある場合は null
+     */
+    public Vec3 getMouseHorizontalIntersection(Minecraft mc, float partialTick, double planeY) {
+        Vec3 dir = getMouseRayDirection(mc, partialTick);
+        if (dir == null) return null;
+        Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
+        if (Math.abs(dir.y) < 1e-6) return null;
+        double t = (planeY - camPos.y) / dir.y;
+        if (t < 0 || !Double.isFinite(t)) return null;
+        return camPos.add(dir.scale(t));
+    }
+
     public net.minecraft.world.phys.HitResult getLastHitResult() {
         return lastHitResult;
     }

@@ -28,6 +28,9 @@ public final class MovementController {
 
         if (mc.player.isPassenger()) return;
 
+        // ハシゴ・ツタ登り中はカメラ相対WASD変換をスキップ（バニラの昇降判定を維持）
+        if (mc.player.onClimbable()) return;
+
         if (ModState.CLICK_TO_MOVE.useBaritone()) {
             return;
         }

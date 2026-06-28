@@ -316,7 +316,7 @@ public final class CameraController {
             return;
         }
 
-        if (mc.player.isPassenger() || mc.player.isFallFlying()) {
+        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) {
             return;
         }
 

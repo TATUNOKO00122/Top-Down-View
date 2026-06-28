@@ -29,7 +29,7 @@ public final class PlayerRotationController {
         if (!ModState.STATUS.isEnabled()) return;
         if (mc.player == null || mc.level == null) return;
         if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
-        if (mc.player.isPassenger() || mc.player.isFallFlying()) return;
+        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) return;
         if (ModState.CAMERA.isDragging() || ModState.CAMERA.isFreeCameraMode()) return;
 
         // 描画フレームの正確なカメラ位置とマウス方向でレイキャストを更新
@@ -91,7 +91,7 @@ public final class PlayerRotationController {
 
         if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
 
-        if (mc.player.isPassenger() || mc.player.isFallFlying()) {
+        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) {
             return;
         }
 
