@@ -37,6 +37,10 @@ public final class InputHandler {
                 perspectiveKey.getKey().getValue() == keyCode) {
                 event.setCanceled(true);
                 toggleTopDownView();
+                // Forge 47.xでは InputEvent.Key が KeyMapping.click() の後に発火するため、
+                // cancelだけでは handleKeybinds() でのバニラ視点切替を防げない。
+                // 登録済みのクリックを消費して二重切替を防止する。
+                while (perspectiveKey.consumeClick()) { /* drain */ }
                 return;
             }
         }
@@ -82,6 +86,8 @@ public final class InputHandler {
                 perspectiveKey.getKey().getValue() == button) {
                 event.setCanceled(true);
                 toggleTopDownView();
+                // キーボード版と同様にクリックを消費してバニラ視点切替を防止
+                while (perspectiveKey.consumeClick()) { /* drain */ }
                 return;
             }
         }

@@ -59,5 +59,6 @@ public final class ModStatus {
         enabled = false;
         initialized = false;
         miningMode = false;
+        internalCameraChange = false;
     }
 }
