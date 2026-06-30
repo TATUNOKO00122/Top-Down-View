@@ -316,7 +316,17 @@ public final class CameraController {
             return;
         }
 
-        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) {
+        if (mc.player.isPassenger() || mc.player.isFallFlying()) {
+            return;
+        }
+
+        net.minecraft.core.Direction climbDir = ClimbableHelper.getClimbingDirection();
+        if (climbDir != null) {
+            float yaw = climbDir.toYRot();
+            mc.player.setYRot(yaw);
+            mc.player.yHeadRot = yaw;
+            mc.player.yBodyRot = yaw;
+            mc.player.setXRot(0.0f);
             return;
         }
 

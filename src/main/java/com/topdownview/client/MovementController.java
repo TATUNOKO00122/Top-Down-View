@@ -24,20 +24,36 @@ public final class MovementController {
         if (!ModState.STATUS.isEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null) {
+            ClimbableHelper.setClimbingDirection(null);
+            return;
+        }
 
-        if (mc.player.isPassenger()) return;
-
-        // ハシゴ・ツタ登り中はカメラ相対WASD変換をスキップ（バニラの昇降判定を維持）
-        if (mc.player.onClimbable()) return;
+        if (mc.player.isPassenger()) {
+            ClimbableHelper.setClimbingDirection(null);
+            return;
+        }
 
         if (ModState.CLICK_TO_MOVE.useBaritone()) {
+            ClimbableHelper.setClimbingDirection(null);
             return;
         }
 
         float originalForward = event.getInput().forwardImpulse;
         float originalStrafe = event.getInput().leftImpulse;
         boolean hasManualInput = Math.abs(originalForward) > 0.01f || Math.abs(originalStrafe) > 0.01f;
+
+        // ハシゴ・ツタを登るべき壁の方向があるか判定
+        net.minecraft.core.Direction climbDir = ClimbableHelper.calculateClimbingWallDirection(mc, originalForward, originalStrafe);
+        ClimbableHelper.setClimbingDirection(climbDir);
+
+        if (climbDir != null) {
+            // ハシゴ登り中はキー入力を前進に集約してバニラの上昇を誘発
+            float speed = (float) Math.sqrt(originalForward * originalForward + originalStrafe * originalStrafe);
+            event.getInput().forwardImpulse = Math.min(speed, 1.0f);
+            event.getInput().leftImpulse = 0.0f;
+            return;
+        }
 
         if (Config.isClickToMoveEnabled() && ModState.CLICK_TO_MOVE.isMoving()) {
             if (hasManualInput) {

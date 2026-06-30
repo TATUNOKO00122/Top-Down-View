@@ -29,8 +29,34 @@ public final class PlayerRotationController {
         if (!ModState.STATUS.isEnabled()) return;
         if (mc.player == null || mc.level == null) return;
         if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
-        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) return;
+        if (mc.player.isPassenger() || mc.player.isFallFlying()) return;
         if (ModState.CAMERA.isDragging() || ModState.CAMERA.isFreeCameraMode()) return;
+
+        // 登るべき壁方向がある場合は、プレイヤーの向きを強制
+        net.minecraft.core.Direction climbDir = ClimbableHelper.getClimbingDirection();
+        if (climbDir != null) {
+            float targetYaw = climbDir.toYRot();
+            float targetPitch = 0.0f;
+
+            PlayerRotationState state = ModState.PLAYER_ROTATION;
+            state.updateTargetHeadYawDirect(targetYaw);
+            state.updateTargetPitch(targetPitch);
+
+            // 描画用の角度をプレイヤーに適用
+            float headYaw = state.getLerpHeadYaw(partialTick);
+            float bodyYaw = state.getLerpBodyYaw(partialTick);
+            float pitch = targetPitch;
+
+            mc.player.setYHeadRot(headYaw);
+            mc.player.setYRot(bodyYaw);
+            mc.player.setXRot(pitch);
+            mc.player.xRotO = pitch;
+
+            if (!state.isUsingItem()) {
+                mc.player.setYBodyRot(bodyYaw);
+            }
+            return;
+        }
 
         // 描画フレームの正確なカメラ位置とマウス方向でレイキャストを更新
         MouseRaycast.INSTANCE.update(mc, partialTick, MouseRaycast.getCustomReachDistance());
@@ -91,11 +117,24 @@ public final class PlayerRotationController {
 
         if (!com.topdownview.Config.isHeadBodyRotationEnabled()) return;
 
-        if (mc.player.isPassenger() || mc.player.isFallFlying() || mc.player.onClimbable()) {
+        if (mc.player.isPassenger() || mc.player.isFallFlying()) {
             return;
         }
 
         PlayerRotationState state = ModState.PLAYER_ROTATION;
+
+        // 登るべき壁方向がある場合は、プレイヤーの向きを強制
+        net.minecraft.core.Direction climbDir = ClimbableHelper.getClimbingDirection();
+        if (climbDir != null) {
+            float targetYaw = climbDir.toYRot();
+            state.updateTargetHeadYawDirect(targetYaw);
+            state.updateTargetPitch(0.0f);
+            state.updateTargetBodyYaw(targetYaw, true);
+            handleItemUsage(mc, state);
+            state.tick();
+            applyToPlayer(mc.player, state);
+            return;
+        }
 
         updateHeadRotationFromMouse(mc, state);
         updateBodyYawFromMovement(mc, state);
