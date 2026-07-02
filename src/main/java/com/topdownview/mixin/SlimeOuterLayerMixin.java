@@ -2,6 +2,7 @@ package com.topdownview.mixin;
 
 import com.topdownview.Config;
 import com.topdownview.state.ModState;
+import com.topdownview.client.MobVisibilityCache;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.layers.SlimeOuterLayer;
@@ -20,12 +21,20 @@ public abstract class SlimeOuterLayerMixin<T extends LivingEntity> {
         index = 7
     )
     private float modifyAlpha(float originalAlpha) {
-        // MODが無効、またはMobの半透明設定が無効な場合は何もしない
-        if (!ModState.STATUS.isEnabled() || !Config.isMobTranslucencyEnabled()) {
+        // MODが無効な場合は何もしない
+        if (!ModState.STATUS.isEnabled()) {
             return originalAlpha;
         }
 
+        float coneAlpha = MobVisibilityCache.getCurrentConeAlpha();
+
         // 設定された透明度（アルファ値）を適用する
-        return (float) Config.getMobTranslucencyAlpha();
+        if (Config.isMobTranslucencyEnabled()) {
+            return originalAlpha * coneAlpha * (float) Config.getMobTranslucencyAlpha();
+        } else if (Config.isMobConeCullingEnabled()) {
+            return originalAlpha * coneAlpha;
+        }
+
+        return originalAlpha;
     }
 }

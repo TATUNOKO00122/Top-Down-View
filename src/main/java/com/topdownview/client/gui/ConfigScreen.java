@@ -545,6 +545,54 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
 
+        // Mob半透明化
+        y = addSection(y, "topdown_view.config.section.mob_translucency", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
+                        Config.isMobTranslucencyEnabled()), btn -> {
+                    Config.setMobTranslucencyEnabled(!Config.isMobTranslucencyEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
+                            Config.isMobTranslucencyEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.mob_translucency_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_translucency_alpha",
+                Config.getMobTranslucencyAlpha(), 0.0, 1.0,
+                val -> Config.setMobTranslucencyAlpha(val)));
+        y += sp;
+
+        // Mob視界コーン
+        y = addSection(y, "topdown_view.config.section.mob_cone_culling", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.mob_cone_culling_enabled",
+                        Config.isMobConeCullingEnabled()), btn -> {
+                    Config.setMobConeCullingEnabled(!Config.isMobConeCullingEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_cone_culling_enabled",
+                            Config.isMobConeCullingEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.mob_cone_culling_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_cone_half_angle",
+                Config.getMobConeHalfAngle(), 10.0, 90.0,
+                val -> Config.setMobConeHalfAngle(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_cone_fade_angle",
+                Config.getMobConeFadeAngle(), 0.0, 90.0,
+                val -> Config.setMobConeFadeAngle(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_near_radius",
+                Config.getMobNearRadius(), 0.0, 20.0,
+                val -> Config.setMobNearRadius(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_fog_end",
+                Config.getMobFogEnd(), 1.0, 50.0,
+                val -> Config.setMobFogEnd(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -566,23 +614,6 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
                 1.0, val -> Config.setFadeNearAlpha(val)));
-        y += sp;
-
-        y = addSection(y, "topdown_view.config.section.mob_translucency", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
-                        Config.isMobTranslucencyEnabled()), btn -> {
-                    Config.setMobTranslucencyEnabled(!Config.isMobTranslucencyEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
-                            Config.isMobTranslucencyEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable(
-                                "topdown_view.config.mob_translucency_enabled.tooltip")))
-                        .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_translucency_alpha",
-                Config.getMobTranslucencyAlpha(), 0.0, 1.0,
-                val -> Config.setMobTranslucencyAlpha(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);

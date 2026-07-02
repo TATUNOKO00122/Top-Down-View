@@ -220,5 +220,16 @@
   "topdown_view.config.mob_translucency_enabled": "Mob Translucency: %s",
   "topdown_view.config.mob_translucency_enabled.tooltip": "Toggles translucency support for mob models.",
   "topdown_view.config.mob_translucency_alpha": "Mob Transparency: %.2f",
-  "topdown_view.config.mob_translucency_alpha.tooltip": "The alpha value (transparency) used for translucent mobs.\n0.0 is fully invisible, 1.0 is fully opaque."
+  "topdown_view.config.mob_translucency_alpha.tooltip": "The alpha value (transparency) used for translucent mobs.\n0.0 is fully invisible, 1.0 is fully opaque.",
+  "topdown_view.config.section.mob_cone_culling": "Mob Vision Cone",
+  "topdown_view.config.mob_cone_culling_enabled": "Vision Cone Culling: %s",
+  "topdown_view.config.mob_cone_culling_enabled.tooltip": "Hides mobs that are outside the player's vision cone (similar to a flashlight). Mobs smoothly fade out at the cone boundaries.",
+  "topdown_view.config.mob_cone_half_angle": "Vision Cone Half Angle: %.1f°",
+  "topdown_view.config.mob_cone_half_angle.tooltip": "Sets the half-angle of the vision cone. Smaller values result in a narrower field of view.",
+  "topdown_view.config.mob_cone_fade_angle": "Vision Cone Fade Angle: %.1f°",
+  "topdown_view.config.mob_cone_fade_angle.tooltip": "Sets the angle range over which mobs fade out at the boundaries of the vision cone.",
+  "topdown_view.config.mob_near_radius": "Mob Proximity Radius: %.1f",
+  "topdown_view.config.mob_near_radius.tooltip": "Sets the radius within which mobs are always visible, regardless of the vision cone direction.",
+  "topdown_view.config.mob_fog_end": "Mob Max Render Distance: %.1f",
+  "topdown_view.config.mob_fog_end.tooltip": "Sets the maximum distance at which mobs are visible. Mobs beyond this distance are completely hidden."
 }

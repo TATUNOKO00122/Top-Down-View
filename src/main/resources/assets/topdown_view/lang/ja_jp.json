@@ -220,5 +220,16 @@
   "topdown_view.config.mob_translucency_enabled": "Mob半透明化: %s",
   "topdown_view.config.mob_translucency_enabled.tooltip": "Mobを半透明で描画する機能を切り替えます。",
   "topdown_view.config.mob_translucency_alpha": "Mob透明度: %.2f",
-  "topdown_view.config.mob_translucency_alpha.tooltip": "半透明表示されるMobの透明度（アルファ値）です。\n0.0で完全に透明、1.0で完全に不透明になります。"
+  "topdown_view.config.mob_translucency_alpha.tooltip": "半透明表示されるMobの透明度（アルファ値）です。\n0.0で完全に透明、1.0で完全に不透明になります。",
+  "topdown_view.config.section.mob_cone_culling": "Mob視界コーン",
+  "topdown_view.config.mob_cone_culling_enabled": "視界コーンカリング: %s",
+  "topdown_view.config.mob_cone_culling_enabled.tooltip": "プレイヤーの視界コーン（懐中電灯のような視界範囲）の外にいるMobを非表示にし、コーン内だけMobを表示します。境界はアルファ値で滑らかにフェードアウトします。",
+  "topdown_view.config.mob_cone_half_angle": "視界コーン半角: %.1f°",
+  "topdown_view.config.mob_cone_half_angle.tooltip": "視界コーンの広がりの半角角度を設定します。角度が小さいほど視野が狭くなります。",
+  "topdown_view.config.mob_cone_fade_angle": "視界コーンフェード幅: %.1f°",
+  "topdown_view.config.mob_cone_fade_angle.tooltip": "視界コーンの境界でMobが徐々に消える（フェードアウトする）角度の幅を設定します。",
+  "topdown_view.config.mob_near_radius": "Mob至近可視半径: %.1f",
+  "topdown_view.config.mob_near_radius.tooltip": "プレイヤーの至近距離にいるMobを、視界コーンの向きに関わらず表示する半径を設定します。",
+  "topdown_view.config.mob_fog_end": "Mob最大視認距離: %.1f",
+  "topdown_view.config.mob_fog_end.tooltip": "Mobを表示する最大の距離を設定します。この距離を超えたMobは完全に非表示になります。"
 }

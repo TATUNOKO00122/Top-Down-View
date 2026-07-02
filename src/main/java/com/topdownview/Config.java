@@ -92,6 +92,16 @@ public class Config {
             .define("defaultEnabled", true);
     private static final ForgeConfigSpec.BooleanValue TARGET_GLOW_ENABLED = BUILDER
             .define("targetGlowEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue MOB_CONE_CULLING_ENABLED = BUILDER
+            .define("mobConeCullingEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue MOB_CONE_HALF_ANGLE = BUILDER
+            .defineInRange("mobConeHalfAngle", 30.0, 10.0, 90.0);
+    private static final ForgeConfigSpec.DoubleValue MOB_CONE_FADE_ANGLE = BUILDER
+            .defineInRange("mobConeFadeAngle", 10.0, 0.0, 90.0);
+    private static final ForgeConfigSpec.DoubleValue MOB_NEAR_RADIUS = BUILDER
+            .defineInRange("mobNearRadius", 3.0, 0.0, 20.0);
+    private static final ForgeConfigSpec.DoubleValue MOB_FOG_END = BUILDER
+            .defineInRange("mobFogEnd", 12.0, 1.0, 50.0);
     private static final ForgeConfigSpec.IntValue ROTATE_ANGLE_MODE = BUILDER
             .defineInRange("rotateAngleMode", 1, 0, 2);
     private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
@@ -248,6 +258,11 @@ public class Config {
     private static double rangeOther;
     private static boolean defaultEnabled;
     private static boolean targetGlowEnabled;
+    private static boolean mobConeCullingEnabled;
+    private static double mobConeHalfAngle;
+    private static double mobConeFadeAngle;
+    private static double mobNearRadius;
+    private static double mobFogEnd;
     private static int rotateAngleMode;
     private static double cameraSnapRotationSpeed;
     private static double cameraPitch;
@@ -331,6 +346,11 @@ public class Config {
     public static double getRangeOther() { return rangeOther; }
     public static boolean isDefaultEnabled() { return defaultEnabled; }
     public static boolean isTargetGlowEnabled() { return targetGlowEnabled; }
+    public static boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
+    public static double getMobConeHalfAngle() { return mobConeHalfAngle; }
+    public static double getMobConeFadeAngle() { return mobConeFadeAngle; }
+    public static double getMobNearRadius() { return mobNearRadius; }
+    public static double getMobFogEnd() { return mobFogEnd; }
     public static int getRotateAngleMode() { return rotateAngleMode; }
     public static double getCameraSnapRotationSpeed() { return cameraSnapRotationSpeed; }
     public static double getCameraPitch() { return cameraPitch; }
@@ -420,6 +440,11 @@ public class Config {
     public static void setRangeOther(double value) { rangeOther = clamp(value, 1.0, 10.0); }
     public static void setDefaultEnabled(boolean value) { defaultEnabled = value; }
     public static void setTargetGlowEnabled(boolean value) { targetGlowEnabled = value; }
+    public static void setMobConeCullingEnabled(boolean value) { mobConeCullingEnabled = value; }
+    public static void setMobConeHalfAngle(double value) { mobConeHalfAngle = clamp(value, 10.0, 90.0); }
+    public static void setMobConeFadeAngle(double value) { mobConeFadeAngle = clamp(value, 0.0, 90.0); }
+    public static void setMobNearRadius(double value) { mobNearRadius = clamp(value, 0.0, 20.0); }
+    public static void setMobFogEnd(double value) { mobFogEnd = clamp(value, 1.0, 50.0); }
     public static void setRotateAngleMode(int value) { rotateAngleMode = clamp(value, 0, 2); }
     public static void setCameraSnapRotationSpeed(double value) { cameraSnapRotationSpeed = clamp(value, 0.05, 0.5); }
     public static void setCameraPitch(double value) { cameraPitch = clamp(value, 10.0, 90.0); }
@@ -522,6 +547,11 @@ public class Config {
         rangeOther = RANGE_OTHER.get();
         defaultEnabled = DEFAULT_ENABLED.get();
         targetGlowEnabled = TARGET_GLOW_ENABLED.get();
+        mobConeCullingEnabled = MOB_CONE_CULLING_ENABLED.get();
+        mobConeHalfAngle = MOB_CONE_HALF_ANGLE.get();
+        mobConeFadeAngle = MOB_CONE_FADE_ANGLE.get();
+        mobNearRadius = MOB_NEAR_RADIUS.get();
+        mobFogEnd = MOB_FOG_END.get();
         rotateAngleMode = ROTATE_ANGLE_MODE.get();
         cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.get();
         cameraPitch = CAMERA_PITCH.get();
@@ -612,6 +642,11 @@ public class Config {
         RANGE_OTHER.set(rangeOther);
         DEFAULT_ENABLED.set(defaultEnabled);
         TARGET_GLOW_ENABLED.set(targetGlowEnabled);
+        MOB_CONE_CULLING_ENABLED.set(mobConeCullingEnabled);
+        MOB_CONE_HALF_ANGLE.set(mobConeHalfAngle);
+        MOB_CONE_FADE_ANGLE.set(mobConeFadeAngle);
+        MOB_NEAR_RADIUS.set(mobNearRadius);
+        MOB_FOG_END.set(mobFogEnd);
         ROTATE_ANGLE_MODE.set(rotateAngleMode);
         CAMERA_SNAP_ROTATION_SPEED.set(cameraSnapRotationSpeed);
         CAMERA_PITCH.set(cameraPitch);
@@ -699,6 +734,11 @@ public class Config {
         rangeOther = RANGE_OTHER.getDefault();
         defaultEnabled = DEFAULT_ENABLED.getDefault();
         targetGlowEnabled = TARGET_GLOW_ENABLED.getDefault();
+        mobConeCullingEnabled = MOB_CONE_CULLING_ENABLED.getDefault();
+        mobConeHalfAngle = MOB_CONE_HALF_ANGLE.getDefault();
+        mobConeFadeAngle = MOB_CONE_FADE_ANGLE.getDefault();
+        mobNearRadius = MOB_NEAR_RADIUS.getDefault();
+        mobFogEnd = MOB_FOG_END.getDefault();
         rotateAngleMode = ROTATE_ANGLE_MODE.getDefault();
         cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.getDefault();
         cameraPitch = CAMERA_PITCH.getDefault();
