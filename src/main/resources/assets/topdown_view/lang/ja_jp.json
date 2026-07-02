@@ -215,5 +215,10 @@
   "topdown_view.config.spatial_prompt_radius": "空間プロンプト探索半径: %.1f",
   "topdown_view.config.spatial_prompt_radius.tooltip": "周辺のブロックを探索して空間プロンプトを表示する半径距離を設定します。",
   "topdown_view.config.spatial_prompt_all_blocks": "全インタラクトブロックを表示: %s",
-  "topdown_view.config.spatial_prompt_all_blocks.tooltip": "オンにするとドアやボタン等を含むすべてのインタラクト可能ブロックを表示します。オフの場合はチェストや作業台等の主要ブロックのみに制限します。"
+  "topdown_view.config.spatial_prompt_all_blocks.tooltip": "オンにするとドアやボタン等を含むすべてのインタラクト可能ブロックを表示します。オフの場合はチェストや作業台等の主要ブロックのみに制限します。",
+  "topdown_view.config.section.mob_translucency": "Mob半透明化",
+  "topdown_view.config.mob_translucency_enabled": "Mob半透明化: %s",
+  "topdown_view.config.mob_translucency_enabled.tooltip": "Mobを半透明で描画する機能を切り替えます。",
+  "topdown_view.config.mob_translucency_alpha": "Mob透明度: %.2f",
+  "topdown_view.config.mob_translucency_alpha.tooltip": "半透明表示されるMobの透明度（アルファ値）です。\n0.0で完全に透明、1.0で完全に不透明になります。"
 }

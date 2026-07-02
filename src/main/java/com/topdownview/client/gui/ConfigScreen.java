@@ -568,6 +568,23 @@ public class ConfigScreen extends Screen {
                 1.0, val -> Config.setFadeNearAlpha(val)));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.mob_translucency", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
+                        Config.isMobTranslucencyEnabled()), btn -> {
+                    Config.setMobTranslucencyEnabled(!Config.isMobTranslucencyEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_translucency_enabled",
+                            Config.isMobTranslucencyEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable(
+                                "topdown_view.config.mob_translucency_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mob_translucency_alpha",
+                Config.getMobTranslucencyAlpha(), 0.0, 1.0,
+                val -> Config.setMobTranslucencyAlpha(val)));
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.placement_preview_enabled",

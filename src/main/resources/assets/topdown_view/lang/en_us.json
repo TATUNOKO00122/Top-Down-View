@@ -215,5 +215,10 @@
   "topdown_view.interaction.toggle": "TOGGLE",
   "topdown_view.interaction.sleep": "SLEEP",
   "topdown_view.interaction.use": "USE",
-  "topdown_view.interaction.interact": "INTERACT"
+  "topdown_view.interaction.interact": "INTERACT",
+  "topdown_view.config.section.mob_translucency": "Mob Translucency",
+  "topdown_view.config.mob_translucency_enabled": "Mob Translucency: %s",
+  "topdown_view.config.mob_translucency_enabled.tooltip": "Toggles translucency support for mob models.",
+  "topdown_view.config.mob_translucency_alpha": "Mob Transparency: %.2f",
+  "topdown_view.config.mob_translucency_alpha.tooltip": "The alpha value (transparency) used for translucent mobs.\n0.0 is fully invisible, 1.0 is fully opaque."
 }

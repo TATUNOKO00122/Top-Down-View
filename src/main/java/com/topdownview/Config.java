@@ -56,6 +56,10 @@ public class Config {
             .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
     private static final ForgeConfigSpec.BooleanValue MOB_CULLING_ENABLED = BUILDER
             .define("mobCullingEnabled", false);
+    private static final ForgeConfigSpec.BooleanValue MOB_TRANSLUCENCY_ENABLED = BUILDER
+            .define("mobTranslucencyEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue MOB_TRANSLUCENCY_ALPHA = BUILDER
+            .defineInRange("mobTranslucencyAlpha", 0.5, 0.0, 1.0);
     private static final ForgeConfigSpec.BooleanValue TRAPDOOR_TRANSLUCENCY_ENABLED = BUILDER
             .define("trapdoorTranslucencyEnabled", false);
     private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
@@ -226,6 +230,8 @@ public class Config {
     private static int stableDirectionTicks;
     private static double autoAlignAnimationSpeed;
     private static boolean mobCullingEnabled;
+    private static boolean mobTranslucencyEnabled;
+    private static double mobTranslucencyAlpha;
     private static boolean trapdoorTranslucencyEnabled;
     private static double trapdoorTransparency;
     private static boolean fadeEnabled;
@@ -307,6 +313,8 @@ public class Config {
     public static int getStableDirectionTicks() { return stableDirectionTicks; }
     public static double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
     public static boolean isMobCullingEnabled() { return mobCullingEnabled; }
+    public static boolean isMobTranslucencyEnabled() { return mobTranslucencyEnabled; }
+    public static double getMobTranslucencyAlpha() { return mobTranslucencyAlpha; }
     public static boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
     public static double getTrapdoorTransparency() { return trapdoorTransparency; }
     public static boolean isFadeEnabled() { return fadeEnabled; }
@@ -394,6 +402,8 @@ public class Config {
     public static void setStableDirectionTicks(int value) { stableDirectionTicks = clamp(value, 5, 60); }
     public static void setAutoAlignAnimationSpeed(double value) { autoAlignAnimationSpeed = clamp(value, 0.05, 0.5); }
     public static void setMobCullingEnabled(boolean value) { mobCullingEnabled = value; }
+    public static void setMobTranslucencyEnabled(boolean value) { mobTranslucencyEnabled = value; }
+    public static void setMobTranslucencyAlpha(double value) { mobTranslucencyAlpha = clamp(value, 0.0, 1.0); }
     public static void setTrapdoorTranslucencyEnabled(boolean value) { trapdoorTranslucencyEnabled = value; }
     public static void setTrapdoorTransparency(double value) { trapdoorTransparency = clamp(value, 0.0, 1.0); }
     public static void setFadeEnabled(boolean value) { fadeEnabled = value; }
@@ -494,6 +504,8 @@ public class Config {
         stableDirectionTicks = STABLE_DIRECTION_TICKS.get();
         autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.get();
         mobCullingEnabled = MOB_CULLING_ENABLED.get();
+        mobTranslucencyEnabled = MOB_TRANSLUCENCY_ENABLED.get();
+        mobTranslucencyAlpha = MOB_TRANSLUCENCY_ALPHA.get();
         trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
         trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
         fadeEnabled = FADE_ENABLED.get();
@@ -582,6 +594,8 @@ public class Config {
         STABLE_DIRECTION_TICKS.set(stableDirectionTicks);
         AUTO_ALIGN_ANIMATION_SPEED.set(autoAlignAnimationSpeed);
         MOB_CULLING_ENABLED.set(mobCullingEnabled);
+        MOB_TRANSLUCENCY_ENABLED.set(mobTranslucencyEnabled);
+        MOB_TRANSLUCENCY_ALPHA.set(mobTranslucencyAlpha);
         TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
         TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
         FADE_ENABLED.set(fadeEnabled);
@@ -667,6 +681,8 @@ public class Config {
         stableDirectionTicks = STABLE_DIRECTION_TICKS.getDefault();
         autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.getDefault();
         mobCullingEnabled = MOB_CULLING_ENABLED.getDefault();
+        mobTranslucencyEnabled = MOB_TRANSLUCENCY_ENABLED.getDefault();
+        mobTranslucencyAlpha = MOB_TRANSLUCENCY_ALPHA.getDefault();
         trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.getDefault();
         trapdoorTransparency = TRAPDOOR_TRANSPARENCY.getDefault();
         fadeEnabled = FADE_ENABLED.getDefault();

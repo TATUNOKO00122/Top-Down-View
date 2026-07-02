@@ -22,6 +22,8 @@
     "AbstractHorseEntityMixin",
     "BoatEntityMixin",
     "LivingEntityMixin",
+    "LivingEntityRendererMixin",
+    "SlimeOuterLayerMixin",
     "MultiPlayerGameModeMixin",
     "ListenerMixin"
   ],
