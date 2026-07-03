@@ -256,7 +256,20 @@ public final class TopDownCuller {
             return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         }
 
-        if (pos.getY() + 0.5 < pY) {
+        // ブロックの上面のY座標（ブロック内相対値、0.0〜1.0）を取得
+        double blockHeight = 0.0;
+        net.minecraft.world.phys.shapes.VoxelShape shape = state.getShape(level, pos);
+        if (!shape.isEmpty()) {
+            blockHeight = shape.max(net.minecraft.core.Direction.Axis.Y);
+        }
+
+        // ハーフブロック（0.5）より薄いブロック（かつ空気ではない＝高さが0より大きい）
+        boolean isThinnerThanSlab = blockHeight > 0.0 && blockHeight < 0.5;
+
+        // ハーフブロックより薄いブロックの場合、保護閾値を1.0ブロック分引き上げる
+        double protectThresholdY = isThinnerThanSlab ? pY + 1.0 : pY;
+
+        if (pos.getY() + 0.5 < protectThresholdY) {
             return true;
         }
 
