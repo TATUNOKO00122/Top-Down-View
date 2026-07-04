@@ -36,6 +36,11 @@ public class Config {
             .define("miningModeEnabled", false);
     private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
             .define("clickToMoveEnabled", false);
+    // Baritone連携時の経路・ゴール表示（Baritone未導入時は無視される）
+    private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_PATH = BUILDER
+            .define("baritoneRenderPath", true);
+    private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_GOAL = BUILDER
+            .define("baritoneRenderGoal", true);
     private static final ForgeConfigSpec.DoubleValue ARRIVAL_THRESHOLD = BUILDER
             .defineInRange("arrivalThreshold", 1.5, 0.5, 5.0);
     private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
@@ -230,6 +235,8 @@ public class Config {
     private static int miningCylinderForwardShift;
     private static boolean miningModeEnabled;
     private static boolean clickToMoveEnabled;
+    private static boolean baritoneRenderPath;
+    private static boolean baritoneRenderGoal;
     private static double arrivalThreshold;
     private static boolean forceAutoJump;
     private static double sprintDistanceThreshold;
@@ -318,6 +325,8 @@ public class Config {
     public static int getMiningCylinderForwardShift() { return miningCylinderForwardShift; }
     public static boolean isMiningModeEnabled() { return miningModeEnabled; }
     public static boolean isClickToMoveEnabled() { return clickToMoveEnabled; }
+    public static boolean isBaritoneRenderPath() { return baritoneRenderPath; }
+    public static boolean isBaritoneRenderGoal() { return baritoneRenderGoal; }
     public static double getArrivalThreshold() { return arrivalThreshold; }
     public static boolean isForceAutoJump() { return forceAutoJump; }
     public static double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
@@ -412,6 +421,8 @@ public class Config {
     public static void setMiningCylinderForwardShift(int value) { miningCylinderForwardShift = clamp(value, 0, 10); }
     public static void setMiningModeEnabled(boolean value) { miningModeEnabled = value; }
     public static void setClickToMoveEnabled(boolean value) { clickToMoveEnabled = value; }
+    public static void setBaritoneRenderPath(boolean value) { baritoneRenderPath = value; }
+    public static void setBaritoneRenderGoal(boolean value) { baritoneRenderGoal = value; }
     public static void setArrivalThreshold(double value) { arrivalThreshold = clamp(value, 0.5, 5.0); }
     public static void setForceAutoJump(boolean value) { forceAutoJump = value; }
     public static void setSprintDistanceThreshold(double value) { sprintDistanceThreshold = clamp(value, 1.0, 50.0); }
@@ -519,6 +530,8 @@ public class Config {
         miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.get();
         miningModeEnabled = MINING_MODE_ENABLED.get();
         clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
+        baritoneRenderPath = BARITONE_RENDER_PATH.get();
+        baritoneRenderGoal = BARITONE_RENDER_GOAL.get();
         arrivalThreshold = ARRIVAL_THRESHOLD.get();
         forceAutoJump = FORCE_AUTO_JUMP.get();
         sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.get();
@@ -614,6 +627,8 @@ public class Config {
         MINING_CYLINDER_FORWARD_SHIFT.set(miningCylinderForwardShift);
         MINING_MODE_ENABLED.set(miningModeEnabled);
         CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
+        BARITONE_RENDER_PATH.set(baritoneRenderPath);
+        BARITONE_RENDER_GOAL.set(baritoneRenderGoal);
         ARRIVAL_THRESHOLD.set(arrivalThreshold);
         FORCE_AUTO_JUMP.set(forceAutoJump);
         SPRINT_DISTANCE_THRESHOLD.set(sprintDistanceThreshold);
@@ -706,6 +721,8 @@ public class Config {
         miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.getDefault();
         miningModeEnabled = MINING_MODE_ENABLED.getDefault();
         clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.getDefault();
+        baritoneRenderPath = BARITONE_RENDER_PATH.getDefault();
+        baritoneRenderGoal = BARITONE_RENDER_GOAL.getDefault();
         arrivalThreshold = ARRIVAL_THRESHOLD.getDefault();
         forceAutoJump = FORCE_AUTO_JUMP.getDefault();
         sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.getDefault();

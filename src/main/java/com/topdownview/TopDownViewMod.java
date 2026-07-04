@@ -34,6 +34,7 @@ public class TopDownViewMod {
             if (FMLEnvironment.dist.isClient()) {
                 com.topdownview.culling.TopDownCuller.getInstance().clearCache();
                 com.topdownview.client.ReachManager.forceUpdate();
+                com.topdownview.baritone.BaritoneIntegration.applyConfig();
             }
             LOGGER.info("TopDownView cache cleared due to config change");
         });

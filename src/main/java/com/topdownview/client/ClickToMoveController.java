@@ -6,7 +6,6 @@ import com.topdownview.baritone.BaritoneIntegration;
 import com.topdownview.state.CameraState;
 import com.topdownview.state.ClickToMoveState;
 import com.topdownview.state.ModState;
-import com.topdownview.mixin.MinecraftInvoker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -138,7 +137,7 @@ public final class ClickToMoveController {
         if (distSq <= attackRange * attackRange) {
             lookAtTarget(mc.player, entity);
             if (mc.player.getAttackStrengthScale(0.5F) >= 1.0F) {
-                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
+                executeEntityAttack(mc, entity);
                 return;
             }
         }
@@ -173,6 +172,13 @@ public final class ClickToMoveController {
 
     private static void executeEntityInteract(Minecraft mc, Entity entity) {
         mc.gameMode.interact(mc.player, entity, InteractionHand.MAIN_HAND);
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        stop();
+    }
+
+    // エンティティを直接指定して攻撃する（カーソル位置に依存しない）
+    private static void executeEntityAttack(Minecraft mc, Entity entity) {
+        mc.gameMode.attack(mc.player, entity);
         mc.player.swing(InteractionHand.MAIN_HAND);
         stop();
     }
@@ -346,8 +352,7 @@ public final class ClickToMoveController {
         if (ModState.CLICK_TO_MOVE.hasArrivedAtEntity(mc.player.position(), attackRange)) {
             float attackStrength = mc.player.getAttackStrengthScale(0.5F);
             if (attackStrength >= 1.0F) {
-                ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
-                stop();
+                executeEntityAttack(mc, targetEntity);
             }
         }
     }
@@ -374,9 +379,7 @@ public final class ClickToMoveController {
                 return;
             }
 
-            ((MinecraftInvoker) Minecraft.getInstance()).invokeStartAttack();
-
-            stop();
+            executeEntityAttack(mc, targetEntity);
         }
     }
 
@@ -397,48 +400,47 @@ public final class ClickToMoveController {
     public static void tickDestroyFollow(Minecraft mc) {
         if (mc.player == null || mc.level == null) return;
 
+        // DESTROY_KEY 離脱で完全停止
         if (!ClientModBusEvents.DESTROY_KEY.isDown()) {
             stop();
             return;
         }
 
+        BlockPos currentTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
+
+        // 対象ブロック破壊完了（air化）で完全停止
+        // 1クリック=1ブロック仕様: 破壊完了で連鎖採掘しない
+        if (currentTarget != null) {
+            BlockState state = mc.level.getBlockState(currentTarget);
+            if (state.isAir()) {
+                stop();
+                return;
+            }
+        }
+
+        // レイキャストで現在マウス先のブロックを取得（ターゲット変更検出用）
         double reach = MouseRaycast.getCustomReachDistance();
         MouseRaycast.INSTANCE.update(mc, 1.0f, reach);
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         BlockPos newTargetBlock = null;
-        Direction newDirection = null;
         if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult blockHit = (BlockHitResult) hitResult;
-            newTargetBlock = blockHit.getBlockPos();
-            newDirection = blockHit.getDirection();
+            newTargetBlock = ((BlockHitResult) hitResult).getBlockPos();
         }
 
-        BlockPos currentTarget = ModState.CLICK_TO_MOVE.getDestroyTargetBlock();
-
+        // レイキャスト外れ（空を向いた等）で完全停止
         if (newTargetBlock == null) {
-            if (currentTarget != null) {
-                mc.gameMode.stopDestroyBlock();
-                ModState.CLICK_TO_MOVE.setDestroying(false);
-                ModState.CLICK_TO_MOVE.setDestroyTargetBlock(null);
-                ModState.CLICK_TO_MOVE.setDestroyDirection(null);
-            }
+            stop();
             return;
         }
 
-        if (!newTargetBlock.equals(currentTarget)) {
-            mc.gameMode.stopDestroyBlock();
-            ModState.CLICK_TO_MOVE.setDestroying(false);
-            ModState.CLICK_TO_MOVE.setDestroyTargetBlock(newTargetBlock);
-            ModState.CLICK_TO_MOVE.setDestroyDirection(newDirection);
-            currentTarget = newTargetBlock;
-        }
-
-        BlockState state = mc.level.getBlockState(currentTarget);
-        if (state.isAir()) {
+        // 1クリック=1ブロック仕様: 別ブロックへ切り替わったら停止（連鎖採掘しない）
+        if (currentTarget != null && !newTargetBlock.equals(currentTarget)) {
+            stop();
             return;
         }
 
+        // 同一ブロックの採掘を継続
         double destroyRange = ClickToMoveState.DEFAULT_DESTROY_RANGE;
         Vec3 blockCenter = Vec3.atCenterOf(currentTarget);
         double distSq = mc.player.distanceToSqr(blockCenter);

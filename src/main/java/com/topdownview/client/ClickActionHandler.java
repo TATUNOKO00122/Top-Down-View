@@ -14,7 +14,6 @@ import net.minecraft.world.phys.Vec3;
 public final class ClickActionHandler {
 
     private static boolean isLeftClickDown = false;
-    private static boolean isRightClickDown = false;
 
     private static void lockTarget(Entity entity) {
         if (!Config.isTargetLockEnabled()) return;
@@ -35,13 +34,8 @@ public final class ClickActionHandler {
         return mc.level != null && mc.player != null;
     }
 
-    public static boolean isLeftClickDown() {
-        return isLeftClickDown;
-    }
-
     public static void onInput(int button, int action, Minecraft mc) {
         int attackButton = mc.options.keyAttack.getKey().getValue();
-        int useButton = mc.options.keyUse.getKey().getValue();
 
         if (button == attackButton) {
             boolean wasDown = isLeftClickDown;
@@ -52,15 +46,6 @@ public final class ClickActionHandler {
                     handleLeftClickPress(mc);
                 } else {
                     handleTargetLockOnly(mc);
-                }
-            }
-        } else if (button == useButton) {
-            boolean wasDown = isRightClickDown;
-            isRightClickDown = (action != 0);
-
-            if (ModState.STATUS.isEnabled() && Config.isClickToMoveEnabled()) {
-                if (action != 0 && !wasDown) {
-                    ((com.topdownview.mixin.MinecraftInvoker) Minecraft.getInstance()).invokeStartUseItem();
                 }
             }
         }

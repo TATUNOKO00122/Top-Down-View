@@ -308,6 +308,22 @@ public class ConfigScreen extends Screen {
                 Config.getSprintDistanceThreshold(), 1.0, 50.0, val -> Config.setSprintDistanceThreshold(val)));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.baritone", tx);
+        addRightWidget(Button
+                .builder(getOnOffComponent("topdown_view.config.baritone_render_path", Config.isBaritoneRenderPath()), btn -> {
+                    Config.setBaritoneRenderPath(!Config.isBaritoneRenderPath());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.baritone_render_path", Config.isBaritoneRenderPath()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.baritone_render_path.tooltip"))).build());
+        y += sp;
+        addRightWidget(Button
+                .builder(getOnOffComponent("topdown_view.config.baritone_render_goal", Config.isBaritoneRenderGoal()), btn -> {
+                    Config.setBaritoneRenderGoal(!Config.isBaritoneRenderGoal());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.baritone_render_goal", Config.isBaritoneRenderGoal()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.baritone_render_goal.tooltip"))).build());
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()), btn -> {

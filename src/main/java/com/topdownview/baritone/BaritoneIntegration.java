@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import com.topdownview.Config;
+
 public final class BaritoneIntegration {
     
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -27,6 +29,8 @@ public final class BaritoneIntegration {
     private static Method getSettingsMethod;
     private static Field allowBreakField;
     private static Field allowPlaceField;
+    private static Field renderPathField;
+    private static Field renderGoalField;
     private static Field settingValueField;
     
     private BaritoneIntegration() {
@@ -64,6 +68,8 @@ public final class BaritoneIntegration {
             Class<?> settingsClass = Class.forName("baritone.api.Settings");
             allowBreakField = settingsClass.getField("allowBreak");
             allowPlaceField = settingsClass.getField("allowPlace");
+            renderPathField = settingsClass.getField("renderPath");
+            renderGoalField = settingsClass.getField("renderGoal");
             
             Class<?> settingClass = Class.forName("baritone.api.Settings$Setting");
             settingValueField = settingClass.getField("value");
@@ -81,7 +87,7 @@ public final class BaritoneIntegration {
     }
     
     private static void configureSettings() {
-        if (settingsConfigured || !baritoneAvailable) return;
+        if (!baritoneAvailable) return;
         
         try {
             Object settings = getSettingsMethod.invoke(null);
@@ -90,17 +96,33 @@ public final class BaritoneIntegration {
                 return;
             }
             
-            Object allowBreakSetting = allowBreakField.get(settings);
-            Object allowPlaceSetting = allowPlaceField.get(settings);
+            // 破壊・設置無効化は初回のみ（強制false・不変の方針）
+            if (!settingsConfigured) {
+                Object allowBreakSetting = allowBreakField.get(settings);
+                Object allowPlaceSetting = allowPlaceField.get(settings);
+                settingValueField.set(allowBreakSetting, false);
+                settingValueField.set(allowPlaceSetting, false);
+                settingsConfigured = true;
+                LOGGER.info("[Baritone] 設定変更: 破壊・設置無効化（移動のみモード）");
+            }
             
-            settingValueField.set(allowBreakSetting, false);
-            settingValueField.set(allowPlaceSetting, false);
-            
-            settingsConfigured = true;
-            LOGGER.info("[Baritone] 設定変更: 破壊・設置無効化（移動のみモード）");
+            // 経路・ゴール表示はConfig値を反映（設定変更のたびに再適用可能）
+            Object renderPathSetting = renderPathField.get(settings);
+            Object renderGoalSetting = renderGoalField.get(settings);
+            settingValueField.set(renderPathSetting, Config.isBaritoneRenderPath());
+            settingValueField.set(renderGoalSetting, Config.isBaritoneRenderGoal());
         } catch (Exception e) {
             LOGGER.warn("[Baritone] 設定変更エラー: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Config変更時に外部から呼ばれ、Baritoneの表示設定を即座に反映する。
+     * Baritone未導入時は何もしない。
+     */
+    public static void applyConfig() {
+        if (!isBaritoneAvailable()) return;
+        configureSettings();
     }
     
     private static Object getBaritone() {

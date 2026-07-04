@@ -10,7 +10,6 @@
     "MouseHandlerMixin",
     "EntityAccessor",
     "MinecraftClientMixin",
-    "MinecraftInvoker",
     "BlockEntityRenderDispatcherMixin",
     "LevelRendererMixin",
     "CullableMixin",

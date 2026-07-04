@@ -31,6 +31,13 @@ public abstract class MouseHandlerMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
 
+        // 右クリック(useButton)は一切介入せずバニラへ素通し。
+        // 理由: 弓・クロスボウ・盾・食べ物等の「長押しチャージ」はバニラが keyUse.isDown() を
+        // 毎 tick 参照して維持する仕組みに依存する。ここで ci.cancel() すると keyUse.isDown() が
+        // 更新されず、チャージ維持ループが回らなくなって弓が引けなくなる。
+        int attackButton = mc.options.keyAttack.getKey().getValue();
+        if (button != attackButton) return;
+
         ClickActionHandler.onInput(button, action, mc);
 
         if (!Config.isClickToMoveEnabled()) return;
