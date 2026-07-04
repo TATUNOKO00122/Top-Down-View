@@ -105,4 +105,50 @@ public final class LadderHelper {
         }
         return false;
     }
+
+    /**
+     * 指定されたハシゴ位置からチェーンの最下部のY座標を返す。
+     * 指定位置がハシゴでない場合は Integer.MAX_VALUE を返す。
+     */
+    public static int getChainBottomY(BlockPos pos, BlockGetter level) {
+        if (!level.getBlockState(pos).is(Blocks.LADDER)) {
+            return Integer.MAX_VALUE;
+        }
+        int minY = level.getMinBuildHeight();
+        BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos(pos.getX(), pos.getY(), pos.getZ());
+        while (checkPos.getY() > minY) {
+            checkPos.move(Direction.DOWN);
+            if (!level.getBlockState(checkPos).is(Blocks.LADDER)) {
+                return checkPos.getY() + 1;
+            }
+        }
+        return minY;
+    }
+
+    /**
+     * isBlockBehindLadderChain の派生版。ハシゴチェーンが
+     * プレイヤーの足元Y 〜 足元Y+2 以内から始まる場合のみ true を返す。
+     */
+    public static boolean isBlockBehindLadderChain(BlockPos pos, BlockGetter level, int playerFeetY) {
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        BlockPos.MutableBlockPos neighborPos = new BlockPos.MutableBlockPos();
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            neighborPos.set(x + dir.getStepX(), y, z + dir.getStepZ());
+            BlockState neighborState = level.getBlockState(neighborPos);
+            if (!(neighborState.getBlock() instanceof LadderBlock)) {
+                continue;
+            }
+            if (neighborState.getValue(LadderBlock.FACING) == dir) {
+                if (isLadderInLongChain(neighborPos, level)) {
+                    int chainBottomY = getChainBottomY(neighborPos, level);
+                    if (chainBottomY >= playerFeetY && chainBottomY <= playerFeetY + 1) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

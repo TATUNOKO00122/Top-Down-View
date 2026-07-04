@@ -260,15 +260,20 @@ public final class TopDownCuller {
             return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         }
 
-        // ハシゴ自身が3個以上連続するチェーンに属するなら保護
+        int playerFeetY = (int) Math.floor(pY) - 1;
+
+        // ハシゴ自身が3個以上連続するチェーンに属し、かつプレイヤーの立っている位置+2以内から始まる場合保護
         if (state.getBlock() instanceof LadderBlock) {
             if (LadderHelper.isLadderInLongChain(pos, level)) {
-                return true;
+                int chainBottomY = LadderHelper.getChainBottomY(pos, level);
+                if (chainBottomY >= playerFeetY && chainBottomY <= playerFeetY + 1) {
+                    return true;
+                }
             }
         }
 
-        // ハシゴの支え側ブロック（ハシゴが貼り付いている側）で、かつそのハシゴが3個以上連続していれば保護
-        if (LadderHelper.isBlockBehindLadderChain(pos, level)) {
+        // ハシゴの支え側ブロックで、かつそのハシゴがプレイヤー付近のチェーンなら保護
+        if (LadderHelper.isBlockBehindLadderChain(pos, level, playerFeetY)) {
             return true;
         }
 
