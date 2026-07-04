@@ -70,7 +70,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
             .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
     private static final ForgeConfigSpec.BooleanValue FADE_ENABLED = BUILDER
-            .define("fadeEnabled", true);
+            .define("fadeEnabled", false);
     private static final ForgeConfigSpec.DoubleValue FADE_BLOCK_HIT_THRESHOLD = BUILDER
             .defineInRange("fadeBlockHitThreshold", 0.5, 0.0, 1.0);
     private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
