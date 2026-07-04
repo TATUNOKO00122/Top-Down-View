@@ -11,11 +11,13 @@ import com.topdownview.spatial.SpaceRegion;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
+import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -111,6 +113,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        LadderHelper.clearCache();
         resetLastBlockCoords();
     }
 
@@ -146,6 +149,7 @@ public final class TopDownCuller {
             if (!cacheClearedOnDisabled) {
                 cullingCache.clear();
                 fadeCache.clear();
+                LadderHelper.clearCache();
                 cacheClearedOnDisabled = true;
             }
             return false;
@@ -254,6 +258,18 @@ public final class TopDownCuller {
             // TrapdoorHelperを使用して、カリング対象外（保護対象）であればtrueを返す
             // プリミティブ値版 shouldCull() を呼び出して Vec3 生成を回避
             return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+        }
+
+        // ハシゴ自身が3個以上連続するチェーンに属するなら保護
+        if (state.getBlock() instanceof LadderBlock) {
+            if (LadderHelper.isLadderInLongChain(pos, level)) {
+                return true;
+            }
+        }
+
+        // ハシゴの支え側ブロック（ハシゴが貼り付いている側）で、かつそのハシゴが3個以上連続していれば保護
+        if (LadderHelper.isBlockBehindLadderChain(pos, level)) {
+            return true;
         }
 
         // ブロックの上面のY座標（ブロック内相対値、0.0〜1.0）を取得
@@ -565,6 +581,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        LadderHelper.clearCache();
         resetLastBlockCoords();
         contextValid = false;
         playerX = 0.0;
