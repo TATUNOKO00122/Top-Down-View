@@ -35,10 +35,8 @@ public final class InputHandler {
             KeyMapping perspectiveKey = mc.options.keyTogglePerspective;
             if (perspectiveKey.getKey().getType() == InputConstants.Type.KEYSYM &&
                 perspectiveKey.getKey().getValue() == keyCode) {
-                event.setCanceled(true);
                 toggleTopDownView();
                 // Forge 47.xでは InputEvent.Key が KeyMapping.click() の後に発火するため、
-                // cancelだけでは handleKeybinds() でのバニラ視点切替を防げない。
                 // 登録済みのクリックを消費して二重切替を防止する。
                 while (perspectiveKey.consumeClick()) { /* drain */ }
                 return;
