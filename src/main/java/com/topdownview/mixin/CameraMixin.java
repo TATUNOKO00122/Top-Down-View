@@ -149,6 +149,13 @@ public abstract class CameraMixin {
         double deltaX = currentMouseX - lastX;
         double deltaY = currentMouseY - lastY;
 
+        // マウスカーソル状態の切り替えや他MODとの競合による瞬間的なジャンプ（ワープ）を無視する
+        if (Math.abs(deltaX) > 100.0 || Math.abs(deltaY) > 100.0) {
+            ModState.CAMERA.setLastMouseX(currentMouseX);
+            ModState.CAMERA.setLastMouseY(currentMouseY);
+            return;
+        }
+
         double sensitivity = mc.options.sensitivity().get();
         double f = sensitivity * 0.6 + 0.2;
         double multiplier = f * f * f * 8.0;
