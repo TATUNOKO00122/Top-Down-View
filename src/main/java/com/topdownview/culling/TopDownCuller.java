@@ -58,6 +58,8 @@ public final class TopDownCuller {
     // 1ブロック毎のクリアは地下の階段昇降・洞穴の起伏で頻発しキャッシュミス連鎖を起こすため、
     // マンハッタン距離3まではキャッシュを再利用する（フェード描画で境界変化を補間）。
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 3;
+    // 空間認識中、インタラクト可能ブロックを足元から上へ何ブロック分保護するか
+    private static final int INTERACTABLE_SPACE_PROTECT_HEIGHT = 3;
 
     private double playerX;
     private double playerY;
@@ -87,6 +89,10 @@ public final class TopDownCuller {
     private int lastStairScanBlockY = Integer.MIN_VALUE;
     private int lastStairScanBlockZ = Integer.MIN_VALUE;
 
+    // 空間認識（階段除外と同一トリガ）で取得した空間。インタラクト可能ブロック保護の拡張に使用。
+    // isStaircaseExclusionEnabled 時のみ updateStairExclusion で更新される。
+    private SpaceRegion currentSpaceRegion = null;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
@@ -113,6 +119,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        currentSpaceRegion = null;
         LadderHelper.clearCache();
         resetLastBlockCoords();
     }
@@ -301,7 +308,13 @@ public final class TopDownCuller {
                     checkY--;
                 }
             }
-            if (checkY <= Math.floor(pY)) {
+            int feetY = (int) Math.floor(pY);
+            if (checkY <= feetY) {
+                return true;
+            }
+            // 空間認識中（階段除外と同一トリガ）は足元+1〜足元+3のインタラクト可能ブロックも保護
+            if (checkY > feetY && checkY <= feetY + INTERACTABLE_SPACE_PROTECT_HEIGHT
+                    && currentSpaceRegion != null && currentSpaceRegion.isValid()) {
                 return true;
             }
         }
@@ -372,27 +385,19 @@ public final class TopDownCuller {
             lastPlayerBlockZ = currentBlockZ;
         }
 
-        // 階段除外リストを更新（プレイヤーがブロック境界を超えたら再検出）
-        if (Config.isStaircaseExclusionEnabled()) {
-            updateStairExclusion(mc, currentBlockX, currentBlockY, currentBlockZ);
-        }
+        // 空間認識を更新（プレイヤーがブロック境界を超えたら再探索）。
+        // 階段除外は設定時のみ実行されるが、空間探索自体は常時実行。
+        updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
 
         updateEntityCulling(mc);
     }
 
     /**
-     * 階段除外リストを更新。
-     * プレイヤーが別ブロックに移動した時のみ再検出する（重い処理を毎tick走らせない）。
-     * 検出された階段の全段から、プレイヤー足元〜足元+exclusionHeight の範囲内のものを抽出。
+     * 空間認識と階段除外リストを更新。
+     * プレイヤーが別ブロックに移動した時のみ再探索する（重い処理を毎tick走らせない）。
+     * 空間探索は常時実行し currentSpaceRegion を更新。階段除外は isStaircaseExclusionEnabled 時のみ。
      */
-    private void updateStairExclusion(Minecraft mc, int blockX, int blockY, int blockZ) {
-        if (!Config.isStaircaseExclusionEnabled()) {
-            if (!excludedStairBlocks.isEmpty()) {
-                excludedStairBlocks.clear();
-            }
-            return;
-        }
-
+    private void updateSpaceRecognition(Minecraft mc, int blockX, int blockY, int blockZ) {
         // 前回スキャン位置からのマンハッタン距離を判定し、4ブロック未満であれば再利用（走査頻度の削減）
         if (lastStairScanBlockX != Integer.MIN_VALUE &&
             lastStairScanBlockY != Integer.MIN_VALUE &&
@@ -411,6 +416,7 @@ public final class TopDownCuller {
         excludedStairBlocks.clear();
 
         if (mc.level == null || mc.player == null) {
+            currentSpaceRegion = null;
             return;
         }
 
@@ -419,7 +425,13 @@ public final class TopDownCuller {
                 com.topdownview.state.SpaceDebugState.MAX_EXPLORE_BLOCKS,
                 com.topdownview.state.SpaceDebugState.MAX_WALL_THICKNESS,
                 com.topdownview.state.SpaceDebugState.MAX_HOLE_SIZE);
+        currentSpaceRegion = region;
         if (!region.isValid()) {
+            return;
+        }
+
+        // 階段除外は設定時のみ実行
+        if (!Config.isStaircaseExclusionEnabled()) {
             return;
         }
 
@@ -586,6 +598,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        currentSpaceRegion = null;
         LadderHelper.clearCache();
         resetLastBlockCoords();
         contextValid = false;
