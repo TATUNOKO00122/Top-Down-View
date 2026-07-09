@@ -6,8 +6,10 @@ import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
+import com.topdownview.spatial.SpaceAnalyzer;
 import com.topdownview.spatial.SpaceExplorer;
 import com.topdownview.spatial.SpaceRegion;
+import com.topdownview.spatial.SpaceType;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
@@ -58,8 +60,6 @@ public final class TopDownCuller {
     // 1ブロック毎のクリアは地下の階段昇降・洞穴の起伏で頻発しキャッシュミス連鎖を起こすため、
     // マンハッタン距離3まではキャッシュを再利用する（フェード描画で境界変化を補間）。
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 3;
-    // 空間認識中、インタラクト可能ブロックを足元から上へ何ブロック分保護するか
-    private static final int INTERACTABLE_SPACE_PROTECT_HEIGHT = 3;
 
     private double playerX;
     private double playerY;
@@ -308,18 +308,22 @@ public final class TopDownCuller {
                     checkY--;
                 }
             }
-            int feetY = (int) Math.floor(pY);
-            if (checkY <= feetY) {
-                return true;
-            }
-            // 空間認識中（階段除外と同一トリガ）は足元+1〜足元+3のインタラクト可能ブロックも保護
-            if (checkY > feetY && checkY <= feetY + INTERACTABLE_SPACE_PROTECT_HEIGHT
-                    && currentSpaceRegion != null && currentSpaceRegion.isValid()) {
+            // 通常時は足元+1（目線レベル）まで保護。
+            // 屋根のある閉空間（ROOM/CORRIDOR/CAVE）では足元+2まで保護（天井のチェスト等に手が届くよう拡張）。
+            boolean enclosed = currentSpaceRegion != null && currentSpaceRegion.isValid()
+                    && isEnclosedSpaceType(currentSpaceRegion.getType());
+            int protectY = enclosed ? playerFeetY + 2 : playerFeetY + 1;
+            if (checkY <= protectY) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /** 屋根のある閉空間タイプ（ROOM/CORRIDOR/CAVE）か。OUTDOOR・UNKNOWN は除外。 */
+    private static boolean isEnclosedSpaceType(SpaceType type) {
+        return type == SpaceType.ROOM || type == SpaceType.CORRIDOR || type == SpaceType.CAVE;
     }
 
     public void update() {
@@ -421,12 +425,13 @@ public final class TopDownCuller {
         }
 
         BlockPos seed = mc.player.blockPosition();
-        SpaceRegion region = SpaceExplorer.explore(mc.level, seed,
+        SpaceRegion raw = SpaceExplorer.explore(mc.level, seed,
                 com.topdownview.state.SpaceDebugState.MAX_EXPLORE_BLOCKS,
                 com.topdownview.state.SpaceDebugState.MAX_WALL_THICKNESS,
                 com.topdownview.state.SpaceDebugState.MAX_HOLE_SIZE);
-        currentSpaceRegion = region;
-        if (!region.isValid()) {
+        currentSpaceRegion = SpaceAnalyzer.classify(mc.level, raw,
+                com.topdownview.state.SpaceDebugState.MIN_ROOM_VOLUME);
+        if (!currentSpaceRegion.isValid()) {
             return;
         }
 
@@ -435,7 +440,7 @@ public final class TopDownCuller {
             return;
         }
 
-        List<Staircase> staircases = StairAnalyzer.detect(mc.level, region,
+        List<Staircase> staircases = StairAnalyzer.detect(mc.level, currentSpaceRegion,
                 com.topdownview.state.SpaceDebugState.MIN_STAIRCASE_STEPS);
         if (staircases.isEmpty()) {
             return;
