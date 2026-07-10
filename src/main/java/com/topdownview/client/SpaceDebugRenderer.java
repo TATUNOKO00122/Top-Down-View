@@ -77,7 +77,6 @@ public final class SpaceDebugRenderer {
         PoseStack poseStack = event.getPoseStack();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        renderWallBlocks(poseStack, mc, region, cameraPos);
         renderOpenings(poseStack, mc, region, cameraPos);
         renderStaircases(poseStack, mc, cameraPos);
         renderSeed(poseStack, mc, region, cameraPos);
@@ -145,59 +144,42 @@ public final class SpaceDebugRenderer {
 
     private static void renderOpenings(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
         if (region.getOpenings().isEmpty()) return;
-        int step = Math.max(1, region.getOpenings().size() / OPENING_SAMPLE_LIMIT);
 
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.0f);
+        RenderSystem.lineWidth(1.5f);
 
-        int idx = 0;
-        int drawn = 0;
         for (Opening opening : region.getOpenings()) {
-            if (idx++ % step != 0) continue;
-            if (drawn++ >= OPENING_SAMPLE_LIMIT) break;
+            if (opening.getType() != OpeningType.BOUNDARY_HOLE) {
+                continue; // オレンジ色（PASSAGE）などの開口部は描画をスキップ
+            }
+            java.util.Set<BlockPos> blocks = opening.getBlocks();
+            if (blocks.isEmpty()) continue;
 
-            BlockPos rep = opening.getRepresentativePos();
-            double x = rep.getX() + (1.0 - OPENING_BOX_SIZE) / 2.0 - cameraPos.x;
-            double y = rep.getY() + (1.0 - OPENING_BOX_SIZE) / 2.0 - cameraPos.y;
-            double z = rep.getZ() + (1.0 - OPENING_BOX_SIZE) / 2.0 - cameraPos.z;
-
-            float r, g, b;
-            if (opening.getType() == OpeningType.BOUNDARY_HOLE) {
-                r = 1.0f; g = 1.0f; b = 0.0f; // 黄：境界内の小穴
-            } else {
-                r = 1.0f; g = 0.5f; b = 0.0f; // オレンジ：別空間への接続
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            for (BlockPos p : blocks) {
+                int x = p.getX(), y = p.getY(), z = p.getZ();
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (z < minZ) minZ = z;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+                if (z > maxZ) maxZ = z;
             }
 
-            AABB box = new AABB(0, 0, 0, OPENING_BOX_SIZE, OPENING_BOX_SIZE, OPENING_BOX_SIZE);
-            poseStack.pushPose();
-            poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 0.4f);
-            poseStack.popPose();
-        }
-        mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
-    }
+            double x = minX - cameraPos.x;
+            double y = minY - cameraPos.y;
+            double z = minZ - cameraPos.z;
+            double dx = maxX - minX + 1;
+            double dy = maxY - minY + 1;
+            double dz = maxZ - minZ + 1;
 
-    private static void renderWallBlocks(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        if (region.getWallBlocks().isEmpty()) return;
-        int step = Math.max(1, region.getWallBlockCount() / WALL_SAMPLE_LIMIT);
-
-        VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.0f);
-
-        int idx = 0;
-        int drawn = 0;
-        for (BlockPos pos : region.getWallBlocks()) {
-            if (idx++ % step != 0) continue;
-            if (drawn++ >= WALL_SAMPLE_LIMIT) break;
-
-            double x = pos.getX() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.x;
-            double y = pos.getY() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.y;
-            double z = pos.getZ() + (1.0 - WALL_BOX_SIZE) / 2.0 - cameraPos.z;
-            AABB box = new AABB(0, 0, 0, WALL_BOX_SIZE, WALL_BOX_SIZE, WALL_BOX_SIZE);
+            float r = 1.0f, g = 1.0f, b = 0.0f; // 黄：境界内の小穴のみ描画
 
             poseStack.pushPose();
             poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, box, 1.0f, 0.2f, 0.2f, 0.3f);
+            LevelRenderer.renderLineBox(poseStack, vertices, 0, 0, 0, dx, dy, dz,
+                    r, g, b, 1.0f);
             poseStack.popPose();
         }
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());

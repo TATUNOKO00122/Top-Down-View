@@ -65,9 +65,9 @@ public final class SpaceExplorer {
         queue.add(seed);
         visited.add(seed.asLong());
 
-        // 平面 BFS のスキャン上限。maxHoleSize + 1 で十分
-        // （maxHoleSize + 1 個目が見つかった瞬間に size > maxHoleSize が確定し打ち切れる）
-        int maxHoleScan = maxHoleSize + 1;
+        // 平面 BFS のスキャン上限。
+        // 壁比率を分析して大きなドア等も検出するため、最大10マス（3x3の綺麗な正方形である9マス以下）まで拡張してスキャンします。
+        int maxHoleScan = Math.max(maxHoleSize + 1, 10);
 
         while (!queue.isEmpty() && airBlocks.size() < maxBlocks) {
             BlockPos pos = queue.poll();
@@ -97,8 +97,20 @@ public final class SpaceExplorer {
                             Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
                             recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
                                     openings, recordedOpeningReps);
+                        } else if (s < maxHoleScan) {
+                            // 3マス以上の開口部の場合、壁比率（Wall Ratio）を測定して判断
+                            Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
+                            double wallRatio = WallAnalyzer.calculateWallRatio(level, planeAir, dir);
+                            if (wallRatio >= 0.35) {
+                                // 周囲の35%以上が壁であれば「壁の中の穴（境界）」とみなす
+                                recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
+                                        openings, recordedOpeningReps);
+                            } else {
+                                // 壁が少ない開放的な開口部 → np を同一空間に追加
+                                queue.add(np);
+                            }
                         } else {
-                            // 開放 → np を同一空間に追加
+                            // 完全に開放された空間（8マス以上） → np を同一空間に追加
                             queue.add(np);
                         }
                     }
@@ -141,8 +153,20 @@ public final class SpaceExplorer {
             if (openingBlocks.isEmpty()) continue;
 
             int openingSize = openingBlocks.size();
-            OpeningType type = WallAnalyzer.classifyOpening(openingSize, maxHoleSize);
-            if (type == null) continue;
+            OpeningType type;
+            if (openingSize <= maxHoleSize) {
+                type = OpeningType.BOUNDARY_HOLE;
+            } else if (openingSize < maxHoleScan) {
+                // 壁比率が35%以上なら境界の穴（BOUNDARY_HOLE）、それ未満なら通路（PASSAGE）
+                double wallRatio = WallAnalyzer.calculateWallRatio(level, openingBlocks, dir);
+                if (wallRatio >= 0.35) {
+                    type = OpeningType.BOUNDARY_HOLE;
+                } else {
+                    type = OpeningType.PASSAGE;
+                }
+            } else {
+                type = OpeningType.PASSAGE;
+            }
 
             recordOpening(openingBlocks, dir, type, openings, recordedOpeningReps);
         }

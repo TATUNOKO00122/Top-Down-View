@@ -163,6 +163,43 @@ public final class WallAnalyzer {
     }
 
     /**
+     * 開口部（空気ブロック集合）の外周における固体ブロックの比率（壁率）を計算する。
+     */
+    public static double calculateWallRatio(BlockGetter level, Set<BlockPos> blocks, Direction dir) {
+        if (blocks.isEmpty()) return 0.0;
+        Direction axis1 = getPerpendicularAxis1(dir);
+        Direction axis2 = getPerpendicularAxis2(dir);
+
+        Set<Long> borderVisited = new HashSet<>();
+        int solidBorderCount = 0;
+        int totalBorderCount = 0;
+
+        Set<Long> blocksPacked = new HashSet<>(blocks.size());
+        for (BlockPos p : blocks) {
+            blocksPacked.add(p.asLong());
+        }
+
+        Direction[] neighbors = {axis1, axis1.getOpposite(), axis2, axis2.getOpposite()};
+        for (BlockPos p : blocks) {
+            for (Direction side : neighbors) {
+                BlockPos np = p.relative(side);
+                long packedNp = np.asLong();
+                if (!blocksPacked.contains(packedNp)) {
+                    if (borderVisited.add(packedNp)) {
+                        totalBorderCount++;
+                        if (isSolid(level, np)) {
+                            solidBorderCount++;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (totalBorderCount == 0) return 0.0;
+        return (double) solidBorderCount / totalBorderCount;
+    }
+
+    /**
      * 開口部サイズから OpeningType を判定。
      *
      * @return 開口部なしは null、小穴は BOUNDARY_HOLE、大穴は PASSAGE
