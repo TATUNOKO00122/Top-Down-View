@@ -91,26 +91,40 @@ public final class SpaceExplorer {
                         // np は空気 → 壁の穴か開放か判定
                         // まず size だけ取得（Set 生成なし）。開放ケース（大半）で Set 生成を省略
                         int s = WallAnalyzer.countAirOnPlane(level, pos, dir, maxHoleScan);
-                        if (s <= maxHoleSize) {
-                            // 壁の小穴 → np は別空間、Opening 記録
-                            // size が小さい（≤ maxHoleSize）ので collectAirOnPlane を呼び直しても軽い
-                            Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
-                            recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
-                                    openings, recordedOpeningReps);
-                        } else if (s < maxHoleScan) {
-                            // 3マス以上の開口部の場合、壁比率（Wall Ratio）を測定して判断
-                            Set<BlockPos> planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
-                            double wallRatio = WallAnalyzer.calculateWallRatio(level, planeAir, dir);
-                            if (wallRatio >= 0.35) {
-                                // 周囲の35%以上が壁であれば「壁の中の穴（境界）」とみなす
-                                recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
-                                        openings, recordedOpeningReps);
+                        if (s < maxHoleScan) {
+                            // 断面の空気サイズが小さい場合（maxHoleScan未満）は、壁比率とボトルネック（サイズ変化）で判断
+                            boolean isHoleCandidate = false;
+                            Set<BlockPos> planeAir = null;
+
+                            if (s <= maxHoleSize) {
+                                isHoleCandidate = true;
+                                planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
+                            } else {
+                                planeAir = WallAnalyzer.collectAirOnPlane(level, pos, dir, maxHoleScan);
+                                double wallRatio = WallAnalyzer.calculateWallRatio(level, planeAir, dir);
+                                if (wallRatio >= 0.35) {
+                                    isHoleCandidate = true;
+                                }
+                            }
+
+                            if (isHoleCandidate) {
+                                // 断面サイズが急激に変化している（ボトルネック）かチェック
+                                int s_next = WallAnalyzer.countAirOnPlane(level, np, dir, maxHoleScan);
+                                double sizeRatio = (double) Math.min(s, s_next) / Math.max(s, s_next);
+                                if (sizeRatio < 0.7) {
+                                    // ボトルネック（境界の穴）とみなす
+                                    recordOpening(planeAir, dir, OpeningType.BOUNDARY_HOLE,
+                                            openings, recordedOpeningReps);
+                                } else {
+                                    // 断面サイズがほぼ同じなら同一空間（狭い通路や極小部屋の内部）として探索続行
+                                    queue.add(np);
+                                }
                             } else {
                                 // 壁が少ない開放的な開口部 → np を同一空間に追加
                                 queue.add(np);
                             }
                         } else {
-                            // 完全に開放された空間（8マス以上） → np を同一空間に追加
+                            // 完全に開放された空間（10マス以上） → np を同一空間に追加
                             queue.add(np);
                         }
                     }

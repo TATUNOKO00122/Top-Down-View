@@ -46,39 +46,19 @@ public final class SpaceAnalyzer {
             return region.withType(SpaceType.UNKNOWN);
         }
 
-        int dx = region.getMaxX() - region.getMinX() + 1;
-        int dy = region.getMaxY() - region.getMinY() + 1;
-        int dz = region.getMaxZ() - region.getMinZ() + 1;
-
-        // 屋根・床のサンプリング判定
+        // 屋根のサンプリング判定
         int sampleStep = Math.max(1, airCount / SAMPLE_LIMIT);
-        int sampled = 0, roofed = 0, floored = 0;
+        int sampled = 0, roofed = 0;
         int idx = 0;
         for (BlockPos airPos : region.getAirBlocks()) {
             if (idx++ % sampleStep != 0) continue;
             sampled++;
             if (hasRoofAbove(level, airPos)) roofed++;
-            if (hasFloorBelow(level, airPos)) floored++;
         }
 
         boolean hasRoof = sampled > 0 && roofed * 2 >= sampled;
-        boolean hasFloor = sampled > 0 && floored * 2 >= sampled;
 
-        // 廊下判定：最大辺が最小辺の3倍以上かつ5ブロック以上
-        int maxDim = Math.max(dx, Math.max(dy, dz));
-        int minDim = Math.min(dx, Math.min(dy, dz));
-        boolean isCorridor = maxDim >= minDim * 3 && maxDim >= 5;
-
-        SpaceType type;
-        if (!hasRoof) {
-            type = SpaceType.OUTDOOR;
-        } else if (!hasFloor) {
-            type = SpaceType.CAVE;
-        } else if (isCorridor) {
-            type = SpaceType.CORRIDOR;
-        } else {
-            type = SpaceType.ROOM;
-        }
+        SpaceType type = hasRoof ? SpaceType.ENCLOSED : SpaceType.OUTDOOR;
 
         return region.withType(type);
     }
@@ -91,10 +71,5 @@ public final class SpaceAnalyzer {
             cursor = cursor.above();
         }
         return false;
-    }
-
-    /** 空気位置の直下が固体か */
-    private static boolean hasFloorBelow(BlockGetter level, BlockPos pos) {
-        return WallAnalyzer.isSolid(level, pos.below());
     }
 }

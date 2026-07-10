@@ -321,9 +321,9 @@ public final class TopDownCuller {
         return false;
     }
 
-    /** 屋根のある閉空間タイプ（ROOM/CORRIDOR/CAVE）か。OUTDOOR・UNKNOWN は除外。 */
+    /** 閉空間タイプ（ENCLOSED）か。OUTDOOR・UNKNOWN は除外。 */
     private static boolean isEnclosedSpaceType(SpaceType type) {
-        return type == SpaceType.ROOM || type == SpaceType.CORRIDOR || type == SpaceType.CAVE;
+        return type == SpaceType.ENCLOSED;
     }
 
     public void update() {

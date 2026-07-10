@@ -272,20 +272,16 @@ public final class SpaceDebugRenderer {
 
     private static float[] getTypeColor(SpaceType type) {
         return switch (type) {
-            case ROOM -> new float[]{0.0f, 1.0f, 0.0f};
-            case CORRIDOR -> new float[]{0.3f, 0.6f, 1.0f};
+            case ENCLOSED -> new float[]{0.0f, 1.0f, 0.0f};
             case OUTDOOR -> new float[]{1.0f, 1.0f, 0.0f};
-            case CAVE -> new float[]{1.0f, 0.4f, 1.0f};
             case UNKNOWN -> new float[]{0.5f, 0.5f, 0.5f};
         };
     }
 
     private static int getTypeTextColor(SpaceType type) {
         return switch (type) {
-            case ROOM -> 0xFF00FF00;
-            case CORRIDOR -> 0xFF66AAFF;
+            case ENCLOSED -> 0xFF00FF00;
             case OUTDOOR -> 0xFFFFFF00;
-            case CAVE -> 0xFFFF66FF;
             case UNKNOWN -> 0xFFAAAAAA;
         };
     }
