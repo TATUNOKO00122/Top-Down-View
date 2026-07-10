@@ -26,6 +26,7 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
@@ -495,7 +496,7 @@ public final class InteractionPromptRenderer {
      */
     private static AABB getBlockInteractionBounds(BlockState state, Level level, BlockPos pos) {
         Block block = state.getBlock();
-        AABB bounds = state.getShape(level, pos).bounds();
+        AABB bounds = getSafeBounds(state, level, pos);
         
         // ワールド座標系（ブロック絶対座標）に一時的にマッピング
         AABB worldBounds = bounds.move(pos.getX(), pos.getY(), pos.getZ());
@@ -506,7 +507,7 @@ public final class InteractionPromptRenderer {
             BlockPos otherPos = (half == DoubleBlockHalf.LOWER) ? pos.above() : pos.below();
             BlockState otherState = level.getBlockState(otherPos);
             if (otherState.getBlock() == block) {
-                AABB otherBounds = otherState.getShape(level, otherPos).bounds().move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
+                AABB otherBounds = getSafeBounds(otherState, level, otherPos).move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
                 worldBounds = worldBounds.minmax(otherBounds);
             }
         }
@@ -517,7 +518,7 @@ public final class InteractionPromptRenderer {
             BlockPos otherPos = (part == BedPart.FOOT) ? pos.relative(direction) : pos.relative(direction.getOpposite());
             BlockState otherState = level.getBlockState(otherPos);
             if (otherState.getBlock() == block) {
-                AABB otherBounds = otherState.getShape(level, otherPos).bounds().move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
+                AABB otherBounds = getSafeBounds(otherState, level, otherPos).move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
                 worldBounds = worldBounds.minmax(otherBounds);
             }
         }
@@ -530,7 +531,7 @@ public final class InteractionPromptRenderer {
                 BlockPos otherPos = pos.relative(otherDir);
                 BlockState otherState = level.getBlockState(otherPos);
                 if (otherState.getBlock() == block) {
-                    AABB otherBounds = otherState.getShape(level, otherPos).bounds().move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
+                    AABB otherBounds = getSafeBounds(otherState, level, otherPos).move(otherPos.getX(), otherPos.getY(), otherPos.getZ());
                     worldBounds = worldBounds.minmax(otherBounds);
                 }
             }
@@ -538,6 +539,18 @@ public final class InteractionPromptRenderer {
 
         // pos を原点 (0, 0, 0) としたローカル座標系に戻す
         return worldBounds.move(-pos.getX(), -pos.getY(), -pos.getZ());
+    }
+
+    /**
+     * 空のシェイプ（VoxelShape.empty()）でbounds()を呼び出した際のUnsupportedOperationExceptionを回避して
+     * 安全にバウンディングボックスを取得します。空の場合はデフォルトの 1x1x1 ボックスを返します。
+     */
+    private static AABB getSafeBounds(BlockState state, Level level, BlockPos pos) {
+        VoxelShape shape = state.getShape(level, pos);
+        if (shape.isEmpty()) {
+            return new AABB(0, 0, 0, 1, 1, 1);
+        }
+        return shape.bounds();
     }
 
     /**
