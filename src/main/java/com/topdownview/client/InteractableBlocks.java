@@ -1,33 +1,38 @@
 package com.topdownview.client;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.HashSet;
-import java.util.Set;
-
 public final class InteractableBlocks {
-
-
 
     private InteractableBlocks() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    public static boolean isInteractable(BlockState state, Level level, BlockPos pos) {
+    /**
+     * インタラクト可能ブロックか判定する。
+     * コンテナ系（チェスト・かまど等）は BlockEntity のインターフェースでジェネリック判定し、
+     * Mod追加ブロックも漏れなく検出する。非コンテナ系（ドア・はしご等）は vanilla instanceof ホワイトリストで補完する。
+     */
+    public static boolean isInteractable(BlockState state, BlockGetter level, BlockPos pos) {
         if (state == null || level == null || pos == null) return false;
 
         Block block = state.getBlock();
 
+        // コンテナ系: BaseEntityBlock で BlockEntity が MenuProvider または Container を実装していれば検出
+        // MenuProvider: GUI付きコンテナ（チェスト・かまど・作業台等）
+        // Container: インベントリ付きブロック（Mod追加のコンテナも含む）
         if (block instanceof BaseEntityBlock) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof MenuProvider) return true;
+            if (blockEntity instanceof MenuProvider || blockEntity instanceof Container) return true;
         }
 
+        // 非コンテナ系: vanilla instanceof ホワイトリスト（ドア・はしご・ボタン等）
         if (isInteractableSimple(state)) return true;
 
         return false;

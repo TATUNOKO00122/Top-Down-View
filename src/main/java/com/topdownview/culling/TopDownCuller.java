@@ -301,7 +301,7 @@ public final class TopDownCuller {
             return true;
         }
 
-        if (InteractableBlocks.isInteractableSimple(state)) {
+        if (InteractableBlocks.isInteractable(state, level, pos)) {
             int checkY = pos.getY();
             if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
                 if (state.getValue(net.minecraft.world.level.block.DoorBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) {
