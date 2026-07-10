@@ -83,8 +83,17 @@ public final class SpaceExplorer {
                     if (!visited.add(np.asLong())) continue;
 
                     if (WallAnalyzer.isSolid(level, np)) {
-                        // np は固体 → 壁ブロック。壁解析で向こう側の Opening を記録
                         wallBlocks.add(np);
+                        // 壁厚1で水平方向かつ上または下が空気の場合は家具や低い壁とみなし、
+                        // 向こう側を同一空間として追加（家具配置による空間分断を防ぐ）
+                        BlockPos beyond = np.relative(dir);
+                        if (dir.getAxis() != Direction.Axis.Y
+                                && !WallAnalyzer.isSolid(level, beyond)
+                                && (!WallAnalyzer.isSolid(level, np.above())
+                                    || !WallAnalyzer.isSolid(level, np.below()))
+                                && visited.add(beyond.asLong())) {
+                            queue.add(beyond);
+                        }
                         analyzeWallForOpenings(level, np, maxWallThickness, maxHoleSize, maxHoleScan,
                                 openings, recordedOpeningReps, analyzedWallDirs);
                     } else {
@@ -187,7 +196,11 @@ public final class SpaceExplorer {
     }
 
     /**
-     * Opening を記録。代表位置で重複排除する。
+     * Opening を記録。重複排除を2段階で行う：
+     * <ol>
+     *   <li>代表位置（最小座標）で同一BFS結果の重複を排除</li>
+     *   <li>ブロックレベルで部分重複をチェックし、大きい方を残す</li>
+     * </ol>
      */
     private static void recordOpening(Set<BlockPos> blocks,
                                       Direction dir,
@@ -195,9 +208,40 @@ public final class SpaceExplorer {
                                       Set<Opening> openings,
                                       Set<Long> recordedOpeningReps) {
         if (blocks.isEmpty()) return;
-        // 代表位置（最小座標）で重複排除。long で格納し BlockPos 生成を回避
+
+        // 代表位置で同一BFS結果の重複排除
         BlockPos rep = findMinPos(blocks);
         if (!recordedOpeningReps.add(rep.asLong())) return;
+
+        int newSize = blocks.size();
+        Set<Long> newBlockLongs = new HashSet<>();
+        for (BlockPos p : blocks) {
+            newBlockLongs.add(p.asLong());
+        }
+
+        // ブロックレベルの重複チェック：既存Openingと1ブロックでも重なれば大きい方を残す
+        var it = openings.iterator();
+        while (it.hasNext()) {
+            Opening existing = it.next();
+            boolean overlap = false;
+            for (BlockPos p : existing.getBlocks()) {
+                if (newBlockLongs.contains(p.asLong())) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (overlap) {
+                if (existing.getSize() >= newSize) {
+                    // 既存の方が大きい → 新しい方を切り捨て
+                    return;
+                } else {
+                    // 新しい方の方が大きい → 既存を削除
+                    recordedOpeningReps.remove(existing.getRepresentativePos().asLong());
+                    it.remove();
+                }
+            }
+        }
+
         openings.add(new Opening(blocks, type, dir));
     }
 

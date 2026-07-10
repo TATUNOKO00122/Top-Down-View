@@ -399,7 +399,8 @@ public final class TopDownCuller {
     /**
      * 空間認識と階段除外リストを更新。
      * プレイヤーが別ブロックに移動した時のみ再探索する（重い処理を毎tick走らせない）。
-     * 空間探索は常時実行し currentSpaceRegion を更新。階段除外は isStaircaseExclusionEnabled 時のみ。
+     * 階段検出は空間探索結果に依存せず独立スキャンするが、
+     * 保護（除外リストへの追加）は空間が検出されている場合のみ適用する。
      */
     private void updateSpaceRecognition(Minecraft mc, int blockX, int blockY, int blockZ) {
         // 前回スキャン位置からのマンハッタン距離を判定し、4ブロック未満であれば再利用（走査頻度の削減）
@@ -409,7 +410,7 @@ public final class TopDownCuller {
             int dx = Math.abs(blockX - lastStairScanBlockX);
             int dy = Math.abs(blockY - lastStairScanBlockY);
             int dz = Math.abs(blockZ - lastStairScanBlockZ);
-            if (dx + dy + dz < 4) {
+            if (dx + dy + dz < 2) {
                 return;
             }
         }
@@ -431,16 +432,19 @@ public final class TopDownCuller {
                 com.topdownview.state.SpaceDebugState.MAX_HOLE_SIZE);
         currentSpaceRegion = SpaceAnalyzer.classify(mc.level, raw,
                 com.topdownview.state.SpaceDebugState.MIN_ROOM_VOLUME);
-        if (!currentSpaceRegion.isValid()) {
-            return;
-        }
 
         // 階段除外は設定時のみ実行
         if (!Config.isStaircaseExclusionEnabled()) {
             return;
         }
 
-        List<Staircase> staircases = StairAnalyzer.detect(mc.level, currentSpaceRegion,
+        // 階段検出自体は独立スキャンで行うが、保護は囲まれた空間が検出されている場合のみ適用
+        if (currentSpaceRegion.getType() != SpaceType.ENCLOSED) {
+            return;
+        }
+
+        List<Staircase> staircases = StairAnalyzer.detect(mc.level, seed,
+                com.topdownview.state.SpaceDebugState.STAIR_SCAN_RADIUS,
                 com.topdownview.state.SpaceDebugState.MIN_STAIRCASE_STEPS);
         if (staircases.isEmpty()) {
             return;

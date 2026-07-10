@@ -28,6 +28,8 @@ public final class SpaceDebugState {
     public static final int MIN_ROOM_VOLUME = 8;
     /** 階段として認定する最小段数 */
     public static final int MIN_STAIRCASE_STEPS = 3;
+    /** 階段検出のスキャン半径（プレイヤーを中心とした立方体の辺 = 2*radius+1） */
+    public static final int STAIR_SCAN_RADIUS = 16;
 
     private boolean enabled = false;
     private SpaceRegion currentRegion = null;
@@ -87,7 +89,8 @@ public final class SpaceDebugState {
         SpaceRegion raw = SpaceExplorer.explore(level, seed,
                 MAX_EXPLORE_BLOCKS, MAX_WALL_THICKNESS, MAX_HOLE_SIZE);
         currentRegion = SpaceAnalyzer.classify(level, raw, MIN_ROOM_VOLUME);
-        currentStaircases = StairAnalyzer.detect(level, currentRegion, MIN_STAIRCASE_STEPS);
+        currentStaircases = StairAnalyzer.detect(level, seed,
+                STAIR_SCAN_RADIUS, MIN_STAIRCASE_STEPS);
         lastExploreTimeMs = System.currentTimeMillis() - start;
     }
 

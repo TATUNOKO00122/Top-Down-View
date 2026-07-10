@@ -12,7 +12,8 @@ import net.minecraft.world.level.block.StairBlock;
 /**
  * 階段検出エンジン。
  *
- * <p>SpaceRegion 内の壁ブロックから階段状の配置を検出する。
+ * <p>プレイヤー周辺の指定半径内をスキャンし、階段状の配置を検出する。
+ * 空間探索（SpaceRegion）に依存せず独立して動作する。
  * 階段 = 各段が前の段から水平1ブロック・垂直+1ブロックの位置にあり、
  * かつ各段の上が非固体（空気）である minSteps 段以上のブロック列。
  *
@@ -29,12 +30,16 @@ import net.minecraft.world.level.block.StairBlock;
  *
  * <p>アルゴリズム：
  * <ol>
- *   <li>wallBlocks を候補とする（空間の空気に隣接する固体ブロック）</li>
+ *   <li>center 周辺の立方体（2*radius+1 辺）をスキャンし、候補を収集</li>
+ *     <ul>
+ *       <li>候補 = 固体ブロック かつ 上が非固体（歩行可能な段）</li>
+ *     </ul>
  *   <li>各候補・各水平方向について、最下段から最上段までの最大シーケンスを構成</li>
  *     <ul>
  *       <li>findBottom: 逆方向・1下 に「上が非固体の候補」が続く限り下る</li>
  *       <li>extendUp: 正方向・1上 に「上が非固体の候補」が続く限り上る</li>
  *     </ul>
+ *   </li>
  *   <li>minSteps 段以上のシーケンスを長い順に採用（ブロック重複なし）</li>
  * </ol>
  *
@@ -50,19 +55,37 @@ public final class StairAnalyzer {
     }
 
     /**
-     * 空間内の階段を検出する。
+     * 指定中心位置の周辺から階段を検出する。空間探索結果に依存しない。
      *
      * @param level    ワールド（StairBlock判定・歩可行性判定に使用）
-     * @param region   探索済み空間
+     * @param center   スキャン中心位置（通常はプレイヤー位置）
+     * @param radius   スキャン半径（center を中心とした立方体の辺 = 2*radius+1）
      * @param minSteps 階段として認定する最小段数（3以上を推奨）
      * @return 検出された階段リスト（重複ブロックなし、長い順）
      */
-    public static List<Staircase> detect(BlockGetter level, SpaceRegion region, int minSteps) {
-        if (!region.isValid() || minSteps < 1) {
+    public static List<Staircase> detect(BlockGetter level, BlockPos center, int radius, int minSteps) {
+        if (level == null || center == null || radius < 1 || minSteps < 1) {
             return List.of();
         }
 
-        Set<BlockPos> candidates = new HashSet<>(region.getWallBlocks());
+        // center 周辺の立方体をスキャンし、階段の段となりうるブロックを収集。
+        // 候補 = 固体ブロック かつ 上が非固体（歩行可能な段）。
+        Set<BlockPos> candidates = new HashSet<>();
+        BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos aboveMut = new BlockPos.MutableBlockPos();
+        int cx = center.getX(), cy = center.getY(), cz = center.getZ();
+        for (int y = cy - radius; y <= cy + radius; y++) {
+            for (int x = cx - radius; x <= cx + radius; x++) {
+                for (int z = cz - radius; z <= cz + radius; z++) {
+                    mut.set(x, y, z);
+                    aboveMut.set(x, y + 1, z);
+                    if (WallAnalyzer.isSolid(level, mut) && !WallAnalyzer.isSolid(level, aboveMut)) {
+                        candidates.add(new BlockPos(x, y, z));
+                    }
+                }
+            }
+        }
+
         if (candidates.size() < minSteps) {
             return List.of();
         }
