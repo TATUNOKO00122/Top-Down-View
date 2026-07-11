@@ -27,6 +27,14 @@ public final class LadderHelper {
         return getChainLength(pos, level) >= 3;
     }
 
+    /**
+     * 指定位置のハシゴチェーン長を返す。ハシゴでない場合は -1。
+     * TopDownCuller のハシゴ視線遮蔽半透明化で使用。
+     */
+    public static int getChainLengthPublic(BlockPos pos, BlockGetter level) {
+        return getChainLength(pos, level);
+    }
+
     private static int getChainLength(BlockPos pos, BlockGetter level) {
         long posKey = pos.asLong();
         Integer cached = chainLengthCache.get(posKey);

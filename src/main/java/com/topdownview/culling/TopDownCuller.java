@@ -16,6 +16,8 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.entity.Entity;
@@ -30,6 +32,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -85,9 +88,16 @@ public final class TopDownCuller {
 
     // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロックはカリングから除外
     private final Set<BlockPos> excludedStairBlocks = new HashSet<>();
+    // 視線遮蔽半透明化用: excludedStairBlocks に含まれるブロックのシーケンス情報
+    private List<Staircase> detectedStaircases = List.of();
     private int lastStairScanBlockX = Integer.MIN_VALUE;
     private int lastStairScanBlockY = Integer.MIN_VALUE;
     private int lastStairScanBlockZ = Integer.MIN_VALUE;
+
+    // ハシゴ視線遮蔽半透明化用: プレイヤー足元付近の保護対象ハシゴチェーン
+    private final List<ProtectedLadderChain> protectedLadderChains = new ArrayList<>();
+    // ハシゴチェーンに属する全ブロック位置（ハシゴ自身＋支え壁）。isBlockCulled/isProtectedBlock の高速判定用
+    private final Set<BlockPos> protectedLadderPositions = new HashSet<>();
 
     // 空間認識（天井+壁スキャン）の結果。インタラクト可能ブロック保護の拡張に使用。
     // updateSpaceRecognition で更新される。
@@ -222,6 +232,15 @@ public final class TopDownCuller {
             }
         }
 
+        // ハシゴ視線遮蔽半透明化: 保護対象ハシゴチェーンに属するブロックはカリング対象とし、
+        // フェードキャッシュで半透明描画する（collectLadderOcclusionBlocks で登録）。
+        // isProtectedBlock より先に判定し、足元保護等に捕捉されないようにする。
+        if (Config.isLadderOccludeEnabled() && !protectedLadderPositions.isEmpty()
+                && protectedLadderPositions.contains(pos)) {
+            cullingCache.put(posLong, true);
+            return true;
+        }
+
         // その他保護対象ブロック判定（Trapdoor, 足元より下, インタラクト可能ブロック等）
         if (isProtectedBlock(pos, state, pY, level)) {
             cullingCache.put(posLong, false);
@@ -294,8 +313,12 @@ public final class TopDownCuller {
 
         int playerFeetY = (int) Math.floor(pY) - 1;
 
+        // ハシゴ視線遮蔽半透明化が有効な場合は、ハシゴ保護を無効化しカリング対象に流す
+        // （collectLadderOcclusionBlocks でフェードキャッシュに登録される）
+        boolean ladderOcclude = Config.isLadderOccludeEnabled();
+
         // ハシゴ自身が3個以上連続するチェーンに属し、かつプレイヤーの立っている位置+2以内から始まる場合保護
-        if (state.getBlock() instanceof LadderBlock) {
+        if (!ladderOcclude && state.getBlock() instanceof LadderBlock) {
             if (LadderHelper.isLadderInLongChain(pos, level)) {
                 int chainBottomY = LadderHelper.getChainBottomY(pos, level);
                 if (chainBottomY >= playerFeetY && chainBottomY <= playerFeetY + 1) {
@@ -305,7 +328,7 @@ public final class TopDownCuller {
         }
 
         // ハシゴの支え側ブロックで、かつそのハシゴがプレイヤー付近のチェーンなら保護
-        if (LadderHelper.isBlockBehindLadderChain(pos, level, playerFeetY)) {
+        if (!ladderOcclude && LadderHelper.isBlockBehindLadderChain(pos, level, playerFeetY)) {
             return true;
         }
 
@@ -341,9 +364,9 @@ public final class TopDownCuller {
                 }
             }
             // 通常時は足元+1（目線レベル）まで保護。
-            // 屋根のある閉空間（ENCLOSED）では足元+2まで保護（天井のチェスト等に手が届くよう拡張）。
+            // 屋根のある閉空間（ENCLOSED）では足元+3まで保護（天井のチェスト等に手が届くよう拡張）。
             boolean enclosed = currentSpaceEnclosed;
-            int protectY = enclosed ? playerFeetY + 2 : playerFeetY + 1;
+            int protectY = enclosed ? playerFeetY + 3 : playerFeetY + 1;
             if (checkY <= protectY) {
                 return true;
             }
@@ -473,6 +496,9 @@ public final class TopDownCuller {
         lastStairScanBlockZ = blockZ;
 
         excludedStairBlocks.clear();
+        detectedStaircases = List.of();
+        protectedLadderChains.clear();
+        protectedLadderPositions.clear();
 
         if (mc.level == null || mc.player == null) {
             currentSpaceEnclosed = false;
@@ -489,6 +515,15 @@ public final class TopDownCuller {
 
         BlockPos seed = mc.player.blockPosition();
         currentSpaceEnclosed = SpaceProbe.probe(mc.level, seed).isEnclosed();
+
+        // 足元Y（足元ブロック = eyeY-1 の床 = eyeY-2）。playerY は eyeY のブロック中心。
+        // update() で playerY = floor(eyeY)+0.5。足元床ブロック = floor(eyeY)-1。
+        int playerFeetY = blockY - 1;
+
+        // ハシゴチェーン収集（ハシゴ半透明化設定時のみ）。空間認識に依存せず常にスキャン。
+        if (Config.isLadderOccludeEnabled()) {
+            scanProtectedLadderChains(mc.level, blockX, blockY, blockZ, playerFeetY);
+        }
 
         // 階段除外は設定時のみ実行
         if (!Config.isStaircaseExclusionEnabled()) {
@@ -507,20 +542,88 @@ public final class TopDownCuller {
             return;
         }
 
-        // 足元Y（足元ブロック = eyeY-1 の床 = eyeY-2）。playerY は eyeY のブロック中心。
-        // update() で playerY = floor(eyeY)+0.5。足元床ブロック = floor(eyeY)-1。
-        int playerFeetY = blockY - 1;
         int exclusionHeight = Config.getStaircaseExclusionHeight();
         int minY = playerFeetY;
         int maxY = playerFeetY + exclusionHeight;
 
+        List<Staircase> detected = new ArrayList<>();
         for (Staircase stair : staircases) {
             // 天井の階段などを誤検出・除外しないよう、階段の最下段がプレイヤーの足元+1以下から始まるもののみに限定
             if (stair.getBottomPos().getY() <= playerFeetY + 1) {
+                boolean anyStepInRange = false;
                 for (BlockPos step : stair.getSteps()) {
                     if (step.getY() >= minY && step.getY() <= maxY) {
                         excludedStairBlocks.add(step.immutable());
+                        anyStepInRange = true;
                     }
+                }
+                // 視線遮蔽半透明化用にシーケンス全体を保持（範囲内の段が1つでもあれば）
+                if (anyStepInRange) {
+                    detected.add(stair);
+                }
+            }
+        }
+        detectedStaircases = detected;
+    }
+
+    /**
+     * プレイヤー周辺の保護対象ハシゴチェーンをスキャンし、protectedLadderChains と
+     * protectedLadderPositions に収集する。
+     * 保護対象 = 3個以上連続するハシゴチェーンで、最下段がプレイヤー足元〜足元+1 の範囲。
+     * 支え壁（FACING方向の隣接ブロック）も収集する。
+     */
+    private void scanProtectedLadderChains(net.minecraft.world.level.Level level,
+            int blockX, int blockY, int blockZ, int playerFeetY) {
+        int radius = com.topdownview.state.SpaceDebugState.STAIR_SCAN_RADIUS;
+        int minY = playerFeetY;
+        int maxY = playerFeetY + 1;
+        int levelMinY = level.getMinBuildHeight();
+        int levelMaxY = level.getMaxBuildHeight() - 1;
+
+        BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos();
+        Set<Long> scannedColumns = new HashSet<>();
+
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                int x = blockX + dx;
+                int z = blockZ + dz;
+                long columnKey = BlockPos.asLong(x, 0, z);
+                if (scannedColumns.contains(columnKey)) {
+                    continue;
+                }
+
+                // 足元Y〜足元Y+1 の範囲でハシゴを探す
+                for (int checkY = Math.max(minY, levelMinY); checkY <= Math.min(maxY, levelMaxY); checkY++) {
+                    checkPos.set(x, checkY, z);
+                    BlockState state = level.getBlockState(checkPos);
+                    if (!state.is(Blocks.LADDER)) {
+                        continue;
+                    }
+
+                    // チェーン全体を取得
+                    int chainLength = LadderHelper.getChainLengthPublic(checkPos, level);
+                    if (chainLength < 3) {
+                        continue;
+                    }
+                    int chainBottomY = LadderHelper.getChainBottomY(checkPos, level);
+                    if (chainBottomY < playerFeetY || chainBottomY > playerFeetY + 1) {
+                        continue;
+                    }
+
+                    scannedColumns.add(columnKey);
+
+                    int chainTopY = chainBottomY + chainLength - 1;
+                    Direction facing = state.getValue(LadderBlock.FACING);
+                    ProtectedLadderChain chain = new ProtectedLadderChain(
+                            x, z, chainBottomY, chainTopY, facing);
+                    protectedLadderChains.add(chain);
+
+                    // ハシゴ自身 + 支え壁を protectedLadderPositions に登録
+                    for (int y = chainBottomY; y <= chainTopY; y++) {
+                        protectedLadderPositions.add(new BlockPos(x, y, z));
+                        protectedLadderPositions.add(new BlockPos(chain.wallX, y, chain.wallZ));
+                    }
+                    break;
                 }
             }
         }
@@ -664,6 +767,9 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        detectedStaircases = List.of();
+        protectedLadderChains.clear();
+        protectedLadderPositions.clear();
         currentSpaceEnclosed = false;
         LadderHelper.clearCache();
         resetLastBlockCoords();
@@ -720,7 +826,9 @@ public final class TopDownCuller {
     }
 
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled())) {
+        if (!ModState.STATUS.isEnabled()
+                || (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled()
+                        && !Config.isStaircaseOccludeEnabled() && !Config.isLadderOccludeEnabled())) {
             return false;
         }
 
@@ -739,10 +847,11 @@ public final class TopDownCuller {
     public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
         boolean fadeEnabled = Config.isFadeEnabled();
         boolean stairOccludeEnabled = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
+        boolean ladderOccludeEnabled = Config.isLadderOccludeEnabled();
         boolean playerNearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
 
         if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode()
-                || (!fadeEnabled && !stairOccludeEnabled && !playerNearTranslucencyEnabled)) {
+                || (!fadeEnabled && !stairOccludeEnabled && !ladderOccludeEnabled && !playerNearTranslucencyEnabled)) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
@@ -786,6 +895,11 @@ public final class TopDownCuller {
         // 階段視線遮蔽ブロック収集を先に行う（優先度高、フェード有無に関わらず動作）
         if (stairOccludeEnabled) {
             collectStairOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
+        }
+
+        // ハシゴ視線遮蔽ブロック収集（フェード有無に関わらず動作）
+        if (ladderOccludeEnabled) {
+            collectLadderOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
         }
 
         // フェードブロック収集（フェードまたはプレイヤー周囲半透明化が有効時のみ）
@@ -875,6 +989,19 @@ public final class TopDownCuller {
                         continue;
                     }
 
+                    // 3b. ハシゴ視線遮蔽半透明化対象ブロックは collectLadderOcclusionBlocks で処理されるためスキップ
+                    // （collectFadeBlocks によるフェードアルファ上書きを防ぐ）
+                    if (Config.isLadderOccludeEnabled() && !protectedLadderPositions.isEmpty()
+                            && protectedLadderPositions.contains(mutablePos)) {
+                        continue;
+                    }
+
+                    // 3c. 階段視線遮蔽半透明化対象ブロックは collectStairOcclusionBlocks で処理されるためスキップ
+                    if (Config.isStaircaseOccludeEnabled() && !excludedStairBlocks.isEmpty()
+                            && excludedStairBlocks.contains(mutablePos)) {
+                        continue;
+                    }
+
                     // 4. 葉ブロックのFASTグラフィックス設定の処理
                     if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) &&
                             net.minecraft.client.Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
@@ -894,39 +1021,123 @@ public final class TopDownCuller {
 
     /**
      * 階段視線遮蔽ブロック収集。
-     * excludedStairBlocks の各ブロックについて視線遮蔽判定を行い、
-     * 遮蔽時は staircaseOccludeAlpha、非遮蔽時は 1.0（ほぼ不透明）で fadeCache に追加。
-     * alpha=1.0 で translucent 経路描画することで、チャンクメッシュ再構築不要化。
+     * 階段シーケンス単位で視線遮蔽判定を行い、シーケンス内のいずれかのブロックが視線を遮る場合、
+     * そのシーケンス全体（範囲内の段）を occludeAlpha で半透明化する。
+     * 視線を遮らないシーケンスは 1.0（不透明）で fadeCache に追加し、チャンクメッシュ再構築を不要化する。
      */
     private void collectStairOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
             double cX, double cY, double cZ) {
-        if (excludedStairBlocks.isEmpty()) {
+        if (detectedStaircases.isEmpty()) {
             return;
         }
 
         float occludeAlpha = (float) Config.getStaircaseOccludeAlpha();
 
-        for (BlockPos pos : excludedStairBlocks) {
+        for (Staircase stair : detectedStaircases) {
             if (fadeCache.isFadeBlocksFull()) {
                 return;
             }
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir()) {
-                continue;
+            // シーケンス内のいずれかのブロック（範囲内）が視線を遮るか判定
+            boolean anyOccluding = false;
+            for (BlockPos step : stair.getSteps()) {
+                if (!excludedStairBlocks.contains(step)) {
+                    continue;
+                }
+                if (isStairOccludingView(step, cX, cY, cZ, pX, pY, pZ)) {
+                    anyOccluding = true;
+                    break;
+                }
             }
-            float alpha = isStairOccludingView(pos, cX, cY, cZ, pX, pY, pZ) ? occludeAlpha : 1.0f;
-            fadeCache.putFadeBlock(pos.asLong(), alpha);
+            // シーケンス全体（範囲内の段）を同じアルファで登録
+            float alpha = anyOccluding ? occludeAlpha : 1.0f;
+            for (BlockPos step : stair.getSteps()) {
+                if (fadeCache.isFadeBlocksFull()) {
+                    return;
+                }
+                if (!excludedStairBlocks.contains(step)) {
+                    continue;
+                }
+                BlockState state = level.getBlockState(step);
+                if (state.isAir()) {
+                    continue;
+                }
+                fadeCache.putFadeBlock(step.asLong(), alpha);
+            }
         }
     }
 
     /**
-     * 視線遮蔽判定: カメラ→プレイヤーの視線レイがブロックの単位立方体AABBを通過するか。
+     * ハシゴ視線遮蔽ブロック収集。
+     * ハシゴチェーン単位で視線遮蔽判定を行い、チェーン内のいずれかのハシゴが視線を遮る場合、
+     * そのチェーン全体（ハシゴ自身＋支え壁）を ladderOccludeAlpha で半透明化する。
+     */
+    private void collectLadderOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
+        if (protectedLadderChains.isEmpty()) {
+            return;
+        }
+
+        float occludeAlpha = (float) Config.getLadderOccludeAlpha();
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+        for (ProtectedLadderChain chain : protectedLadderChains) {
+            if (fadeCache.isFadeBlocksFull()) {
+                return;
+            }
+            // チェーン内のいずれかのハシゴまたは支え壁が視線を遮るか判定
+            boolean anyOccluding = false;
+            for (int y = chain.bottomY; y <= chain.topY; y++) {
+                mutablePos.set(chain.x, y, chain.z);
+                if (isStairOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
+                    anyOccluding = true;
+                    break;
+                }
+            }
+            if (!anyOccluding) {
+                for (int y = chain.bottomY; y <= chain.topY; y++) {
+                    mutablePos.set(chain.wallX, y, chain.wallZ);
+                    if (isStairOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
+                        anyOccluding = true;
+                        break;
+                    }
+                }
+            }
+            // チェーン全体を同じアルファで登録（遮蔽時は occludeAlpha、非遮蔽時は 1.0 で不透明）。
+            // 非遮蔽時も alpha=1.0 で translucent 経路描画することでチャンクメッシュ再構築を不要化。
+            float alpha = anyOccluding ? occludeAlpha : 1.0f;
+            // チェーン全体（ハシゴ自身＋支え壁）をフェードキャッシュに追加
+            for (int y = chain.bottomY; y <= chain.topY; y++) {
+                if (fadeCache.isFadeBlocksFull()) {
+                    return;
+                }
+                // ハシゴ自身
+                mutablePos.set(chain.x, y, chain.z);
+                BlockState ladderState = level.getBlockState(mutablePos);
+                if (!ladderState.isAir()) {
+                    fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
+                }
+                // 支え壁
+                mutablePos.set(chain.wallX, y, chain.wallZ);
+                BlockState wallState = level.getBlockState(mutablePos);
+                if (!wallState.isAir() && wallState.getFluidState().isEmpty()) {
+                    fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
+                }
+            }
+        }
+    }
+
+    /**
+     * 視線遮蔽判定: カメラ→プレイヤーの視線レイがブロックの拡張AABBを通過するか。
      * スラブ法によるレイ-AABB交差判定。カメラ〜プレイヤー間の範囲のみ判定。
+     * AABB は各面に 0.5 ブロックのマージンを持ち、実効幅 2.0 ブロックで判定する。
      */
     private boolean isStairOccludingView(BlockPos pos, double cX, double cY, double cZ, double pX, double pY, double pZ) {
-        double minX = pos.getX();
-        double minY = pos.getY();
-        double minZ = pos.getZ();
+        double minX = pos.getX() - 0.5;
+        double minY = pos.getY() - 0.5;
+        double minZ = pos.getZ() - 0.5;
+        double maxX = pos.getX() + 1.5;
+        double maxY = pos.getY() + 1.5;
+        double maxZ = pos.getZ() + 1.5;
 
         double dirX = pX - cX;
         double dirY = pY - cY;
@@ -940,9 +1151,9 @@ public final class TopDownCuller {
         // t[0]=tmin, t[1]=tmax。カメラ〜プレイヤー間の範囲のみ判定
         double[] t = {0.0, 1.0};
 
-        if (!slabIntersect(cX, dirX, minX, minX + 1.0, t)) return false;
-        if (!slabIntersect(cY, dirY, minY, minY + 1.0, t)) return false;
-        if (!slabIntersect(cZ, dirZ, minZ, minZ + 1.0, t)) return false;
+        if (!slabIntersect(cX, dirX, minX, maxX, t)) return false;
+        if (!slabIntersect(cY, dirY, minY, maxY, t)) return false;
+        if (!slabIntersect(cZ, dirZ, minZ, maxZ, t)) return false;
 
         return true;
     }
@@ -995,5 +1206,30 @@ public final class TopDownCuller {
                 pX, pY, pZ, cX, cY, cZ);
         // シリンダー外（normalizedDistSq > 1.0）だが、境界の近く（1.5以内）のブロック
         return normalizedDistSq > 1.0 && normalizedDistSq <= 1.5;
+    }
+
+    /**
+     * 保護対象ハシゴチェーンの情報。
+     * ハシゴは同一(x,z)で上下に連続する。支え壁はハシゴのFACINGと逆方向（壁側）の隣接ブロック。
+     */
+    private static final class ProtectedLadderChain {
+        final int x;
+        final int z;
+        final int bottomY;
+        final int topY;
+        // 支え壁の(x,z)。FACINGの逆方向（=壁がある方向）に1ブロック隣接。
+        final int wallX;
+        final int wallZ;
+
+        ProtectedLadderChain(int x, int z, int bottomY, int topY, Direction facing) {
+            this.x = x;
+            this.z = z;
+            this.bottomY = bottomY;
+            this.topY = topY;
+            // LadderBlock.FACING はハシゴが「張り付いている壁」と反対方向を指す。
+            // よって壁は FACING の逆方向にある。
+            this.wallX = x - facing.getStepX();
+            this.wallZ = z - facing.getStepZ();
+        }
     }
 }

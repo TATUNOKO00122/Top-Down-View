@@ -60,7 +60,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue AUTO_ALIGN_ANIMATION_SPEED = BUILDER
             .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
     private static final ForgeConfigSpec.BooleanValue MOB_CULLING_ENABLED = BUILDER
-            .define("mobCullingEnabled", false);
+            .define("mobCullingEnabled", true);
     private static final ForgeConfigSpec.BooleanValue MOB_TRANSLUCENCY_ENABLED = BUILDER
             .define("mobTranslucencyEnabled", false);
     private static final ForgeConfigSpec.DoubleValue MOB_TRANSLUCENCY_ALPHA = BUILDER
@@ -184,15 +184,21 @@ public class Config {
     // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
             .comment("Excludes staircase blocks from culling. (May impact performance / 動作が少し重くなります)")
-            .define("staircaseExclusionEnabled", false);
+            .define("staircaseExclusionEnabled", true);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
             .defineInRange("staircaseExclusionHeight", 2, 1, 10);
 
     // 階段視線遮蔽時の透明度設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
-            .define("staircaseOccludeEnabled", false);
+            .define("staircaseOccludeEnabled", true);
     private static final ForgeConfigSpec.DoubleValue STAIRCASE_OCCLUDE_ALPHA = BUILDER
-            .defineInRange("staircaseOccludeAlpha", 0.0, 0.0, 1.0);
+            .defineInRange("staircaseOccludeAlpha", 0.4, 0.0, 1.0);
+
+    // ハシゴ視線遮蔽時の透明度設定
+    private static final ForgeConfigSpec.BooleanValue LADDER_OCCLUDE_ENABLED = BUILDER
+            .define("ladderOccludeEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue LADDER_OCCLUDE_ALPHA = BUILDER
+            .defineInRange("ladderOccludeAlpha", 0.4, 0.0, 1.0);
 
     // ブロック配置方向手動指定
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
@@ -319,6 +325,8 @@ public class Config {
     private static int staircaseExclusionHeight;
     private static boolean staircaseOccludeEnabled;
     private static double staircaseOccludeAlpha;
+    private static boolean ladderOccludeEnabled;
+    private static double ladderOccludeAlpha;
     private static boolean placementRotationEnabled;
     private static boolean ignoreLeavesInRaycast;
     private static boolean protectNaturalTreeLogs;
@@ -413,6 +421,8 @@ public class Config {
     public static int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
     public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
+    public static boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
+    public static double getLadderOccludeAlpha() { return ladderOccludeAlpha; }
     public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public static boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
@@ -512,6 +522,8 @@ public class Config {
     public static void setStaircaseExclusionHeight(int value) { staircaseExclusionHeight = clamp(value, 1, 10); }
     public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
+    public static void setLadderOccludeEnabled(boolean value) { ladderOccludeEnabled = value; }
+    public static void setLadderOccludeAlpha(double value) { ladderOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
     public static void setProtectNaturalTreeLogs(boolean value) { protectNaturalTreeLogs = value; }
@@ -625,6 +637,8 @@ public class Config {
         staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.get();
         staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
+        ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.get();
+        ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.get();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.get();
@@ -726,6 +740,8 @@ public class Config {
         STAIRCASE_EXCLUSION_HEIGHT.set(staircaseExclusionHeight);
         STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
+        LADDER_OCCLUDE_ENABLED.set(ladderOccludeEnabled);
+        LADDER_OCCLUDE_ALPHA.set(ladderOccludeAlpha);
         PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
         PROTECT_NATURAL_TREE_LOGS.set(protectNaturalTreeLogs);
@@ -820,6 +836,8 @@ public class Config {
         staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.getDefault();
         staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.getDefault();
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
+        ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.getDefault();
+        ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.getDefault();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.getDefault();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.getDefault();
