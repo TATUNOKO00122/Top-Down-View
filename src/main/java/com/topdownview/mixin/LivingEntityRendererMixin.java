@@ -211,7 +211,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
             return FORWARD_FALLBACK;
         }
         if (ModState.CAMERA.isFreeCameraMode() || ModState.CAMERA.isDragging()) {
-            return getPlayerLookHorizontal(mc);
+            return getCameraLookHorizontal();
         }
 
         Vec3 playerEyePos = mc.player.getEyePosition(partialTick);
@@ -226,6 +226,18 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
         }
 
         return getPlayerLookHorizontal(mc);
+    }
+
+    private Vec3 getCameraLookHorizontal() {
+        float yaw = ModState.CAMERA.getYaw();
+        double yawRad = Math.toRadians(yaw);
+        double x = -Math.sin(yawRad);
+        double z = Math.cos(yawRad);
+        double len = Math.sqrt(x * x + z * z);
+        if (len < 1.0e-6) {
+            return FORWARD_FALLBACK;
+        }
+        return new Vec3(x / len, 0.0, z / len);
     }
 
     private Vec3 getPlayerLookHorizontal(Minecraft mc) {

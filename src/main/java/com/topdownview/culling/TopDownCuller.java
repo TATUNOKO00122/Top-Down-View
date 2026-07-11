@@ -72,6 +72,9 @@ public final class TopDownCuller {
     private int lastPlayerBlockX = Integer.MIN_VALUE;
     private int lastPlayerBlockY = Integer.MIN_VALUE;
     private int lastPlayerBlockZ = Integer.MIN_VALUE;
+    private int lastCameraBlockX = Integer.MIN_VALUE;
+    private int lastCameraBlockY = Integer.MIN_VALUE;
+    private int lastCameraBlockZ = Integer.MIN_VALUE;
 
     // フェードブロック再構築判定用: 前回走査時のプレイヤー/カメラブロック座標。
     // 座標が変化した時のみ collectFadeBlocks を再実行し、プレイヤー静止時の毎tick全走査を回避。
@@ -142,6 +145,9 @@ public final class TopDownCuller {
         lastPlayerBlockX = Integer.MIN_VALUE;
         lastPlayerBlockY = Integer.MIN_VALUE;
         lastPlayerBlockZ = Integer.MIN_VALUE;
+        lastCameraBlockX = Integer.MIN_VALUE;
+        lastCameraBlockY = Integer.MIN_VALUE;
+        lastCameraBlockZ = Integer.MIN_VALUE;
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -400,22 +406,50 @@ public final class TopDownCuller {
         int currentBlockY = (int) Math.floor(eyeY);
         int currentBlockZ = (int) Math.floor(eyeZ);
 
-        // マンハッタン距離が閾値以上の時のみキャッシュクリア（地下の微小移動での頻発を抑制）
+        int currentCamBlockX = (int) Math.floor(rawCameraX);
+        int currentCamBlockY = (int) Math.floor(rawCameraY);
+        int currentCamBlockZ = (int) Math.floor(rawCameraZ);
+
+        boolean playerMoved = false;
         if (lastPlayerBlockX != Integer.MIN_VALUE) {
             int moveDist = Math.abs(currentBlockX - lastPlayerBlockX)
                     + Math.abs(currentBlockY - lastPlayerBlockY)
                     + Math.abs(currentBlockZ - lastPlayerBlockZ);
             if (moveDist >= CACHE_CLEAR_MOVE_THRESHOLD) {
-                cullingCache.clear();
-                fadeCache.clear();
-                lastPlayerBlockX = currentBlockX;
-                lastPlayerBlockY = currentBlockY;
-                lastPlayerBlockZ = currentBlockZ;
+                playerMoved = true;
             }
         } else {
             lastPlayerBlockX = currentBlockX;
             lastPlayerBlockY = currentBlockY;
             lastPlayerBlockZ = currentBlockZ;
+        }
+
+        boolean cameraMoved = false;
+        if (lastCameraBlockX != Integer.MIN_VALUE) {
+            if (currentCamBlockX != lastCameraBlockX ||
+                currentCamBlockY != lastCameraBlockY ||
+                currentCamBlockZ != lastCameraBlockZ) {
+                cameraMoved = true;
+            }
+        } else {
+            lastCameraBlockX = currentCamBlockX;
+            lastCameraBlockY = currentCamBlockY;
+            lastCameraBlockZ = currentCamBlockZ;
+        }
+
+        if (playerMoved || cameraMoved) {
+            cullingCache.clear();
+            fadeCache.clear();
+            if (playerMoved) {
+                lastPlayerBlockX = currentBlockX;
+                lastPlayerBlockY = currentBlockY;
+                lastPlayerBlockZ = currentBlockZ;
+            }
+            if (cameraMoved) {
+                lastCameraBlockX = currentCamBlockX;
+                lastCameraBlockY = currentCamBlockY;
+                lastCameraBlockZ = currentCamBlockZ;
+            }
         }
 
         // 空間認識を更新（プレイヤーがブロック境界を超えたら再探索）。
