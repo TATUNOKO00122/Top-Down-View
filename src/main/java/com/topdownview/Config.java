@@ -127,8 +127,6 @@ public class Config {
             .defineInRange("maxCameraDistance", 50.0, 0.0, 200.0);
     private static final ForgeConfigSpec.DoubleValue DEFAULT_CAMERA_DISTANCE = BUILDER
             .defineInRange("defaultCameraDistance", 30.0, 0.0, 100.0);
-    private static final ForgeConfigSpec.BooleanValue DRAG_ROTATION_ENABLED = BUILDER
-            .define("dragRotationEnabled", true);
     private static final ForgeConfigSpec.BooleanValue CAMERA_Y_FOLLOW_DELAY_ENABLED = BUILDER
             .define("cameraYFollowDelayEnabled", true);
     private static final ForgeConfigSpec.DoubleValue CAMERA_Y_FOLLOW_DELAY = BUILDER
@@ -291,7 +289,6 @@ public class Config {
     private static double miningModePitch;
     private static double maxCameraDistance;
     private static double defaultCameraDistance;
-    private static boolean dragRotationEnabled;
     private static boolean cameraYFollowDelayEnabled;
     private static double cameraYFollowDelay;
     private static boolean cameraXFollowDelayEnabled;
@@ -386,7 +383,6 @@ public class Config {
     public static double getMiningModePitch() { return miningModePitch; }
     public static double getMaxCameraDistance() { return maxCameraDistance; }
     public static double getDefaultCameraDistance() { return defaultCameraDistance; }
-    public static boolean isDragRotationEnabled() { return dragRotationEnabled; }
     public static boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
     public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
     public static boolean isCameraXFollowDelayEnabled() { return cameraXFollowDelayEnabled; }
@@ -487,7 +483,6 @@ public class Config {
     public static void setMiningModePitch(double value) { miningModePitch = clamp(value, 10.0, 90.0); }
     public static void setMaxCameraDistance(double value) { maxCameraDistance = clamp(value, 0.0, 200.0); }
     public static void setDefaultCameraDistance(double value) { defaultCameraDistance = Math.min(clamp(value, 0.0, 200.0), maxCameraDistance); }
-    public static void setDragRotationEnabled(boolean value) { dragRotationEnabled = value; }
     public static void setCameraYFollowDelayEnabled(boolean value) { cameraYFollowDelayEnabled = value; }
     public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = clamp(value, 0.0, 4.0); }
     public static void setCameraXFollowDelayEnabled(boolean value) { cameraXFollowDelayEnabled = value; }
@@ -601,7 +596,6 @@ public class Config {
         miningModePitch = MINING_MODE_PITCH.get();
         maxCameraDistance = MAX_CAMERA_DISTANCE.get();
         defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.get();
-        dragRotationEnabled = DRAG_ROTATION_ENABLED.get();
         cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.get();
         cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.get();
         cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.get();
@@ -703,7 +697,6 @@ public class Config {
         MINING_MODE_PITCH.set(miningModePitch);
         MAX_CAMERA_DISTANCE.set(maxCameraDistance);
         DEFAULT_CAMERA_DISTANCE.set(defaultCameraDistance);
-        DRAG_ROTATION_ENABLED.set(dragRotationEnabled);
         CAMERA_Y_FOLLOW_DELAY_ENABLED.set(cameraYFollowDelayEnabled);
         CAMERA_Y_FOLLOW_DELAY.set(cameraYFollowDelay);
         CAMERA_X_FOLLOW_DELAY_ENABLED.set(cameraXFollowDelayEnabled);
@@ -798,7 +791,6 @@ public class Config {
         miningModePitch = MINING_MODE_PITCH.getDefault();
         maxCameraDistance = MAX_CAMERA_DISTANCE.getDefault();
         defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.getDefault();
-        dragRotationEnabled = DRAG_ROTATION_ENABLED.getDefault();
         cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.getDefault();
         cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.getDefault();
         cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.getDefault();

@@ -386,18 +386,6 @@ public class ConfigScreen extends Screen {
                 }, 0));
         y += sp;
 
-        y = addSection(y, "topdown_view.config.section.drag_rotation", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.drag_rotation_enabled", Config.isDragRotationEnabled()),
-                btn -> {
-                    Config.setDragRotationEnabled(!Config.isDragRotationEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.drag_rotation_enabled",
-                            Config.isDragRotationEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.drag_rotation_enabled.tooltip")))
-                .build());
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.auto_align_to_movement", Config.isAutoAlignToMovementEnabled()),

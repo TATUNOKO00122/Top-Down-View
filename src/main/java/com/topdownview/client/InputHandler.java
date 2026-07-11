@@ -110,8 +110,8 @@ public final class InputHandler {
             }
         }
 
-        // ドラッグ回転の処理
-        if (ModState.STATUS.isEnabled() && Config.isDragRotationEnabled()) {
+        // カメラ回転（ホールド）の処理
+        if (ModState.STATUS.isEnabled()) {
             int dragButton = ClientModBusEvents.DRAG_ROTATE_KEY.getKey().getValue();
 
             if (event.getButton() == dragButton) {
@@ -137,12 +137,10 @@ public final class InputHandler {
     }
 
     /**
-     * ドラッグ回転の更新処理（ClientTickEventから呼び出し）
+     * カメラ回転（ホールド）の更新処理（ClientTickEventから呼び出し）
      */
     public static void updateDragRotation(Minecraft mc) {
         if (!ModState.STATUS.isEnabled())
-            return;
-        if (!Config.isDragRotationEnabled())
             return;
         if (!ModState.CAMERA.isDragging())
             return;
@@ -293,8 +291,9 @@ public final class InputHandler {
         boolean isZoomModifierDown = ClientModBusEvents.ZOOM_MODIFIER_KEY.isDown();
         boolean isFreeCameraMode = ModState.CAMERA.isFreeCameraMode();
         boolean isScrollOnlyZoom = com.topdownview.Config.isScrollOnlyZoomEnabled();
+        boolean isDragging = ModState.CAMERA.isDragging();
 
-        if (isZoomModifierDown || isFreeCameraMode || isScrollOnlyZoom) {
+        if (isZoomModifierDown || isFreeCameraMode || isScrollOnlyZoom || isDragging) {
             double newDistance = ModState.CAMERA.getCameraDistance() - scroll * 1.5;
             double maxDistance = com.topdownview.state.CameraState.getEffectiveMaxCameraDistance();
             double clampedDistance = Math.max(com.topdownview.state.CameraState.MIN_CAMERA_DISTANCE,
