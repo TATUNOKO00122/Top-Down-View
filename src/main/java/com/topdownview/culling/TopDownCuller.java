@@ -6,10 +6,7 @@ import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
-import com.topdownview.spatial.SpaceAnalyzer;
-import com.topdownview.spatial.SpaceExplorer;
-import com.topdownview.spatial.SpaceRegion;
-import com.topdownview.spatial.SpaceType;
+import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
@@ -92,9 +89,9 @@ public final class TopDownCuller {
     private int lastStairScanBlockY = Integer.MIN_VALUE;
     private int lastStairScanBlockZ = Integer.MIN_VALUE;
 
-    // 空間認識（階段除外と同一トリガ）で取得した空間。インタラクト可能ブロック保護の拡張に使用。
-    // isStaircaseExclusionEnabled 時のみ updateStairExclusion で更新される。
-    private SpaceRegion currentSpaceRegion = null;
+    // 空間認識（天井+壁スキャン）の結果。インタラクト可能ブロック保護の拡張に使用。
+    // updateSpaceRecognition で更新される。
+    private boolean currentSpaceEnclosed = false;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -122,7 +119,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
-        currentSpaceRegion = null;
+        currentSpaceEnclosed = false;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -344,9 +341,8 @@ public final class TopDownCuller {
                 }
             }
             // 通常時は足元+1（目線レベル）まで保護。
-            // 屋根のある閉空間（ROOM/CORRIDOR/CAVE）では足元+2まで保護（天井のチェスト等に手が届くよう拡張）。
-            boolean enclosed = currentSpaceRegion != null && currentSpaceRegion.isValid()
-                    && isEnclosedSpaceType(currentSpaceRegion.getType());
+            // 屋根のある閉空間（ENCLOSED）では足元+2まで保護（天井のチェスト等に手が届くよう拡張）。
+            boolean enclosed = currentSpaceEnclosed;
             int protectY = enclosed ? playerFeetY + 2 : playerFeetY + 1;
             if (checkY <= protectY) {
                 return true;
@@ -354,11 +350,6 @@ public final class TopDownCuller {
         }
 
         return false;
-    }
-
-    /** 閉空間タイプ（ENCLOSED）か。OUTDOOR・UNKNOWN は除外。 */
-    private static boolean isEnclosedSpaceType(SpaceType type) {
-        return type == SpaceType.ENCLOSED;
     }
 
     public void update() {
@@ -484,7 +475,7 @@ public final class TopDownCuller {
         excludedStairBlocks.clear();
 
         if (mc.level == null || mc.player == null) {
-            currentSpaceRegion = null;
+            currentSpaceEnclosed = false;
             return;
         }
 
@@ -497,12 +488,7 @@ public final class TopDownCuller {
         }
 
         BlockPos seed = mc.player.blockPosition();
-        SpaceRegion raw = SpaceExplorer.explore(mc.level, seed,
-                com.topdownview.state.SpaceDebugState.MAX_EXPLORE_BLOCKS,
-                com.topdownview.state.SpaceDebugState.MAX_WALL_THICKNESS,
-                com.topdownview.state.SpaceDebugState.MAX_HOLE_SIZE);
-        currentSpaceRegion = SpaceAnalyzer.classify(mc.level, raw,
-                com.topdownview.state.SpaceDebugState.MIN_ROOM_VOLUME);
+        currentSpaceEnclosed = SpaceProbe.probe(mc.level, seed).isEnclosed();
 
         // 階段除外は設定時のみ実行
         if (!Config.isStaircaseExclusionEnabled()) {
@@ -510,7 +496,7 @@ public final class TopDownCuller {
         }
 
         // 階段検出自体は独立スキャンで行うが、保護は囲まれた空間が検出されている場合のみ適用
-        if (currentSpaceRegion.getType() != SpaceType.ENCLOSED) {
+        if (!currentSpaceEnclosed) {
             return;
         }
 
@@ -678,7 +664,7 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
-        currentSpaceRegion = null;
+        currentSpaceEnclosed = false;
         LadderHelper.clearCache();
         resetLastBlockCoords();
         contextValid = false;

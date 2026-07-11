@@ -3,10 +3,7 @@ package com.topdownview.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.topdownview.spatial.Opening;
-import com.topdownview.spatial.OpeningType;
-import com.topdownview.spatial.SpaceRegion;
-import com.topdownview.spatial.SpaceType;
+import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
 import java.util.List;
@@ -15,39 +12,32 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 
 /**
- * 空間探索デバッグ可視化レンダラー。
+ * 空間判定デバッグ可視化レンダラー。
  *
- * <p>SpaceExplorer/SpaceAnalyzer の動作確認用。
- * 既存のCulling等には統合せず、独立して描画する。
+ * <p>SpaceProbe（天井+壁スキャン）の動作確認用。
  *
  * <p>描画内容：
  * <ul>
- *   <li>境界ボックス：太線、色＝SpaceType（ROOM=緑/CORRIDOR=青/OUTDOOR=黄/CAVE=紫/UNKNOWN=灰）</li>
- *   <li>シード位置：白の小立方体</li>
- *   <li>開口部：黄（小穴）/オレンジ（大穴）の小立方体</li>
- *   <li>壁ブロック：サンプリング赤細線（上限150個）</li>
+ *   <li>天井位置：緑の小立方体（enclosed）/黄色（not enclosed）</li>
+ *   <li>壁位置：各方向の壁検出位置に小立方体（緑=検出/赤=未検出）</li>
  *   <li>階段：シアン(StairBlock含む)/マゼンタ(通常ブロック)の小立方体</li>
- *   <li>HUD：画面左上に空間情報テキスト</li>
+ *   <li>HUD：画面左上に判定結果テキスト</li>
  * </ul>
  */
 public final class SpaceDebugRenderer {
 
-    private static final float SEED_BOX_SIZE = 0.5f;
-    private static final float OPENING_BOX_SIZE = 0.4f;
-    private static final float STAIR_BOX_SIZE = 0.45f;
-    private static final float WALL_BOX_SIZE = 0.15f;
-    private static final int OPENING_SAMPLE_LIMIT = 30;
-    private static final int WALL_SAMPLE_LIMIT = 50;
-    /** プレイヤーがこのブロック数以上移動したら再探索 */
-    private static final int REEXPLORE_DISTANCE = 2;
+    private static final float BOX_SIZE = 0.4f;
+    /** プレイヤーがこのブロック数以上移動したら再判定 */
+    private static final int REPROBE_DISTANCE = 2;
 
-    private static BlockPos lastExploreSeed = null;
+    private static BlockPos lastProbeSeed = null;
 
     private SpaceDebugRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -64,23 +54,21 @@ public final class SpaceDebugRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        // プレイヤー移動に応じて再探索
+        // プレイヤー移動に応じて再判定
         BlockPos playerPos = mc.player.blockPosition();
-        if (lastExploreSeed == null || lastExploreSeed.distManhattan(playerPos) > REEXPLORE_DISTANCE) {
+        if (lastProbeSeed == null || lastProbeSeed.distManhattan(playerPos) > REPROBE_DISTANCE) {
             ModState.SPACE_DEBUG.update(mc.level, playerPos);
-            lastExploreSeed = playerPos;
+            lastProbeSeed = playerPos;
         }
 
-        SpaceRegion region = ModState.SPACE_DEBUG.getCurrentRegion();
-        if (region == null || !region.isValid()) return;
+        SpaceProbe.Result result = ModState.SPACE_DEBUG.getCurrentResult();
+        if (result == null) return;
 
         PoseStack poseStack = event.getPoseStack();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        renderOpenings(poseStack, mc, region, cameraPos);
+        renderProbeResult(poseStack, mc, result, cameraPos);
         renderStaircases(poseStack, mc, cameraPos);
-        renderSeed(poseStack, mc, region, cameraPos);
-        renderBoundingBox(poseStack, mc, region, cameraPos);
     }
 
     /**
@@ -93,95 +81,48 @@ public final class SpaceDebugRenderer {
         if (mc.level == null || mc.player == null) return;
 
         GuiGraphics gg = event.getGuiGraphics();
-        SpaceRegion region = ModState.SPACE_DEBUG.getCurrentRegion();
+        SpaceProbe.Result result = ModState.SPACE_DEBUG.getCurrentResult();
 
-        renderHudText(gg, mc, region);
+        renderHudText(gg, mc, result);
     }
 
     /** プレイヤーが次元移動等した時にキャッシュをクリア */
     public static void clearCache() {
-        lastExploreSeed = null;
+        lastProbeSeed = null;
     }
 
-    private static void renderBoundingBox(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        float[] rgb = getTypeColor(region.getType());
-        double x = region.getMinX() - cameraPos.x;
-        double y = region.getMinY() - cameraPos.y;
-        double z = region.getMinZ() - cameraPos.z;
-        double dx = region.getMaxX() - region.getMinX() + 1;
-        double dy = region.getMaxY() - region.getMinY() + 1;
-        double dz = region.getMaxZ() - region.getMinZ() + 1;
-
-        VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.5f);
-
-        poseStack.pushPose();
-        poseStack.translate(x, y, z);
-        LevelRenderer.renderLineBox(poseStack, vertices, 0, 0, 0, dx, dy, dz,
-                rgb[0], rgb[1], rgb[2], 1.0f);
-        poseStack.popPose();
-
-        mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
-    }
-
-    private static void renderSeed(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        BlockPos seed = region.getSeed();
-        double x = seed.getX() + (1.0 - SEED_BOX_SIZE) / 2.0 - cameraPos.x;
-        double y = seed.getY() + (1.0 - SEED_BOX_SIZE) / 2.0 - cameraPos.y;
-        double z = seed.getZ() + (1.0 - SEED_BOX_SIZE) / 2.0 - cameraPos.z;
-        AABB box = new AABB(0, 0, 0, SEED_BOX_SIZE, SEED_BOX_SIZE, SEED_BOX_SIZE);
-
+    /**
+     * プローブ結果（天井位置・壁位置）を可視化。
+     */
+    private static void renderProbeResult(PoseStack poseStack, Minecraft mc,
+                                          SpaceProbe.Result result, Vec3 cameraPos) {
         VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
         RenderSystem.lineWidth(2.0f);
 
-        poseStack.pushPose();
-        poseStack.translate(x, y, z);
-        LevelRenderer.renderLineBox(poseStack, vertices, box, 1.0f, 1.0f, 1.0f, 1.0f);
-        poseStack.popPose();
+        float enclosedR = result.isEnclosed() ? 0.0f : 1.0f;
+        float enclosedG = result.isEnclosed() ? 1.0f : 1.0f;
+        float enclosedB = 0.0f;
 
-        mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
-    }
-
-    private static void renderOpenings(PoseStack poseStack, Minecraft mc, SpaceRegion region, Vec3 cameraPos) {
-        if (region.getOpenings().isEmpty()) return;
-
-        VertexConsumer vertices = mc.renderBuffers().bufferSource().getBuffer(RenderType.lines());
-        RenderSystem.lineWidth(1.5f);
-
-        for (Opening opening : region.getOpenings()) {
-            if (opening.getType() != OpeningType.BOUNDARY_HOLE) {
-                continue; // オレンジ色（PASSAGE）などの開口部は描画をスキップ
-            }
-            java.util.Set<BlockPos> blocks = opening.getBlocks();
-            if (blocks.isEmpty()) continue;
-
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-            for (BlockPos p : blocks) {
-                int x = p.getX(), y = p.getY(), z = p.getZ();
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (z < minZ) minZ = z;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-                if (z > maxZ) maxZ = z;
-            }
-
-            double x = minX - cameraPos.x;
-            double y = minY - cameraPos.y;
-            double z = minZ - cameraPos.z;
-            double dx = maxX - minX + 1;
-            double dy = maxY - minY + 1;
-            double dz = maxZ - minZ + 1;
-
-            float r = 1.0f, g = 1.0f, b = 0.0f; // 黄：境界内の小穴のみ描画
-
-            poseStack.pushPose();
-            poseStack.translate(x, y, z);
-            LevelRenderer.renderLineBox(poseStack, vertices, 0, 0, 0, dx, dy, dz,
-                    r, g, b, 1.0f);
-            poseStack.popPose();
+        // 天井位置
+        if (result.hasCeiling()) {
+            BlockPos origin = result.getOrigin();
+            drawBox(poseStack, vertices, origin.getX(), result.getCeilingY(), origin.getZ(),
+                    cameraPos, enclosedR, enclosedG, enclosedB);
         }
+
+        // 各方向の壁位置
+        Direction[] dirs = result.getDirections();
+        int[] distances = result.getWallDistances();
+        for (int i = 0; i < dirs.length; i++) {
+            if (distances[i] < 0) continue;
+            BlockPos origin = result.getOrigin();
+            int wx = origin.getX() + dirs[i].getStepX() * distances[i];
+            int wz = origin.getZ() + dirs[i].getStepZ() * distances[i];
+            // 壁は3レベルのいずれかで検出 — 目線レベル(Y+1)に代表として描画
+            drawBox(poseStack, vertices, wx, origin.getY() + 1, wz,
+                    cameraPos, enclosedR, enclosedG, enclosedB);
+        }
+
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
     }
 
@@ -205,20 +146,28 @@ public final class SpaceDebugRenderer {
             }
 
             for (BlockPos pos : stair.getSteps()) {
-                double x = pos.getX() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.x;
-                double y = pos.getY() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.y;
-                double z = pos.getZ() + (1.0 - STAIR_BOX_SIZE) / 2.0 - cameraPos.z;
-                AABB box = new AABB(0, 0, 0, STAIR_BOX_SIZE, STAIR_BOX_SIZE, STAIR_BOX_SIZE);
-                poseStack.pushPose();
-                poseStack.translate(x, y, z);
-                LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 1.0f);
-                poseStack.popPose();
+                drawBox(poseStack, vertices, pos.getX(), pos.getY(), pos.getZ(),
+                        cameraPos, r, g, b);
             }
         }
         mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
     }
 
-    private static void renderHudText(GuiGraphics gg, Minecraft mc, SpaceRegion region) {
+    /** 小立方体を描画するヘルパー */
+    private static void drawBox(PoseStack poseStack, VertexConsumer vertices,
+                                int blockX, int blockY, int blockZ, Vec3 cameraPos,
+                                float r, float g, float b) {
+        double x = blockX + (1.0 - BOX_SIZE) / 2.0 - cameraPos.x;
+        double y = blockY + (1.0 - BOX_SIZE) / 2.0 - cameraPos.y;
+        double z = blockZ + (1.0 - BOX_SIZE) / 2.0 - cameraPos.z;
+        AABB box = new AABB(0, 0, 0, BOX_SIZE, BOX_SIZE, BOX_SIZE);
+        poseStack.pushPose();
+        poseStack.translate(x, y, z);
+        LevelRenderer.renderLineBox(poseStack, vertices, box, r, g, b, 1.0f);
+        poseStack.popPose();
+    }
+
+    private static void renderHudText(GuiGraphics gg, Minecraft mc, SpaceProbe.Result result) {
         int x = 8;
         int y = 8;
         int lineHeight = 11;
@@ -228,22 +177,38 @@ public final class SpaceDebugRenderer {
         y += lineHeight;
 
         if (!com.topdownview.Config.isStaircaseExclusionEnabled()) {
-            gg.drawString(mc.font, "階段除外機能がオフのため空間探索は無効です", x, y, 0xFFFF5555, false);
+            gg.drawString(mc.font, "階段除外機能がオフのため空間判定は無効です", x, y, 0xFFFF5555, false);
             return;
         }
 
-        if (region == null || !region.isValid()) {
-            gg.drawString(mc.font, "(no region)", x, y, 0xFFAAAAAA, false);
+        if (result == null) {
+            gg.drawString(mc.font, "(no result)", x, y, 0xFFAAAAAA, false);
             return;
         }
 
-        // 空間情報
-        int typeColor = getTypeTextColor(region.getType());
-        gg.drawString(mc.font, "Type: " + region.getType(), x, y, typeColor, false);
+        // 判定結果
+        int resultColor = result.isEnclosed() ? 0xFF00FF00 : 0xFFFFFF00;
+        gg.drawString(mc.font, "Enclosed: " + result.isEnclosed(), x, y, resultColor, false);
         y += lineHeight;
-        gg.drawString(mc.font, "Air: " + region.getAirBlockCount()
-                + "  Walls: " + region.getWallBlockCount()
-                + "  Openings: " + region.getOpenings().size(), x, y, 0xFFFFFFFF, false);
+
+        // 天井情報
+        String ceilingStr = result.hasCeiling()
+                ? "Y=" + result.getCeilingY() + " (dist=" + (result.getCeilingY() - result.getOrigin().getY()) + ")"
+                : "none";
+        gg.drawString(mc.font, "Ceiling: " + ceilingStr, x, y, 0xFFCCCCCC, false);
+        y += lineHeight;
+
+        // 壁情報
+        Direction[] dirs = result.getDirections();
+        int[] distances = result.getWallDistances();
+        StringBuilder wallStr = new StringBuilder("Walls (");
+        wallStr.append(result.getWalledCount()).append("/").append(dirs.length).append("): ");
+        for (int i = 0; i < dirs.length; i++) {
+            if (i > 0) wallStr.append("  ");
+            wallStr.append(dirs[i].name().charAt(0));
+            wallStr.append(distances[i] >= 0 ? distances[i] : "-");
+        }
+        gg.drawString(mc.font, wallStr.toString(), x, y, 0xFFCCCCCC, false);
         y += lineHeight;
 
         // 階段情報
@@ -261,28 +226,10 @@ public final class SpaceDebugRenderer {
                     + "  StairBlock: " + stairBlocksTotal, x, y, stairColor, false);
             y += lineHeight;
         }
-        gg.drawString(mc.font, "Bounds: [" + region.getMinX() + "," + region.getMinY() + "," + region.getMinZ()
-                + "]->[" + region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "]", x, y, 0xFFCCCCCC, false);
-        y += lineHeight;
-        gg.drawString(mc.font, "Seed: [" + region.getSeed().getX() + ","
-                + region.getSeed().getY() + "," + region.getSeed().getZ() + "]", x, y, 0xFFCCCCCC, false);
-        y += lineHeight;
-        gg.drawString(mc.font, "Explore: " + ModState.SPACE_DEBUG.getLastExploreTimeMs() + "ms", x, y, 0xFFCCCCCC, false);
-    }
 
-    private static float[] getTypeColor(SpaceType type) {
-        return switch (type) {
-            case ENCLOSED -> new float[]{0.0f, 1.0f, 0.0f};
-            case OUTDOOR -> new float[]{1.0f, 1.0f, 0.0f};
-            case UNKNOWN -> new float[]{0.5f, 0.5f, 0.5f};
-        };
-    }
-
-    private static int getTypeTextColor(SpaceType type) {
-        return switch (type) {
-            case ENCLOSED -> 0xFF00FF00;
-            case OUTDOOR -> 0xFFFFFF00;
-            case UNKNOWN -> 0xFFAAAAAA;
-        };
+        gg.drawString(mc.font, "Seed: [" + result.getOrigin().getX() + ","
+                + result.getOrigin().getY() + "," + result.getOrigin().getZ() + "]", x, y, 0xFFCCCCCC, false);
+        y += lineHeight;
+        gg.drawString(mc.font, "Probe: " + ModState.SPACE_DEBUG.getLastProbeTimeMs() + "ms", x, y, 0xFFCCCCCC, false);
     }
 }
