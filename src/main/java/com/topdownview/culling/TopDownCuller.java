@@ -121,6 +121,7 @@ public final class TopDownCuller {
         excludedStairBlocks.clear();
         currentSpaceRegion = null;
         LadderHelper.clearCache();
+        NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
     }
 
@@ -157,6 +158,7 @@ public final class TopDownCuller {
                 cullingCache.clear();
                 fadeCache.clear();
                 LadderHelper.clearCache();
+                NaturalTreeDetector.clearCache();
                 cacheClearedOnDisabled = true;
             }
             return false;
@@ -202,9 +204,18 @@ public final class TopDownCuller {
         int playerBlockZ = (int) Math.floor(pZ);
         int playerFeetY = (int) Math.floor(pY) - 1;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
-            if (pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
+            int maxProtectY = Config.isPlayerNearTranslucencyEnabled() ? playerFeetY : playerFeetY + 1;
+            if (pos.getY() >= playerFeetY && pos.getY() <= maxProtectY) {
                 cullingCache.put(posLong, false);
                 return false;
+            }
+        }
+
+        // プレイヤー周囲の半透明化（保護ブロックは除外）
+        if (Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(pos, pX, pY, pZ)) {
+            if (!isProtectedBlock(pos, state, pY, level)) {
+                cullingCache.put(posLong, true);
+                return true;
             }
         }
 
@@ -225,6 +236,17 @@ public final class TopDownCuller {
         boolean isCulled = alpha < 1.0f;
         cullingCache.put(posLong, isCulled);
         return isCulled;
+    }
+
+    private boolean isPlayerNearBlock(BlockPos pos, double pX, double pY, double pZ) {
+        int pBX = (int) Math.floor(pX);
+        int pBY = (int) Math.floor(pY);
+        int pBZ = (int) Math.floor(pZ);
+        int rangeH = Config.getPlayerNearTranslucencyRangeHorizontal();
+        int rangeV = Config.getPlayerNearTranslucencyRangeVertical();
+        return pos.getX() >= pBX - rangeH && pos.getX() <= pBX + rangeH
+            && pos.getZ() >= pBZ - rangeH && pos.getZ() <= pBZ + rangeH
+            && pos.getY() >= pBY && pos.getY() < pBY + rangeV;
     }
 
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
@@ -298,6 +320,13 @@ public final class TopDownCuller {
         double protectThresholdY = isThinnerThanSlab ? pY + 1.0 : pY;
 
         if (pos.getY() + 0.5 < protectThresholdY) {
+            return true;
+        }
+
+        // 自然木のログ保護（カリングから除外）。建物の木材ログは対象外。
+        if (Config.isProtectNaturalTreeLogs()
+                && state.is(net.minecraft.tags.BlockTags.LOGS)
+                && NaturalTreeDetector.isNaturalTreeLog(pos.asLong())) {
             return true;
         }
 
@@ -423,6 +452,14 @@ public final class TopDownCuller {
         if (mc.level == null || mc.player == null) {
             currentSpaceRegion = null;
             return;
+        }
+
+        // 自然木ログ検出（設定時のみ）。空間探索より先に実行し、cullingCache更新前に完了させる。
+        if (Config.isProtectNaturalTreeLogs()) {
+            int treeRadiusH = this.cachedCylinderRadiusHorizontal + 2;
+            NaturalTreeDetector.scan(mc.level, blockX, blockY, blockZ, treeRadiusH);
+        } else {
+            NaturalTreeDetector.clearCache();
         }
 
         BlockPos seed = mc.player.blockPosition();
@@ -636,14 +673,22 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        if (!Config.isFadeEnabled()) {
-            return 1.0f;
-        }
-
         long posLong = pos.asLong();
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) {
             return cached;
+        }
+
+        if (Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(pos, playerX, playerY, playerZ)) {
+            if (level != null && !isProtectedBlock(pos, level.getBlockState(pos), playerY, level)) {
+                float alpha = (float) Config.getPlayerNearTranslucencyAlpha();
+                fadeCache.putFadeAlpha(posLong, alpha);
+                return alpha;
+            }
+        }
+
+        if (!Config.isFadeEnabled()) {
+            return 1.0f;
         }
 
         BlockState state = level.getBlockState(pos);
@@ -655,7 +700,7 @@ public final class TopDownCuller {
     }
 
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || !Config.isFadeEnabled()) {
+        if (!ModState.STATUS.isEnabled() || (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled())) {
             return false;
         }
 
@@ -668,15 +713,16 @@ public final class TopDownCuller {
         }
 
         float alpha = getFadeAlpha(pos, level);
-        return alpha > this.cachedFadeBlockHitThreshold;
+        return alpha < 1.0f && alpha > this.cachedFadeBlockHitThreshold;
     }
 
     public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
         boolean fadeEnabled = Config.isFadeEnabled();
         boolean stairOccludeEnabled = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
+        boolean playerNearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
 
         if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode()
-                || (!fadeEnabled && !stairOccludeEnabled)) {
+                || (!fadeEnabled && !stairOccludeEnabled && !playerNearTranslucencyEnabled)) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
@@ -722,8 +768,8 @@ public final class TopDownCuller {
             collectStairOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
         }
 
-        // フェードブロック収集（フェード有効時のみ）
-        if (fadeEnabled && !fadeCache.isFadeBlocksFull()) {
+        // フェードブロック収集（フェードまたはプレイヤー周囲半透明化が有効時のみ）
+        if ((fadeEnabled || playerNearTranslucencyEnabled) && !fadeCache.isFadeBlocksFull()) {
             collectFadeBlocks(level, pX, pY, pZ, cX, cY, cZ);
         }
 
@@ -750,35 +796,47 @@ public final class TopDownCuller {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
 
+                    boolean fadeEnabled = Config.isFadeEnabled();
+                    boolean isNearTarget = Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(mutablePos, pX, pY, pZ);
+
                     // 1. 重い getBlockState を呼ぶ前に、数学的なアルファ値を先に計算して判定する
-                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
-                            x + 0.5, y + 0.5, z + 0.5,
-                            pX, pY, pZ, cX, cY, cZ);
-                    double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
-                            mutablePos, pX, pY, pZ, cX, cZ);
+                    double normalizedDistSq = 0.0;
+                    float tempAlpha = 1.0f;
+                    if (fadeEnabled) {
+                        normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                                x + 0.5, y + 0.5, z + 0.5,
+                                pX, pY, pZ, cX, cY, cZ);
+                        double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
+                                mutablePos, pX, pY, pZ, cX, cZ);
 
-                    float cylinderAlpha;
-                    if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
-                        cylinderAlpha = 1.0f;
-                    } else if (normalizedDistSq <= this.cachedFadeStart) {
-                        cylinderAlpha = (float) this.cachedFadeNearAlpha;
-                    } else {
-                        double t = (normalizedDistSq - this.cachedFadeStart) / (1.0 - this.cachedFadeStart);
-                        cylinderAlpha = (float) (this.cachedFadeNearAlpha + t * (1.0 - this.cachedFadeNearAlpha));
+                        float cylinderAlpha;
+                        if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
+                            cylinderAlpha = 1.0f;
+                        } else if (normalizedDistSq <= this.cachedFadeStart) {
+                            cylinderAlpha = (float) this.cachedFadeNearAlpha;
+                        } else {
+                            double t = (normalizedDistSq - this.cachedFadeStart) / (1.0 - this.cachedFadeStart);
+                            cylinderAlpha = (float) (this.cachedFadeNearAlpha + t * (1.0 - this.cachedFadeNearAlpha));
+                        }
+                        tempAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
                     }
-
-                    float tempAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
 
                     // フェード対象ブロック、または境界マージン内のブロックか判定
                     boolean isTarget = false;
                     float finalAlpha = tempAlpha;
-                    if (tempAlpha > 0.0f && tempAlpha < 1.0f) {
+
+                    if (isNearTarget) {
                         isTarget = true;
-                    } else if (tempAlpha >= 1.0f) {
-                        // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
-                        if (normalizedDistSq > 1.0 && normalizedDistSq <= 1.5) {
+                        finalAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
+                    } else if (fadeEnabled) {
+                        if (tempAlpha > 0.0f && tempAlpha < 1.0f) {
                             isTarget = true;
-                            finalAlpha = 1.0f;
+                        } else if (tempAlpha >= 1.0f) {
+                            // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
+                            if (normalizedDistSq > 1.0 && normalizedDistSq <= 1.5) {
+                                isTarget = true;
+                                finalAlpha = 1.0f;
+                            }
                         }
                     }
 

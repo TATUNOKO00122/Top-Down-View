@@ -174,6 +174,15 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.protect_natural_tree_logs", Config.isProtectNaturalTreeLogs()), btn -> {
+                    Config.setProtectNaturalTreeLogs(!Config.isProtectNaturalTreeLogs());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.protect_natural_tree_logs", Config.isProtectNaturalTreeLogs()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.protect_natural_tree_logs.tooltip")))
+                        .build());
+        y += sp;
+
+        addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()), btn -> {
                     Config.setScrollOnlyZoomEnabled(!Config.isScrollOnlyZoomEnabled());
                     btn.setMessage(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()));
@@ -570,6 +579,23 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
                 1.0, val -> Config.setFadeNearAlpha(val)));
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
+                    Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
+                1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 0,
+                5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
+                5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);

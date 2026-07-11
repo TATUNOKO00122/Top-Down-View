@@ -77,6 +77,14 @@ public class Config {
             .defineInRange("fadeStart", 0.7, 0.0, 0.9);
     private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
             .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
+            .define("playerNearTranslucencyEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
+            .defineInRange("playerNearTranslucencyAlpha", 0.4, 0.0, 1.0);
+    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL = BUILDER
+            .defineInRange("playerNearTranslucencyRangeHorizontal", 1, 0, 5);
+    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
+            .defineInRange("playerNearTranslucencyRangeVertical", 1, 1, 5);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -219,6 +227,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
 
+    private static final ForgeConfigSpec.BooleanValue PROTECT_NATURAL_TREE_LOGS = BUILDER
+            .define("protectNaturalTreeLogs", false);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -255,6 +266,10 @@ public class Config {
     private static double fadeBlockHitThreshold;
     private static double fadeStart;
     private static double fadeNearAlpha;
+    private static boolean playerNearTranslucencyEnabled;
+    private static double playerNearTranslucencyAlpha;
+    private static int playerNearTranslucencyRangeHorizontal;
+    private static int playerNearTranslucencyRangeVertical;
     private static boolean rangeIndicatorEnabled;
     private static boolean destinationHighlightEnabled;
     private static double rangeEmptyHand;
@@ -309,6 +324,7 @@ public class Config {
     private static double staircaseOccludeAlpha;
     private static boolean placementRotationEnabled;
     private static boolean ignoreLeavesInRaycast;
+    private static boolean protectNaturalTreeLogs;
     private static int signHoverDisplayMode;
     private static double signHoverScale;
     private static boolean showInteractionPrompt;
@@ -345,6 +361,10 @@ public class Config {
     public static double getFadeBlockHitThreshold() { return fadeBlockHitThreshold; }
     public static double getFadeStart() { return fadeStart; }
     public static double getFadeNearAlpha() { return fadeNearAlpha; }
+    public static boolean isPlayerNearTranslucencyEnabled() { return playerNearTranslucencyEnabled; }
+    public static double getPlayerNearTranslucencyAlpha() { return playerNearTranslucencyAlpha; }
+    public static int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
+    public static int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
     public static boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
     public static boolean isDestinationHighlightEnabled() { return destinationHighlightEnabled; }
     public static double getRangeEmptyHand() { return rangeEmptyHand; }
@@ -399,6 +419,7 @@ public class Config {
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
     public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
+    public static boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
     public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
     public static double getSignHoverScale() { return signHoverScale; }
     public static boolean isShowInteractionPrompt() { return showInteractionPrompt; }
@@ -441,6 +462,10 @@ public class Config {
     public static void setFadeBlockHitThreshold(double value) { fadeBlockHitThreshold = clamp(value, 0.0, 1.0); }
     public static void setFadeStart(double value) { fadeStart = clamp(value, 0.0, 0.9); }
     public static void setFadeNearAlpha(double value) { fadeNearAlpha = clamp(value, 0.0, 1.0); }
+    public static void setPlayerNearTranslucencyEnabled(boolean value) { playerNearTranslucencyEnabled = value; }
+    public static void setPlayerNearTranslucencyAlpha(double value) { playerNearTranslucencyAlpha = clamp(value, 0.0, 1.0); }
+    public static void setPlayerNearTranslucencyRangeHorizontal(int value) { playerNearTranslucencyRangeHorizontal = clamp(value, 0, 5); }
+    public static void setPlayerNearTranslucencyRangeVertical(int value) { playerNearTranslucencyRangeVertical = clamp(value, 1, 5); }
     public static void setRangeIndicatorEnabled(boolean value) { rangeIndicatorEnabled = value; }
     public static void setDestinationHighlightEnabled(boolean value) { destinationHighlightEnabled = value; }
     public static void setRangeEmptyHand(double value) { rangeEmptyHand = clamp(value, 1.0, 10.0); }
@@ -494,6 +519,7 @@ public class Config {
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
+    public static void setProtectNaturalTreeLogs(boolean value) { protectNaturalTreeLogs = value; }
     public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
     public static void setSignHoverScale(double value) { signHoverScale = clamp(value, 0.0, 1.0); }
     public static void setShowInteractionPrompt(boolean value) { showInteractionPrompt = value; }
@@ -550,6 +576,10 @@ public class Config {
         fadeBlockHitThreshold = FADE_BLOCK_HIT_THRESHOLD.get();
         fadeStart = FADE_START.get();
         fadeNearAlpha = FADE_NEAR_ALPHA.get();
+        playerNearTranslucencyEnabled = PLAYER_NEAR_TRANSLUCENCY_ENABLED.get();
+        playerNearTranslucencyAlpha = PLAYER_NEAR_TRANSLUCENCY_ALPHA.get();
+        playerNearTranslucencyRangeHorizontal = PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get();
+        playerNearTranslucencyRangeVertical = PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.get();
         rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
         destinationHighlightEnabled = DESTINATION_HIGHLIGHT_ENABLED.get();
         rangeEmptyHand = RANGE_EMPTY_HAND.get();
@@ -603,6 +633,7 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
+        protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.get();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
         signHoverScale = SIGN_HOVER_SCALE.get();
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.get();
@@ -647,6 +678,10 @@ public class Config {
         FADE_BLOCK_HIT_THRESHOLD.set(fadeBlockHitThreshold);
         FADE_START.set(fadeStart);
         FADE_NEAR_ALPHA.set(fadeNearAlpha);
+        PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(playerNearTranslucencyEnabled);
+        PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(playerNearTranslucencyAlpha);
+        PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(playerNearTranslucencyRangeHorizontal);
+        PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.set(playerNearTranslucencyRangeVertical);
         RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
         DESTINATION_HIGHLIGHT_ENABLED.set(destinationHighlightEnabled);
         RANGE_EMPTY_HAND.set(rangeEmptyHand);
@@ -700,6 +735,7 @@ public class Config {
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
         PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
+        PROTECT_NATURAL_TREE_LOGS.set(protectNaturalTreeLogs);
         SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
         SIGN_HOVER_SCALE.set(signHoverScale);
         SHOW_INTERACTION_PROMPT.set(showInteractionPrompt);
@@ -794,6 +830,7 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
         placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.getDefault();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
+        protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.getDefault();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();
         signHoverScale = SIGN_HOVER_SCALE.getDefault();
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.getDefault();
