@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +100,13 @@ public final class TopDownCuller {
     // ハシゴチェーンに属する全ブロック位置（ハシゴ自身＋支え壁）。isBlockCulled/isProtectedBlock の高速判定用
     private final Set<BlockPos> protectedLadderPositions = new HashSet<>();
 
+    // 自然木視線遮蔽半透明化用: 保護対象の自然木原木位置
+    private final Set<Long> protectedTreeLogPositions = new HashSet<>();
+    // 自然木視線遮蔽半透明化用: (x,z)カラムでグルーピングした幹リスト
+    private final List<ProtectedTreeTrunk> protectedTreeTrunks = new ArrayList<>();
+    // 視線遮蔽と判定された幹のカラムキーセット（isBlockCulled 高速判定用）
+    private final Set<Long> occludedTreeTrunkColumns = new HashSet<>();
+
     // 空間認識（天井+壁スキャン）の結果。インタラクト可能ブロック保護の拡張に使用。
     // updateSpaceRecognition で更新される。
     private boolean currentSpaceEnclosed = false;
@@ -129,6 +137,9 @@ public final class TopDownCuller {
         cullingCache.clear();
         fadeCache.clear();
         excludedStairBlocks.clear();
+        protectedTreeLogPositions.clear();
+        protectedTreeTrunks.clear();
+        occludedTreeTrunkColumns.clear();
         currentSpaceEnclosed = false;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
@@ -166,7 +177,7 @@ public final class TopDownCuller {
     }
 
     public boolean isBlockCulled(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled()) {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
             if (!cacheClearedOnDisabled) {
                 cullingCache.clear();
                 fadeCache.clear();
@@ -239,6 +250,17 @@ public final class TopDownCuller {
                 && protectedLadderPositions.contains(pos)) {
             cullingCache.put(posLong, true);
             return true;
+        }
+
+        // 自然木視線遮蔽半透明化: 視線を遮る幹に属する自然木原木のみカリング対象とする。
+        // isProtectedBlock より先に判定し、非遮蔽幹の原木は通常の保護ロジックに流す。
+        if (Config.isTreeOccludeEnabled() && !occludedTreeTrunkColumns.isEmpty()
+                && protectedTreeLogPositions.contains(posLong)) {
+            long columnKey = BlockPos.asLong(pos.getX(), 0, pos.getZ());
+            if (occludedTreeTrunkColumns.contains(columnKey)) {
+                cullingCache.put(posLong, true);
+                return true;
+            }
         }
 
         // その他保護対象ブロック判定（Trapdoor, 足元より下, インタラクト可能ブロック等）
@@ -350,6 +372,8 @@ public final class TopDownCuller {
         }
 
         // 自然木のログ保護（カリングから除外）。建物の木材ログは対象外。
+        // 視線遮蔽幹に属する原木は isBlockCulled で既にカリングされており、
+        // ここに到達するのは非遮蔽幹の原木のみ（通常の保護動作）。
         if (Config.isProtectNaturalTreeLogs()
                 && state.is(net.minecraft.tags.BlockTags.LOGS)
                 && NaturalTreeDetector.isNaturalTreeLog(pos.asLong())) {
@@ -470,6 +494,9 @@ public final class TopDownCuller {
         // 階段除外は設定時のみ実行されるが、空間探索自体は常時実行。
         updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
 
+        // 木の視線遮蔽判定を事前計算（各フレーム、isBlockCulled が呼ばれる前に判定）。
+        updateTreeTrunkOcclusion();
+
         updateEntityCulling(mc);
     }
 
@@ -506,11 +533,26 @@ public final class TopDownCuller {
         }
 
         // 自然木ログ検出（設定時のみ）。空間探索より先に実行し、cullingCache更新前に完了させる。
-        if (Config.isProtectNaturalTreeLogs()) {
+        boolean protectTree = Config.isProtectNaturalTreeLogs();
+        boolean treeOcclude = protectTree && Config.isTreeOccludeEnabled();
+        if (protectTree) {
             int treeRadiusH = this.cachedCylinderRadiusHorizontal + 2;
             NaturalTreeDetector.scan(mc.level, blockX, blockY, blockZ, treeRadiusH);
+            // 視線遮蔽半透明化用に自然木ログ位置を収集
+            protectedTreeLogPositions.clear();
+            protectedTreeLogPositions.addAll(NaturalTreeDetector.getNaturalTreeLogs());
+            if (treeOcclude) {
+                // 原木位置を(x,z)カラムでグルーピングして幹リストを構築
+                buildProtectedTreeTrunks();
+            } else {
+                protectedTreeTrunks.clear();
+                occludedTreeTrunkColumns.clear();
+            }
         } else {
             NaturalTreeDetector.clearCache();
+            protectedTreeLogPositions.clear();
+            protectedTreeTrunks.clear();
+            occludedTreeTrunkColumns.clear();
         }
 
         BlockPos seed = mc.player.blockPosition();
@@ -564,6 +606,82 @@ public final class TopDownCuller {
             }
         }
         detectedStaircases = detected;
+    }
+
+    /**
+     * NaturalTreeDetector が収集した原木位置を (x,z) カラムでグルーピングし、
+     * {@link #protectedTreeTrunks} を構築する。
+     */
+    private void buildProtectedTreeTrunks() {
+        protectedTreeTrunks.clear();
+        occludedTreeTrunkColumns.clear();
+        Set<Long> logPositions = NaturalTreeDetector.getNaturalTreeLogs();
+        if (logPositions.isEmpty()) {
+            return;
+        }
+
+        Map<Long, int[]> columns = new HashMap<>();
+        for (long posLong : logPositions) {
+            int x = BlockPos.getX(posLong);
+            int z = BlockPos.getZ(posLong);
+            int y = BlockPos.getY(posLong);
+            long columnKey = BlockPos.asLong(x, 0, z);
+            int[] range = columns.get(columnKey);
+            if (range == null) {
+                range = new int[]{y, y};
+                columns.put(columnKey, range);
+            } else {
+                if (y < range[0]) range[0] = y;
+                if (y > range[1]) range[1] = y;
+            }
+        }
+
+        for (Map.Entry<Long, int[]> entry : columns.entrySet()) {
+            long columnKey = entry.getKey();
+            int[] range = entry.getValue();
+            protectedTreeTrunks.add(new ProtectedTreeTrunk(
+                    BlockPos.getX(columnKey), BlockPos.getZ(columnKey),
+                    range[0], range[1]));
+        }
+    }
+
+    /**
+     * 各フレームで呼ばれる木の幹の視線遮蔽事前計算。
+     * 各幹のいずれかの原木がカメラ→プレイヤーの視線を遮る場合、
+     * その幹のカラムキーを {@link #occludedTreeTrunkColumns} に追加する。
+     * この結果は {@link #isBlockCulled(BlockPos, BlockGetter)} で使用される。
+     */
+    private void updateTreeTrunkOcclusion() {
+        occludedTreeTrunkColumns.clear();
+        if (!Config.isTreeOccludeEnabled() || protectedTreeTrunks.isEmpty()) {
+            return;
+        }
+
+        double cX = this.cameraX;
+        double cY = this.cameraY;
+        double cZ = this.cameraZ;
+        double pX = this.playerX;
+        double pY = this.playerY;
+        double pZ = this.playerZ;
+
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
+            boolean anyOccluding = false;
+            for (int y = trunk.bottomY; y <= trunk.topY; y++) {
+                mutablePos.set(trunk.x, y, trunk.z);
+                long posLong = mutablePos.asLong();
+                if (!protectedTreeLogPositions.contains(posLong)) {
+                    continue;
+                }
+                if (isStairOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
+                    anyOccluding = true;
+                    break;
+                }
+            }
+            if (anyOccluding) {
+                occludedTreeTrunkColumns.add(BlockPos.asLong(trunk.x, 0, trunk.z));
+            }
+        }
     }
 
     /**
@@ -791,7 +909,7 @@ public final class TopDownCuller {
     }
 
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled()) {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
             return 1.0f;
         }
 
@@ -826,9 +944,10 @@ public final class TopDownCuller {
     }
 
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled()
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()
                 || (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled()
-                        && !Config.isStaircaseOccludeEnabled() && !Config.isLadderOccludeEnabled())) {
+                        && !Config.isStaircaseOccludeEnabled() && !Config.isLadderOccludeEnabled()
+                        && !Config.isTreeOccludeEnabled())) {
             return false;
         }
 
@@ -848,10 +967,11 @@ public final class TopDownCuller {
         boolean fadeEnabled = Config.isFadeEnabled();
         boolean stairOccludeEnabled = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
         boolean ladderOccludeEnabled = Config.isLadderOccludeEnabled();
+        boolean treeOccludeEnabled = Config.isTreeOccludeEnabled();
         boolean playerNearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
 
         if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode()
-                || (!fadeEnabled && !stairOccludeEnabled && !ladderOccludeEnabled && !playerNearTranslucencyEnabled)) {
+                || (!fadeEnabled && !stairOccludeEnabled && !ladderOccludeEnabled && !treeOccludeEnabled && !playerNearTranslucencyEnabled)) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
         }
@@ -900,6 +1020,11 @@ public final class TopDownCuller {
         // ハシゴ視線遮蔽ブロック収集（フェード有無に関わらず動作）
         if (ladderOccludeEnabled) {
             collectLadderOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
+        }
+
+        // 自然木視線遮蔽ブロック収集（フェード有無に関わらず動作）
+        if (treeOccludeEnabled) {
+            collectTreeOcclusionBlocks(level, pX, pY, pZ, cX, cY, cZ);
         }
 
         // フェードブロック収集（フェードまたはプレイヤー周囲半透明化が有効時のみ）
@@ -1000,6 +1125,16 @@ public final class TopDownCuller {
                     if (Config.isStaircaseOccludeEnabled() && !excludedStairBlocks.isEmpty()
                             && excludedStairBlocks.contains(mutablePos)) {
                         continue;
+                    }
+
+                    // 3d. 自然木視線遮蔽半透明化対象ブロック（視線遮蔽幹に属する原木）は
+                    // collectTreeOcclusionBlocks で処理されるためスキップ
+                    if (Config.isTreeOccludeEnabled() && !occludedTreeTrunkColumns.isEmpty()
+                            && protectedTreeLogPositions.contains(mutablePos.asLong())) {
+                        long columnKey = BlockPos.asLong(mutablePos.getX(), 0, mutablePos.getZ());
+                        if (occludedTreeTrunkColumns.contains(columnKey)) {
+                            continue;
+                        }
                     }
 
                     // 4. 葉ブロックのFASTグラフィックス設定の処理
@@ -1127,6 +1262,44 @@ public final class TopDownCuller {
     }
 
     /**
+     * 自然木視線遮蔽ブロック収集。
+     * 保護対象の自然木原木位置ごとに視線遮蔽判定を行い、視線を遮る場合は
+     * treeOccludeAlpha で半透明化する。遮らない場合は 1.0（不透明）で fadeCache に追加し、
+     * チャンクメッシュ再構築を不要化する。
+     */
+    private void collectTreeOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
+            double cX, double cY, double cZ) {
+        if (occludedTreeTrunkColumns.isEmpty() || protectedTreeTrunks.isEmpty()) {
+            return;
+        }
+
+        float occludeAlpha = (float) Config.getTreeOccludeAlpha();
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+        for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
+            long columnKey = BlockPos.asLong(trunk.x, 0, trunk.z);
+            if (!occludedTreeTrunkColumns.contains(columnKey)) {
+                continue;
+            }
+            for (int y = trunk.bottomY; y <= trunk.topY; y++) {
+                if (fadeCache.isFadeBlocksFull()) {
+                    return;
+                }
+                mutablePos.set(trunk.x, y, trunk.z);
+                long posLong = mutablePos.asLong();
+                if (!protectedTreeLogPositions.contains(posLong)) {
+                    continue;
+                }
+                BlockState state = level.getBlockState(mutablePos);
+                if (state.isAir()) {
+                    continue;
+                }
+                fadeCache.putFadeBlock(posLong, occludeAlpha);
+            }
+        }
+    }
+
+    /**
      * 視線遮蔽判定: カメラ→プレイヤーの視線レイがブロックの拡張AABBを通過するか。
      * スラブ法によるレイ-AABB交差判定。カメラ〜プレイヤー間の範囲のみ判定。
      * AABB は各面に 0.5 ブロックのマージンを持ち、実効幅 2.0 ブロックで判定する。
@@ -1155,7 +1328,9 @@ public final class TopDownCuller {
         if (!slabIntersect(cY, dirY, minY, maxY, t)) return false;
         if (!slabIntersect(cZ, dirZ, minZ, maxZ, t)) return false;
 
-        return true;
+        // 拡張AABBの退出点がプレイヤー位置(t=1.0)より手前の場合のみ遮蔽と判定。
+        // 退出点≈1.0は拡張AABBがプレイヤー位置を含んでいるだけ（隣接）なので除外。
+        return t[1] < 0.999;
     }
 
     /**
@@ -1186,7 +1361,7 @@ public final class TopDownCuller {
     }
 
     public boolean isEntityCulled(Entity entity) {
-        if (!ModState.STATUS.isEnabled()) {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
             return false;
         }
         if (entity instanceof Cullable) {
@@ -1230,6 +1405,24 @@ public final class TopDownCuller {
             // よって壁は FACING の逆方向にある。
             this.wallX = x - facing.getStepX();
             this.wallZ = z - facing.getStepZ();
+        }
+    }
+
+    /**
+     * 保護対象の木の幹情報。同一 (x,z) カラム内の連続する原木で構成される。
+     * 視線遮蔽判定時に幹単位で処理される。
+     */
+    private static final class ProtectedTreeTrunk {
+        final int x;
+        final int z;
+        final int bottomY;
+        final int topY;
+
+        ProtectedTreeTrunk(int x, int z, int bottomY, int topY) {
+            this.x = x;
+            this.z = z;
+            this.bottomY = bottomY;
+            this.topY = topY;
         }
     }
 }

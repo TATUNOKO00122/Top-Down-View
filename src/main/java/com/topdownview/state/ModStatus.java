@@ -13,6 +13,7 @@ public final class ModStatus {
     private volatile boolean initialized = false;
     private volatile boolean miningMode = false;
     private volatile boolean internalCameraChange = false;
+    private volatile boolean cullingEnabled = true;
 
     private ModStatus() {}
 
@@ -34,6 +35,10 @@ public final class ModStatus {
         return internalCameraChange;
     }
 
+    public boolean isCullingEnabled() {
+        return cullingEnabled;
+    }
+
     // ==================== Setters ====================
 
     public void setEnabled(boolean value) {
@@ -52,6 +57,10 @@ public final class ModStatus {
         internalCameraChange = value;
     }
 
+    public void setCullingEnabled(boolean value) {
+        cullingEnabled = value;
+    }
+
     /**
      * 状態をリセット
      */
@@ -60,5 +69,6 @@ public final class ModStatus {
         initialized = false;
         miningMode = false;
         internalCameraChange = false;
+        cullingEnabled = true;
     }
 }

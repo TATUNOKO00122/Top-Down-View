@@ -56,7 +56,6 @@ public final class PlacementPreviewManager {
     private BlockPos lastPos = null;
     private Direction lastSide = null;
     private Vec3 lastHitVec = null;
-    private Direction lastPlacementFacing = null;
 
     /** セッション中に例外が出たアイテムのブラックリスト */
     private final Set<net.minecraft.resources.ResourceLocation> blacklistedItems = new HashSet<>();
@@ -107,16 +106,11 @@ public final class PlacementPreviewManager {
         Direction hitSide = hitResult.getDirection();
         Vec3 hitVec = hitResult.getLocation();
 
-        // 配置方向指定の現在値を取得
-        Direction currentPlacementFacing = ModState.PLACEMENT_ROTATION.hasOverride()
-                ? ModState.PLACEMENT_ROTATION.getCurrentFacing() : null;
-
-        // 視点・持ち物・配置方向が変化していなければ再計算不要
+        // 視点・持ち物が変化していなければ再計算不要
         boolean changed = !hitPos.equals(lastPos)
                 || hitSide != lastSide
                 || (lastHitVec != null && !hitVec.equals(lastHitVec))
-                || hasItemChanged(player)
-                || currentPlacementFacing != lastPlacementFacing;
+                || hasItemChanged(player);
 
         if (!changed) {
             return;
@@ -125,7 +119,6 @@ public final class PlacementPreviewManager {
         lastPos = hitPos;
         lastSide = hitSide;
         lastHitVec = hitVec;
-        lastPlacementFacing = currentPlacementFacing;
 
         // 周辺ブロックをFakeBlockGetterにコピーして配置シミュレーション
         updateEntries(level, player, hitResult, mainHand);
@@ -198,7 +191,7 @@ public final class PlacementPreviewManager {
                 return false;
             }
 
-            // 配置方向手動指定が有効なら向きを反映
+            // 配置方向指定が有効なら向きを反映
             stateToBePlaced = applyPlacementRotation(stateToBePlaced, placeCtx);
 
             fakeBlockGetter.setFakeBlock(actualPos, stateToBePlaced);
@@ -220,15 +213,10 @@ public final class PlacementPreviewManager {
     }
 
     /**
-     * 配置方向手動指定が有効な場合、またはクリック位置配置が有効な場合、
+     * クリック位置配置が有効な場合、
      * BlockState の向き関連プロパティを差し替える。
      */
     private BlockState applyPlacementRotation(BlockState state, BlockPlaceContext context) {
-        if (ModState.PLACEMENT_ROTATION.hasOverride()) {
-            Direction facing = ModState.PLACEMENT_ROTATION.getCurrentFacing();
-            return PlacementHandler.applyFacing(state, facing);
-        }
-
         if (Config.isClickPositionPlacementEnabled() && ModState.STATUS.isEnabled()) {
             // 看板や松明など、すでにバニラでクリック面に沿って配向されているブロックは上書きしない
             if (!PlacementHandler.isAlreadyAlignedToFace(state, context.getClickedFace())) {
@@ -272,7 +260,6 @@ public final class PlacementPreviewManager {
         lastPos = null;
         lastSide = null;
         lastHitVec = null;
-        lastPlacementFacing = null;
         lastMain = ItemStack.EMPTY;
     }
 

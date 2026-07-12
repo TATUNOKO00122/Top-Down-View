@@ -200,9 +200,11 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue LADDER_OCCLUDE_ALPHA = BUILDER
             .defineInRange("ladderOccludeAlpha", 0.4, 0.0, 1.0);
 
-    // ブロック配置方向手動指定
-    private static final ForgeConfigSpec.BooleanValue PLACEMENT_ROTATION_ENABLED = BUILDER
-            .define("placementRotationEnabled", false);
+    // 自然木視線遮蔽時の透明度設定
+    private static final ForgeConfigSpec.BooleanValue TREE_OCCLUDE_ENABLED = BUILDER
+            .define("treeOccludeEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue TREE_OCCLUDE_ALPHA = BUILDER
+            .defineInRange("treeOccludeAlpha", 0.4, 0.0, 1.0);
 
     private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
             .defineInRange("signHoverDisplayMode", 2, 0, 2);
@@ -327,7 +329,8 @@ public class Config {
     private static double staircaseOccludeAlpha;
     private static boolean ladderOccludeEnabled;
     private static double ladderOccludeAlpha;
-    private static boolean placementRotationEnabled;
+    private static boolean treeOccludeEnabled;
+    private static double treeOccludeAlpha;
     private static boolean ignoreLeavesInRaycast;
     private static boolean protectNaturalTreeLogs;
     private static int signHoverDisplayMode;
@@ -423,7 +426,8 @@ public class Config {
     public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
     public static boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
     public static double getLadderOccludeAlpha() { return ladderOccludeAlpha; }
-    public static boolean isPlacementRotationEnabled() { return placementRotationEnabled; }
+    public static boolean isTreeOccludeEnabled() { return treeOccludeEnabled; }
+    public static double getTreeOccludeAlpha() { return treeOccludeAlpha; }
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public static boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
     public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
@@ -524,7 +528,8 @@ public class Config {
     public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setLadderOccludeEnabled(boolean value) { ladderOccludeEnabled = value; }
     public static void setLadderOccludeAlpha(double value) { ladderOccludeAlpha = clamp(value, 0.0, 1.0); }
-    public static void setPlacementRotationEnabled(boolean value) { placementRotationEnabled = value; }
+    public static void setTreeOccludeEnabled(boolean value) { treeOccludeEnabled = value; }
+    public static void setTreeOccludeAlpha(double value) { treeOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
     public static void setProtectNaturalTreeLogs(boolean value) { protectNaturalTreeLogs = value; }
     public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
@@ -639,7 +644,8 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
         ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.get();
         ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.get();
-        placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.get();
+        treeOccludeEnabled = TREE_OCCLUDE_ENABLED.get();
+        treeOccludeAlpha = TREE_OCCLUDE_ALPHA.get();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.get();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
@@ -742,7 +748,8 @@ public class Config {
         STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
         LADDER_OCCLUDE_ENABLED.set(ladderOccludeEnabled);
         LADDER_OCCLUDE_ALPHA.set(ladderOccludeAlpha);
-        PLACEMENT_ROTATION_ENABLED.set(placementRotationEnabled);
+        TREE_OCCLUDE_ENABLED.set(treeOccludeEnabled);
+        TREE_OCCLUDE_ALPHA.set(treeOccludeAlpha);
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
         PROTECT_NATURAL_TREE_LOGS.set(protectNaturalTreeLogs);
         SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
@@ -838,7 +845,8 @@ public class Config {
         staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
         ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.getDefault();
         ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.getDefault();
-        placementRotationEnabled = PLACEMENT_ROTATION_ENABLED.getDefault();
+        treeOccludeEnabled = TREE_OCCLUDE_ENABLED.getDefault();
+        treeOccludeAlpha = TREE_OCCLUDE_ALPHA.getDefault();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.getDefault();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();

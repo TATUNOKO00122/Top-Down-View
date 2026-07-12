@@ -62,6 +62,16 @@ public final class NaturalTreeDetector {
     }
 
     /**
+     * 現在キャッシュされている自然木ログ位置のセットを返す。
+     * 呼び出し元は走査目的でのみ使用し、変更してはならない。
+     *
+     * @return 自然木ログ位置の long エンコードセット
+     */
+    public static Set<Long> getNaturalTreeLogs() {
+        return naturalTreeLogs;
+    }
+
+    /**
      * プレイヤー周辺をスキャンし、自然木のログ位置を更新する。
      *
      * <p>プレイヤーが移動した際に {@link TopDownCuller} から呼ばれる。

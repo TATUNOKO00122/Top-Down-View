@@ -296,6 +296,22 @@ public class ConfigScreen extends Screen {
                 Config.getLadderOccludeAlpha(), 0.0, 1.0,
                 val -> Config.setLadderOccludeAlpha(val)));
         y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.tree_occlude_enabled",
+                        Config.isTreeOccludeEnabled()),
+                btn -> {
+                    Config.setTreeOccludeEnabled(!Config.isTreeOccludeEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.tree_occlude_enabled",
+                            Config.isTreeOccludeEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.tree_occlude_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.tree_occlude_alpha",
+                Config.getTreeOccludeAlpha(), 0.0, 1.0,
+                val -> Config.setTreeOccludeAlpha(val)));
+        y += sp;
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

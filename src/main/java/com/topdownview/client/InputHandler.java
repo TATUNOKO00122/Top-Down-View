@@ -230,10 +230,8 @@ public final class InputHandler {
             ClickToMoveController.reset();
         } else if (matchesKeyBinding(ClientModBusEvents.SPACE_DEBUG_KEY, keyCode, inputType)) {
             toggleSpaceDebug();
-        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.PLACEMENT_ROTATION_UP_DOWN_KEY, keyCode, inputType)) {
-            PlacementRotationController.toggleVertical();
-        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.PLACEMENT_ROTATION_CYCLE_KEY, keyCode, inputType)) {
-            PlacementRotationController.cycleHorizontal();
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.TOGGLE_CULLING_KEY, keyCode, inputType)) {
+            toggleCulling();
         }
     }
 
@@ -265,6 +263,13 @@ public final class InputHandler {
         boolean newState = !ModState.STATUS.isMiningMode();
         ModState.STATUS.setMiningMode(newState);
         // カリングキャッシュをクリアして表示を更新
+        com.topdownview.culling.CullingManager.reset();
+    }
+
+    private static void toggleCulling() {
+        boolean newState = !ModState.STATUS.isCullingEnabled();
+        ModState.STATUS.setCullingEnabled(newState);
+        // カリングキャッシュをクリアしてチャンク再構築を促す
         com.topdownview.culling.CullingManager.reset();
     }
 
