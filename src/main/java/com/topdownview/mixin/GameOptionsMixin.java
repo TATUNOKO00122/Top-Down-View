@@ -5,6 +5,7 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -12,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Options.class)
 public abstract class GameOptionsMixin {
+
+    @Shadow public CameraType cameraType;
 
     private static final OptionInstance<Boolean> FORCE_AUTO_JUMP = OptionInstance.createBoolean("options.autoJump", true);
 
@@ -42,6 +45,11 @@ public abstract class GameOptionsMixin {
         if (ModState.STATUS.isEnabled() && !ModState.STATUS.isInternalCameraChange()) {
             // TACZ等のMODがフィールドを直接書き換えて一人称視点に強制した場合でも、
             // トップダウン視点中は三人称後方として振る舞うようにしてプレイヤーの描画消失を防ぐ
+            if (this.cameraType != CameraType.THIRD_PERSON_BACK) {
+                ModState.STATUS.setInternalCameraChange(true);
+                ((Options) (Object) this).setCameraType(CameraType.THIRD_PERSON_BACK);
+                ModState.STATUS.setInternalCameraChange(false);
+            }
             cir.setReturnValue(CameraType.THIRD_PERSON_BACK);
         }
     }
