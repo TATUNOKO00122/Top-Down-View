@@ -107,9 +107,10 @@ public final class TopDownCuller {
     // 視線遮蔽と判定された幹のカラムキーセット（isBlockCulled 高速判定用）
     private final Set<Long> occludedTreeTrunkColumns = new HashSet<>();
 
-    // 空間認識（天井+壁スキャン）の結果。インタラクト可能ブロック保護の拡張に使用。
+    // 空間認識（フラッドフィル部屋探索）の結果。インタラクト可能ブロック保護の拡張等に使用。
     // updateSpaceRecognition で更新される。
     private boolean currentSpaceEnclosed = false;
+    private SpaceProbe.Result currentSpaceResult = null;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -141,6 +142,7 @@ public final class TopDownCuller {
         protectedTreeTrunks.clear();
         occludedTreeTrunkColumns.clear();
         currentSpaceEnclosed = false;
+        currentSpaceResult = null;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -556,7 +558,8 @@ public final class TopDownCuller {
         }
 
         BlockPos seed = mc.player.blockPosition();
-        currentSpaceEnclosed = SpaceProbe.probe(mc.level, seed).isEnclosed();
+        currentSpaceResult = SpaceProbe.probe(mc.level, seed);
+        currentSpaceEnclosed = currentSpaceResult.isEnclosed();
 
         // 足元Y（足元ブロック = eyeY-1 の床 = eyeY-2）。playerY は eyeY のブロック中心。
         // update() で playerY = floor(eyeY)+0.5。足元床ブロック = floor(eyeY)-1。
@@ -889,6 +892,7 @@ public final class TopDownCuller {
         protectedLadderChains.clear();
         protectedLadderPositions.clear();
         currentSpaceEnclosed = false;
+        currentSpaceResult = null;
         LadderHelper.clearCache();
         resetLastBlockCoords();
         contextValid = false;

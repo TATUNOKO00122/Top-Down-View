@@ -1,6 +1,7 @@
 package com.topdownview.spatial;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -18,15 +19,16 @@ public final class WallAnalyzer {
     }
 
     /**
-     * ブロックが固体（衝突判定あり）かどうか。
+     * ブロックが固体（壁殻構造）かどうか。
      *
-     * <p>空気ブロックや草花などの非衝突ブロックは非固体。
-     * 壁、ファルス、ガラスなどの衝突判定ありブロックは固体。
+     * <p>空気ブロック、草花、および葉ブロックなどの透過性/非構造ブロックは非固体。
+     * 壁、フェンス、ガラスなどの構造的衝突ブロックは固体。
      */
     public static boolean isSolid(BlockGetter level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (state.isAir()) return false;
+        if (state.isAir() || state.is(BlockTags.LEAVES)) return false;
         VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());
         return !shape.isEmpty();
     }
 }
+

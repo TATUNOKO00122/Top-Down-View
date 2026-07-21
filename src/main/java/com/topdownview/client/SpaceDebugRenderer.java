@@ -103,6 +103,25 @@ public final class SpaceDebugRenderer {
         float enclosedG = result.isEnclosed() ? 1.0f : 1.0f;
         float enclosedB = 0.0f;
 
+        // 3D BFS 空気セル（緑）と壁殻セル（赤）のワイヤーフレーム描画
+        com.topdownview.spatial.RoomFloodFill.Result roomRes = result.getRoomResult();
+        if (roomRes != null && roomRes.isEnclosed()) {
+            // 空気セル (緑)
+            for (long posLong : roomRes.getAirCells()) {
+                int ax = BlockPos.getX(posLong);
+                int ay = BlockPos.getY(posLong);
+                int az = BlockPos.getZ(posLong);
+                drawBox(poseStack, vertices, ax, ay, az, cameraPos, 0.0f, 1.0f, 0.0f);
+            }
+            // 壁殻セル (赤)
+            for (long posLong : roomRes.getShellCells()) {
+                int sx = BlockPos.getX(posLong);
+                int sy = BlockPos.getY(posLong);
+                int sz = BlockPos.getZ(posLong);
+                drawBox(poseStack, vertices, sx, sy, sz, cameraPos, 1.0f, 0.2f, 0.2f);
+            }
+        }
+
         // 天井位置
         if (result.hasCeiling()) {
             BlockPos origin = result.getOrigin();
@@ -224,6 +243,21 @@ public final class SpaceDebugRenderer {
             gg.drawString(mc.font, "Stairs: " + staircases.size()
                     + "  Steps: " + stairStepsTotal
                     + "  StairBlock: " + stairBlocksTotal, x, y, stairColor, false);
+            y += lineHeight;
+        }
+
+        // 空間セル情報
+        com.topdownview.spatial.RoomFloodFill.Result roomRes = result.getRoomResult();
+        if (roomRes != null && roomRes.isEnclosed()) {
+            gg.drawString(mc.font, "Room Cells: Air=" + roomRes.getAirCells().size()
+                    + "  Shell=" + roomRes.getShellCells().size(), x, y, 0xFF88FF88, false);
+            y += lineHeight;
+            BlockPos minP = roomRes.getMinPos();
+            BlockPos maxP = roomRes.getMaxPos();
+            int dx = maxP.getX() - minP.getX() + 1;
+            int dy = maxP.getY() - minP.getY() + 1;
+            int dz = maxP.getZ() - minP.getZ() + 1;
+            gg.drawString(mc.font, "Room AABB: " + dx + "x" + dy + "x" + dz, x, y, 0xFFCCCCCC, false);
             y += lineHeight;
         }
 
