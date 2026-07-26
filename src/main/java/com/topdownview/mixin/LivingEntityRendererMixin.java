@@ -191,8 +191,14 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
 
         // コーンフェードと近接表示のブレンド
         float finalAngleFade = lerp(angleFade, 1.0f, mobProximity);
+        float alpha = distFade * finalAngleFade;
 
-        return distFade * finalAngleFade;
+        // ターゲットロック中のエンティティは戦闘視認性を保つため最低透明度(0.3f)を維持
+        if (ModState.TARGET_LOCK.isLockedTo(entity)) {
+            return Math.max(0.3f, alpha);
+        }
+
+        return alpha;
     }
 
     private static double smoothstep(double edge0, double edge1, double x) {
