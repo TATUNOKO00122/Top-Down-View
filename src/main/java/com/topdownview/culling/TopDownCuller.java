@@ -6,6 +6,7 @@ import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
+import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
@@ -13,6 +14,7 @@ import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -591,6 +593,9 @@ public final class TopDownCuller {
         int minY = playerFeetY;
         int maxY = playerFeetY + exclusionHeight;
 
+        RoomFloodFill.Result roomResult = currentSpaceResult != null ? currentSpaceResult.getRoomResult() : null;
+        LongSet airCells = roomResult != null ? roomResult.getAirCells() : null;
+
         List<Staircase> detected = new ArrayList<>();
         for (Staircase stair : staircases) {
             // 天井の階段などを誤検出・除外しないよう、階段の最下段がプレイヤーの足元+1以下から始まるもののみに限定
@@ -598,8 +603,10 @@ public final class TopDownCuller {
                 boolean anyStepInRange = false;
                 for (BlockPos step : stair.getSteps()) {
                     if (step.getY() >= minY && step.getY() <= maxY) {
-                        excludedStairBlocks.add(step.immutable());
-                        anyStepInRange = true;
+                        if (isIndoorStairStep(airCells, step)) {
+                            excludedStairBlocks.add(step.immutable());
+                            anyStepInRange = true;
+                        }
                     }
                 }
                 // 視線遮蔽半透明化用にシーケンス全体を保持（範囲内の段が1つでもあれば）
@@ -759,6 +766,23 @@ public final class TopDownCuller {
             return false;
         }
         return excludedStairBlocks.contains(pos);
+    }
+
+    /**
+     * 指定された階段ステップが室内歩行用階段か判定する。
+     * ステップの頭上空間（step+1 または step+2）が部屋内部空気セル集合（airCells）に含まれている場合のみ室内とみなす。
+     * 屋根の階段（屋根裏部屋等の屋根）や屋外の階段を除外するための判定。
+     */
+    private boolean isIndoorStairStep(LongSet airCells, BlockPos step) {
+        if (airCells == null || airCells.isEmpty()) {
+            return false;
+        }
+        int x = step.getX();
+        int y = step.getY();
+        int z = step.getZ();
+        long posAbove1 = BlockPos.asLong(x, y + 1, z);
+        long posAbove2 = BlockPos.asLong(x, y + 2, z);
+        return airCells.contains(posAbove1) || airCells.contains(posAbove2);
     }
 
     private void updateEntityCulling(Minecraft mc) {
