@@ -818,15 +818,43 @@ public final class TopDownCuller {
     private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY) {
         int entityBlockY = entity.getBlockY();
 
-        if (entityBlockY <= playerFeetBlockY + 1) {
+        // 1. プレイヤーと同一高さ以下、またはワールドがない場合はカリングしない
+        if (entityBlockY <= playerFeetBlockY + 1 || mc.level == null) {
             return false;
         }
 
-        if (!isEntityGrounded(entity, mc)) {
+        int ex = entity.getBlockX();
+        int ez = entity.getBlockZ();
+
+        // 2. 接地チェックおよび足元ブロックのカリング判定
+        boolean grounded = false;
+        for (int yOffset = 0; yOffset <= 2; yOffset++) {
+            entityGroundedPos.set(ex, entityBlockY - yOffset, ez);
+            if (!mc.level.getBlockState(entityGroundedPos).isAir()) {
+                grounded = true;
+                // 足元の接地ブロックがカリング（消去）されている場合、Mobもカリング（非表示）
+                if (isBlockCulled(entityGroundedPos, mc.level)) {
+                    return true;
+                }
+                break;
+            }
+        }
+
+        // 接地していない（空中に浮かんでいる等の）Mobはカリングしない
+        if (!grounded) {
             return false;
         }
 
-        return true;
+        // 3. Mobとプレイヤーの間の高さ（playerFeetBlockY + 1 〜 entityBlockY - 1）の軸線上に
+        //    カリングされている天井/屋根ブロックが存在するかチェック
+        for (int y = playerFeetBlockY + 1; y < entityBlockY; y++) {
+            entityGroundedPos.set(ex, y, ez);
+            if (isBlockCulled(entityGroundedPos, mc.level)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ,
@@ -857,22 +885,7 @@ public final class TopDownCuller {
         return normalizedDistSq <= 1.0;
     }
 
-    private boolean isEntityGrounded(Entity entity, Minecraft mc) {
-        if (mc.level == null) {
-            return false;
-        }
 
-        int entityBlockY = entity.getBlockY();
-
-        for (int yOffset = 0; yOffset <= 2; yOffset++) {
-            entityGroundedPos.set(entity.getBlockX(), entityBlockY - yOffset, entity.getBlockZ());
-            if (!mc.level.getBlockState(entityGroundedPos).isAir()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private boolean isCullableEntityType(Entity entity) {
         if (entity instanceof Mob) {
