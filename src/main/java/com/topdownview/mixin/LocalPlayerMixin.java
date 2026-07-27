@@ -21,6 +21,43 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LocalPlayer.class)
 public abstract class LocalPlayerMixin {
 
+    @Inject(method = "aiStep", at = @At("HEAD"))
+    private void onAiStepHead(CallbackInfo ci) {
+        if (!ModState.STATUS.isEnabled()) return;
+        if (!Config.isWaterMovementControlEnabled()) return;
+
+        LocalPlayer player = (LocalPlayer) (Object) this;
+        if (player.isPassenger() || player.isFallFlying()) return;
+
+        boolean inDeepWater = player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || player.isSwimming();
+        if (inDeepWater) {
+            boolean isSneaking = player.input != null && player.input.shiftKeyDown;
+            boolean isJumping = player.input != null && player.input.jumping;
+
+            float targetPitch;
+            if (isSneaking) {
+                targetPitch = 55.0f;
+            } else if (isJumping) {
+                targetPitch = -55.0f;
+            } else {
+                targetPitch = 0.0f;
+            }
+
+            player.setXRot(targetPitch);
+            player.xRotO = targetPitch;
+
+            boolean hasInput = player.input != null && (
+                Math.abs(player.input.forwardImpulse) > 0.01f ||
+                Math.abs(player.input.leftImpulse) > 0.01f ||
+                isSneaking || isJumping
+            );
+
+            if (hasInput) {
+                player.setSwimming(true);
+            }
+        }
+    }
+
     @Inject(method = "aiStep", at = @At("TAIL"))
     private void onAiStepTail(CallbackInfo ci) {
         if (!ModState.STATUS.isEnabled()) return;

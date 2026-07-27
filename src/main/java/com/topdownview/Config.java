@@ -145,6 +145,8 @@ public class Config {
             .defineInRange("playerScreenOffset", 0.5, -10.0, 10.0);
     private static final ForgeConfigSpec.BooleanValue HEAD_BODY_ROTATION_ENABLED = BUILDER
             .define("headBodyRotationEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue WATER_MOVEMENT_CONTROL_ENABLED = BUILDER
+            .define("waterMovementControlEnabled", true);
     private static final ForgeConfigSpec.BooleanValue INDEPENDENT_MOUNT_AIM = BUILDER
             .define("independentMountAim", true);
     private static final ForgeConfigSpec.IntValue MOUNT_AIM_MAX_TWIST = BUILDER
@@ -312,6 +314,7 @@ public class Config {
     private static boolean followDelayWhileMounted;
     private static double playerScreenOffset;
     private static boolean headBodyRotationEnabled;
+    private static boolean waterMovementControlEnabled;
     private static boolean independentMountAim;
     private static int mountAimMaxTwist;
     private static double mountTurnSmoothing;
@@ -411,6 +414,7 @@ public class Config {
     public static boolean isFollowDelayWhileMounted() { return followDelayWhileMounted; }
     public static double getPlayerScreenOffset() { return playerScreenOffset; }
     public static boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
+    public static boolean isWaterMovementControlEnabled() { return waterMovementControlEnabled; }
     public static boolean isIndependentMountAim() { return independentMountAim; }
     public static int getMountAimMaxTwist() { return mountAimMaxTwist; }
     public static double getMountTurnSmoothing() { return mountTurnSmoothing; }
@@ -516,6 +520,7 @@ public class Config {
     public static void setFollowDelayWhileMounted(boolean value) { followDelayWhileMounted = value; }
     public static void setPlayerScreenOffset(double value) { playerScreenOffset = clamp(value, -10.0, 10.0); }
     public static void setHeadBodyRotationEnabled(boolean value) { headBodyRotationEnabled = value; }
+    public static void setWaterMovementControlEnabled(boolean value) { waterMovementControlEnabled = value; }
     public static void setIndependentMountAim(boolean value) { independentMountAim = value; }
     public static void setMountAimMaxTwist(int value) { mountAimMaxTwist = clamp(value, 45, 360); }
     public static void setMountTurnSmoothing(double value) { mountTurnSmoothing = clamp(value, 0.05, 1.0); }
@@ -634,6 +639,7 @@ public class Config {
         followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.get();
         playerScreenOffset = PLAYER_SCREEN_OFFSET.get();
         headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.get();
+        waterMovementControlEnabled = WATER_MOVEMENT_CONTROL_ENABLED.get();
         independentMountAim = INDEPENDENT_MOUNT_AIM.get();
         mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.get();
         mountTurnSmoothing = MOUNT_TURN_SMOOTHING.get();
@@ -740,6 +746,7 @@ public class Config {
         FOLLOW_DELAY_WHILE_MOUNTED.set(followDelayWhileMounted);
         PLAYER_SCREEN_OFFSET.set(playerScreenOffset);
         HEAD_BODY_ROTATION_ENABLED.set(headBodyRotationEnabled);
+        WATER_MOVEMENT_CONTROL_ENABLED.set(waterMovementControlEnabled);
         INDEPENDENT_MOUNT_AIM.set(independentMountAim);
         MOUNT_AIM_MAX_TWIST.set(mountAimMaxTwist);
         MOUNT_TURN_SMOOTHING.set(mountTurnSmoothing);

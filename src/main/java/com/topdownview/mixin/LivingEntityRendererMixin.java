@@ -37,6 +37,15 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
         CURRENT_PARTIAL_TICKS.set(partialTicks);
 
         Minecraft mc = Minecraft.getInstance();
+        if (ModState.STATUS.isEnabled() && Config.isWaterMovementControlEnabled() && mc.player != null && entity == mc.player) {
+            boolean inDeepWater = mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming();
+            if (inDeepWater) {
+                float pitch = com.topdownview.client.PlayerRotationController.calculateWaterPitch(mc, mc.player.getXRot());
+                mc.player.setXRot(pitch);
+                mc.player.xRotO = pitch;
+            }
+        }
+
         float coneAlpha = 1.0f;
         if (mc.player != null && mc.player != entity) {
             coneAlpha = calculateConeAlpha(mc, entity, partialTicks);

@@ -74,6 +74,34 @@ public final class MovementController {
             mc.player.setSprinting(false);
         }
 
+        boolean inDeepWater = Config.isWaterMovementControlEnabled() && (
+            mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming()
+        );
+
+        if (inDeepWater) {
+            if (hasManualInput) {
+                float speed = (float) Math.sqrt(originalForward * originalForward + originalStrafe * originalStrafe);
+                event.getInput().forwardImpulse = Math.min(speed, 1.0f);
+                event.getInput().leftImpulse = 0.0f;
+            } else {
+                event.getInput().forwardImpulse = 0.0f;
+                event.getInput().leftImpulse = 0.0f;
+            }
+
+            boolean isSneaking = event.getInput().shiftKeyDown;
+            boolean isJumping = event.getInput().jumping;
+
+            Vec3 delta = mc.player.getDeltaMovement();
+            if (isSneaking) {
+                double targetY = Math.min(delta.y - 0.05, -0.18);
+                mc.player.setDeltaMovement(delta.x, targetY, delta.z);
+            } else if (isJumping) {
+                double targetY = Math.max(delta.y + 0.05, 0.18);
+                mc.player.setDeltaMovement(delta.x, targetY, delta.z);
+            }
+            return;
+        }
+
         float cameraYaw = ModState.CAMERA.getYaw();
         float playerYaw = mc.player.getYRot();
         float diffYaw = cameraYaw - playerYaw;

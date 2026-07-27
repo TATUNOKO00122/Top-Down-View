@@ -90,6 +90,8 @@ public final class PlayerRotationController {
             targetPitch = Mth.clamp(yawPitch[1], -90.0f, 90.0f);
         }
 
+        targetPitch = calculateWaterPitch(mc, targetPitch);
+
         // 目標値を更新
         PlayerRotationState state = ModState.PLAYER_ROTATION;
         state.updateTargetHeadYawDirect(targetYaw);
@@ -182,11 +184,64 @@ public final class PlayerRotationController {
             targetPitch = Mth.clamp(yawPitch[1], -90.0f, 90.0f);
         }
 
+        targetPitch = calculateWaterPitch(mc, targetPitch);
+
         state.updateTargetHeadYawDirect(targetYaw);
         state.updateTargetPitch(targetPitch);
     }
 
+    public static float calculateWaterPitch(Minecraft mc, float defaultPitch) {
+        if (!com.topdownview.Config.isWaterMovementControlEnabled() || mc.player == null) {
+            return defaultPitch;
+        }
+
+        boolean inDeepWater = mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming();
+        if (inDeepWater) {
+            if (mc.player.input != null && mc.player.input.shiftKeyDown) {
+                return 55.0f;
+            } else if (mc.player.input != null && mc.player.input.jumping) {
+                return -55.0f;
+            } else {
+                return 0.0f;
+            }
+        }
+        return defaultPitch;
+    }
+
     private static void updateBodyYawFromMovement(Minecraft mc, PlayerRotationState state) {
+        boolean inDeepWater = com.topdownview.Config.isWaterMovementControlEnabled() && mc.player != null && (
+            mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming()
+        );
+
+        if (inDeepWater) {
+            state.setBodyLerpSpeed(0.25f);
+            state.setHeadLerpSpeed(0.25f);
+
+            float rawForward = 0.0f;
+            float rawStrafe = 0.0f;
+            if (mc.options.keyUp.isDown()) rawForward += 1.0f;
+            if (mc.options.keyDown.isDown()) rawForward -= 1.0f;
+            if (mc.options.keyLeft.isDown()) rawStrafe += 1.0f;
+            if (mc.options.keyRight.isDown()) rawStrafe -= 1.0f;
+
+            boolean hasRawInput = Math.abs(rawForward) > 0.01f || Math.abs(rawStrafe) > 0.01f;
+
+            if (!hasRawInput) {
+                state.updateTargetBodyYaw(0.0f, false);
+                return;
+            }
+
+            float cameraYaw = ModState.CAMERA.getYaw();
+            float inputAngle = (float) Math.toDegrees(Math.atan2(-rawStrafe, rawForward));
+            float movementYaw = normalizeAngle(cameraYaw + inputAngle);
+
+            state.updateTargetBodyYaw(movementYaw, true);
+            state.updateTargetHeadYawDirect(movementYaw);
+            return;
+        }
+
+        state.resetLerpSpeeds();
+
         Input input = mc.player.input;
         float forward = input.forwardImpulse;
         float strafe = input.leftImpulse;

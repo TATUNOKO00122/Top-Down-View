@@ -237,6 +237,11 @@ public final class PlayerRotationState {
         return headYaw;
     }
 
+    public void resetLerpSpeeds() {
+        this.bodyLerpSpeed = DEFAULT_LERP_SPEED;
+        this.headLerpSpeed = HEAD_LERP_SPEED;
+    }
+
     private static float lerpAngle(float from, float to, float speed) {
         float diff = normalizeAngle(to - from);
         return normalizeAngle(from + diff * speed);

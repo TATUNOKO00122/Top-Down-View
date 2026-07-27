@@ -190,6 +190,9 @@ dependencies {
     // BTP連携を使用する場合は CurseForge 等から入手して libs/ に配置してください。
     // https://www.curseforge.com/minecraft/mc-mods/better-third-person
     compileOnly files('libs/BetterThirdPerson-Forge-1.20-1.9.0.jar')
+
+    // MoBends - 水中アニメーションキャンセル用（コンパイル時のみ、実行時はオプショナル）
+    compileOnly files('libs/MoBends-forge-1.20.1-5.1.7.jar')
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

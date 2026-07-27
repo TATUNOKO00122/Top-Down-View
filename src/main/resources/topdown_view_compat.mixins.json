@@ -9,7 +9,8 @@
         "FluidRendererMixin",
         "DefaultMaterialsMixin",
         "BlockOcclusionCacheMixin",
-        "RenderSectionManagerMixin"
+        "RenderSectionManagerMixin",
+        "compat.mobends.MoBendsModCompatManagerMixin"
     ],
     "mixins": [],
     "injectors": {
