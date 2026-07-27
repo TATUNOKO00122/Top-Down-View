@@ -7,6 +7,7 @@
     "client": [
         "BlockRendererMixin",
         "FluidRendererMixin",
+        "DefaultMaterialsMixin",
         "BlockOcclusionCacheMixin",
         "RenderSectionManagerMixin"
     ],

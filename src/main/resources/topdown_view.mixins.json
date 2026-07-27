@@ -24,7 +24,9 @@
     "LivingEntityRendererMixin",
     "SlimeOuterLayerMixin",
     "MultiPlayerGameModeMixin",
-    "ListenerMixin"
+    "ListenerMixin",
+    "ItemBlockRenderTypesMixin",
+    "LiquidBlockRendererMixin"
   ],
   "mixins": [
     "BlockItemPlacementMixin"

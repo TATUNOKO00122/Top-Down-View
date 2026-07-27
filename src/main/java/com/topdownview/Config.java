@@ -236,6 +236,12 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue PROTECT_NATURAL_TREE_LOGS = BUILDER
             .define("protectNaturalTreeLogs", false);
 
+    // 液体半透明化設定
+    private static final ForgeConfigSpec.BooleanValue TRANSLUCENT_FLUID = BUILDER
+            .define("translucentFluid", true);
+    private static final ForgeConfigSpec.DoubleValue FLUID_ALPHA = BUILDER
+            .defineInRange("fluidAlpha", 0.35, 0.05, 1.0);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
@@ -333,6 +339,8 @@ public class Config {
     private static double treeOccludeAlpha;
     private static boolean ignoreLeavesInRaycast;
     private static boolean protectNaturalTreeLogs;
+    private static boolean translucentFluid;
+    private static double fluidAlpha;
     private static int signHoverDisplayMode;
     private static double signHoverScale;
     private static boolean showInteractionPrompt;
@@ -430,6 +438,8 @@ public class Config {
     public static double getTreeOccludeAlpha() { return treeOccludeAlpha; }
     public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public static boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
+    public static boolean isTranslucentFluid() { return translucentFluid; }
+    public static double getFluidAlpha() { return fluidAlpha; }
     public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
     public static double getSignHoverScale() { return signHoverScale; }
     public static boolean isShowInteractionPrompt() { return showInteractionPrompt; }
@@ -532,6 +542,8 @@ public class Config {
     public static void setTreeOccludeAlpha(double value) { treeOccludeAlpha = clamp(value, 0.0, 1.0); }
     public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
     public static void setProtectNaturalTreeLogs(boolean value) { protectNaturalTreeLogs = value; }
+    public static void setTranslucentFluid(boolean value) { translucentFluid = value; }
+    public static void setFluidAlpha(double value) { fluidAlpha = clamp(value, 0.05, 1.0); }
     public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
     public static void setSignHoverScale(double value) { signHoverScale = clamp(value, 0.0, 1.0); }
     public static void setShowInteractionPrompt(boolean value) { showInteractionPrompt = value; }
@@ -648,6 +660,8 @@ public class Config {
         treeOccludeAlpha = TREE_OCCLUDE_ALPHA.get();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.get();
+        translucentFluid = TRANSLUCENT_FLUID.get();
+        fluidAlpha = FLUID_ALPHA.get();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
         signHoverScale = SIGN_HOVER_SCALE.get();
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.get();
@@ -752,6 +766,8 @@ public class Config {
         TREE_OCCLUDE_ALPHA.set(treeOccludeAlpha);
         IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
         PROTECT_NATURAL_TREE_LOGS.set(protectNaturalTreeLogs);
+        TRANSLUCENT_FLUID.set(translucentFluid);
+        FLUID_ALPHA.set(fluidAlpha);
         SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
         SIGN_HOVER_SCALE.set(signHoverScale);
         SHOW_INTERACTION_PROMPT.set(showInteractionPrompt);
@@ -849,6 +865,8 @@ public class Config {
         treeOccludeAlpha = TREE_OCCLUDE_ALPHA.getDefault();
         ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
         protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.getDefault();
+        translucentFluid = TRANSLUCENT_FLUID.getDefault();
+        fluidAlpha = FLUID_ALPHA.getDefault();
         signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();
         signHoverScale = SIGN_HOVER_SCALE.getDefault();
         showInteractionPrompt = SHOW_INTERACTION_PROMPT.getDefault();

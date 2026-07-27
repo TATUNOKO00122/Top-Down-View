@@ -635,6 +635,24 @@ public class ConfigScreen extends Screen {
                 1.0, val -> Config.setSignHoverScale(val), 1));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.fluid", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.translucent_fluid",
+                        Config.isTranslucentFluid()),
+                btn -> {
+                    Config.setTranslucentFluid(!Config.isTranslucentFluid());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.translucent_fluid",
+                            Config.isTranslucentFluid()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.translucent_fluid.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fluid_alpha",
+                Config.getFluidAlpha(), 0.05, 1.0,
+                val -> Config.setFluidAlpha(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
