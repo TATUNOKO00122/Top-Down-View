@@ -38,6 +38,8 @@ public final class CameraState {
     private volatile double z = 0.0;
     private volatile float zoom = DEFAULT_ZOOM;
     private volatile double cameraDistance = DEFAULT_CAMERA_DISTANCE;
+    // レンダリング用補間済み距離（スムージング有効時は target=cameraDistance へ追従）
+    private volatile double renderCameraDistance = DEFAULT_CAMERA_DISTANCE;
     private volatile Vec3 cameraPosition = DEFAULT_POSITION;
     private volatile CameraType previousCameraType = null;
     private volatile long lastAutoAlignTick = 0;
@@ -111,6 +113,29 @@ public final class CameraState {
 
     public double getCameraDistance() {
         return cameraDistance;
+    }
+
+    public double getRenderCameraDistance() {
+        return renderCameraDistance;
+    }
+
+    public void setRenderCameraDistance(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Render camera distance must be finite: " + value);
+        }
+        renderCameraDistance = value;
+    }
+
+    /**
+     * 補間済み距離を target（cameraDistance）へ1フレーム分線形補間で近づける
+     * @param lerpFactor 0.0〜1.0 の補間係数（1.0なら即座に一致）
+     */
+    public void stepRenderCameraDistance(double lerpFactor) {
+        if (lerpFactor >= 1.0 || lerpFactor <= 0.0) {
+            renderCameraDistance = cameraDistance;
+            return;
+        }
+        renderCameraDistance += (cameraDistance - renderCameraDistance) * lerpFactor;
     }
 
     public Vec3 getCameraPosition() {
@@ -195,6 +220,10 @@ public final class CameraState {
                             MIN_CAMERA_DISTANCE, maxDistance, value));
         }
         cameraDistance = value;
+        // スムージング無効時は補間済み距離も即座に同期する（操作感の整合性担保）
+        if (!com.topdownview.Config.isCameraZoomSmoothingEnabled()) {
+            renderCameraDistance = value;
+        }
     }
 
     public void setCameraPosition(Vec3 value) {
@@ -452,6 +481,7 @@ public final class CameraState {
         z = 0.0;
         zoom = DEFAULT_ZOOM;
         cameraDistance = getEffectiveDefaultCameraDistance();
+        renderCameraDistance = cameraDistance;
         cameraPosition = DEFAULT_POSITION;
         previousCameraType = null;
         lastAutoAlignTick = 0;

@@ -35,6 +35,8 @@ public abstract class CameraMixin {
     private double cachedLerpFactorX = 0;
     private double cachedDelayZ = -1;
     private double cachedLerpFactorZ = 0;
+    private double cachedDelayZoom = -1;
+    private double cachedLerpFactorZoom = 0;
 
     private static double computeLerpFactor(double delaySeconds) {
         if (delaySeconds <= MIN_DELAY) return 1.0;
@@ -94,7 +96,7 @@ public abstract class CameraMixin {
             cameraBaseZ += -Math.cos(offsetRadYaw) * screenOffset;
         }
 
-        double distance = ModState.CAMERA.getCameraDistance();
+        double distance = calculateCameraDistance();
         float pitch;
         if (ModState.CAMERA.isFreeCameraMode()) {
             pitch = ModState.CAMERA.getLerpFreeCameraPitch(partialTick);
@@ -283,5 +285,38 @@ public abstract class CameraMixin {
         ModState.CAMERA.setCurrentCameraZ(newZ);
 
         return newZ;
+    }
+
+    /**
+     * カメラ距離（ズーム）のスムージング
+     * ユーザー入力で設定された target（ModState.CAMERA.getCameraDistance()）へ
+     * レンダー用補間済み距離を徐々に近づける。
+     * 設定無効時は即座に target と一致させる。
+     */
+    private double calculateCameraDistance() {
+        double target = ModState.CAMERA.getCameraDistance();
+
+        if (!com.topdownview.Config.isCameraZoomSmoothingEnabled()) {
+            ModState.CAMERA.setRenderCameraDistance(target);
+            return target;
+        }
+
+        double delaySeconds = com.topdownview.Config.getCameraZoomSmoothing();
+        if (delaySeconds <= 0.0) {
+            ModState.CAMERA.setRenderCameraDistance(target);
+            return target;
+        }
+
+        if (cachedDelayZoom != delaySeconds) {
+            cachedDelayZoom = delaySeconds;
+            cachedLerpFactorZoom = computeLerpFactor(delaySeconds);
+        }
+
+        ModState.CAMERA.stepRenderCameraDistance(cachedLerpFactorZoom);
+        // maxCameraDistance が後から縮小された場合でも有効範囲内に保つ
+        double maxDistance = com.topdownview.state.CameraState.getEffectiveMaxCameraDistance();
+        double smoothed = ModState.CAMERA.getRenderCameraDistance();
+        return Math.max(com.topdownview.state.CameraState.MIN_CAMERA_DISTANCE,
+                Math.min(smoothed, maxDistance));
     }
 }

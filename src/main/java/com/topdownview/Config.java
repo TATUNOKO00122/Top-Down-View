@@ -164,6 +164,11 @@ public class Config {
             .define("lockedTopDown", false);
     private static final ForgeConfigSpec.BooleanValue SCROLL_ONLY_ZOOM_ENABLED = BUILDER
             .define("scrollOnlyZoomEnabled", false);
+    // ズーム（カメラ距離）操作のスムージング設定
+    private static final ForgeConfigSpec.BooleanValue CAMERA_ZOOM_SMOOTHING_ENABLED = BUILDER
+            .define("cameraZoomSmoothingEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue CAMERA_ZOOM_SMOOTHING = BUILDER
+            .defineInRange("cameraZoomSmoothing", 0.15, 0.0, 1.0);
     private static final ForgeConfigSpec.BooleanValue TARGET_LOCK_ENABLED = BUILDER
             .define("targetLockEnabled", true);
     private static final ForgeConfigSpec.IntValue TARGET_LOCK_DURATION = BUILDER
@@ -323,6 +328,8 @@ public class Config {
     private static int topDownFov;
     private static boolean lockedTopDown;
     private static boolean scrollOnlyZoomEnabled;
+    private static boolean cameraZoomSmoothingEnabled;
+    private static double cameraZoomSmoothing;
     private static boolean targetLockEnabled;
     private static int targetLockDuration;
     private static double targetHitboxExpansion;
@@ -423,6 +430,8 @@ public class Config {
     public static int getTopDownFov() { return topDownFov; }
     public static boolean isLockedTopDown() { return lockedTopDown; }
     public static boolean isScrollOnlyZoomEnabled() { return scrollOnlyZoomEnabled; }
+    public static boolean isCameraZoomSmoothingEnabled() { return cameraZoomSmoothingEnabled; }
+    public static double getCameraZoomSmoothing() { return cameraZoomSmoothing; }
     public static boolean isTargetLockEnabled() { return targetLockEnabled; }
     public static int getTargetLockDuration() { return targetLockDuration; }
     public static double getTargetHitboxExpansion() { return targetHitboxExpansion; }
@@ -529,6 +538,8 @@ public class Config {
     public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
     public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
     public static void setScrollOnlyZoomEnabled(boolean value) { scrollOnlyZoomEnabled = value; }
+    public static void setCameraZoomSmoothingEnabled(boolean value) { cameraZoomSmoothingEnabled = value; }
+    public static void setCameraZoomSmoothing(double value) { cameraZoomSmoothing = clamp(value, 0.0, 1.0); }
     public static void setTargetLockEnabled(boolean value) { targetLockEnabled = value; }
     public static void setTargetLockDuration(int value) { targetLockDuration = clamp(value, 0, 600); }
     public static void setTargetHitboxExpansion(double value) { targetHitboxExpansion = clamp(value, 0.0, 5.0); }
@@ -648,6 +659,8 @@ public class Config {
         topDownFov = TOP_DOWN_FOV.get();
         lockedTopDown = LOCKED_TOP_DOWN.get();
         scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.get();
+        cameraZoomSmoothingEnabled = CAMERA_ZOOM_SMOOTHING_ENABLED.get();
+        cameraZoomSmoothing = CAMERA_ZOOM_SMOOTHING.get();
         targetLockEnabled = TARGET_LOCK_ENABLED.get();
         targetLockDuration = TARGET_LOCK_DURATION.get();
         targetHitboxExpansion = TARGET_HITBOX_EXPANSION.get();
@@ -755,6 +768,8 @@ public class Config {
         TOP_DOWN_FOV.set(topDownFov);
         LOCKED_TOP_DOWN.set(lockedTopDown);
         SCROLL_ONLY_ZOOM_ENABLED.set(scrollOnlyZoomEnabled);
+        CAMERA_ZOOM_SMOOTHING_ENABLED.set(cameraZoomSmoothingEnabled);
+        CAMERA_ZOOM_SMOOTHING.set(cameraZoomSmoothing);
         TARGET_LOCK_ENABLED.set(targetLockEnabled);
         TARGET_LOCK_DURATION.set(targetLockDuration);
         TARGET_HITBOX_EXPANSION.set(targetHitboxExpansion);
@@ -854,6 +869,8 @@ public class Config {
         topDownFov = TOP_DOWN_FOV.getDefault();
         lockedTopDown = LOCKED_TOP_DOWN.getDefault();
         scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.getDefault();
+        cameraZoomSmoothingEnabled = CAMERA_ZOOM_SMOOTHING_ENABLED.getDefault();
+        cameraZoomSmoothing = CAMERA_ZOOM_SMOOTHING.getDefault();
         targetLockEnabled = TARGET_LOCK_ENABLED.getDefault();
         targetLockDuration = TARGET_LOCK_DURATION.getDefault();
         targetHitboxExpansion = TARGET_HITBOX_EXPANSION.getDefault();
