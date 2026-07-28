@@ -14,6 +14,8 @@ import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -114,6 +116,12 @@ public final class TopDownCuller {
     private boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
 
+    // 屋内空間と判定された場合の天井ブロック位置集合。
+    // 「直下(y-1)が空気セルである shell ブロック」を天井と定義し、alpha=0 で一律非表示する。
+    // 保護対象ブロック（チェスト等のインタラクト可能ブロック、Trapdoor）は
+    // isBlockCulled 内の isProtectedBlock 判定で先に救済されるため、ここには含まれうるが描画されない。
+    private final LongOpenHashSet ceilingCullPositions = new LongOpenHashSet();
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
@@ -143,6 +151,7 @@ public final class TopDownCuller {
         protectedTreeLogPositions.clear();
         protectedTreeTrunks.clear();
         occludedTreeTrunkColumns.clear();
+        ceilingCullPositions.clear();
         currentSpaceEnclosed = false;
         currentSpaceResult = null;
         LadderHelper.clearCache();
@@ -271,6 +280,14 @@ public final class TopDownCuller {
         if (isProtectedBlock(pos, state, pY, level)) {
             cullingCache.put(posLong, false);
             return false;
+        }
+
+        // 屋内空間で検出された天井ブロック（直下が airCell である shell）を一律カリング。
+        // 保護ブロック（チェスト等のインタラクト可能ブロック）は上の isProtectedBlock で救済済み。
+        // 屋内判定時に常時有効（Config不要）。alpha=0 相当で完全非表示とするため cullingCache に true を登録。
+        if (!ceilingCullPositions.isEmpty() && ceilingCullPositions.contains(posLong)) {
+            cullingCache.put(posLong, true);
+            return true;
         }
 
         // 階段除外：プレイヤー足元〜足元+exclusionHeight の範囲内の階段ブロック
@@ -530,6 +547,7 @@ public final class TopDownCuller {
         detectedStaircases = List.of();
         protectedLadderChains.clear();
         protectedLadderPositions.clear();
+        ceilingCullPositions.clear();
 
         if (mc.level == null || mc.player == null) {
             currentSpaceEnclosed = false;
@@ -566,6 +584,13 @@ public final class TopDownCuller {
         // 足元Y（足元ブロック = eyeY-1 の床 = eyeY-2）。playerY は eyeY のブロック中心。
         // update() で playerY = floor(eyeY)+0.5。足元床ブロック = floor(eyeY)-1。
         int playerFeetY = blockY - 1;
+
+        // 天井カリング位置の更新: 屋内と判定された場合、shell セルのうち
+        // 直下(y-1)が空気セルであるブロックを天井とみなして収集する。
+        // isBlockCulled で保護判定後に一律カリング(alpha=0)するための位置集合。
+        // 外れている/非屋外時はクリアして何もしない。
+        // この処理は階段除外設定やハシゴ設定に依存せず常時実行（屋内天井は誰にでも見えるべきでない）。
+        updateCeilingCullPositions();
 
         // ハシゴチェーン収集（ハシゴ半透明化設定時のみ）。空間認識に依存せず常にスキャン。
         if (Config.isLadderOccludeEnabled()) {
@@ -690,6 +715,45 @@ public final class TopDownCuller {
             }
             if (anyOccluding) {
                 occludedTreeTrunkColumns.add(BlockPos.asLong(trunk.x, 0, trunk.z));
+            }
+        }
+    }
+
+    /**
+     * 屋内空間の shell セルから天井ブロック（直下が空気セル）を抽出し、
+     * {@link #ceilingCullPositions} を構築する。
+     *
+     * <p>定義: shell セル (x, y, z) について、(x, y-1, z) が {@code airCells} に含まれる場合を
+     * 天井ブロックとみなす。これにより部屋内部の空気頭上を覆う1ブロック厚の天井が特定される。
+     * 床ブロック（直上が空気セル）や壁ブロック（横方向のみ空気セルに隣接）は含まれない。
+     *
+     * <p>非屋内（{@code currentSpaceEnclosed == false}）の場合は空集合となる。
+     */
+    private void updateCeilingCullPositions() {
+        ceilingCullPositions.clear();
+        if (!currentSpaceEnclosed || currentSpaceResult == null) {
+            return;
+        }
+        RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
+        if (roomResult == null || !roomResult.isEnclosed()) {
+            return;
+        }
+        LongSet airCells = roomResult.getAirCells();
+        LongSet shellCells = roomResult.getShellCells();
+        if (airCells.isEmpty() || shellCells.isEmpty()) {
+            return;
+        }
+        // shell セルは固体ブロック。直下が空気セル = プレイヤー頭上を覆う天井。
+        // LongOpenHashSet のイテレータで packed long を直接取得し BlockPos 生成を回避する。
+        LongIterator it = shellCells.iterator();
+        while (it.hasNext()) {
+            long packed = it.nextLong();
+            int x = BlockPos.getX(packed);
+            int y = BlockPos.getY(packed);
+            int z = BlockPos.getZ(packed);
+            long below = BlockPos.asLong(x, y - 1, z);
+            if (airCells.contains(below)) {
+                ceilingCullPositions.add(packed);
             }
         }
     }
@@ -928,6 +992,7 @@ public final class TopDownCuller {
         detectedStaircases = List.of();
         protectedLadderChains.clear();
         protectedLadderPositions.clear();
+        ceilingCullPositions.clear();
         currentSpaceEnclosed = false;
         currentSpaceResult = null;
         LadderHelper.clearCache();
@@ -997,6 +1062,13 @@ public final class TopDownCuller {
         }
 
         if (level == null) {
+            return false;
+        }
+
+        // 屋内検出天井ブロックは isBlockCulled で一律カリング(alpha=0相当)されているため、
+        // これを「フェード半透明ヒット対象」とするとカメラ〜プレイヤー間のアイコン完全透過用途で
+        // 見えない天井がレイキャストを遮ってしまう。alpha=0 < fadeBlockHitThreshold と同義で非ヒットとする。
+        if (!ceilingCullPositions.isEmpty() && ceilingCullPositions.contains(pos.asLong())) {
             return false;
         }
 
@@ -1152,6 +1224,14 @@ public final class TopDownCuller {
 
                     // 3. 保護対象ブロック（プレイヤー足元、Trapdoor、インタラクト可能など）はフェードさせない
                     if (isProtectedBlock(mutablePos, state, pY, level)) {
+                        continue;
+                    }
+
+                    // 3a. 屋内検出天井ブロックは isBlockCulled で一律カリング(alpha=0)されるため、
+                    // フェードキャッシュに登録して半透明描画すると「一律削除」の意図と矛盾する。
+                    // ここでスキップし、チャンクメッシュ再構築で非表示にする。
+                    if (!ceilingCullPositions.isEmpty()
+                            && ceilingCullPositions.contains(mutablePos.asLong())) {
                         continue;
                     }
 
