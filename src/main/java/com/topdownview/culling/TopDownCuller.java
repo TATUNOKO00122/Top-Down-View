@@ -14,6 +14,8 @@ import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -122,6 +124,12 @@ public final class TopDownCuller {
     // isBlockCulled 内の isProtectedBlock 判定で先に救済されるため、ここには含まれうるが描画されない。
     private final LongOpenHashSet ceilingCullPositions = new LongOpenHashSet();
 
+    // フェード引き継ぎ（Transition Handoff）管理用コレクション
+    private final LongOpenHashSet previousFadedPositions = new LongOpenHashSet();
+    private final LongOpenHashSet currentFadedPositions = new LongOpenHashSet();
+    private final Long2IntMap transitionHandoffBlocks = new Long2IntOpenHashMap();
+    private static final int HANDOFF_TICKS = 3;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
@@ -147,6 +155,9 @@ public final class TopDownCuller {
     public void clearCache() {
         cullingCache.clear();
         fadeCache.clear();
+        previousFadedPositions.clear();
+        currentFadedPositions.clear();
+        transitionHandoffBlocks.clear();
         excludedStairBlocks.clear();
         protectedTreeLogPositions.clear();
         protectedTreeTrunks.clear();
@@ -164,6 +175,9 @@ public final class TopDownCuller {
      * clearCache / reset / disable 時のキャッシュ無効化で共有。
      */
     private void resetLastBlockCoords() {
+        previousFadedPositions.clear();
+        currentFadedPositions.clear();
+        transitionHandoffBlocks.clear();
         lastStairScanBlockX = Integer.MIN_VALUE;
         lastStairScanBlockY = Integer.MIN_VALUE;
         lastStairScanBlockZ = Integer.MIN_VALUE;
@@ -1111,7 +1125,8 @@ public final class TopDownCuller {
             int cBX = (int) Math.floor(cX);
             int cBY = (int) Math.floor(cY);
             int cBZ = (int) Math.floor(cZ);
-            if (pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
+            if (transitionHandoffBlocks.isEmpty()
+                    && pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
                     && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ) {
                 return fadeCache.getFadeBlocksCache();
             }
@@ -1150,6 +1165,8 @@ public final class TopDownCuller {
 
     private void collectFadeBlocks(BlockGetter level, double pX, double pY, double pZ,
             double cX, double cY, double cZ) {
+        currentFadedPositions.clear();
+
         int radiusH = this.cachedCylinderRadiusHorizontal;
         int radiusV = this.cachedCylinderRadiusVertical;
         int margin = 2;
@@ -1193,7 +1210,8 @@ public final class TopDownCuller {
                         tempAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
                     }
 
-                    // フェード対象ブロック、または境界マージン内のブロックか判定
+                    // フェード対象ブロック、または動的引き継ぎ（Transition Handoff）対象ブロックか判定
+                    long posLong = mutablePos.asLong();
                     boolean isTarget = false;
                     float finalAlpha = tempAlpha;
 
@@ -1203,11 +1221,17 @@ public final class TopDownCuller {
                     } else if (fadeEnabled) {
                         if (tempAlpha > 0.0f && tempAlpha < 1.0f) {
                             isTarget = true;
+                            currentFadedPositions.add(posLong);
                         } else if (tempAlpha >= 1.0f) {
-                            // カリング境界のすぐ外側: メッシュ再構築遅延による点滅防止用安全マージン
-                            if (normalizedDistSq > 1.0 && normalizedDistSq <= 1.5) {
+                            // 動的引き継ぎ（Transition Handoff）:
+                            // 直前スキャンでフェード対象だったか、既に引き継ぎタイマー中のブロックのみ
+                            // チャンクメッシュ再構築（Sodium/Embeddium）の完了まで alpha=1.0f で一時描画を維持する
+                            if (previousFadedPositions.contains(posLong) || transitionHandoffBlocks.containsKey(posLong)) {
                                 isTarget = true;
                                 finalAlpha = 1.0f;
+                                if (!transitionHandoffBlocks.containsKey(posLong)) {
+                                    transitionHandoffBlocks.put(posLong, HANDOFF_TICKS);
+                                }
                             }
                         }
                     }
@@ -1268,11 +1292,41 @@ public final class TopDownCuller {
                     fadeCache.putFadeBlock(mutablePos.asLong(), finalAlpha);
 
                     if (fadeCache.isFadeBlocksFull()) {
-                        return;
+                        break;
                     }
+                }
+                if (fadeCache.isFadeBlocksFull()) {
+                    break;
+                }
+            }
+            if (fadeCache.isFadeBlocksFull()) {
+                break;
+            }
+        }
+
+        // 動的引き継ぎ（Transition Handoff）タイマーの更新と完了削除
+        if (!transitionHandoffBlocks.isEmpty()) {
+            var iterator = transitionHandoffBlocks.long2IntEntrySet().iterator();
+            while (iterator.hasNext()) {
+                var entry = iterator.next();
+                long posLong = entry.getLongKey();
+                if (currentFadedPositions.contains(posLong)) {
+                    iterator.remove();
+                    continue;
+                }
+                int remaining = entry.getIntValue() - 1;
+                if (remaining <= 0) {
+                    iterator.remove();
+                } else {
+                    entry.setValue(remaining);
                 }
             }
         }
+
+        // 直前フェード位置の更新
+        previousFadedPositions.clear();
+        previousFadedPositions.addAll(currentFadedPositions);
+        currentFadedPositions.clear();
     }
 
     /**
