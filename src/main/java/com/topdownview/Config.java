@@ -11,6 +11,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Config {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     private static final List<Runnable> configChangeListeners = new CopyOnWriteArrayList<>();
+    /** save() 実行中フラグ: Reloading イベントの非同期割り込みによるキャッシュ上書きを防止 */
+    private static volatile boolean isSaving = false;
 
     public static void registerConfigChangeListener(Runnable listener) {
         configChangeListeners.add(listener);
@@ -578,7 +580,27 @@ public class Config {
     }
 
     @SubscribeEvent
-    static void onLoad(final ModConfigEvent event) {
+    static void onLoad(final ModConfigEvent.Loading event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            loadClientConfig();
+            com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
+            notifyConfigChanged();
+        } else if (event.getConfig().getSpec() == COMMON_SPEC) {
+            loadCommonConfig();
+        }
+    }
+
+    /**
+     * Reloading はファイルウォッチャー（非同期）からも発火するため、
+     * save() 中の非同期割り込みによるキャッシュ破壊を防ぐ。
+     * isSaving 中はスキップし、ファイルを外部から手動編集した場合のみ反映する。
+     */
+    @SubscribeEvent
+    static void onReload(final ModConfigEvent.Reloading event) {
+        if (isSaving) {
+            // save() が引き起こした Reloading は無視（キャッシュ破壊防止）
+            return;
+        }
         if (event.getConfig().getSpec() == SPEC) {
             loadClientConfig();
             com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
@@ -696,6 +718,8 @@ public class Config {
     }
 
     public static void save() {
+        isSaving = true;
+        try {
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Saving values - maxCameraDistance: {}, defaultCameraDistance: {}",
                 maxCameraDistance, defaultCameraDistance);
         CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
@@ -800,6 +824,9 @@ public class Config {
         SPATIAL_PROMPT_ALL_BLOCKS.set(spatialPromptAllBlocks);
         SPEC.save();
         TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
+        } finally {
+            isSaving = false;
+        }
         notifyConfigChanged();
     }
 
