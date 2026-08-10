@@ -185,6 +185,12 @@ public class Config {
             .define("cameraZoomSmoothingEnabled", true);
     private static final ForgeConfigSpec.DoubleValue CAMERA_ZOOM_SMOOTHING = BUILDER
             .defineInRange("cameraZoomSmoothing", 0.15, 0.0, 1.0);
+    private static final ForgeConfigSpec.BooleanValue MOUSE_PAN_ENABLED = BUILDER
+            .define("mousePanEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_MAX_DISTANCE = BUILDER
+            .defineInRange("mousePanMaxDistance", 5.0, 0.0, 20.0);
+    private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_SMOOTHING = BUILDER
+            .defineInRange("mousePanSmoothing", 0.1, 0.05, 1.0);
     private static final ForgeConfigSpec.BooleanValue TARGET_LOCK_ENABLED = BUILDER
             .define("targetLockEnabled", true);
     private static final ForgeConfigSpec.IntValue TARGET_LOCK_DURATION = BUILDER
@@ -332,6 +338,9 @@ public class Config {
     public static boolean isScrollOnlyZoomEnabled() { return CAMERA.isScrollOnlyZoomEnabled(); }
     public static boolean isCameraZoomSmoothingEnabled() { return CAMERA.isCameraZoomSmoothingEnabled(); }
     public static double getCameraZoomSmoothing() { return CAMERA.getCameraZoomSmoothing(); }
+    public static boolean isMousePanEnabled() { return CAMERA.isMousePanEnabled(); }
+    public static double getMousePanMaxDistance() { return CAMERA.getMousePanMaxDistance(); }
+    public static double getMousePanSmoothing() { return CAMERA.getMousePanSmoothing(); }
     public static boolean isTargetLockEnabled() { return INTERACTION.isTargetLockEnabled(); }
     public static int getTargetLockDuration() { return INTERACTION.getTargetLockDuration(); }
     public static double getTargetHitboxExpansion() { return INTERACTION.getTargetHitboxExpansion(); }
@@ -439,6 +448,9 @@ public class Config {
     public static void setScrollOnlyZoomEnabled(boolean value) { CAMERA.setScrollOnlyZoomEnabled(value); }
     public static void setCameraZoomSmoothingEnabled(boolean value) { CAMERA.setCameraZoomSmoothingEnabled(value); }
     public static void setCameraZoomSmoothing(double value) { CAMERA.setCameraZoomSmoothing(value); }
+    public static void setMousePanEnabled(boolean value) { CAMERA.setMousePanEnabled(value); }
+    public static void setMousePanMaxDistance(double value) { CAMERA.setMousePanMaxDistance(value); }
+    public static void setMousePanSmoothing(double value) { CAMERA.setMousePanSmoothing(value); }
     public static void setTargetLockEnabled(boolean value) { INTERACTION.setTargetLockEnabled(value); }
     public static void setTargetLockDuration(int value) { INTERACTION.setTargetLockDuration(value); }
     public static void setTargetHitboxExpansion(double value) { INTERACTION.setTargetHitboxExpansion(value); }
@@ -566,6 +578,9 @@ public class Config {
         CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.get());
         CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.get());
         CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.get());
+        CAMERA.setMousePanEnabled(MOUSE_PAN_ENABLED.get());
+        CAMERA.setMousePanMaxDistance(MOUSE_PAN_MAX_DISTANCE.get());
+        CAMERA.setMousePanSmoothing(MOUSE_PAN_SMOOTHING.get());
         INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.get());
         INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.get());
         INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.get());
@@ -675,6 +690,9 @@ public class Config {
             SCROLL_ONLY_ZOOM_ENABLED.set(isScrollOnlyZoomEnabled());
             CAMERA_ZOOM_SMOOTHING_ENABLED.set(isCameraZoomSmoothingEnabled());
             CAMERA_ZOOM_SMOOTHING.set(getCameraZoomSmoothing());
+            MOUSE_PAN_ENABLED.set(isMousePanEnabled());
+            MOUSE_PAN_MAX_DISTANCE.set(getMousePanMaxDistance());
+            MOUSE_PAN_SMOOTHING.set(getMousePanSmoothing());
             TARGET_LOCK_ENABLED.set(isTargetLockEnabled());
             TARGET_LOCK_DURATION.set(getTargetLockDuration());
             TARGET_HITBOX_EXPANSION.set(getTargetHitboxExpansion());
@@ -778,6 +796,9 @@ public class Config {
         CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.getDefault());
         CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.getDefault());
         CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.getDefault());
+        CAMERA.setMousePanEnabled(MOUSE_PAN_ENABLED.getDefault());
+        CAMERA.setMousePanMaxDistance(MOUSE_PAN_MAX_DISTANCE.getDefault());
+        CAMERA.setMousePanSmoothing(MOUSE_PAN_SMOOTHING.getDefault());
         INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.getDefault());
         INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.getDefault());
         INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.getDefault());

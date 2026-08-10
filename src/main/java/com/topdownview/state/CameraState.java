@@ -70,6 +70,9 @@ public final class CameraState {
     private volatile boolean freeCameraMouseInitialized = false;
     private volatile boolean freeCameraPitchAdjusted = false;
 
+    private volatile double currentMousePanX = 0.0;
+    private volatile double currentMousePanZ = 0.0;
+
     private CameraState() {
     }
 
@@ -449,6 +452,28 @@ public final class CameraState {
         freeCameraPitchAdjusted = value;
     }
 
+    public double getCurrentMousePanX() {
+        return currentMousePanX;
+    }
+
+    public double getCurrentMousePanZ() {
+        return currentMousePanZ;
+    }
+
+    public void setCurrentMousePanX(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Mouse Pan X must be finite: " + value);
+        }
+        currentMousePanX = value;
+    }
+
+    public void setCurrentMousePanZ(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("Mouse Pan Z must be finite: " + value);
+        }
+        currentMousePanZ = value;
+    }
+
     /**
      * カメラ距離を増加
      */
@@ -507,6 +532,8 @@ public final class CameraState {
         lastMouseY = 0.0;
         freeCameraMouseInitialized = false;
         freeCameraPitchAdjusted = false;
+        currentMousePanX = 0.0;
+        currentMousePanZ = 0.0;
     }
 
     /**

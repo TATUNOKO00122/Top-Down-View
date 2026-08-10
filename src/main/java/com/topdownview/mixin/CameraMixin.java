@@ -96,6 +96,56 @@ public abstract class CameraMixin {
             cameraBaseZ += -Math.cos(offsetRadYaw) * screenOffset;
         }
 
+        if (com.topdownview.Config.isMousePanEnabled()) {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            double targetPanX = 0.0;
+            double targetPanZ = 0.0;
+
+            if (mc.screen == null && !ModState.CAMERA.isFreeCameraMode() && mc.mouseHandler.isMouseGrabbed()) {
+                int width = mc.getWindow().getScreenWidth();
+                int height = mc.getWindow().getScreenHeight();
+                
+                if (width > 0 && height > 0) {
+                    double mouseX = mc.mouseHandler.xpos();
+                    double mouseY = mc.mouseHandler.ypos();
+                    
+                    double normX = (mouseX / width) * 2.0 - 1.0;
+                    double normY = (mouseY / height) * 2.0 - 1.0;
+                    
+                    normX = net.minecraft.util.Mth.clamp(normX, -1.0, 1.0);
+                    normY = net.minecraft.util.Mth.clamp(normY, -1.0, 1.0);
+                    
+                    double maxPan = com.topdownview.Config.getMousePanMaxDistance();
+                    
+                    double upOffset = -normY * maxPan;
+                    double rightOffset = normX * maxPan;
+                    
+                    double offsetRadYaw = ModState.CAMERA.getLerpYaw(partialTick) * MathConstants.DEGREES_TO_RADIANS;
+                    
+                    targetPanX = -upOffset * Math.sin(offsetRadYaw) - rightOffset * Math.cos(offsetRadYaw);
+                    targetPanZ = upOffset * Math.cos(offsetRadYaw) - rightOffset * Math.sin(offsetRadYaw);
+                }
+            }
+            
+            double currentPanX = ModState.CAMERA.getCurrentMousePanX();
+            double currentPanZ = ModState.CAMERA.getCurrentMousePanZ();
+            double smoothing = com.topdownview.Config.getMousePanSmoothing();
+            
+            if (smoothing >= 1.0) {
+                currentPanX = targetPanX;
+                currentPanZ = targetPanZ;
+            } else {
+                currentPanX += (targetPanX - currentPanX) * smoothing;
+                currentPanZ += (targetPanZ - currentPanZ) * smoothing;
+            }
+            
+            ModState.CAMERA.setCurrentMousePanX(currentPanX);
+            ModState.CAMERA.setCurrentMousePanZ(currentPanZ);
+            
+            cameraBaseX += currentPanX;
+            cameraBaseZ += currentPanZ;
+        }
+
         double distance = calculateCameraDistance();
         float pitch;
         if (ModState.CAMERA.isFreeCameraMode()) {

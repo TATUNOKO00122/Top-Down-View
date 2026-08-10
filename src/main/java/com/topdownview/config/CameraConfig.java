@@ -31,6 +31,9 @@ public final class CameraConfig {
     private boolean scrollOnlyZoomEnabled = false;
     private boolean cameraZoomSmoothingEnabled = true;
     private double cameraZoomSmoothing = 0.15;
+    private boolean mousePanEnabled = false;
+    private double mousePanMaxDistance = 5.0;
+    private double mousePanSmoothing = 0.1;
 
     public int getRotateAngleMode() { return rotateAngleMode; }
     public void setRotateAngleMode(int value) { this.rotateAngleMode = clamp(value, 0, 2); }
@@ -109,6 +112,15 @@ public final class CameraConfig {
 
     public double getCameraZoomSmoothing() { return cameraZoomSmoothing; }
     public void setCameraZoomSmoothing(double value) { this.cameraZoomSmoothing = clamp(value, 0.0, 1.0); }
+
+    public boolean isMousePanEnabled() { return mousePanEnabled; }
+    public void setMousePanEnabled(boolean value) { this.mousePanEnabled = value; }
+
+    public double getMousePanMaxDistance() { return mousePanMaxDistance; }
+    public void setMousePanMaxDistance(double value) { this.mousePanMaxDistance = clamp(value, 0.0, 20.0); }
+
+    public double getMousePanSmoothing() { return mousePanSmoothing; }
+    public void setMousePanSmoothing(double value) { this.mousePanSmoothing = clamp(value, 0.05, 1.0); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));

@@ -483,6 +483,25 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_z_follow_delay",
                 Config.getCameraZFollowDelay(), 0.0, 4.0, val -> Config.setCameraZFollowDelay(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.mouse_pan", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.mouse_pan_enabled", Config.isMousePanEnabled()),
+                btn -> {
+                    Config.setMousePanEnabled(!Config.isMousePanEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.mouse_pan_enabled",
+                            Config.isMousePanEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mouse_pan_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_max_distance",
+                Config.getMousePanMaxDistance(), 0.0, 20.0, val -> Config.setMousePanMaxDistance(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_smoothing",
+                Config.getMousePanSmoothing(), 0.05, 1.0, val -> Config.setMousePanSmoothing(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
