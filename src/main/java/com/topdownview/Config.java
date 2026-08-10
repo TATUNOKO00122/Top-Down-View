@@ -1,5 +1,10 @@
 package com.topdownview;
 
+import com.topdownview.config.CameraConfig;
+import com.topdownview.config.CullingConfig;
+import com.topdownview.config.IntegrationsConfig;
+import com.topdownview.config.InteractionConfig;
+import com.topdownview.config.PlacementConfig;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -7,8 +12,19 @@ import net.minecraftforge.fml.event.config.ModConfigEvent;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * Mod全体の設定管理ファサードクラス。
+ * 内部の設定保持と検証は機能ドメインごとのサブ構成クラス (CameraConfig, CullingConfig 等) に委譲されます。
+ */
 @Mod.EventBusSubscriber(modid = TopDownViewMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config {
+
+    public static final CameraConfig CAMERA = new CameraConfig();
+    public static final CullingConfig CULLING = new CullingConfig();
+    public static final PlacementConfig PLACEMENT = new PlacementConfig();
+    public static final InteractionConfig INTERACTION = new InteractionConfig();
+    public static final IntegrationsConfig INTEGRATIONS = new IntegrationsConfig();
+
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     private static final List<Runnable> configChangeListeners = new CopyOnWriteArrayList<>();
     /** save() 実行中フラグ: Reloading イベントの非同期割り込みによるキャッシュ上書きを防止 */
@@ -38,7 +54,6 @@ public class Config {
             .define("miningModeEnabled", false);
     private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
             .define("clickToMoveEnabled", false);
-    // Baritone連携時の経路・ゴール表示（Baritone未導入時は無視される）
     private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_PATH = BUILDER
             .define("baritoneRenderPath", true);
     private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_GOAL = BUILDER
@@ -162,11 +177,10 @@ public class Config {
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
             .defineInRange("topDownFov", 30, 30, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
-            .comment("Locks the camera to top-down view. Prevents switching back to first-person via F5 or toggle key.", "This setting is not available in the in-game GUI. Edit the config file directly to change it.")
+            .comment("Locks the camera to top-down view.", "Edit the config file directly to change it.")
             .define("lockedTopDown", false);
     private static final ForgeConfigSpec.BooleanValue SCROLL_ONLY_ZOOM_ENABLED = BUILDER
             .define("scrollOnlyZoomEnabled", false);
-    // ズーム（カメラ距離）操作のスムージング設定
     private static final ForgeConfigSpec.BooleanValue CAMERA_ZOOM_SMOOTHING_ENABLED = BUILDER
             .define("cameraZoomSmoothingEnabled", true);
     private static final ForgeConfigSpec.DoubleValue CAMERA_ZOOM_SMOOTHING = BUILDER
@@ -182,7 +196,6 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue REACH_DISTANCE = BUILDER
             .defineInRange("reachDistance", 10.0, 1.0, 100.0);
 
-    // PlacementPreview 設定
     private static final ForgeConfigSpec.BooleanValue PLACEMENT_PREVIEW_ENABLED = BUILDER
             .define("placementPreviewEnabled", true);
     private static final ForgeConfigSpec.DoubleValue PLACEMENT_TRANSPARENCY = BUILDER
@@ -190,26 +203,21 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue CLICK_POSITION_PLACEMENT_ENABLED = BUILDER
             .define("clickPositionPlacementEnabled", true);
 
-    // 階段カリング除外設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_EXCLUSION_ENABLED = BUILDER
-            .comment("Excludes staircase blocks from culling. (May impact performance / 動作が少し重くなります)")
+            .comment("Excludes staircase blocks from culling.")
             .define("staircaseExclusionEnabled", true);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
             .defineInRange("staircaseExclusionHeight", 2, 1, 10);
-
-    // 階段視線遮蔽時の透明度設定
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
             .define("staircaseOccludeEnabled", true);
     private static final ForgeConfigSpec.DoubleValue STAIRCASE_OCCLUDE_ALPHA = BUILDER
             .defineInRange("staircaseOccludeAlpha", 0.4, 0.0, 1.0);
 
-    // ハシゴ視線遮蔽時の透明度設定
     private static final ForgeConfigSpec.BooleanValue LADDER_OCCLUDE_ENABLED = BUILDER
             .define("ladderOccludeEnabled", true);
     private static final ForgeConfigSpec.DoubleValue LADDER_OCCLUDE_ALPHA = BUILDER
             .defineInRange("ladderOccludeAlpha", 0.4, 0.0, 1.0);
 
-    // 自然木視線遮蔽時の透明度設定
     private static final ForgeConfigSpec.BooleanValue TREE_OCCLUDE_ENABLED = BUILDER
             .define("treeOccludeEnabled", true);
     private static final ForgeConfigSpec.DoubleValue TREE_OCCLUDE_ALPHA = BUILDER
@@ -217,35 +225,28 @@ public class Config {
 
     private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
             .defineInRange("signHoverDisplayMode", 2, 0, 2);
-
     private static final ForgeConfigSpec.DoubleValue SIGN_HOVER_SCALE = BUILDER
             .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
 
     private static final ForgeConfigSpec.BooleanValue SHOW_INTERACTION_PROMPT = BUILDER
             .define("showInteractionPrompt", false);
-
     private static final ForgeConfigSpec.DoubleValue INTERACTION_PROMPT_SCALE = BUILDER
             .defineInRange("interactionPromptScale", 0.8, 0.0, 1.0);
-
     private static final ForgeConfigSpec.BooleanValue INTERACTION_PROMPT_SHADOW = BUILDER
             .define("interactionPromptShadow", false);
 
     private static final ForgeConfigSpec.BooleanValue SHOW_SPATIAL_PROMPT = BUILDER
             .define("showSpatialPrompt", false);
-
     private static final ForgeConfigSpec.DoubleValue SPATIAL_PROMPT_RADIUS = BUILDER
             .defineInRange("spatialPromptRadius", 8.0, 1.0, 16.0);
-
     private static final ForgeConfigSpec.BooleanValue SPATIAL_PROMPT_ALL_BLOCKS = BUILDER
             .define("spatialPromptAllBlocks", false);
 
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
-
     private static final ForgeConfigSpec.BooleanValue PROTECT_NATURAL_TREE_LOGS = BUILDER
             .define("protectNaturalTreeLogs", false);
 
-    // 液体半透明化設定
     private static final ForgeConfigSpec.BooleanValue TRANSLUCENT_FLUID = BUILDER
             .define("translucentFluid", true);
     private static final ForgeConfigSpec.DoubleValue FLUID_ALPHA = BUILDER
@@ -258,352 +259,234 @@ public class Config {
             .defineInRange("serverReachDistance", 10.0, 1.0, 100.0);
     public static final ForgeConfigSpec COMMON_SPEC = COMMON_BUILDER.build();
 
-    private static double syncedServerReach = -1.0;
+    // Delegation Getters / Setters for Backward Compatibility
+    public static int getCylinderRadiusHorizontal() { return CULLING.getCylinderRadiusHorizontal(); }
+    public static int getCylinderRadiusVertical() { return CULLING.getCylinderRadiusVertical(); }
+    public static int getCylinderForwardShift() { return CULLING.getCylinderForwardShift(); }
+    public static int getMiningCylinderRadius() { return CULLING.getMiningCylinderRadius(); }
+    public static int getMiningCylinderForwardShift() { return CULLING.getMiningCylinderForwardShift(); }
+    public static boolean isMiningModeEnabled() { return INTERACTION.isMiningModeEnabled(); }
+    public static boolean isClickToMoveEnabled() { return INTERACTION.isClickToMoveEnabled(); }
+    public static boolean isBaritoneRenderPath() { return INTEGRATIONS.isBaritoneRenderPath(); }
+    public static boolean isBaritoneRenderGoal() { return INTEGRATIONS.isBaritoneRenderGoal(); }
+    public static double getArrivalThreshold() { return INTERACTION.getArrivalThreshold(); }
+    public static boolean isForceAutoJump() { return INTERACTION.isForceAutoJump(); }
+    public static double getSprintDistanceThreshold() { return INTERACTION.getSprintDistanceThreshold(); }
+    public static boolean isAutoAlignToMovementEnabled() { return INTERACTION.isAutoAlignToMovementEnabled(); }
+    public static int getAutoAlignAngleThreshold() { return INTERACTION.getAutoAlignAngleThreshold(); }
+    public static int getAutoAlignCooldownTicks() { return INTERACTION.getAutoAlignCooldownTicks(); }
+    public static int getStableDirectionAngle() { return INTERACTION.getStableDirectionAngle(); }
+    public static int getStableDirectionTicks() { return INTERACTION.getStableDirectionTicks(); }
+    public static double getAutoAlignAnimationSpeed() { return INTERACTION.getAutoAlignAnimationSpeed(); }
+    public static boolean isMobCullingEnabled() { return CULLING.isMobCullingEnabled(); }
+    public static boolean isMobTranslucencyEnabled() { return CULLING.isMobTranslucencyEnabled(); }
+    public static double getMobTranslucencyAlpha() { return CULLING.getMobTranslucencyAlpha(); }
+    public static boolean isTrapdoorTranslucencyEnabled() { return CULLING.isTrapdoorTranslucencyEnabled(); }
+    public static double getTrapdoorTransparency() { return CULLING.getTrapdoorTransparency(); }
+    public static boolean isFadeEnabled() { return CULLING.isFadeEnabled(); }
+    public static double getFadeBlockHitThreshold() { return CULLING.getFadeBlockHitThreshold(); }
+    public static double getFadeStart() { return CULLING.getFadeStart(); }
+    public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
+    public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
+    public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
+    public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
+    public static int getPlayerNearTranslucencyRangeVertical() { return CULLING.getPlayerNearTranslucencyRangeVertical(); }
+    public static boolean isRangeIndicatorEnabled() { return INTERACTION.isRangeIndicatorEnabled(); }
+    public static boolean isDestinationHighlightEnabled() { return INTERACTION.isDestinationHighlightEnabled(); }
+    public static double getRangeEmptyHand() { return INTERACTION.getRangeEmptyHand(); }
+    public static double getRangeSword() { return INTERACTION.getRangeSword(); }
+    public static double getRangeAxe() { return INTERACTION.getRangeAxe(); }
+    public static double getRangePickaxe() { return INTERACTION.getRangePickaxe(); }
+    public static double getRangeShovel() { return INTERACTION.getRangeShovel(); }
+    public static double getRangeOther() { return INTERACTION.getRangeOther(); }
+    public static boolean isDefaultEnabled() { return INTERACTION.isDefaultEnabled(); }
+    public static boolean isTargetGlowEnabled() { return INTERACTION.isTargetGlowEnabled(); }
+    public static boolean isMobConeCullingEnabled() { return CULLING.isMobConeCullingEnabled(); }
+    public static double getMobConeHalfAngle() { return CULLING.getMobConeHalfAngle(); }
+    public static double getMobConeFadeAngle() { return CULLING.getMobConeFadeAngle(); }
+    public static double getMobNearRadius() { return CULLING.getMobNearRadius(); }
+    public static double getMobFogEnd() { return CULLING.getMobFogEnd(); }
+    public static int getRotateAngleMode() { return CAMERA.getRotateAngleMode(); }
+    public static double getCameraSnapRotationSpeed() { return CAMERA.getCameraSnapRotationSpeed(); }
+    public static double getCameraPitch() { return CAMERA.getCameraPitch(); }
+    public static double getMiningModePitch() { return CAMERA.getMiningModePitch(); }
+    public static double getMaxCameraDistance() { return CAMERA.getMaxCameraDistance(); }
+    public static double getDefaultCameraDistance() { return CAMERA.getDefaultCameraDistance(); }
+    public static boolean isCameraYFollowDelayEnabled() { return CAMERA.isCameraYFollowDelayEnabled(); }
+    public static double getCameraYFollowDelay() { return CAMERA.getCameraYFollowDelay(); }
+    public static boolean isCameraXFollowDelayEnabled() { return CAMERA.isCameraXFollowDelayEnabled(); }
+    public static double getCameraXFollowDelay() { return CAMERA.getCameraXFollowDelay(); }
+    public static boolean isCameraZFollowDelayEnabled() { return CAMERA.isCameraZFollowDelayEnabled(); }
+    public static double getCameraZFollowDelay() { return CAMERA.getCameraZFollowDelay(); }
+    public static boolean isFollowDelayWhileMounted() { return CAMERA.isFollowDelayWhileMounted(); }
+    public static double getPlayerScreenOffset() { return CAMERA.getPlayerScreenOffset(); }
+    public static boolean isHeadBodyRotationEnabled() { return CAMERA.isHeadBodyRotationEnabled(); }
+    public static boolean isWaterMovementControlEnabled() { return CAMERA.isWaterMovementControlEnabled(); }
+    public static boolean isIndependentMountAim() { return CAMERA.isIndependentMountAim(); }
+    public static int getMountAimMaxTwist() { return CAMERA.getMountAimMaxTwist(); }
+    public static double getMountTurnSmoothing() { return CAMERA.getMountTurnSmoothing(); }
+    public static int getBoatHeadMaxTwist() { return CAMERA.getBoatHeadMaxTwist(); }
+    public static int getBoatBodyMaxTwist() { return CAMERA.getBoatBodyMaxTwist(); }
+    public static int getTopDownFov() { return CAMERA.getTopDownFov(); }
+    public static boolean isLockedTopDown() { return CAMERA.isLockedTopDown(); }
+    public static boolean isScrollOnlyZoomEnabled() { return CAMERA.isScrollOnlyZoomEnabled(); }
+    public static boolean isCameraZoomSmoothingEnabled() { return CAMERA.isCameraZoomSmoothingEnabled(); }
+    public static double getCameraZoomSmoothing() { return CAMERA.getCameraZoomSmoothing(); }
+    public static boolean isTargetLockEnabled() { return INTERACTION.isTargetLockEnabled(); }
+    public static int getTargetLockDuration() { return INTERACTION.getTargetLockDuration(); }
+    public static double getTargetHitboxExpansion() { return INTERACTION.getTargetHitboxExpansion(); }
+    public static boolean isScreenReachEnabled() { return INTERACTION.isScreenReachEnabled(); }
+    public static double getReachDistance() { return INTERACTION.getReachDistance(); }
+    public static double getServerReachDistance() { return INTERACTION.getServerReachDistance(); }
+    public static boolean isPlacementPreviewEnabled() { return PLACEMENT.isPlacementPreviewEnabled(); }
+    public static double getPlacementTransparency() { return PLACEMENT.getPlacementTransparency(); }
+    public static boolean isClickPositionPlacementEnabled() { return PLACEMENT.isClickPositionPlacementEnabled(); }
+    public static boolean isStaircaseExclusionEnabled() { return CULLING.isStaircaseExclusionEnabled(); }
+    public static int getStaircaseExclusionHeight() { return CULLING.getStaircaseExclusionHeight(); }
+    public static boolean isStaircaseOccludeEnabled() { return CULLING.isStaircaseOccludeEnabled(); }
+    public static double getStaircaseOccludeAlpha() { return CULLING.getStaircaseOccludeAlpha(); }
+    public static boolean isLadderOccludeEnabled() { return CULLING.isLadderOccludeEnabled(); }
+    public static double getLadderOccludeAlpha() { return CULLING.getLadderOccludeAlpha(); }
+    public static boolean isTreeOccludeEnabled() { return CULLING.isTreeOccludeEnabled(); }
+    public static double getTreeOccludeAlpha() { return CULLING.getTreeOccludeAlpha(); }
+    public static boolean isIgnoreLeavesInRaycast() { return CULLING.isIgnoreLeavesInRaycast(); }
+    public static boolean isProtectNaturalTreeLogs() { return CULLING.isProtectNaturalTreeLogs(); }
+    public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
+    public static double getFluidAlpha() { return CULLING.getFluidAlpha(); }
+    public static int getSignHoverDisplayMode() { return INTERACTION.getSignHoverDisplayMode(); }
+    public static double getSignHoverScale() { return INTERACTION.getSignHoverScale(); }
+    public static boolean isShowInteractionPrompt() { return INTERACTION.isShowInteractionPrompt(); }
+    public static double getInteractionPromptScale() { return INTERACTION.getInteractionPromptScale(); }
+    public static boolean isInteractionPromptShadow() { return INTERACTION.isInteractionPromptShadow(); }
+    public static boolean isShowSpatialPrompt() { return INTERACTION.isShowSpatialPrompt(); }
+    public static double getSpatialPromptRadius() { return INTERACTION.getSpatialPromptRadius(); }
+    public static boolean isSpatialPromptAllBlocks() { return INTERACTION.isSpatialPromptAllBlocks(); }
 
-    private static int cylinderRadiusHorizontal;
-    private static int cylinderRadiusVertical;
-    private static int cylinderForwardShift;
-    private static int miningCylinderRadius;
-    private static int miningCylinderForwardShift;
-    private static boolean miningModeEnabled;
-    private static boolean clickToMoveEnabled;
-    private static boolean baritoneRenderPath;
-    private static boolean baritoneRenderGoal;
-    private static double arrivalThreshold;
-    private static boolean forceAutoJump;
-    private static double sprintDistanceThreshold;
-    private static boolean autoAlignToMovementEnabled;
-    private static int autoAlignAngleThreshold;
-    private static int autoAlignCooldownTicks;
-    private static int stableDirectionAngle;
-    private static int stableDirectionTicks;
-    private static double autoAlignAnimationSpeed;
-    private static boolean mobCullingEnabled;
-    private static boolean mobTranslucencyEnabled;
-    private static double mobTranslucencyAlpha;
-    private static boolean trapdoorTranslucencyEnabled;
-    private static double trapdoorTransparency;
-    private static boolean fadeEnabled;
-    private static double fadeBlockHitThreshold;
-    private static double fadeStart;
-    private static double fadeNearAlpha;
-    private static boolean playerNearTranslucencyEnabled;
-    private static double playerNearTranslucencyAlpha;
-    private static int playerNearTranslucencyRangeHorizontal;
-    private static int playerNearTranslucencyRangeVertical;
-    private static boolean rangeIndicatorEnabled;
-    private static boolean destinationHighlightEnabled;
-    private static double rangeEmptyHand;
-    private static double rangeSword;
-    private static double rangeAxe;
-    private static double rangePickaxe;
-    private static double rangeShovel;
-    private static double rangeOther;
-    private static boolean defaultEnabled;
-    private static boolean targetGlowEnabled;
-    private static boolean mobConeCullingEnabled;
-    private static double mobConeHalfAngle;
-    private static double mobConeFadeAngle;
-    private static double mobNearRadius;
-    private static double mobFogEnd;
-    private static int rotateAngleMode;
-    private static double cameraSnapRotationSpeed;
-    private static double cameraPitch;
-    private static double miningModePitch;
-    private static double maxCameraDistance;
-    private static double defaultCameraDistance;
-    private static boolean cameraYFollowDelayEnabled;
-    private static double cameraYFollowDelay;
-    private static boolean cameraXFollowDelayEnabled;
-    private static double cameraXFollowDelay;
-    private static boolean cameraZFollowDelayEnabled;
-    private static double cameraZFollowDelay;
-    private static boolean followDelayWhileMounted;
-    private static double playerScreenOffset;
-    private static boolean headBodyRotationEnabled;
-    private static boolean waterMovementControlEnabled;
-    private static boolean independentMountAim;
-    private static int mountAimMaxTwist;
-    private static double mountTurnSmoothing;
-    private static int boatHeadMaxTwist;
-    private static int boatBodyMaxTwist;
-    private static int topDownFov;
-    private static boolean lockedTopDown;
-    private static boolean scrollOnlyZoomEnabled;
-    private static boolean cameraZoomSmoothingEnabled;
-    private static double cameraZoomSmoothing;
-    private static boolean targetLockEnabled;
-    private static int targetLockDuration;
-    private static double targetHitboxExpansion;
-    private static boolean screenReachEnabled;
-    private static double reachDistance;
-    private static double serverReachDistance;
-    private static boolean placementPreviewEnabled;
-    private static double placementTransparency;
-    private static boolean clickPositionPlacementEnabled;
-    private static boolean staircaseExclusionEnabled;
-    private static int staircaseExclusionHeight;
-    private static boolean staircaseOccludeEnabled;
-    private static double staircaseOccludeAlpha;
-    private static boolean ladderOccludeEnabled;
-    private static double ladderOccludeAlpha;
-    private static boolean treeOccludeEnabled;
-    private static double treeOccludeAlpha;
-    private static boolean ignoreLeavesInRaycast;
-    private static boolean protectNaturalTreeLogs;
-    private static boolean translucentFluid;
-    private static double fluidAlpha;
-    private static int signHoverDisplayMode;
-    private static double signHoverScale;
-    private static boolean showInteractionPrompt;
-    private static double interactionPromptScale;
-    private static boolean interactionPromptShadow;
-    private static boolean showSpatialPrompt;
-    private static double spatialPromptRadius;
-    private static boolean spatialPromptAllBlocks;
+    public static double getEffectiveReachDistance() { return INTERACTION.getEffectiveReachDistance(); }
+    public static void setSyncedServerReach(double value) { INTERACTION.setSyncedServerReach(value); }
+    public static void clearSyncedServerReach() { INTERACTION.clearSyncedServerReach(); }
+    public static boolean hasSyncedServerReach() { return INTERACTION.hasSyncedServerReach(); }
 
-    public static int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
-    public static int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
-    public static int getCylinderForwardShift() { return cylinderForwardShift; }
-    public static int getMiningCylinderRadius() { return miningCylinderRadius; }
-    public static int getMiningCylinderForwardShift() { return miningCylinderForwardShift; }
-    public static boolean isMiningModeEnabled() { return miningModeEnabled; }
-    public static boolean isClickToMoveEnabled() { return clickToMoveEnabled; }
-    public static boolean isBaritoneRenderPath() { return baritoneRenderPath; }
-    public static boolean isBaritoneRenderGoal() { return baritoneRenderGoal; }
-    public static double getArrivalThreshold() { return arrivalThreshold; }
-    public static boolean isForceAutoJump() { return forceAutoJump; }
-    public static double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
-    public static boolean isAutoAlignToMovementEnabled() { return autoAlignToMovementEnabled; }
-    public static int getAutoAlignAngleThreshold() { return autoAlignAngleThreshold; }
-    public static int getAutoAlignCooldownTicks() { return autoAlignCooldownTicks; }
-    public static int getStableDirectionAngle() { return stableDirectionAngle; }
-    public static int getStableDirectionTicks() { return stableDirectionTicks; }
-    public static double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
-    public static boolean isMobCullingEnabled() { return mobCullingEnabled; }
-    public static boolean isMobTranslucencyEnabled() { return mobTranslucencyEnabled; }
-    public static double getMobTranslucencyAlpha() { return mobTranslucencyAlpha; }
-    public static boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
-    public static double getTrapdoorTransparency() { return trapdoorTransparency; }
-    public static boolean isFadeEnabled() { return fadeEnabled; }
-    public static double getFadeBlockHitThreshold() { return fadeBlockHitThreshold; }
-    public static double getFadeStart() { return fadeStart; }
-    public static double getFadeNearAlpha() { return fadeNearAlpha; }
-    public static boolean isPlayerNearTranslucencyEnabled() { return playerNearTranslucencyEnabled; }
-    public static double getPlayerNearTranslucencyAlpha() { return playerNearTranslucencyAlpha; }
-    public static int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
-    public static int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
-    public static boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
-    public static boolean isDestinationHighlightEnabled() { return destinationHighlightEnabled; }
-    public static double getRangeEmptyHand() { return rangeEmptyHand; }
-    public static double getRangeSword() { return rangeSword; }
-    public static double getRangeAxe() { return rangeAxe; }
-    public static double getRangePickaxe() { return rangePickaxe; }
-    public static double getRangeShovel() { return rangeShovel; }
-    public static double getRangeOther() { return rangeOther; }
-    public static boolean isDefaultEnabled() { return defaultEnabled; }
-    public static boolean isTargetGlowEnabled() { return targetGlowEnabled; }
-    public static boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
-    public static double getMobConeHalfAngle() { return mobConeHalfAngle; }
-    public static double getMobConeFadeAngle() { return mobConeFadeAngle; }
-    public static double getMobNearRadius() { return mobNearRadius; }
-    public static double getMobFogEnd() { return mobFogEnd; }
-    public static int getRotateAngleMode() { return rotateAngleMode; }
-    public static double getCameraSnapRotationSpeed() { return cameraSnapRotationSpeed; }
-    public static double getCameraPitch() { return cameraPitch; }
-    public static double getMiningModePitch() { return miningModePitch; }
-    public static double getMaxCameraDistance() { return maxCameraDistance; }
-    public static double getDefaultCameraDistance() { return defaultCameraDistance; }
-    public static boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
-    public static double getCameraYFollowDelay() { return cameraYFollowDelay; }
-    public static boolean isCameraXFollowDelayEnabled() { return cameraXFollowDelayEnabled; }
-    public static double getCameraXFollowDelay() { return cameraXFollowDelay; }
-    public static boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
-    public static double getCameraZFollowDelay() { return cameraZFollowDelay; }
-    public static boolean isFollowDelayWhileMounted() { return followDelayWhileMounted; }
-    public static double getPlayerScreenOffset() { return playerScreenOffset; }
-    public static boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
-    public static boolean isWaterMovementControlEnabled() { return waterMovementControlEnabled; }
-    public static boolean isIndependentMountAim() { return independentMountAim; }
-    public static int getMountAimMaxTwist() { return mountAimMaxTwist; }
-    public static double getMountTurnSmoothing() { return mountTurnSmoothing; }
-    public static int getBoatHeadMaxTwist() { return boatHeadMaxTwist; }
-    public static int getBoatBodyMaxTwist() { return boatBodyMaxTwist; }
-    public static int getTopDownFov() { return topDownFov; }
-    public static boolean isLockedTopDown() { return lockedTopDown; }
-    public static boolean isScrollOnlyZoomEnabled() { return scrollOnlyZoomEnabled; }
-    public static boolean isCameraZoomSmoothingEnabled() { return cameraZoomSmoothingEnabled; }
-    public static double getCameraZoomSmoothing() { return cameraZoomSmoothing; }
-    public static boolean isTargetLockEnabled() { return targetLockEnabled; }
-    public static int getTargetLockDuration() { return targetLockDuration; }
-    public static double getTargetHitboxExpansion() { return targetHitboxExpansion; }
-    public static boolean isScreenReachEnabled() { return screenReachEnabled; }
-    public static double getReachDistance() { return reachDistance; }
-    public static double getServerReachDistance() { return serverReachDistance; }
-    public static boolean isPlacementPreviewEnabled() { return placementPreviewEnabled; }
-    public static double getPlacementTransparency() { return placementTransparency; }
-    public static boolean isClickPositionPlacementEnabled() { return clickPositionPlacementEnabled; }
-    public static boolean isStaircaseExclusionEnabled() { return staircaseExclusionEnabled; }
-    public static int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
-    public static boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
-    public static double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
-    public static boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
-    public static double getLadderOccludeAlpha() { return ladderOccludeAlpha; }
-    public static boolean isTreeOccludeEnabled() { return treeOccludeEnabled; }
-    public static double getTreeOccludeAlpha() { return treeOccludeAlpha; }
-    public static boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
-    public static boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
-    public static boolean isTranslucentFluid() { return translucentFluid; }
-    public static double getFluidAlpha() { return fluidAlpha; }
-    public static int getSignHoverDisplayMode() { return signHoverDisplayMode; }
-    public static double getSignHoverScale() { return signHoverScale; }
-    public static boolean isShowInteractionPrompt() { return showInteractionPrompt; }
-    public static double getInteractionPromptScale() { return interactionPromptScale; }
-    public static boolean isInteractionPromptShadow() { return interactionPromptShadow; }
-    public static boolean isShowSpatialPrompt() { return showSpatialPrompt; }
-    public static double getSpatialPromptRadius() { return spatialPromptRadius; }
-    public static boolean isSpatialPromptAllBlocks() { return spatialPromptAllBlocks; }
-    public static double getEffectiveReachDistance() {
-        return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
-    }
-    public static void setSyncedServerReach(double value) { syncedServerReach = value; }
-    public static void clearSyncedServerReach() { syncedServerReach = -1.0; }
-    public static boolean hasSyncedServerReach() { return syncedServerReach >= 0; }
-
-    public static void setCylinderRadiusHorizontal(int value) { cylinderRadiusHorizontal = clamp(value, 1, 10); }
-    public static void setCylinderRadiusVertical(int value) { cylinderRadiusVertical = clamp(value, 1, 10); }
-    public static void setCylinderForwardShift(int value) { cylinderForwardShift = clamp(value, 0, 10); }
-    public static void setMiningCylinderRadius(int value) { miningCylinderRadius = clamp(value, 1, 16); }
-    public static void setMiningCylinderForwardShift(int value) { miningCylinderForwardShift = clamp(value, 0, 10); }
-    public static void setMiningModeEnabled(boolean value) { miningModeEnabled = value; }
-    public static void setClickToMoveEnabled(boolean value) { clickToMoveEnabled = value; }
-    public static void setBaritoneRenderPath(boolean value) { baritoneRenderPath = value; }
-    public static void setBaritoneRenderGoal(boolean value) { baritoneRenderGoal = value; }
-    public static void setArrivalThreshold(double value) { arrivalThreshold = clamp(value, 0.5, 5.0); }
-    public static void setForceAutoJump(boolean value) { forceAutoJump = value; }
-    public static void setSprintDistanceThreshold(double value) { sprintDistanceThreshold = clamp(value, 1.0, 50.0); }
-    public static void setAutoAlignToMovementEnabled(boolean value) { autoAlignToMovementEnabled = value; }
-    public static void setAutoAlignAngleThreshold(int value) { autoAlignAngleThreshold = clamp(value, 0, 90); }
-    public static void setAutoAlignCooldownTicks(int value) { autoAlignCooldownTicks = clamp(value, 0, 100); }
-    public static void setStableDirectionAngle(int value) { stableDirectionAngle = clamp(value, 5, 60); }
-    public static void setStableDirectionTicks(int value) { stableDirectionTicks = clamp(value, 5, 60); }
-    public static void setAutoAlignAnimationSpeed(double value) { autoAlignAnimationSpeed = clamp(value, 0.05, 0.5); }
-    public static void setMobCullingEnabled(boolean value) { mobCullingEnabled = value; }
-    public static void setMobTranslucencyEnabled(boolean value) { mobTranslucencyEnabled = value; }
-    public static void setMobTranslucencyAlpha(double value) { mobTranslucencyAlpha = clamp(value, 0.0, 1.0); }
-    public static void setTrapdoorTranslucencyEnabled(boolean value) { trapdoorTranslucencyEnabled = value; }
-    public static void setTrapdoorTransparency(double value) { trapdoorTransparency = clamp(value, 0.0, 1.0); }
-    public static void setFadeEnabled(boolean value) { fadeEnabled = value; }
-    public static void setFadeBlockHitThreshold(double value) { fadeBlockHitThreshold = clamp(value, 0.0, 1.0); }
-    public static void setFadeStart(double value) { fadeStart = clamp(value, 0.0, 0.9); }
-    public static void setFadeNearAlpha(double value) { fadeNearAlpha = clamp(value, 0.0, 1.0); }
-    public static void setPlayerNearTranslucencyEnabled(boolean value) { playerNearTranslucencyEnabled = value; }
-    public static void setPlayerNearTranslucencyAlpha(double value) { playerNearTranslucencyAlpha = clamp(value, 0.0, 1.0); }
-    public static void setPlayerNearTranslucencyRangeHorizontal(int value) { playerNearTranslucencyRangeHorizontal = clamp(value, 0, 5); }
-    public static void setPlayerNearTranslucencyRangeVertical(int value) { playerNearTranslucencyRangeVertical = clamp(value, 1, 5); }
-    public static void setRangeIndicatorEnabled(boolean value) { rangeIndicatorEnabled = value; }
-    public static void setDestinationHighlightEnabled(boolean value) { destinationHighlightEnabled = value; }
-    public static void setRangeEmptyHand(double value) { rangeEmptyHand = clamp(value, 1.0, 10.0); }
-    public static void setRangeSword(double value) { rangeSword = clamp(value, 1.0, 10.0); }
-    public static void setRangeAxe(double value) { rangeAxe = clamp(value, 1.0, 10.0); }
-    public static void setRangePickaxe(double value) { rangePickaxe = clamp(value, 1.0, 10.0); }
-    public static void setRangeShovel(double value) { rangeShovel = clamp(value, 1.0, 10.0); }
-    public static void setRangeOther(double value) { rangeOther = clamp(value, 1.0, 10.0); }
-    public static void setDefaultEnabled(boolean value) { defaultEnabled = value; }
-    public static void setTargetGlowEnabled(boolean value) { targetGlowEnabled = value; }
-    public static void setMobConeCullingEnabled(boolean value) { mobConeCullingEnabled = value; }
-    public static void setMobConeHalfAngle(double value) { mobConeHalfAngle = clamp(value, 10.0, 90.0); }
-    public static void setMobConeFadeAngle(double value) { mobConeFadeAngle = clamp(value, 0.0, 90.0); }
-    public static void setMobNearRadius(double value) { mobNearRadius = clamp(value, 0.0, 20.0); }
-    public static void setMobFogEnd(double value) { mobFogEnd = clamp(value, 1.0, 50.0); }
-    public static void setRotateAngleMode(int value) { rotateAngleMode = clamp(value, 0, 2); }
-    public static void setCameraSnapRotationSpeed(double value) { cameraSnapRotationSpeed = clamp(value, 0.05, 0.5); }
-    public static void setCameraPitch(double value) { cameraPitch = clamp(value, 10.0, 90.0); }
-    public static void setMiningModePitch(double value) { miningModePitch = clamp(value, 10.0, 90.0); }
-    public static void setMaxCameraDistance(double value) { maxCameraDistance = clamp(value, 0.0, 200.0); }
-    public static void setDefaultCameraDistance(double value) { defaultCameraDistance = Math.min(clamp(value, 0.0, 200.0), maxCameraDistance); }
-    public static void setCameraYFollowDelayEnabled(boolean value) { cameraYFollowDelayEnabled = value; }
-    public static void setCameraYFollowDelay(double value) { cameraYFollowDelay = clamp(value, 0.0, 4.0); }
-    public static void setCameraXFollowDelayEnabled(boolean value) { cameraXFollowDelayEnabled = value; }
-    public static void setCameraXFollowDelay(double value) { cameraXFollowDelay = clamp(value, 0.0, 4.0); }
-    public static void setCameraZFollowDelayEnabled(boolean value) { cameraZFollowDelayEnabled = value; }
-    public static void setCameraZFollowDelay(double value) { cameraZFollowDelay = clamp(value, 0.0, 4.0); }
-    public static void setFollowDelayWhileMounted(boolean value) { followDelayWhileMounted = value; }
-    public static void setPlayerScreenOffset(double value) { playerScreenOffset = clamp(value, -10.0, 10.0); }
-    public static void setHeadBodyRotationEnabled(boolean value) { headBodyRotationEnabled = value; }
-    public static void setWaterMovementControlEnabled(boolean value) { waterMovementControlEnabled = value; }
-    public static void setIndependentMountAim(boolean value) { independentMountAim = value; }
-    public static void setMountAimMaxTwist(int value) { mountAimMaxTwist = clamp(value, 45, 360); }
-    public static void setMountTurnSmoothing(double value) { mountTurnSmoothing = clamp(value, 0.05, 1.0); }
-    public static void setBoatHeadMaxTwist(int value) { boatHeadMaxTwist = clamp(value, 30, 180); }
-    public static void setBoatBodyMaxTwist(int value) { boatBodyMaxTwist = clamp(value, 15, 90); }
-    public static void setTopDownFov(int value) { topDownFov = clamp(value, 30, 110); }
-    public static void setLockedTopDown(boolean value) { lockedTopDown = value; }
-    public static void setScrollOnlyZoomEnabled(boolean value) { scrollOnlyZoomEnabled = value; }
-    public static void setCameraZoomSmoothingEnabled(boolean value) { cameraZoomSmoothingEnabled = value; }
-    public static void setCameraZoomSmoothing(double value) { cameraZoomSmoothing = clamp(value, 0.0, 1.0); }
-    public static void setTargetLockEnabled(boolean value) { targetLockEnabled = value; }
-    public static void setTargetLockDuration(int value) { targetLockDuration = clamp(value, 0, 600); }
-    public static void setTargetHitboxExpansion(double value) { targetHitboxExpansion = clamp(value, 0.0, 5.0); }
-    public static void setScreenReachEnabled(boolean value) { screenReachEnabled = value; }
-    public static void setReachDistance(double value) { reachDistance = clamp(value, 1.0, 100.0); }
-    public static void setPlacementPreviewEnabled(boolean value) { placementPreviewEnabled = value; }
-    public static void setPlacementTransparency(double value) { placementTransparency = clamp(value, 0.1, 0.9); }
-    public static void setClickPositionPlacementEnabled(boolean value) { clickPositionPlacementEnabled = value; }
-    public static void setStaircaseExclusionEnabled(boolean value) { staircaseExclusionEnabled = value; }
-    public static void setStaircaseExclusionHeight(int value) { staircaseExclusionHeight = clamp(value, 1, 10); }
-    public static void setStaircaseOccludeEnabled(boolean value) { staircaseOccludeEnabled = value; }
-    public static void setStaircaseOccludeAlpha(double value) { staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
-    public static void setLadderOccludeEnabled(boolean value) { ladderOccludeEnabled = value; }
-    public static void setLadderOccludeAlpha(double value) { ladderOccludeAlpha = clamp(value, 0.0, 1.0); }
-    public static void setTreeOccludeEnabled(boolean value) { treeOccludeEnabled = value; }
-    public static void setTreeOccludeAlpha(double value) { treeOccludeAlpha = clamp(value, 0.0, 1.0); }
-    public static void setIgnoreLeavesInRaycast(boolean value) { ignoreLeavesInRaycast = value; }
-    public static void setProtectNaturalTreeLogs(boolean value) { protectNaturalTreeLogs = value; }
-    public static void setTranslucentFluid(boolean value) { translucentFluid = value; }
-    public static void setFluidAlpha(double value) { fluidAlpha = clamp(value, 0.05, 1.0); }
-    public static void setSignHoverDisplayMode(int value) { signHoverDisplayMode = clamp(value, 0, 2); }
-    public static void setSignHoverScale(double value) { signHoverScale = clamp(value, 0.0, 1.0); }
-    public static void setShowInteractionPrompt(boolean value) { showInteractionPrompt = value; }
-    public static void setInteractionPromptScale(double value) { interactionPromptScale = clamp(value, 0.0, 1.0); }
-    public static void setInteractionPromptShadow(boolean value) { interactionPromptShadow = value; }
-    public static void setShowSpatialPrompt(boolean value) { showSpatialPrompt = value; }
-    public static void setSpatialPromptRadius(double value) { spatialPromptRadius = clamp(value, 1.0, 16.0); }
-    public static void setSpatialPromptAllBlocks(boolean value) { spatialPromptAllBlocks = value; }
-
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    public static void setCylinderRadiusHorizontal(int value) { CULLING.setCylinderRadiusHorizontal(value); }
+    public static void setCylinderRadiusVertical(int value) { CULLING.setCylinderRadiusVertical(value); }
+    public static void setCylinderForwardShift(int value) { CULLING.setCylinderForwardShift(value); }
+    public static void setMiningCylinderRadius(int value) { CULLING.setMiningCylinderRadius(value); }
+    public static void setMiningCylinderForwardShift(int value) { CULLING.setMiningCylinderForwardShift(value); }
+    public static void setMiningModeEnabled(boolean value) { INTERACTION.setMiningModeEnabled(value); }
+    public static void setClickToMoveEnabled(boolean value) { INTERACTION.setClickToMoveEnabled(value); }
+    public static void setBaritoneRenderPath(boolean value) { INTEGRATIONS.setBaritoneRenderPath(value); }
+    public static void setBaritoneRenderGoal(boolean value) { INTEGRATIONS.setBaritoneRenderGoal(value); }
+    public static void setArrivalThreshold(double value) { INTERACTION.setArrivalThreshold(value); }
+    public static void setForceAutoJump(boolean value) { INTERACTION.setForceAutoJump(value); }
+    public static void setSprintDistanceThreshold(double value) { INTERACTION.setSprintDistanceThreshold(value); }
+    public static void setAutoAlignToMovementEnabled(boolean value) { INTERACTION.setAutoAlignToMovementEnabled(value); }
+    public static void setAutoAlignAngleThreshold(int value) { INTERACTION.setAutoAlignAngleThreshold(value); }
+    public static void setAutoAlignCooldownTicks(int value) { INTERACTION.setAutoAlignCooldownTicks(value); }
+    public static void setStableDirectionAngle(int value) { INTERACTION.setStableDirectionAngle(value); }
+    public static void setStableDirectionTicks(int value) { INTERACTION.setStableDirectionTicks(value); }
+    public static void setAutoAlignAnimationSpeed(double value) { INTERACTION.setAutoAlignAnimationSpeed(value); }
+    public static void setMobCullingEnabled(boolean value) { CULLING.setMobCullingEnabled(value); }
+    public static void setMobTranslucencyEnabled(boolean value) { CULLING.setMobTranslucencyEnabled(value); }
+    public static void setMobTranslucencyAlpha(double value) { CULLING.setMobTranslucencyAlpha(value); }
+    public static void setTrapdoorTranslucencyEnabled(boolean value) { CULLING.setTrapdoorTranslucencyEnabled(value); }
+    public static void setTrapdoorTransparency(double value) { CULLING.setTrapdoorTransparency(value); }
+    public static void setFadeEnabled(boolean value) { CULLING.setFadeEnabled(value); }
+    public static void setFadeBlockHitThreshold(double value) { CULLING.setFadeBlockHitThreshold(value); }
+    public static void setFadeStart(double value) { CULLING.setFadeStart(value); }
+    public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
+    public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
+    public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
+    public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
+    public static void setPlayerNearTranslucencyRangeVertical(int value) { CULLING.setPlayerNearTranslucencyRangeVertical(value); }
+    public static void setRangeIndicatorEnabled(boolean value) { INTERACTION.setRangeIndicatorEnabled(value); }
+    public static void setDestinationHighlightEnabled(boolean value) { INTERACTION.setDestinationHighlightEnabled(value); }
+    public static void setRangeEmptyHand(double value) { INTERACTION.setRangeEmptyHand(value); }
+    public static void setRangeSword(double value) { INTERACTION.setRangeSword(value); }
+    public static void setRangeAxe(double value) { INTERACTION.setRangeAxe(value); }
+    public static void setRangePickaxe(double value) { INTERACTION.setRangePickaxe(value); }
+    public static void setRangeShovel(double value) { INTERACTION.setRangeShovel(value); }
+    public static void setRangeOther(double value) { INTERACTION.setRangeOther(value); }
+    public static void setDefaultEnabled(boolean value) { INTERACTION.setDefaultEnabled(value); }
+    public static void setTargetGlowEnabled(boolean value) { INTERACTION.setTargetGlowEnabled(value); }
+    public static void setMobConeCullingEnabled(boolean value) { CULLING.setMobConeCullingEnabled(value); }
+    public static void setMobConeHalfAngle(double value) { CULLING.setMobConeHalfAngle(value); }
+    public static void setMobConeFadeAngle(double value) { CULLING.setMobConeFadeAngle(value); }
+    public static void setMobNearRadius(double value) { CULLING.setMobNearRadius(value); }
+    public static void setMobFogEnd(double value) { CULLING.setMobFogEnd(value); }
+    public static void setRotateAngleMode(int value) { CAMERA.setRotateAngleMode(value); }
+    public static void setCameraSnapRotationSpeed(double value) { CAMERA.setCameraSnapRotationSpeed(value); }
+    public static void setCameraPitch(double value) { CAMERA.setCameraPitch(value); }
+    public static void setMiningModePitch(double value) { CAMERA.setMiningModePitch(value); }
+    public static void setMaxCameraDistance(double value) { CAMERA.setMaxCameraDistance(value); }
+    public static void setDefaultCameraDistance(double value) { CAMERA.setDefaultCameraDistance(value); }
+    public static void setCameraYFollowDelayEnabled(boolean value) { CAMERA.setCameraYFollowDelayEnabled(value); }
+    public static void setCameraYFollowDelay(double value) { CAMERA.setCameraYFollowDelay(value); }
+    public static void setCameraXFollowDelayEnabled(boolean value) { CAMERA.setCameraXFollowDelayEnabled(value); }
+    public static void setCameraXFollowDelay(double value) { CAMERA.setCameraXFollowDelay(value); }
+    public static void setCameraZFollowDelayEnabled(boolean value) { CAMERA.setCameraZFollowDelayEnabled(value); }
+    public static void setCameraZFollowDelay(double value) { CAMERA.setCameraZFollowDelay(value); }
+    public static void setFollowDelayWhileMounted(boolean value) { CAMERA.setFollowDelayWhileMounted(value); }
+    public static void setPlayerScreenOffset(double value) { CAMERA.setPlayerScreenOffset(value); }
+    public static void setHeadBodyRotationEnabled(boolean value) { CAMERA.setHeadBodyRotationEnabled(value); }
+    public static void setWaterMovementControlEnabled(boolean value) { CAMERA.setWaterMovementControlEnabled(value); }
+    public static void setIndependentMountAim(boolean value) { CAMERA.setIndependentMountAim(value); }
+    public static void setMountAimMaxTwist(int value) { CAMERA.setMountAimMaxTwist(value); }
+    public static void setMountTurnSmoothing(double value) { CAMERA.setMountTurnSmoothing(value); }
+    public static void setBoatHeadMaxTwist(int value) { CAMERA.setBoatHeadMaxTwist(value); }
+    public static void setBoatBodyMaxTwist(int value) { CAMERA.setBoatBodyMaxTwist(value); }
+    public static void setTopDownFov(int value) { CAMERA.setTopDownFov(value); }
+    public static void setLockedTopDown(boolean value) { CAMERA.setLockedTopDown(value); }
+    public static void setScrollOnlyZoomEnabled(boolean value) { CAMERA.setScrollOnlyZoomEnabled(value); }
+    public static void setCameraZoomSmoothingEnabled(boolean value) { CAMERA.setCameraZoomSmoothingEnabled(value); }
+    public static void setCameraZoomSmoothing(double value) { CAMERA.setCameraZoomSmoothing(value); }
+    public static void setTargetLockEnabled(boolean value) { INTERACTION.setTargetLockEnabled(value); }
+    public static void setTargetLockDuration(int value) { INTERACTION.setTargetLockDuration(value); }
+    public static void setTargetHitboxExpansion(double value) { INTERACTION.setTargetHitboxExpansion(value); }
+    public static void setScreenReachEnabled(boolean value) { INTERACTION.setScreenReachEnabled(value); }
+    public static void setReachDistance(double value) { INTERACTION.setReachDistance(value); }
+    public static void setPlacementPreviewEnabled(boolean value) { PLACEMENT.setPlacementPreviewEnabled(value); }
+    public static void setPlacementTransparency(double value) { PLACEMENT.setPlacementTransparency(value); }
+    public static void setClickPositionPlacementEnabled(boolean value) { PLACEMENT.setClickPositionPlacementEnabled(value); }
+    public static void setStaircaseExclusionEnabled(boolean value) { CULLING.setStaircaseExclusionEnabled(value); }
+    public static void setStaircaseExclusionHeight(int value) { CULLING.setStaircaseExclusionHeight(value); }
+    public static void setStaircaseOccludeEnabled(boolean value) { CULLING.setStaircaseOccludeEnabled(value); }
+    public static void setStaircaseOccludeAlpha(double value) { CULLING.setStaircaseOccludeAlpha(value); }
+    public static void setLadderOccludeEnabled(boolean value) { CULLING.setLadderOccludeEnabled(value); }
+    public static void setLadderOccludeAlpha(double value) { CULLING.setLadderOccludeAlpha(value); }
+    public static void setTreeOccludeEnabled(boolean value) { CULLING.setTreeOccludeEnabled(value); }
+    public static void setTreeOccludeAlpha(double value) { CULLING.setTreeOccludeAlpha(value); }
+    public static void setIgnoreLeavesInRaycast(boolean value) { CULLING.setIgnoreLeavesInRaycast(value); }
+    public static void setProtectNaturalTreeLogs(boolean value) { CULLING.setProtectNaturalTreeLogs(value); }
+    public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
+    public static void setFluidAlpha(double value) { CULLING.setFluidAlpha(value); }
+    public static void setSignHoverDisplayMode(int value) { INTERACTION.setSignHoverDisplayMode(value); }
+    public static void setSignHoverScale(double value) { INTERACTION.setSignHoverScale(value); }
+    public static void setShowInteractionPrompt(boolean value) { INTERACTION.setShowInteractionPrompt(value); }
+    public static void setInteractionPromptScale(double value) { INTERACTION.setInteractionPromptScale(value); }
+    public static void setInteractionPromptShadow(boolean value) { INTERACTION.setInteractionPromptShadow(value); }
+    public static void setShowSpatialPrompt(boolean value) { INTERACTION.setShowSpatialPrompt(value); }
+    public static void setSpatialPromptRadius(double value) { INTERACTION.setSpatialPromptRadius(value); }
+    public static void setSpatialPromptAllBlocks(boolean value) { INTERACTION.setSpatialPromptAllBlocks(value); }
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent.Loading event) {
         if (event.getConfig().getSpec() == SPEC) {
             loadClientConfig();
-            com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
+            com.topdownview.state.ModState.STATUS.setEnabled(INTERACTION.isDefaultEnabled());
             notifyConfigChanged();
         } else if (event.getConfig().getSpec() == COMMON_SPEC) {
             loadCommonConfig();
         }
     }
 
-    /**
-     * Reloading はファイルウォッチャー（非同期）からも発火するため、
-     * save() 中の非同期割り込みによるキャッシュ破壊を防ぐ。
-     * isSaving 中はスキップし、ファイルを外部から手動編集した場合のみ反映する。
-     */
     @SubscribeEvent
     static void onReload(final ModConfigEvent.Reloading event) {
         if (isSaving) {
-            // save() が引き起こした Reloading は無視（キャッシュ破壊防止）
             return;
         }
         if (event.getConfig().getSpec() == SPEC) {
             loadClientConfig();
-            com.topdownview.state.ModState.STATUS.setEnabled(defaultEnabled);
+            com.topdownview.state.ModState.STATUS.setEnabled(INTERACTION.isDefaultEnabled());
             notifyConfigChanged();
         } else if (event.getConfig().getSpec() == COMMON_SPEC) {
             loadCommonConfig();
@@ -611,219 +494,216 @@ public class Config {
     }
 
     private static void loadClientConfig() {
-        cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.get();
-        cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.get();
-        cylinderForwardShift = CYLINDER_FORWARD_SHIFT.get();
-        miningCylinderRadius = MINING_CYLINDER_RADIUS.get();
-        miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.get();
-        miningModeEnabled = MINING_MODE_ENABLED.get();
-        clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.get();
-        baritoneRenderPath = BARITONE_RENDER_PATH.get();
-        baritoneRenderGoal = BARITONE_RENDER_GOAL.get();
-        arrivalThreshold = ARRIVAL_THRESHOLD.get();
-        forceAutoJump = FORCE_AUTO_JUMP.get();
-        sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.get();
-        autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.get();
-        autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.get();
-        autoAlignCooldownTicks = AUTO_ALIGN_COOLDOWN_TICKS.get();
-        stableDirectionAngle = STABLE_DIRECTION_ANGLE.get();
-        stableDirectionTicks = STABLE_DIRECTION_TICKS.get();
-        autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.get();
-        mobCullingEnabled = MOB_CULLING_ENABLED.get();
-        mobTranslucencyEnabled = MOB_TRANSLUCENCY_ENABLED.get();
-        mobTranslucencyAlpha = MOB_TRANSLUCENCY_ALPHA.get();
-        trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.get();
-        trapdoorTransparency = TRAPDOOR_TRANSPARENCY.get();
-        fadeEnabled = FADE_ENABLED.get();
-        fadeBlockHitThreshold = FADE_BLOCK_HIT_THRESHOLD.get();
-        fadeStart = FADE_START.get();
-        fadeNearAlpha = FADE_NEAR_ALPHA.get();
-        playerNearTranslucencyEnabled = PLAYER_NEAR_TRANSLUCENCY_ENABLED.get();
-        playerNearTranslucencyAlpha = PLAYER_NEAR_TRANSLUCENCY_ALPHA.get();
-        playerNearTranslucencyRangeHorizontal = PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get();
-        playerNearTranslucencyRangeVertical = PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.get();
-        rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.get();
-        destinationHighlightEnabled = DESTINATION_HIGHLIGHT_ENABLED.get();
-        rangeEmptyHand = RANGE_EMPTY_HAND.get();
-        rangeSword = RANGE_SWORD.get();
-        rangeAxe = RANGE_AXE.get();
-        rangePickaxe = RANGE_PICKAXE.get();
-        rangeShovel = RANGE_SHOVEL.get();
-        rangeOther = RANGE_OTHER.get();
-        defaultEnabled = DEFAULT_ENABLED.get();
-        targetGlowEnabled = TARGET_GLOW_ENABLED.get();
-        mobConeCullingEnabled = MOB_CONE_CULLING_ENABLED.get();
-        mobConeHalfAngle = MOB_CONE_HALF_ANGLE.get();
-        mobConeFadeAngle = MOB_CONE_FADE_ANGLE.get();
-        mobNearRadius = MOB_NEAR_RADIUS.get();
-        mobFogEnd = MOB_FOG_END.get();
-        rotateAngleMode = ROTATE_ANGLE_MODE.get();
-        cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.get();
-        cameraPitch = CAMERA_PITCH.get();
-        miningModePitch = MINING_MODE_PITCH.get();
-        maxCameraDistance = MAX_CAMERA_DISTANCE.get();
-        defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.get();
-        cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.get();
-        cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.get();
-        cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.get();
-        cameraXFollowDelay = CAMERA_X_FOLLOW_DELAY.get();
-        cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.get();
-        cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.get();
-        followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.get();
-        playerScreenOffset = PLAYER_SCREEN_OFFSET.get();
-        headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.get();
-        waterMovementControlEnabled = WATER_MOVEMENT_CONTROL_ENABLED.get();
-        independentMountAim = INDEPENDENT_MOUNT_AIM.get();
-        mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.get();
-        mountTurnSmoothing = MOUNT_TURN_SMOOTHING.get();
-        boatHeadMaxTwist = BOAT_HEAD_MAX_TWIST.get();
-        boatBodyMaxTwist = BOAT_BODY_MAX_TWIST.get();
-        topDownFov = TOP_DOWN_FOV.get();
-        lockedTopDown = LOCKED_TOP_DOWN.get();
-        scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.get();
-        cameraZoomSmoothingEnabled = CAMERA_ZOOM_SMOOTHING_ENABLED.get();
-        cameraZoomSmoothing = CAMERA_ZOOM_SMOOTHING.get();
-        targetLockEnabled = TARGET_LOCK_ENABLED.get();
-        targetLockDuration = TARGET_LOCK_DURATION.get();
-        targetHitboxExpansion = TARGET_HITBOX_EXPANSION.get();
-        screenReachEnabled = SCREEN_REACH_ENABLED.get();
-        reachDistance = REACH_DISTANCE.get();
-        placementPreviewEnabled = PLACEMENT_PREVIEW_ENABLED.get();
-        placementTransparency = PLACEMENT_TRANSPARENCY.get();
-        clickPositionPlacementEnabled = CLICK_POSITION_PLACEMENT_ENABLED.get();
-        staircaseExclusionEnabled = STAIRCASE_EXCLUSION_ENABLED.get();
-        staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.get();
-        staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.get();
-        staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.get();
-        ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.get();
-        ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.get();
-        treeOccludeEnabled = TREE_OCCLUDE_ENABLED.get();
-        treeOccludeAlpha = TREE_OCCLUDE_ALPHA.get();
-        ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.get();
-        protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.get();
-        translucentFluid = TRANSLUCENT_FLUID.get();
-        fluidAlpha = FLUID_ALPHA.get();
-        signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.get();
-        signHoverScale = SIGN_HOVER_SCALE.get();
-        showInteractionPrompt = SHOW_INTERACTION_PROMPT.get();
-        interactionPromptScale = INTERACTION_PROMPT_SCALE.get();
-        interactionPromptShadow = INTERACTION_PROMPT_SHADOW.get();
-        showSpatialPrompt = SHOW_SPATIAL_PROMPT.get();
-        spatialPromptRadius = SPATIAL_PROMPT_RADIUS.get();
-        spatialPromptAllBlocks = SPATIAL_PROMPT_ALL_BLOCKS.get();
+        CULLING.setCylinderRadiusHorizontal(CYLINDER_RADIUS_HORIZONTAL.get());
+        CULLING.setCylinderRadiusVertical(CYLINDER_RADIUS_VERTICAL.get());
+        CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.get());
+        CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.get());
+        CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.get());
+        INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.get());
+        INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.get());
+        INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.get());
+        INTEGRATIONS.setBaritoneRenderGoal(BARITONE_RENDER_GOAL.get());
+        INTERACTION.setArrivalThreshold(ARRIVAL_THRESHOLD.get());
+        INTERACTION.setForceAutoJump(FORCE_AUTO_JUMP.get());
+        INTERACTION.setSprintDistanceThreshold(SPRINT_DISTANCE_THRESHOLD.get());
+        INTERACTION.setAutoAlignToMovementEnabled(AUTO_ALIGN_TO_MOVEMENT_ENABLED.get());
+        INTERACTION.setAutoAlignAngleThreshold(AUTO_ALIGN_ANGLE_THRESHOLD.get());
+        INTERACTION.setAutoAlignCooldownTicks(AUTO_ALIGN_COOLDOWN_TICKS.get());
+        INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.get());
+        INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.get());
+        INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.get());
+        CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.get());
+        CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.get());
+        CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.get());
+        CULLING.setTrapdoorTranslucencyEnabled(TRAPDOOR_TRANSLUCENCY_ENABLED.get());
+        CULLING.setTrapdoorTransparency(TRAPDOOR_TRANSPARENCY.get());
+        CULLING.setFadeEnabled(FADE_ENABLED.get());
+        CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.get());
+        CULLING.setFadeStart(FADE_START.get());
+        CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.get());
+        CULLING.setPlayerNearTranslucencyEnabled(PLAYER_NEAR_TRANSLUCENCY_ENABLED.get());
+        CULLING.setPlayerNearTranslucencyAlpha(PLAYER_NEAR_TRANSLUCENCY_ALPHA.get());
+        CULLING.setPlayerNearTranslucencyRangeHorizontal(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get());
+        CULLING.setPlayerNearTranslucencyRangeVertical(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.get());
+        INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.get());
+        INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.get());
+        INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.get());
+        INTERACTION.setRangeSword(RANGE_SWORD.get());
+        INTERACTION.setRangeAxe(RANGE_AXE.get());
+        INTERACTION.setRangePickaxe(RANGE_PICKAXE.get());
+        INTERACTION.setRangeShovel(RANGE_SHOVEL.get());
+        INTERACTION.setRangeOther(RANGE_OTHER.get());
+        INTERACTION.setDefaultEnabled(DEFAULT_ENABLED.get());
+        INTERACTION.setTargetGlowEnabled(TARGET_GLOW_ENABLED.get());
+        CULLING.setMobConeCullingEnabled(MOB_CONE_CULLING_ENABLED.get());
+        CULLING.setMobConeHalfAngle(MOB_CONE_HALF_ANGLE.get());
+        CULLING.setMobConeFadeAngle(MOB_CONE_FADE_ANGLE.get());
+        CULLING.setMobNearRadius(MOB_NEAR_RADIUS.get());
+        CULLING.setMobFogEnd(MOB_FOG_END.get());
+        CAMERA.setRotateAngleMode(ROTATE_ANGLE_MODE.get());
+        CAMERA.setCameraSnapRotationSpeed(CAMERA_SNAP_ROTATION_SPEED.get());
+        CAMERA.setCameraPitch(CAMERA_PITCH.get());
+        CAMERA.setMiningModePitch(MINING_MODE_PITCH.get());
+        CAMERA.setMaxCameraDistance(MAX_CAMERA_DISTANCE.get());
+        CAMERA.setDefaultCameraDistance(DEFAULT_CAMERA_DISTANCE.get());
+        CAMERA.setCameraYFollowDelayEnabled(CAMERA_Y_FOLLOW_DELAY_ENABLED.get());
+        CAMERA.setCameraYFollowDelay(CAMERA_Y_FOLLOW_DELAY.get());
+        CAMERA.setCameraXFollowDelayEnabled(CAMERA_X_FOLLOW_DELAY_ENABLED.get());
+        CAMERA.setCameraXFollowDelay(CAMERA_X_FOLLOW_DELAY.get());
+        CAMERA.setCameraZFollowDelayEnabled(CAMERA_Z_FOLLOW_DELAY_ENABLED.get());
+        CAMERA.setCameraZFollowDelay(CAMERA_Z_FOLLOW_DELAY.get());
+        CAMERA.setFollowDelayWhileMounted(FOLLOW_DELAY_WHILE_MOUNTED.get());
+        CAMERA.setPlayerScreenOffset(PLAYER_SCREEN_OFFSET.get());
+        CAMERA.setHeadBodyRotationEnabled(HEAD_BODY_ROTATION_ENABLED.get());
+        CAMERA.setWaterMovementControlEnabled(WATER_MOVEMENT_CONTROL_ENABLED.get());
+        CAMERA.setIndependentMountAim(INDEPENDENT_MOUNT_AIM.get());
+        CAMERA.setMountAimMaxTwist(MOUNT_AIM_MAX_TWIST.get());
+        CAMERA.setMountTurnSmoothing(MOUNT_TURN_SMOOTHING.get());
+        CAMERA.setBoatHeadMaxTwist(BOAT_HEAD_MAX_TWIST.get());
+        CAMERA.setBoatBodyMaxTwist(BOAT_BODY_MAX_TWIST.get());
+        CAMERA.setTopDownFov(TOP_DOWN_FOV.get());
+        CAMERA.setLockedTopDown(LOCKED_TOP_DOWN.get());
+        CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.get());
+        CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.get());
+        CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.get());
+        INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.get());
+        INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.get());
+        INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.get());
+        INTERACTION.setScreenReachEnabled(SCREEN_REACH_ENABLED.get());
+        INTERACTION.setReachDistance(REACH_DISTANCE.get());
+        PLACEMENT.setPlacementPreviewEnabled(PLACEMENT_PREVIEW_ENABLED.get());
+        PLACEMENT.setPlacementTransparency(PLACEMENT_TRANSPARENCY.get());
+        PLACEMENT.setClickPositionPlacementEnabled(CLICK_POSITION_PLACEMENT_ENABLED.get());
+        CULLING.setStaircaseExclusionEnabled(STAIRCASE_EXCLUSION_ENABLED.get());
+        CULLING.setStaircaseExclusionHeight(STAIRCASE_EXCLUSION_HEIGHT.get());
+        CULLING.setStaircaseOccludeEnabled(STAIRCASE_OCCLUDE_ENABLED.get());
+        CULLING.setStaircaseOccludeAlpha(STAIRCASE_OCCLUDE_ALPHA.get());
+        CULLING.setLadderOccludeEnabled(LADDER_OCCLUDE_ENABLED.get());
+        CULLING.setLadderOccludeAlpha(LADDER_OCCLUDE_ALPHA.get());
+        CULLING.setTreeOccludeEnabled(TREE_OCCLUDE_ENABLED.get());
+        CULLING.setTreeOccludeAlpha(TREE_OCCLUDE_ALPHA.get());
+        CULLING.setIgnoreLeavesInRaycast(IGNORE_LEAVES_IN_RAYCAST.get());
+        CULLING.setProtectNaturalTreeLogs(PROTECT_NATURAL_TREE_LOGS.get());
+        CULLING.setTranslucentFluid(TRANSLUCENT_FLUID.get());
+        CULLING.setFluidAlpha(FLUID_ALPHA.get());
+        INTERACTION.setSignHoverDisplayMode(SIGN_HOVER_DISPLAY_MODE.get());
+        INTERACTION.setSignHoverScale(SIGN_HOVER_SCALE.get());
+        INTERACTION.setShowInteractionPrompt(SHOW_INTERACTION_PROMPT.get());
+        INTERACTION.setInteractionPromptScale(INTERACTION_PROMPT_SCALE.get());
+        INTERACTION.setInteractionPromptShadow(INTERACTION_PROMPT_SHADOW.get());
+        INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.get());
+        INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.get());
+        INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.get());
     }
 
     private static void loadCommonConfig() {
-        serverReachDistance = SERVER_REACH_DISTANCE.get();
+        INTERACTION.setServerReachDistance(SERVER_REACH_DISTANCE.get());
     }
 
     public static void save() {
         isSaving = true;
         try {
-        TopDownViewMod.getLogger().info("[TopDownView][Config.save] Saving values - maxCameraDistance: {}, defaultCameraDistance: {}",
-                maxCameraDistance, defaultCameraDistance);
-        CYLINDER_RADIUS_HORIZONTAL.set(cylinderRadiusHorizontal);
-        CYLINDER_RADIUS_VERTICAL.set(cylinderRadiusVertical);
-        CYLINDER_FORWARD_SHIFT.set(cylinderForwardShift);
-        MINING_CYLINDER_RADIUS.set(miningCylinderRadius);
-        MINING_CYLINDER_FORWARD_SHIFT.set(miningCylinderForwardShift);
-        MINING_MODE_ENABLED.set(miningModeEnabled);
-        CLICK_TO_MOVE_ENABLED.set(clickToMoveEnabled);
-        BARITONE_RENDER_PATH.set(baritoneRenderPath);
-        BARITONE_RENDER_GOAL.set(baritoneRenderGoal);
-        ARRIVAL_THRESHOLD.set(arrivalThreshold);
-        FORCE_AUTO_JUMP.set(forceAutoJump);
-        SPRINT_DISTANCE_THRESHOLD.set(sprintDistanceThreshold);
-        AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(autoAlignToMovementEnabled);
-        AUTO_ALIGN_ANGLE_THRESHOLD.set(autoAlignAngleThreshold);
-        AUTO_ALIGN_COOLDOWN_TICKS.set(autoAlignCooldownTicks);
-        STABLE_DIRECTION_ANGLE.set(stableDirectionAngle);
-        STABLE_DIRECTION_TICKS.set(stableDirectionTicks);
-        AUTO_ALIGN_ANIMATION_SPEED.set(autoAlignAnimationSpeed);
-        MOB_CULLING_ENABLED.set(mobCullingEnabled);
-        MOB_TRANSLUCENCY_ENABLED.set(mobTranslucencyEnabled);
-        MOB_TRANSLUCENCY_ALPHA.set(mobTranslucencyAlpha);
-        TRAPDOOR_TRANSLUCENCY_ENABLED.set(trapdoorTranslucencyEnabled);
-        TRAPDOOR_TRANSPARENCY.set(trapdoorTransparency);
-        FADE_ENABLED.set(fadeEnabled);
-        FADE_BLOCK_HIT_THRESHOLD.set(fadeBlockHitThreshold);
-        FADE_START.set(fadeStart);
-        FADE_NEAR_ALPHA.set(fadeNearAlpha);
-        PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(playerNearTranslucencyEnabled);
-        PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(playerNearTranslucencyAlpha);
-        PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(playerNearTranslucencyRangeHorizontal);
-        PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.set(playerNearTranslucencyRangeVertical);
-        RANGE_INDICATOR_ENABLED.set(rangeIndicatorEnabled);
-        DESTINATION_HIGHLIGHT_ENABLED.set(destinationHighlightEnabled);
-        RANGE_EMPTY_HAND.set(rangeEmptyHand);
-        RANGE_SWORD.set(rangeSword);
-        RANGE_AXE.set(rangeAxe);
-        RANGE_PICKAXE.set(rangePickaxe);
-        RANGE_SHOVEL.set(rangeShovel);
-        RANGE_OTHER.set(rangeOther);
-        DEFAULT_ENABLED.set(defaultEnabled);
-        TARGET_GLOW_ENABLED.set(targetGlowEnabled);
-        MOB_CONE_CULLING_ENABLED.set(mobConeCullingEnabled);
-        MOB_CONE_HALF_ANGLE.set(mobConeHalfAngle);
-        MOB_CONE_FADE_ANGLE.set(mobConeFadeAngle);
-        MOB_NEAR_RADIUS.set(mobNearRadius);
-        MOB_FOG_END.set(mobFogEnd);
-        ROTATE_ANGLE_MODE.set(rotateAngleMode);
-        CAMERA_SNAP_ROTATION_SPEED.set(cameraSnapRotationSpeed);
-        CAMERA_PITCH.set(cameraPitch);
-        MINING_MODE_PITCH.set(miningModePitch);
-        MAX_CAMERA_DISTANCE.set(maxCameraDistance);
-        DEFAULT_CAMERA_DISTANCE.set(defaultCameraDistance);
-        CAMERA_Y_FOLLOW_DELAY_ENABLED.set(cameraYFollowDelayEnabled);
-        CAMERA_Y_FOLLOW_DELAY.set(cameraYFollowDelay);
-        CAMERA_X_FOLLOW_DELAY_ENABLED.set(cameraXFollowDelayEnabled);
-        CAMERA_X_FOLLOW_DELAY.set(cameraXFollowDelay);
-        CAMERA_Z_FOLLOW_DELAY_ENABLED.set(cameraZFollowDelayEnabled);
-        CAMERA_Z_FOLLOW_DELAY.set(cameraZFollowDelay);
-        FOLLOW_DELAY_WHILE_MOUNTED.set(followDelayWhileMounted);
-        PLAYER_SCREEN_OFFSET.set(playerScreenOffset);
-        HEAD_BODY_ROTATION_ENABLED.set(headBodyRotationEnabled);
-        WATER_MOVEMENT_CONTROL_ENABLED.set(waterMovementControlEnabled);
-        INDEPENDENT_MOUNT_AIM.set(independentMountAim);
-        MOUNT_AIM_MAX_TWIST.set(mountAimMaxTwist);
-        MOUNT_TURN_SMOOTHING.set(mountTurnSmoothing);
-        BOAT_HEAD_MAX_TWIST.set(boatHeadMaxTwist);
-        BOAT_BODY_MAX_TWIST.set(boatBodyMaxTwist);
-        TOP_DOWN_FOV.set(topDownFov);
-        LOCKED_TOP_DOWN.set(lockedTopDown);
-        SCROLL_ONLY_ZOOM_ENABLED.set(scrollOnlyZoomEnabled);
-        CAMERA_ZOOM_SMOOTHING_ENABLED.set(cameraZoomSmoothingEnabled);
-        CAMERA_ZOOM_SMOOTHING.set(cameraZoomSmoothing);
-        TARGET_LOCK_ENABLED.set(targetLockEnabled);
-        TARGET_LOCK_DURATION.set(targetLockDuration);
-        TARGET_HITBOX_EXPANSION.set(targetHitboxExpansion);
-        SCREEN_REACH_ENABLED.set(screenReachEnabled);
-        REACH_DISTANCE.set(reachDistance);
-        PLACEMENT_PREVIEW_ENABLED.set(placementPreviewEnabled);
-        PLACEMENT_TRANSPARENCY.set(placementTransparency);
-        CLICK_POSITION_PLACEMENT_ENABLED.set(clickPositionPlacementEnabled);
-        STAIRCASE_EXCLUSION_ENABLED.set(staircaseExclusionEnabled);
-        STAIRCASE_EXCLUSION_HEIGHT.set(staircaseExclusionHeight);
-        STAIRCASE_OCCLUDE_ENABLED.set(staircaseOccludeEnabled);
-        STAIRCASE_OCCLUDE_ALPHA.set(staircaseOccludeAlpha);
-        LADDER_OCCLUDE_ENABLED.set(ladderOccludeEnabled);
-        LADDER_OCCLUDE_ALPHA.set(ladderOccludeAlpha);
-        TREE_OCCLUDE_ENABLED.set(treeOccludeEnabled);
-        TREE_OCCLUDE_ALPHA.set(treeOccludeAlpha);
-        IGNORE_LEAVES_IN_RAYCAST.set(ignoreLeavesInRaycast);
-        PROTECT_NATURAL_TREE_LOGS.set(protectNaturalTreeLogs);
-        TRANSLUCENT_FLUID.set(translucentFluid);
-        FLUID_ALPHA.set(fluidAlpha);
-        SIGN_HOVER_DISPLAY_MODE.set(signHoverDisplayMode);
-        SIGN_HOVER_SCALE.set(signHoverScale);
-        SHOW_INTERACTION_PROMPT.set(showInteractionPrompt);
-        INTERACTION_PROMPT_SCALE.set(interactionPromptScale);
-        INTERACTION_PROMPT_SHADOW.set(interactionPromptShadow);
-        SHOW_SPATIAL_PROMPT.set(showSpatialPrompt);
-        SPATIAL_PROMPT_RADIUS.set(spatialPromptRadius);
-        SPATIAL_PROMPT_ALL_BLOCKS.set(spatialPromptAllBlocks);
-        SPEC.save();
-        TopDownViewMod.getLogger().info("[TopDownView][Config.save] Config file saved successfully");
+            CYLINDER_RADIUS_HORIZONTAL.set(getCylinderRadiusHorizontal());
+            CYLINDER_RADIUS_VERTICAL.set(getCylinderRadiusVertical());
+            CYLINDER_FORWARD_SHIFT.set(getCylinderForwardShift());
+            MINING_CYLINDER_RADIUS.set(getMiningCylinderRadius());
+            MINING_CYLINDER_FORWARD_SHIFT.set(getMiningCylinderForwardShift());
+            MINING_MODE_ENABLED.set(isMiningModeEnabled());
+            CLICK_TO_MOVE_ENABLED.set(isClickToMoveEnabled());
+            BARITONE_RENDER_PATH.set(isBaritoneRenderPath());
+            BARITONE_RENDER_GOAL.set(isBaritoneRenderGoal());
+            ARRIVAL_THRESHOLD.set(getArrivalThreshold());
+            FORCE_AUTO_JUMP.set(isForceAutoJump());
+            SPRINT_DISTANCE_THRESHOLD.set(getSprintDistanceThreshold());
+            AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(isAutoAlignToMovementEnabled());
+            AUTO_ALIGN_ANGLE_THRESHOLD.set(getAutoAlignAngleThreshold());
+            AUTO_ALIGN_COOLDOWN_TICKS.set(getAutoAlignCooldownTicks());
+            STABLE_DIRECTION_ANGLE.set(getStableDirectionAngle());
+            STABLE_DIRECTION_TICKS.set(getStableDirectionTicks());
+            AUTO_ALIGN_ANIMATION_SPEED.set(getAutoAlignAnimationSpeed());
+            MOB_CULLING_ENABLED.set(isMobCullingEnabled());
+            MOB_TRANSLUCENCY_ENABLED.set(isMobTranslucencyEnabled());
+            MOB_TRANSLUCENCY_ALPHA.set(getMobTranslucencyAlpha());
+            TRAPDOOR_TRANSLUCENCY_ENABLED.set(isTrapdoorTranslucencyEnabled());
+            TRAPDOOR_TRANSPARENCY.set(getTrapdoorTransparency());
+            FADE_ENABLED.set(isFadeEnabled());
+            FADE_BLOCK_HIT_THRESHOLD.set(getFadeBlockHitThreshold());
+            FADE_START.set(getFadeStart());
+            FADE_NEAR_ALPHA.set(getFadeNearAlpha());
+            PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(isPlayerNearTranslucencyEnabled());
+            PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(getPlayerNearTranslucencyAlpha());
+            PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(getPlayerNearTranslucencyRangeHorizontal());
+            PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.set(getPlayerNearTranslucencyRangeVertical());
+            RANGE_INDICATOR_ENABLED.set(isRangeIndicatorEnabled());
+            DESTINATION_HIGHLIGHT_ENABLED.set(isDestinationHighlightEnabled());
+            RANGE_EMPTY_HAND.set(getRangeEmptyHand());
+            RANGE_SWORD.set(getRangeSword());
+            RANGE_AXE.set(getRangeAxe());
+            RANGE_PICKAXE.set(getRangePickaxe());
+            RANGE_SHOVEL.set(getRangeShovel());
+            RANGE_OTHER.set(getRangeOther());
+            DEFAULT_ENABLED.set(isDefaultEnabled());
+            TARGET_GLOW_ENABLED.set(isTargetGlowEnabled());
+            MOB_CONE_CULLING_ENABLED.set(isMobConeCullingEnabled());
+            MOB_CONE_HALF_ANGLE.set(getMobConeHalfAngle());
+            MOB_CONE_FADE_ANGLE.set(getMobConeFadeAngle());
+            MOB_NEAR_RADIUS.set(getMobNearRadius());
+            MOB_FOG_END.set(getMobFogEnd());
+            ROTATE_ANGLE_MODE.set(getRotateAngleMode());
+            CAMERA_SNAP_ROTATION_SPEED.set(getCameraSnapRotationSpeed());
+            CAMERA_PITCH.set(getCameraPitch());
+            MINING_MODE_PITCH.set(getMiningModePitch());
+            MAX_CAMERA_DISTANCE.set(getMaxCameraDistance());
+            DEFAULT_CAMERA_DISTANCE.set(getDefaultCameraDistance());
+            CAMERA_Y_FOLLOW_DELAY_ENABLED.set(isCameraYFollowDelayEnabled());
+            CAMERA_Y_FOLLOW_DELAY.set(getCameraYFollowDelay());
+            CAMERA_X_FOLLOW_DELAY_ENABLED.set(isCameraXFollowDelayEnabled());
+            CAMERA_X_FOLLOW_DELAY.set(getCameraXFollowDelay());
+            CAMERA_Z_FOLLOW_DELAY_ENABLED.set(isCameraZFollowDelayEnabled());
+            CAMERA_Z_FOLLOW_DELAY.set(getCameraZFollowDelay());
+            FOLLOW_DELAY_WHILE_MOUNTED.set(isFollowDelayWhileMounted());
+            PLAYER_SCREEN_OFFSET.set(getPlayerScreenOffset());
+            HEAD_BODY_ROTATION_ENABLED.set(isHeadBodyRotationEnabled());
+            WATER_MOVEMENT_CONTROL_ENABLED.set(isWaterMovementControlEnabled());
+            INDEPENDENT_MOUNT_AIM.set(isIndependentMountAim());
+            MOUNT_AIM_MAX_TWIST.set(getMountAimMaxTwist());
+            MOUNT_TURN_SMOOTHING.set(getMountTurnSmoothing());
+            BOAT_HEAD_MAX_TWIST.set(getBoatHeadMaxTwist());
+            BOAT_BODY_MAX_TWIST.set(getBoatBodyMaxTwist());
+            TOP_DOWN_FOV.set(getTopDownFov());
+            LOCKED_TOP_DOWN.set(isLockedTopDown());
+            SCROLL_ONLY_ZOOM_ENABLED.set(isScrollOnlyZoomEnabled());
+            CAMERA_ZOOM_SMOOTHING_ENABLED.set(isCameraZoomSmoothingEnabled());
+            CAMERA_ZOOM_SMOOTHING.set(getCameraZoomSmoothing());
+            TARGET_LOCK_ENABLED.set(isTargetLockEnabled());
+            TARGET_LOCK_DURATION.set(getTargetLockDuration());
+            TARGET_HITBOX_EXPANSION.set(getTargetHitboxExpansion());
+            SCREEN_REACH_ENABLED.set(isScreenReachEnabled());
+            REACH_DISTANCE.set(getReachDistance());
+            PLACEMENT_PREVIEW_ENABLED.set(isPlacementPreviewEnabled());
+            PLACEMENT_TRANSPARENCY.set(getPlacementTransparency());
+            CLICK_POSITION_PLACEMENT_ENABLED.set(isClickPositionPlacementEnabled());
+            STAIRCASE_EXCLUSION_ENABLED.set(isStaircaseExclusionEnabled());
+            STAIRCASE_EXCLUSION_HEIGHT.set(getStaircaseExclusionHeight());
+            STAIRCASE_OCCLUDE_ENABLED.set(isStaircaseOccludeEnabled());
+            STAIRCASE_OCCLUDE_ALPHA.set(getStaircaseOccludeAlpha());
+            LADDER_OCCLUDE_ENABLED.set(isLadderOccludeEnabled());
+            LADDER_OCCLUDE_ALPHA.set(getLadderOccludeAlpha());
+            TREE_OCCLUDE_ENABLED.set(isTreeOccludeEnabled());
+            TREE_OCCLUDE_ALPHA.set(getTreeOccludeAlpha());
+            IGNORE_LEAVES_IN_RAYCAST.set(isIgnoreLeavesInRaycast());
+            PROTECT_NATURAL_TREE_LOGS.set(isProtectNaturalTreeLogs());
+            TRANSLUCENT_FLUID.set(isTranslucentFluid());
+            FLUID_ALPHA.set(getFluidAlpha());
+            SIGN_HOVER_DISPLAY_MODE.set(getSignHoverDisplayMode());
+            SIGN_HOVER_SCALE.set(getSignHoverScale());
+            SHOW_INTERACTION_PROMPT.set(isShowInteractionPrompt());
+            INTERACTION_PROMPT_SCALE.set(getInteractionPromptScale());
+            INTERACTION_PROMPT_SHADOW.set(isInteractionPromptShadow());
+            SHOW_SPATIAL_PROMPT.set(isShowSpatialPrompt());
+            SPATIAL_PROMPT_RADIUS.set(getSpatialPromptRadius());
+            SPATIAL_PROMPT_ALL_BLOCKS.set(isSpatialPromptAllBlocks());
+            SPEC.save();
         } finally {
             isSaving = false;
         }
@@ -831,101 +711,101 @@ public class Config {
     }
 
     public static void resetToDefaults() {
-        cylinderRadiusHorizontal = CYLINDER_RADIUS_HORIZONTAL.getDefault();
-        cylinderRadiusVertical = CYLINDER_RADIUS_VERTICAL.getDefault();
-        cylinderForwardShift = CYLINDER_FORWARD_SHIFT.getDefault();
-        miningCylinderRadius = MINING_CYLINDER_RADIUS.getDefault();
-        miningCylinderForwardShift = MINING_CYLINDER_FORWARD_SHIFT.getDefault();
-        miningModeEnabled = MINING_MODE_ENABLED.getDefault();
-        clickToMoveEnabled = CLICK_TO_MOVE_ENABLED.getDefault();
-        baritoneRenderPath = BARITONE_RENDER_PATH.getDefault();
-        baritoneRenderGoal = BARITONE_RENDER_GOAL.getDefault();
-        arrivalThreshold = ARRIVAL_THRESHOLD.getDefault();
-        forceAutoJump = FORCE_AUTO_JUMP.getDefault();
-        sprintDistanceThreshold = SPRINT_DISTANCE_THRESHOLD.getDefault();
-        autoAlignToMovementEnabled = AUTO_ALIGN_TO_MOVEMENT_ENABLED.getDefault();
-        autoAlignAngleThreshold = AUTO_ALIGN_ANGLE_THRESHOLD.getDefault();
-        autoAlignCooldownTicks = AUTO_ALIGN_COOLDOWN_TICKS.getDefault();
-        stableDirectionAngle = STABLE_DIRECTION_ANGLE.getDefault();
-        stableDirectionTicks = STABLE_DIRECTION_TICKS.getDefault();
-        autoAlignAnimationSpeed = AUTO_ALIGN_ANIMATION_SPEED.getDefault();
-        mobCullingEnabled = MOB_CULLING_ENABLED.getDefault();
-        mobTranslucencyEnabled = MOB_TRANSLUCENCY_ENABLED.getDefault();
-        mobTranslucencyAlpha = MOB_TRANSLUCENCY_ALPHA.getDefault();
-        trapdoorTranslucencyEnabled = TRAPDOOR_TRANSLUCENCY_ENABLED.getDefault();
-        trapdoorTransparency = TRAPDOOR_TRANSPARENCY.getDefault();
-        fadeEnabled = FADE_ENABLED.getDefault();
-        fadeBlockHitThreshold = FADE_BLOCK_HIT_THRESHOLD.getDefault();
-        fadeStart = FADE_START.getDefault();
-        fadeNearAlpha = FADE_NEAR_ALPHA.getDefault();
-        rangeIndicatorEnabled = RANGE_INDICATOR_ENABLED.getDefault();
-        destinationHighlightEnabled = DESTINATION_HIGHLIGHT_ENABLED.getDefault();
-        rangeEmptyHand = RANGE_EMPTY_HAND.getDefault();
-        rangeSword = RANGE_SWORD.getDefault();
-        rangeAxe = RANGE_AXE.getDefault();
-        rangePickaxe = RANGE_PICKAXE.getDefault();
-        rangeShovel = RANGE_SHOVEL.getDefault();
-        rangeOther = RANGE_OTHER.getDefault();
-        defaultEnabled = DEFAULT_ENABLED.getDefault();
-        targetGlowEnabled = TARGET_GLOW_ENABLED.getDefault();
-        mobConeCullingEnabled = MOB_CONE_CULLING_ENABLED.getDefault();
-        mobConeHalfAngle = MOB_CONE_HALF_ANGLE.getDefault();
-        mobConeFadeAngle = MOB_CONE_FADE_ANGLE.getDefault();
-        mobNearRadius = MOB_NEAR_RADIUS.getDefault();
-        mobFogEnd = MOB_FOG_END.getDefault();
-        rotateAngleMode = ROTATE_ANGLE_MODE.getDefault();
-        cameraSnapRotationSpeed = CAMERA_SNAP_ROTATION_SPEED.getDefault();
-        cameraPitch = CAMERA_PITCH.getDefault();
-        miningModePitch = MINING_MODE_PITCH.getDefault();
-        maxCameraDistance = MAX_CAMERA_DISTANCE.getDefault();
-        defaultCameraDistance = DEFAULT_CAMERA_DISTANCE.getDefault();
-        cameraYFollowDelayEnabled = CAMERA_Y_FOLLOW_DELAY_ENABLED.getDefault();
-        cameraYFollowDelay = CAMERA_Y_FOLLOW_DELAY.getDefault();
-        cameraXFollowDelayEnabled = CAMERA_X_FOLLOW_DELAY_ENABLED.getDefault();
-        cameraXFollowDelay = CAMERA_X_FOLLOW_DELAY.getDefault();
-        cameraZFollowDelayEnabled = CAMERA_Z_FOLLOW_DELAY_ENABLED.getDefault();
-        cameraZFollowDelay = CAMERA_Z_FOLLOW_DELAY.getDefault();
-        followDelayWhileMounted = FOLLOW_DELAY_WHILE_MOUNTED.getDefault();
-        playerScreenOffset = PLAYER_SCREEN_OFFSET.getDefault();
-        headBodyRotationEnabled = HEAD_BODY_ROTATION_ENABLED.getDefault();
-        independentMountAim = INDEPENDENT_MOUNT_AIM.getDefault();
-        mountAimMaxTwist = MOUNT_AIM_MAX_TWIST.getDefault();
-        mountTurnSmoothing = MOUNT_TURN_SMOOTHING.getDefault();
-        boatHeadMaxTwist = BOAT_HEAD_MAX_TWIST.getDefault();
-        boatBodyMaxTwist = BOAT_BODY_MAX_TWIST.getDefault();
-        topDownFov = TOP_DOWN_FOV.getDefault();
-        lockedTopDown = LOCKED_TOP_DOWN.getDefault();
-        scrollOnlyZoomEnabled = SCROLL_ONLY_ZOOM_ENABLED.getDefault();
-        cameraZoomSmoothingEnabled = CAMERA_ZOOM_SMOOTHING_ENABLED.getDefault();
-        cameraZoomSmoothing = CAMERA_ZOOM_SMOOTHING.getDefault();
-        targetLockEnabled = TARGET_LOCK_ENABLED.getDefault();
-        targetLockDuration = TARGET_LOCK_DURATION.getDefault();
-        targetHitboxExpansion = TARGET_HITBOX_EXPANSION.getDefault();
-        screenReachEnabled = SCREEN_REACH_ENABLED.getDefault();
-        reachDistance = REACH_DISTANCE.getDefault();
-        placementPreviewEnabled = PLACEMENT_PREVIEW_ENABLED.getDefault();
-        placementTransparency = PLACEMENT_TRANSPARENCY.getDefault();
-        clickPositionPlacementEnabled = CLICK_POSITION_PLACEMENT_ENABLED.getDefault();
-        staircaseExclusionEnabled = STAIRCASE_EXCLUSION_ENABLED.getDefault();
-        staircaseExclusionHeight = STAIRCASE_EXCLUSION_HEIGHT.getDefault();
-        staircaseOccludeEnabled = STAIRCASE_OCCLUDE_ENABLED.getDefault();
-        staircaseOccludeAlpha = STAIRCASE_OCCLUDE_ALPHA.getDefault();
-        ladderOccludeEnabled = LADDER_OCCLUDE_ENABLED.getDefault();
-        ladderOccludeAlpha = LADDER_OCCLUDE_ALPHA.getDefault();
-        treeOccludeEnabled = TREE_OCCLUDE_ENABLED.getDefault();
-        treeOccludeAlpha = TREE_OCCLUDE_ALPHA.getDefault();
-        ignoreLeavesInRaycast = IGNORE_LEAVES_IN_RAYCAST.getDefault();
-        protectNaturalTreeLogs = PROTECT_NATURAL_TREE_LOGS.getDefault();
-        translucentFluid = TRANSLUCENT_FLUID.getDefault();
-        fluidAlpha = FLUID_ALPHA.getDefault();
-        signHoverDisplayMode = SIGN_HOVER_DISPLAY_MODE.getDefault();
-        signHoverScale = SIGN_HOVER_SCALE.getDefault();
-        showInteractionPrompt = SHOW_INTERACTION_PROMPT.getDefault();
-        interactionPromptScale = INTERACTION_PROMPT_SCALE.getDefault();
-        interactionPromptShadow = INTERACTION_PROMPT_SHADOW.getDefault();
-        showSpatialPrompt = SHOW_SPATIAL_PROMPT.getDefault();
-        spatialPromptRadius = SPATIAL_PROMPT_RADIUS.getDefault();
-        spatialPromptAllBlocks = SPATIAL_PROMPT_ALL_BLOCKS.getDefault();
+        CULLING.setCylinderRadiusHorizontal(CYLINDER_RADIUS_HORIZONTAL.getDefault());
+        CULLING.setCylinderRadiusVertical(CYLINDER_RADIUS_VERTICAL.getDefault());
+        CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.getDefault());
+        CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.getDefault());
+        CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.getDefault());
+        INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.getDefault());
+        INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.getDefault());
+        INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.getDefault());
+        INTEGRATIONS.setBaritoneRenderGoal(BARITONE_RENDER_GOAL.getDefault());
+        INTERACTION.setArrivalThreshold(ARRIVAL_THRESHOLD.getDefault());
+        INTERACTION.setForceAutoJump(FORCE_AUTO_JUMP.getDefault());
+        INTERACTION.setSprintDistanceThreshold(SPRINT_DISTANCE_THRESHOLD.getDefault());
+        INTERACTION.setAutoAlignToMovementEnabled(AUTO_ALIGN_TO_MOVEMENT_ENABLED.getDefault());
+        INTERACTION.setAutoAlignAngleThreshold(AUTO_ALIGN_ANGLE_THRESHOLD.getDefault());
+        INTERACTION.setAutoAlignCooldownTicks(AUTO_ALIGN_COOLDOWN_TICKS.getDefault());
+        INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.getDefault());
+        INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.getDefault());
+        INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.getDefault());
+        CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.getDefault());
+        CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.getDefault());
+        CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.getDefault());
+        CULLING.setTrapdoorTranslucencyEnabled(TRAPDOOR_TRANSLUCENCY_ENABLED.getDefault());
+        CULLING.setTrapdoorTransparency(TRAPDOOR_TRANSPARENCY.getDefault());
+        CULLING.setFadeEnabled(FADE_ENABLED.getDefault());
+        CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.getDefault());
+        CULLING.setFadeStart(FADE_START.getDefault());
+        CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.getDefault());
+        INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.getDefault());
+        INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.getDefault());
+        INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.getDefault());
+        INTERACTION.setRangeSword(RANGE_SWORD.getDefault());
+        INTERACTION.setRangeAxe(RANGE_AXE.getDefault());
+        INTERACTION.setRangePickaxe(RANGE_PICKAXE.getDefault());
+        INTERACTION.setRangeShovel(RANGE_SHOVEL.getDefault());
+        INTERACTION.setRangeOther(RANGE_OTHER.getDefault());
+        INTERACTION.setDefaultEnabled(DEFAULT_ENABLED.getDefault());
+        INTERACTION.setTargetGlowEnabled(TARGET_GLOW_ENABLED.getDefault());
+        CULLING.setMobConeCullingEnabled(MOB_CONE_CULLING_ENABLED.getDefault());
+        CULLING.setMobConeHalfAngle(MOB_CONE_HALF_ANGLE.getDefault());
+        CULLING.setMobConeFadeAngle(MOB_CONE_FADE_ANGLE.getDefault());
+        CULLING.setMobNearRadius(MOB_NEAR_RADIUS.getDefault());
+        CULLING.setMobFogEnd(MOB_FOG_END.getDefault());
+        CAMERA.setRotateAngleMode(ROTATE_ANGLE_MODE.getDefault());
+        CAMERA.setCameraSnapRotationSpeed(CAMERA_SNAP_ROTATION_SPEED.getDefault());
+        CAMERA.setCameraPitch(CAMERA_PITCH.getDefault());
+        CAMERA.setMiningModePitch(MINING_MODE_PITCH.getDefault());
+        CAMERA.setMaxCameraDistance(MAX_CAMERA_DISTANCE.getDefault());
+        CAMERA.setDefaultCameraDistance(DEFAULT_CAMERA_DISTANCE.getDefault());
+        CAMERA.setCameraYFollowDelayEnabled(CAMERA_Y_FOLLOW_DELAY_ENABLED.getDefault());
+        CAMERA.setCameraYFollowDelay(CAMERA_Y_FOLLOW_DELAY.getDefault());
+        CAMERA.setCameraXFollowDelayEnabled(CAMERA_X_FOLLOW_DELAY_ENABLED.getDefault());
+        CAMERA.setCameraXFollowDelay(CAMERA_X_FOLLOW_DELAY.getDefault());
+        CAMERA.setCameraZFollowDelayEnabled(CAMERA_Z_FOLLOW_DELAY_ENABLED.getDefault());
+        CAMERA.setCameraZFollowDelay(CAMERA_Z_FOLLOW_DELAY.getDefault());
+        CAMERA.setFollowDelayWhileMounted(FOLLOW_DELAY_WHILE_MOUNTED.getDefault());
+        CAMERA.setPlayerScreenOffset(PLAYER_SCREEN_OFFSET.getDefault());
+        CAMERA.setHeadBodyRotationEnabled(HEAD_BODY_ROTATION_ENABLED.getDefault());
+        CAMERA.setIndependentMountAim(INDEPENDENT_MOUNT_AIM.getDefault());
+        CAMERA.setMountAimMaxTwist(MOUNT_AIM_MAX_TWIST.getDefault());
+        CAMERA.setMountTurnSmoothing(MOUNT_TURN_SMOOTHING.getDefault());
+        CAMERA.setBoatHeadMaxTwist(BOAT_HEAD_MAX_TWIST.getDefault());
+        CAMERA.setBoatBodyMaxTwist(BOAT_BODY_MAX_TWIST.getDefault());
+        CAMERA.setTopDownFov(TOP_DOWN_FOV.getDefault());
+        CAMERA.setLockedTopDown(LOCKED_TOP_DOWN.getDefault());
+        CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.getDefault());
+        CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.getDefault());
+        CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.getDefault());
+        INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.getDefault());
+        INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.getDefault());
+        INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.getDefault());
+        INTERACTION.setScreenReachEnabled(SCREEN_REACH_ENABLED.getDefault());
+        INTERACTION.setReachDistance(REACH_DISTANCE.getDefault());
+        PLACEMENT.setPlacementPreviewEnabled(PLACEMENT_PREVIEW_ENABLED.getDefault());
+        PLACEMENT.setPlacementTransparency(PLACEMENT_TRANSPARENCY.getDefault());
+        PLACEMENT.setClickPositionPlacementEnabled(CLICK_POSITION_PLACEMENT_ENABLED.getDefault());
+        CULLING.setStaircaseExclusionEnabled(STAIRCASE_EXCLUSION_ENABLED.getDefault());
+        CULLING.setStaircaseExclusionHeight(STAIRCASE_EXCLUSION_HEIGHT.getDefault());
+        CULLING.setStaircaseOccludeEnabled(STAIRCASE_OCCLUDE_ENABLED.getDefault());
+        CULLING.setStaircaseOccludeAlpha(STAIRCASE_OCCLUDE_ALPHA.getDefault());
+        CULLING.setLadderOccludeEnabled(LADDER_OCCLUDE_ENABLED.getDefault());
+        CULLING.setLadderOccludeAlpha(LADDER_OCCLUDE_ALPHA.getDefault());
+        CULLING.setTreeOccludeEnabled(TREE_OCCLUDE_ENABLED.getDefault());
+        CULLING.setTreeOccludeAlpha(TREE_OCCLUDE_ALPHA.getDefault());
+        CULLING.setIgnoreLeavesInRaycast(IGNORE_LEAVES_IN_RAYCAST.getDefault());
+        CULLING.setProtectNaturalTreeLogs(PROTECT_NATURAL_TREE_LOGS.getDefault());
+        CULLING.setTranslucentFluid(TRANSLUCENT_FLUID.getDefault());
+        CULLING.setFluidAlpha(FLUID_ALPHA.getDefault());
+        INTERACTION.setSignHoverDisplayMode(SIGN_HOVER_DISPLAY_MODE.getDefault());
+        INTERACTION.setSignHoverScale(SIGN_HOVER_SCALE.getDefault());
+        INTERACTION.setShowInteractionPrompt(SHOW_INTERACTION_PROMPT.getDefault());
+        INTERACTION.setInteractionPromptScale(INTERACTION_PROMPT_SCALE.getDefault());
+        INTERACTION.setInteractionPromptShadow(INTERACTION_PROMPT_SHADOW.getDefault());
+        INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.getDefault());
+        INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.getDefault());
+        INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.getDefault());
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {
