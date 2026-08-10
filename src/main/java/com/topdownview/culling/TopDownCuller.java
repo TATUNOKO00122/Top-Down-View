@@ -291,7 +291,15 @@ public final class TopDownCuller {
             blockHeight = shape.max(net.minecraft.core.Direction.Axis.Y);
         }
         boolean isThinnerThanSlab = blockHeight > 0.0 && blockHeight < 0.5;
-        double protectThresholdY = isThinnerThanSlab ? pY + 1.0 : pY;
+
+        // MODなどに対応するため、特定のクラスではなく「衝突判定を持たない（通り抜け可能な）」ブロックを
+        // 全般的に草や花などの装飾ブロックとみなして保護の対象とする
+        boolean isPlantOrDecoration = state.is(net.minecraft.tags.BlockTags.FLOWERS) ||
+                state.is(net.minecraft.tags.BlockTags.TALL_FLOWERS) ||
+                state.is(net.minecraft.tags.BlockTags.REPLACEABLE) ||
+                state.getCollisionShape(level, pos).isEmpty();
+
+        double protectThresholdY = (isThinnerThanSlab || isPlantOrDecoration) ? pY + 1.0 : pY;
 
         if (pos.getY() + 0.5 < protectThresholdY) return true;
 
