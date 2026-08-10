@@ -191,7 +191,7 @@ public final class StairAnalyzer {
     }
 
     /** バニラの階段ブロック(StairBlock)かどうか */
-    private static boolean isStairBlock(BlockGetter level, BlockPos pos) {
+    public static boolean isStairBlock(BlockGetter level, BlockPos pos) {
         return level.getBlockState(pos).getBlock() instanceof StairBlock;
     }
 
