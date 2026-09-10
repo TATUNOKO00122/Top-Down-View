@@ -37,8 +37,12 @@ import org.joml.Matrix4f;
 public final class InteractionPromptRenderer {
 
     private static final java.util.List<BlockPos> scanCache = new java.util.ArrayList<>();
+    private static final java.util.Set<AABB> scannedBoundsCache = new java.util.HashSet<>();
     private static Vec3 lastScanPlayerPos = null;
     private static int scanCooldown = 0;
+
+    // 不変リテラルはstaticで共有（per-frameアロケーション回避）
+    private static final Component SPATIAL_ICON = Component.literal("?");
 
     private record BlockTargetInfo(BlockPos pos, Component blockName, Component actionText, InputConstants.Key key, AABB localBounds) {}
 
@@ -120,7 +124,7 @@ public final class InteractionPromptRenderer {
         poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
 
         // スケール調整（カメラからの距離とサイズ設定を適用）
-        double distance = cameraPos.distanceTo(new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
+        double distance = Math.sqrt(cameraPos.distanceToSqr(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
         float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
         
         // 極端に小さくなったり大きくなったりするのを防ぐためのクランプ制限値
@@ -135,18 +139,17 @@ public final class InteractionPromptRenderer {
         double ry = Math.toRadians(camera.getYRot());
         double rx = Math.toRadians(camera.getXRot());
 
-        double[] xs = { localBounds.minX, localBounds.maxX };
-        double[] ys = { localBounds.minY, localBounds.maxY };
-        double[] zs = { localBounds.minZ, localBounds.maxZ };
-
         double minU = Double.MAX_VALUE;
         double maxU = -Double.MAX_VALUE;
         double minV = Double.MAX_VALUE;
         double maxV = -Double.MAX_VALUE;
 
-        for (double vx : xs) {
-            for (double vy : ys) {
-                for (double vz : zs) {
+        for (int ix = 0; ix < 2; ix++) {
+            double vx = ix == 0 ? localBounds.minX : localBounds.maxX;
+            for (int iy = 0; iy < 2; iy++) {
+                double vy = iy == 0 ? localBounds.minY : localBounds.maxY;
+                for (int iz = 0; iz < 2; iz++) {
+                    double vz = iz == 0 ? localBounds.minZ : localBounds.maxZ;
                     double dx = vx - center.x;
                     double dy = vy - center.y;
                     double dz = vz - center.z;
@@ -279,7 +282,8 @@ public final class InteractionPromptRenderer {
         BlockPos playerPos = mc.player.blockPosition();
 
         scanCache.clear();
-        java.util.Set<AABB> scannedBounds = new java.util.HashSet<>();
+        scannedBoundsCache.clear();
+        java.util.Set<AABB> scannedBounds = scannedBoundsCache;
 
         int rxLimit = (int) Math.ceil(radius);
         int ryLimit = 4; // 垂直方向は ±4 ブロックで十分
@@ -342,7 +346,7 @@ public final class InteractionPromptRenderer {
      */
     private static void renderSpatialBubble(RenderLevelStageEvent event, Minecraft mc, BlockPos pos) {
         BlockState state = mc.level.getBlockState(pos);
-        Component iconText = Component.literal("?");
+        Component iconText = SPATIAL_ICON;
 
         AABB localBounds = getBlockInteractionBounds(state, mc.level, pos);
         Vec3 center = localBounds.getCenter();
@@ -363,7 +367,7 @@ public final class InteractionPromptRenderer {
         poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
 
         // スケール調整
-        double distance = cameraPos.distanceTo(new Vec3(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
+        double distance = Math.sqrt(cameraPos.distanceToSqr(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
         float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
         scale = Math.max(0.005F * (float) Config.getInteractionPromptScale(), Math.min(0.15F * (float) Config.getInteractionPromptScale(), scale));
         

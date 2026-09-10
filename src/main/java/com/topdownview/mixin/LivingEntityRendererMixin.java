@@ -28,6 +28,10 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     private static final ThreadLocal<LivingEntity> CURRENT_ENTITY = new ThreadLocal<>();
     private static final ThreadLocal<Float> CURRENT_PARTIAL_TICKS = new ThreadLocal<>();
 
+    // プレイヤー前方ベクトル（水平）。Vec3生成を避けるため成分を直接保持する（描画スレッドのみ）
+    private double forwardX;
+    private double forwardZ;
+
     @Inject(
         method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
         at = @At("HEAD")
@@ -158,7 +162,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
         float distFade = (float) Math.max(0.0, Math.min(1.0, 1.0 - dist / fogEnd));
 
         // プレイヤーの前方ベクトル（視線）を算出
-        Vec3 forward = getPlayerForward(mc, partialTick);
+        getPlayerForward(mc, partialTick);
 
         // プレイヤーからMOBへの方向ベクトル（水平）
         double len = Math.sqrt(dx * dx + dz * dz);
@@ -172,7 +176,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
         }
 
         // 視線とMOB方向とのなす角（角度）を計算
-        double cosAng = forward.x * dirX + forward.z * dirZ;
+        double cosAng = forwardX * dirX + forwardZ * dirZ;
         cosAng = Math.max(-1.0, Math.min(1.0, cosAng));
         double ang = Math.toDegrees(Math.acos(cosAng));
 
@@ -221,12 +225,14 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
 
     private static final Vec3 FORWARD_FALLBACK = new Vec3(0.0, 0.0, -1.0);
 
-    private Vec3 getPlayerForward(Minecraft mc, float partialTick) {
+    private void getPlayerForward(Minecraft mc, float partialTick) {
         if (mc.player == null) {
-            return FORWARD_FALLBACK;
+            setForwardFallback();
+            return;
         }
         if (ModState.CAMERA.isFreeCameraMode() || ModState.CAMERA.isDragging()) {
-            return getCameraLookHorizontal();
+            getCameraLookHorizontal();
+            return;
         }
 
         Vec3 playerEyePos = mc.player.getEyePosition(partialTick);
@@ -236,35 +242,47 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
             double dz = target.z - playerEyePos.z;
             double len = Math.sqrt(dx * dx + dz * dz);
             if (len > 1.0e-6) {
-                return new Vec3(dx / len, 0.0, dz / len);
+                forwardX = dx / len;
+                forwardZ = dz / len;
+                return;
             }
         }
 
-        return getPlayerLookHorizontal(mc);
+        getPlayerLookHorizontal(mc);
     }
 
-    private Vec3 getCameraLookHorizontal() {
+    private void setForwardFallback() {
+        forwardX = FORWARD_FALLBACK.x;
+        forwardZ = FORWARD_FALLBACK.z;
+    }
+
+    private void getCameraLookHorizontal() {
         float yaw = ModState.CAMERA.getYaw();
         double yawRad = Math.toRadians(yaw);
         double x = -Math.sin(yawRad);
         double z = Math.cos(yawRad);
         double len = Math.sqrt(x * x + z * z);
         if (len < 1.0e-6) {
-            return FORWARD_FALLBACK;
+            setForwardFallback();
+            return;
         }
-        return new Vec3(x / len, 0.0, z / len);
+        forwardX = x / len;
+        forwardZ = z / len;
     }
 
-    private Vec3 getPlayerLookHorizontal(Minecraft mc) {
+    private void getPlayerLookHorizontal(Minecraft mc) {
         if (mc.player == null) {
-            return FORWARD_FALLBACK;
+            setForwardFallback();
+            return;
         }
         Vec3 look = mc.player.getViewVector(1.0f);
         double len = Math.sqrt(look.x * look.x + look.z * look.z);
         if (len < 1.0e-6) {
-            return FORWARD_FALLBACK;
+            setForwardFallback();
+            return;
         }
-        return new Vec3(look.x / len, 0.0, look.z / len);
+        forwardX = look.x / len;
+        forwardZ = look.z / len;
     }
 
     private int getLightValue(net.minecraft.world.item.ItemStack stack) {

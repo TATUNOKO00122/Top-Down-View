@@ -19,8 +19,12 @@ public final class LadderHelper {
     // ハシゴの連続数キャッシュ (< 0 = 3未満, >= 0 = 連続数)
     private static final Map<Long, Integer> chainLengthCache = new HashMap<>();
 
+    // チェーン最下部Yのキャッシュ（getChainBottomYの下方走査を1回に抑える）
+    private static final Map<Long, Integer> chainBottomCache = new HashMap<>();
+
     public static void clearCache() {
         chainLengthCache.clear();
+        chainBottomCache.clear();
     }
 
     public static boolean isLadderInLongChain(BlockPos pos, BlockGetter level) {
@@ -119,18 +123,31 @@ public final class LadderHelper {
      * 指定位置がハシゴでない場合は Integer.MAX_VALUE を返す。
      */
     public static int getChainBottomY(BlockPos pos, BlockGetter level) {
+        long posKey = pos.asLong();
+        Integer cached = chainBottomCache.get(posKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        int result;
         if (!level.getBlockState(pos).is(Blocks.LADDER)) {
-            return Integer.MAX_VALUE;
-        }
-        int minY = level.getMinBuildHeight();
-        BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos(pos.getX(), pos.getY(), pos.getZ());
-        while (checkPos.getY() > minY) {
-            checkPos.move(Direction.DOWN);
-            if (!level.getBlockState(checkPos).is(Blocks.LADDER)) {
-                return checkPos.getY() + 1;
+            result = Integer.MAX_VALUE;
+        } else {
+            int minY = level.getMinBuildHeight();
+            int bottom = minY;
+            BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos(pos.getX(), pos.getY(), pos.getZ());
+            while (checkPos.getY() > minY) {
+                checkPos.move(Direction.DOWN);
+                if (!level.getBlockState(checkPos).is(Blocks.LADDER)) {
+                    bottom = checkPos.getY() + 1;
+                    break;
+                }
             }
+            result = bottom;
         }
-        return minY;
+
+        chainBottomCache.put(posKey, result);
+        return result;
     }
 
     /**

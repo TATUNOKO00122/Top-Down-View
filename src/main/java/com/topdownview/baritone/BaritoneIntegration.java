@@ -6,6 +6,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -32,6 +33,8 @@ public final class BaritoneIntegration {
     private static Field renderPathField;
     private static Field renderGoalField;
     private static Field settingValueField;
+    private static Constructor<?> goalBlockConstructor;
+    private static Constructor<?> goalNearConstructor;
     
     private BaritoneIntegration() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -46,6 +49,8 @@ public final class BaritoneIntegration {
             baritoneApiClass = Class.forName("baritone.api.BaritoneAPI");
             goalBlockClass = Class.forName("baritone.api.pathing.goals.GoalBlock");
             goalNearClass = Class.forName("baritone.api.pathing.goals.GoalNear");
+            goalBlockConstructor = goalBlockClass.getConstructor(BlockPos.class);
+            goalNearConstructor = goalNearClass.getConstructor(BlockPos.class, int.class);
             
             getProviderMethod = baritoneApiClass.getMethod("getProvider");
             getSettingsMethod = baritoneApiClass.getMethod("getSettings");
@@ -150,7 +155,7 @@ public final class BaritoneIntegration {
             if (baritone == null) return;
             
             Object goalProcess = getCustomGoalProcessMethod.invoke(baritone);
-            Object goal = goalBlockClass.getConstructor(BlockPos.class).newInstance(target);
+            Object goal = goalBlockConstructor.newInstance(target);
             setGoalAndPathMethod.invoke(goalProcess, goal);
             
             LOGGER.info("[Baritone] 経路探索開始: {}", target);
@@ -172,8 +177,7 @@ public final class BaritoneIntegration {
             if (baritone == null) return;
             
             Object goalProcess = getCustomGoalProcessMethod.invoke(baritone);
-            Object goal = goalNearClass.getConstructor(BlockPos.class, int.class)
-                .newInstance(entity.blockPosition(), 2);
+            Object goal = goalNearConstructor.newInstance(entity.blockPosition(), 2);
             setGoalAndPathMethod.invoke(goalProcess, goal);
             
             LOGGER.info("[Baritone] エンティティ追跡開始: {}", entity.getName().getString());

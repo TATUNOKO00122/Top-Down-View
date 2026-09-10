@@ -1,5 +1,9 @@
 package com.topdownview.spatial;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -70,7 +74,8 @@ public final class StairAnalyzer {
 
         // center 周辺の立方体をスキャンし、階段の段となりうるブロックを収集。
         // 候補 = 固体ブロック かつ 上が非固体（歩行可能な段）。
-        Set<BlockPos> candidates = new HashSet<>();
+        // 半径16では最大3.5万件になり得るため、BlockPosではなくpacked longで保持してアロケーションを避ける。
+        LongOpenHashSet candidates = new LongOpenHashSet();
         BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos aboveMut = new BlockPos.MutableBlockPos();
         int cx = center.getX(), cy = center.getY(), cz = center.getZ();
@@ -80,7 +85,7 @@ public final class StairAnalyzer {
                     mut.set(x, y, z);
                     aboveMut.set(x, y + 1, z);
                     if (WallAnalyzer.isSolid(level, mut) && !WallAnalyzer.isSolid(level, aboveMut)) {
-                        candidates.add(new BlockPos(x, y, z));
+                        candidates.add(BlockPos.asLong(x, y, z));
                     }
                 }
             }
@@ -91,9 +96,10 @@ public final class StairAnalyzer {
         }
 
         // StairBlock をマーク
-        Set<BlockPos> stairBlocks = new HashSet<>();
-        for (BlockPos p : candidates) {
-            if (isStairBlock(level, p)) {
+        LongOpenHashSet stairBlocks = new LongOpenHashSet();
+        for (long p : candidates) {
+            mut.set(BlockPos.getX(p), BlockPos.getY(p), BlockPos.getZ(p));
+            if (isStairBlock(level, mut)) {
                 stairBlocks.add(p);
             }
         }
@@ -103,13 +109,14 @@ public final class StairAnalyzer {
         Set<Long> seenSequences = new HashSet<>();
         List<StairSeq> sequences = new ArrayList<>();
 
-        for (BlockPos start : candidates) {
+        BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
+        for (long start : candidates) {
             for (Direction dir : HORIZONTAL) {
-                BlockPos bottom = findBottom(level, candidates, start, dir);
+                long bottom = findBottom(level, candidates, start, dir, scratch);
                 long key = sequenceKey(bottom, dir);
                 if (!seenSequences.add(key)) continue;
 
-                List<BlockPos> seq = extendUp(level, candidates, bottom, dir);
+                LongList seq = extendUp(level, candidates, bottom, dir, scratch);
                 if (seq.size() >= minSteps) {
                     sequences.add(new StairSeq(seq, dir));
                 }
@@ -119,12 +126,12 @@ public final class StairAnalyzer {
         // 長い順にソートしてブロック重複を排除しながら採用
         sequences.sort((a, b) -> Integer.compare(b.steps.size(), a.steps.size()));
 
-        Set<BlockPos> used = new HashSet<>();
+        LongOpenHashSet used = new LongOpenHashSet();
         List<Staircase> result = new ArrayList<>();
         for (StairSeq ss : sequences) {
             // 重複チェック
             boolean overlap = false;
-            for (BlockPos p : ss.steps) {
+            for (long p : ss.steps) {
                 if (used.contains(p)) {
                     overlap = true;
                     break;
@@ -135,36 +142,51 @@ public final class StairAnalyzer {
             used.addAll(ss.steps);
 
             boolean hasStairs = false;
-            for (BlockPos p : ss.steps) {
+            for (long p : ss.steps) {
                 if (stairBlocks.contains(p)) {
                     hasStairs = true;
                     break;
                 }
             }
-            result.add(new Staircase(ss.steps, ss.dir, hasStairs));
+            result.add(new Staircase(toBlockPosList(ss.steps), ss.dir, hasStairs));
         }
 
         return result;
+    }
+
+    /** packed long の段リストを BlockPos リストへ変換する（採用された階段のみ。候補全件では行わない）。 */
+    private static List<BlockPos> toBlockPosList(LongList steps) {
+        List<BlockPos> list = new ArrayList<>(steps.size());
+        for (long p : steps) {
+            list.add(BlockPos.of(p));
+        }
+        return list;
     }
 
     /**
      * 指定ブロックが階段の段として歩可能か。
      * 候補（固体）であり、かつ上が非固体（頭上に空間がある）であること。
      */
-    private static boolean isWalkableStep(BlockGetter level, Set<BlockPos> candidates, BlockPos pos) {
+    private static boolean isWalkableStep(BlockGetter level, LongSet candidates, long pos,
+            BlockPos.MutableBlockPos scratch) {
         if (!candidates.contains(pos)) return false;
-        return !WallAnalyzer.isSolid(level, pos.above());
+        scratch.set(BlockPos.getX(pos), BlockPos.getY(pos) + 1, BlockPos.getZ(pos));
+        return !WallAnalyzer.isSolid(level, scratch);
     }
 
     /**
      * 指定方向の最下段を見つける。
      * 逆方向・1下 に「上が非固体の候補」が続く限り下る。
      */
-    private static BlockPos findBottom(BlockGetter level, Set<BlockPos> candidates, BlockPos pos, Direction dir) {
-        BlockPos cur = pos;
+    private static long findBottom(BlockGetter level, LongSet candidates, long pos, Direction dir,
+            BlockPos.MutableBlockPos scratch) {
+        long cur = pos;
         while (true) {
-            BlockPos next = cur.relative(dir.getOpposite()).below();
-            if (!isWalkableStep(level, candidates, next)) break;
+            int nx = BlockPos.getX(cur) + dir.getOpposite().getStepX();
+            int ny = BlockPos.getY(cur) - 1;
+            int nz = BlockPos.getZ(cur) + dir.getOpposite().getStepZ();
+            long next = BlockPos.asLong(nx, ny, nz);
+            if (!isWalkableStep(level, candidates, next, scratch)) break;
             cur = next;
         }
         return cur;
@@ -175,19 +197,23 @@ public final class StairAnalyzer {
      * 正方向・1上 に「上が非固体の候補」が続く限り上る。
      * 各段の上が非固体でなければ階段の段として成立しないため打ち切る。
      */
-    private static List<BlockPos> extendUp(BlockGetter level, Set<BlockPos> candidates, BlockPos bottom, Direction dir) {
-        List<BlockPos> seq = new ArrayList<>();
-        BlockPos cur = bottom;
-        while (isWalkableStep(level, candidates, cur)) {
+    private static LongList extendUp(BlockGetter level, LongSet candidates, long bottom, Direction dir,
+            BlockPos.MutableBlockPos scratch) {
+        LongList seq = new LongArrayList();
+        long cur = bottom;
+        while (isWalkableStep(level, candidates, cur, scratch)) {
             seq.add(cur);
-            cur = cur.relative(dir).above();
+            int nx = BlockPos.getX(cur) + dir.getStepX();
+            int ny = BlockPos.getY(cur) + 1;
+            int nz = BlockPos.getZ(cur) + dir.getStepZ();
+            cur = BlockPos.asLong(nx, ny, nz);
         }
         return seq;
     }
 
     /** (最下段, 方向) → long のハッシュキー生成 */
-    private static long sequenceKey(BlockPos bottom, Direction dir) {
-        return (bottom.asLong() << 3) | dir.get3DDataValue();
+    private static long sequenceKey(long bottom, Direction dir) {
+        return (bottom << 3) | dir.get3DDataValue();
     }
 
     /** バニラの階段ブロック(StairBlock)かどうか */
@@ -197,10 +223,10 @@ public final class StairAnalyzer {
 
     /** 内部用シーケンスホルダー */
     private static final class StairSeq {
-        final List<BlockPos> steps;
+        final LongList steps;
         final Direction dir;
 
-        StairSeq(List<BlockPos> steps, Direction dir) {
+        StairSeq(LongList steps, Direction dir) {
             this.steps = steps;
             this.dir = dir;
         }

@@ -21,6 +21,11 @@ import org.jetbrains.annotations.Nullable;
 public final class TargetHighlightState {
     public static final TargetHighlightState INSTANCE = new TargetHighlightState();
 
+    // アウトライン色（不変。呼び出し元は参照のみで書き換えない）
+    private static final int[] COLOR_LOCKED = {255, 50, 50, 255};
+    private static final int[] COLOR_WHITE = {255, 255, 255, 255};
+    private static final int[] COLOR_OUT_OF_RANGE = {255, 0, 0, 255};
+
     // 現在フォーカスしているエンティティ
     @Nullable
     private LivingEntity currentTarget = null;
@@ -83,17 +88,17 @@ public final class TargetHighlightState {
     public int[] getOutlineColor() {
         if (ModState.TARGET_LOCK.isLocked() && currentTarget != null
                 && ModState.TARGET_LOCK.isLockedTo(currentTarget)) {
-            return new int[]{255, 50, 50, 255};
+            return COLOR_LOCKED;
         }
 
         if (!Config.isRangeIndicatorEnabled()) {
-            return new int[]{255, 255, 255, 255};
+            return COLOR_WHITE;
         }
 
         if (isInRange) {
-            return new int[]{255, 255, 255, 255};
+            return COLOR_WHITE;
         } else {
-            return new int[]{255, 0, 0, 255};
+            return COLOR_OUT_OF_RANGE;
         }
     }
 

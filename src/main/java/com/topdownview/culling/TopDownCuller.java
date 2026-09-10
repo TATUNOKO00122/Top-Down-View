@@ -586,14 +586,22 @@ public final class TopDownCuller {
         int minZ = (int) Math.floor(Math.min(pZ, cZ)) - radiusH - margin;
         int maxZ = (int) Math.floor(Math.max(pZ, cZ)) + radiusH + margin;
 
+        // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
+        boolean fadeEnabled = Config.isFadeEnabled();
+        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
+        boolean ladderOcclude = Config.isLadderOccludeEnabled();
+        boolean stairOcclude = Config.isStaircaseOccludeEnabled();
+        boolean treeOcclude = Config.isTreeOccludeEnabled();
+        boolean fastGraphics = Minecraft.getInstance().options.graphicsMode().get()
+                == net.minecraft.client.GraphicsStatus.FAST;
+
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
-                    boolean fadeEnabled = Config.isFadeEnabled();
-                    boolean isNearTarget = Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(mutablePos, pX, pY, pZ);
+                    boolean isNearTarget = nearTranslucencyEnabled && isPlayerNearBlock(mutablePos, pX, pY, pZ);
 
                     double normalizedDistSq = 0.0;
                     float tempAlpha = 1.0f;
@@ -638,12 +646,11 @@ public final class TopDownCuller {
                     if (isProtectedBlock(mutablePos, state, pY, level)) continue;
 
                     if (ceilingHandler.isCeilingBlock(posLong)) continue;
-                    if (Config.isLadderOccludeEnabled() && ladderHandler.isProtectedPosition(mutablePos)) continue;
-                    if (Config.isStaircaseOccludeEnabled() && stairHandler.isExcludedStairBlock(mutablePos)) continue;
-                    if (Config.isTreeOccludeEnabled() && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
+                    if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
+                    if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
+                    if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
 
-                    if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) &&
-                            Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
+                    if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) && fastGraphics) {
                         continue;
                     }
 

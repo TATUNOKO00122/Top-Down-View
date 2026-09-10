@@ -30,6 +30,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class OculusUniformsMixin {
 
     private static final Vector3f FORWARD_FALLBACK = new Vector3f(0.0f, 0.0f, -1.0f);
+    // uniform supplierは描画スレッドで同期消費されるため、フレーム毎のVector3fを再利用する
+    private static final Vector3f PLAYER_OFFSET = new Vector3f();
+    private static final Vector3f PLAYER_FORWARD = new Vector3f();
 
     @Inject(method = "addNonDynamicUniforms", at = @At("TAIL"), remap = false)
     private static void topdownview$injectPlayerOffsetUniform(
@@ -41,11 +44,11 @@ public class OculusUniformsMixin {
         uniforms.uniform3f(UniformUpdateFrequency.PER_FRAME, "topdownPlayerOffset", () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) {
-                return new Vector3f();
+                return PLAYER_OFFSET.set(0.0f, 0.0f, 0.0f);
             }
             Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
             Vec3 playerPos = mc.player.position();
-            return new Vector3f(
+            return PLAYER_OFFSET.set(
                     (float) (playerPos.x - camPos.x),
                     (float) (playerPos.y - camPos.y),
                     (float) (playerPos.z - camPos.z)
@@ -55,7 +58,7 @@ public class OculusUniformsMixin {
         uniforms.uniform3f(UniformUpdateFrequency.PER_FRAME, "topdownPlayerForward", () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.level == null) {
-                return new Vector3f(FORWARD_FALLBACK);
+                return PLAYER_FORWARD.set(FORWARD_FALLBACK);
             }
             if (ModState.CAMERA.isFreeCameraMode() || ModState.CAMERA.isDragging()) {
                 return playerLookHorizontal(mc);
@@ -72,7 +75,7 @@ public class OculusUniformsMixin {
                 double dz = target.z - playerEyePos.z;
                 double len = Math.sqrt(dx * dx + dz * dz);
                 if (len > 1.0e-6) {
-                    return new Vector3f((float) (dx / len), 0.0f, (float) (dz / len));
+                    return PLAYER_FORWARD.set((float) (dx / len), 0.0f, (float) (dz / len));
                 }
             }
 
@@ -85,14 +88,14 @@ public class OculusUniformsMixin {
      */
     private static Vector3f playerLookHorizontal(Minecraft mc) {
         if (mc.player == null) {
-            return new Vector3f(FORWARD_FALLBACK);
+            return PLAYER_FORWARD.set(FORWARD_FALLBACK);
         }
         Vec3 look = mc.player.getLookAngle();
         double len = Math.sqrt(look.x * look.x + look.z * look.z);
         if (len < 1.0e-6) {
-            return new Vector3f(FORWARD_FALLBACK);
+            return PLAYER_FORWARD.set(FORWARD_FALLBACK);
         }
-        return new Vector3f(
+        return PLAYER_FORWARD.set(
                 (float) (look.x / len),
                 0.0f,
                 (float) (look.z / len)

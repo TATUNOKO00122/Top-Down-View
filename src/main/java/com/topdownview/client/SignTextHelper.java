@@ -73,31 +73,23 @@ public final class SignTextHelper {
      * プレイヤーの視線ベクトルと看板の向きから、プレイヤーが看板の前面に対面しているかを判定します。
      */
     private static boolean isFacingFront(BlockState state, Vec3 playerLookDir) {
-        Vec3 signFrontDir = getSignFrontDirection(state);
-        if (signFrontDir == null) {
-            return true; // 判定できない場合は前面とする
-        }
-        // 看板の前面方向ベクトルと、プレイヤーの視線ベクトルのドット積を計算
-        // ドット積が負であれば、対面している（向かい合っている）ので前面と判定
-        return playerLookDir.dot(signFrontDir) < 0;
-    }
-
-    /**
-     * 看板のブロックステートから前面の方向ベクトル（法線）を取得します。
-     */
-    private static Vec3 getSignFrontDirection(BlockState state) {
+        // 法線Vec3を生成せずドット積を直接計算する（看板注視中の毎フレームアロケーション回避）
         if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
             // 壁掛け看板など
             Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-            return new Vec3(facing.getStepX(), facing.getStepY(), facing.getStepZ());
+            double dot = playerLookDir.x * facing.getStepX()
+                    + playerLookDir.y * facing.getStepY()
+                    + playerLookDir.z * facing.getStepZ();
+            return dot < 0;
         } else if (state.hasProperty(BlockStateProperties.ROTATION_16)) {
             // 自立看板
             int rotation = state.getValue(BlockStateProperties.ROTATION_16);
             double angle = Math.toRadians(rotation * 22.5);
             // rotation の向きに対応する法線ベクトルを計算
             // rotation=0(南:+Z), 4(西:-X), 8(北:-Z), 12(東:+X)
-            return new Vec3(-Math.sin(angle), 0.0, Math.cos(angle));
+            double dot = playerLookDir.x * (-Math.sin(angle)) + playerLookDir.z * Math.cos(angle);
+            return dot < 0;
         }
-        return null;
+        return true; // 判定できない場合は前面とする
     }
 }

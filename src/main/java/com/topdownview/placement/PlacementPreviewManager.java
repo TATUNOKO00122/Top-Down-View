@@ -11,7 +11,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -233,12 +235,13 @@ public final class PlacementPreviewManager {
      * プレイヤーの手持ちアイテムが前回から変化したか
      * （毎tick の再計算を回避するための簡易チェック）
      */
-    private ItemStack lastMain = ItemStack.EMPTY;
+    private Item lastMainItem = Items.AIR;
 
     private boolean hasItemChanged(LocalPlayer player) {
-        ItemStack main = player.getMainHandItem();
-        boolean changed = !ItemStack.isSameItem(main, lastMain);
-        lastMain = main.copy();
+        // 判定は ItemStack.isSameItem 相当（アイテム種のみ）のため、ItemStack をコピーせず Item のみ保持する。
+        Item main = player.getMainHandItem().getItem();
+        boolean changed = main != lastMainItem;
+        lastMainItem = main;
         return changed;
     }
 
@@ -260,7 +263,7 @@ public final class PlacementPreviewManager {
         lastPos = null;
         lastSide = null;
         lastHitVec = null;
-        lastMain = ItemStack.EMPTY;
+        lastMainItem = Items.AIR;
     }
 
     /**

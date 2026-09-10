@@ -41,13 +41,20 @@ public abstract class BetterCombatClientInjectMixin {
         Vec3 eyePos = mc.player.getEyePosition(1.0f);
         AABB searchBox = mc.player.getBoundingBox().inflate(reach);
 
-        boolean hasHostileNearby = mc.level.getEntities(mc.player, searchBox, entity ->
-            entity != null && !entity.isSpectator() && entity.isPickable() && entity.isAlive()
-            && (entity instanceof Monster || entity instanceof LivingEntity)
-        ).stream().anyMatch(entity -> {
-            double distSq = eyePos.distanceToSqr(entity.getBoundingBox().getCenter());
-            return distSq <= (reach * reach);
-        });
+        double reachSq = reach * reach;
+        boolean hasHostileNearby = false;
+        for (var entity : mc.level.getEntities(mc.player, searchBox, e ->
+                e != null && !e.isSpectator() && e.isPickable() && e.isAlive()
+                && (e instanceof Monster || e instanceof LivingEntity))) {
+            AABB bb = entity.getBoundingBox();
+            double cx = (bb.minX + bb.maxX) * 0.5;
+            double cy = (bb.minY + bb.maxY) * 0.5;
+            double cz = (bb.minZ + bb.maxZ) * 0.5;
+            if (eyePos.distanceToSqr(cx, cy, cz) <= reachSq) {
+                hasHostileNearby = true;
+                break;
+            }
+        }
 
         if (hasHostileNearby) {
             cir.setReturnValue(false);

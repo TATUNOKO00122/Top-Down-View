@@ -244,6 +244,18 @@ public final class MouseRaycast {
         CollisionContext collisionContext = CollisionContext.of(mc.player);
         int maxSteps = (int) Math.min(maxDistance * 3, 3000);
 
+        // 所持ツール・設定はレイキャスト中不変のためループ外で1回だけ評価（per-step再評価の回避）
+        boolean isHoldingBypassTool = false;
+        if (mc.player != null) {
+            var mainHand = mc.player.getMainHandItem().getItem();
+            var offHand = mc.player.getOffhandItem().getItem();
+            if (mainHand instanceof HoeItem || mainHand instanceof ShearsItem ||
+                offHand instanceof HoeItem || offHand instanceof ShearsItem) {
+                isHoldingBypassTool = true;
+            }
+        }
+        boolean ignoreLeaves = Config.isIgnoreLeavesInRaycast();
+
         for (int i = 0; i < maxSteps; i++) {
             mutablePos.set(x, y, z);
 
@@ -251,16 +263,7 @@ public final class MouseRaycast {
                 // カリング済みブロックは透過として扱う
             } else {
                 BlockState state = mc.level.getBlockState(mutablePos);
-                boolean isHoldingBypassTool = false;
-                if (mc.player != null) {
-                    var mainHand = mc.player.getMainHandItem().getItem();
-                    var offHand = mc.player.getOffhandItem().getItem();
-                    if (mainHand instanceof HoeItem || mainHand instanceof ShearsItem ||
-                        offHand instanceof HoeItem || offHand instanceof ShearsItem) {
-                        isHoldingBypassTool = true;
-                    }
-                }
-                if (Config.isIgnoreLeavesInRaycast() && state.is(BlockTags.LEAVES) && !isHoldingBypassTool) {
+                if (ignoreLeaves && state.is(BlockTags.LEAVES) && !isHoldingBypassTool) {
                     // 木の葉は透過として扱う
                 } else if (!state.isAir()) {
                     var shape = state.getShape(mc.level, mutablePos, collisionContext);
