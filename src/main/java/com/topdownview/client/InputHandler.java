@@ -240,8 +240,18 @@ public final class InputHandler {
         return key.getType() == inputType && key.getValue() == keyCode;
     }
 
+    /**
+     * ローカルプレイヤーがOP権限（permission level 2以上）を持つか判定する。
+     * 権限レベルはサーバーから EntityEvent 経由で同期されるため、マルチプレイでも判定可能。
+     */
+    private static boolean hasOperatorPermission() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && mc.player.hasPermissions(2);
+    }
+
     private static void toggleTopDownView() {
-        if (ModState.STATUS.isEnabled() && Config.isLockedTopDown()) {
+        // 固定中でもOP権限保持者は視点切替を許可する
+        if (ModState.STATUS.isEnabled() && Config.isLockedTopDown() && !hasOperatorPermission()) {
             return;
         }
 
