@@ -117,7 +117,7 @@
   "topdown_view.config.fluid_alpha.tooltip": "液体半透明化有効時の透け具合です。\n0.05でほぼ透明、1.0で不透明になります。",
   "topdown_view.config.section.entity_culling": "エンティティカリング",
   "topdown_view.config.mob_culling_enabled": "Mobカリング: %s",
-  "topdown_view.config.mob_culling_enabled.tooltip": "プレイヤーの足元より上にいる接地したMobを非表示にします。\n装飾エンティティ（額縁、絵画、アーマースタンド）は常にカリングされます。",
+  "topdown_view.config.mob_culling_enabled.tooltip": "プレイヤーの足元より上にいる接地したMobを非表示にします。\n壁掛け装飾（額縁、絵画、MOD製キャンバスなど）とアーマースタンドは常にカリングされます。",
   "topdown_view.config.section.mining_cylinder": "マイニング円柱",
   "topdown_view.config.mining_mode_enabled": "マイニングモード: %s",
   "topdown_view.config.mining_mode_enabled.tooltip": "マイニングモード機能を有効にします。無効時はマイニングモードキーを押しても反応しません。",

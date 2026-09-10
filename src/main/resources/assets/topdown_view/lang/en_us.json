@@ -117,7 +117,7 @@
   "topdown_view.config.fluid_alpha.tooltip": "Transparency of fluids when translucent fluid rendering is enabled.\n0.05 = nearly transparent, 1.0 = opaque.",
   "topdown_view.config.section.entity_culling": "Entity Culling",
   "topdown_view.config.mob_culling_enabled": "Mob Culling: %s",
-  "topdown_view.config.mob_culling_enabled.tooltip": "Hide mobs that are above the player's feet and grounded.\nDecorative entities (ItemFrame, Painting, ArmorStand) are always culled.",
+  "topdown_view.config.mob_culling_enabled.tooltip": "Hide mobs that are above the player's feet and grounded.\nHanging decorations (item frames, paintings, modded canvases) and armor stands are always culled.",
   "topdown_view.config.section.mining_mode": "Mining Mode",
   "topdown_view.config.mining_mode_enabled": "Mining Mode: %s",
   "topdown_view.config.mining_mode_enabled.tooltip": "Enable mining mode functionality. When disabled, the mining mode key will not respond.",

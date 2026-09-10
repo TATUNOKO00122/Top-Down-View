@@ -18,9 +18,8 @@ import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.decoration.GlowItemFrame;
-import net.minecraft.world.entity.decoration.ItemFrame;
-import net.minecraft.world.entity.decoration.Painting;
+import net.minecraft.world.entity.decoration.HangingEntity;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.LadderBlock;
@@ -485,7 +484,10 @@ public final class TopDownCuller {
 
     private boolean isCullableEntityType(Entity entity) {
         if (entity instanceof Mob) return Config.isMobCullingEnabled();
-        return entity instanceof ItemFrame || entity instanceof GlowItemFrame || entity instanceof ArmorStand || entity instanceof Painting;
+        // HangingEntity を対象にすることで MOD 製の壁掛け装飾（キャンバス等）もカリングする。
+        // リードの結び目は装飾ではないため除外。
+        if (entity instanceof LeashFenceKnotEntity) return false;
+        return entity instanceof HangingEntity || entity instanceof ArmorStand;
     }
 
     public void reset() {
