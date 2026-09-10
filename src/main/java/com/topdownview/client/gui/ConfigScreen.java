@@ -312,6 +312,28 @@ public class ConfigScreen extends Screen {
                 Config.getTreeOccludeAlpha(), 0.0, 1.0,
                 val -> Config.setTreeOccludeAlpha(val)));
         y += sp;
+
+        y = addSection(y, "topdown_view.config.section.underground_culling", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.underground_culling_enabled", Config.isUndergroundCullingEnabled()),
+                btn -> {
+                    Config.setUndergroundCullingEnabled(!Config.isUndergroundCullingEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.underground_culling_enabled",
+                            Config.isUndergroundCullingEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.underground_culling_enabled.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.underground_culling_start_distance",
+                Config.getUndergroundCullingStartDistance(), 1, 16,
+                val -> Config.setUndergroundCullingStartDistance(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.underground_culling_keep_depth",
+                Config.getUndergroundCullingKeepDepth(), 4, 64,
+                val -> Config.setUndergroundCullingKeepDepth(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

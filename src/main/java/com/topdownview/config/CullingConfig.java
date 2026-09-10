@@ -146,6 +146,19 @@ public final class CullingConfig {
     public double getFluidAlpha() { return fluidAlpha; }
     public void setFluidAlpha(double value) { this.fluidAlpha = clamp(value, 0.05, 1.0); }
 
+    private boolean undergroundCullingEnabled = true;
+    private int undergroundCullingStartDistance = 4;
+    private int undergroundCullingKeepDepth = 16;
+
+    public boolean isUndergroundCullingEnabled() { return undergroundCullingEnabled; }
+    public void setUndergroundCullingEnabled(boolean value) { this.undergroundCullingEnabled = value; }
+
+    public int getUndergroundCullingStartDistance() { return undergroundCullingStartDistance; }
+    public void setUndergroundCullingStartDistance(int value) { this.undergroundCullingStartDistance = clamp(value, 1, 16); }
+
+    public int getUndergroundCullingKeepDepth() { return undergroundCullingKeepDepth; }
+    public void setUndergroundCullingKeepDepth(int value) { this.undergroundCullingKeepDepth = clamp(value, 4, 64); }
+
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }

@@ -50,6 +50,13 @@ public class Config {
             .defineInRange("miningCylinderRadius", 5, 1, 16);
     private static final ForgeConfigSpec.IntValue MINING_CYLINDER_FORWARD_SHIFT = BUILDER
             .defineInRange("miningCylinderForwardShift", 0, 0, 10);
+    private static final ForgeConfigSpec.BooleanValue UNDERGROUND_CULLING_ENABLED = BUILDER
+            .comment("Cull blocks deep below the surface that are far from the player and invisible from above.")
+            .define("undergroundCullingEnabled", true);
+    private static final ForgeConfigSpec.IntValue UNDERGROUND_CULLING_START_DISTANCE = BUILDER
+            .defineInRange("undergroundCullingStartDistance", 4, 1, 16);
+    private static final ForgeConfigSpec.IntValue UNDERGROUND_CULLING_KEEP_DEPTH = BUILDER
+            .defineInRange("undergroundCullingKeepDepth", 16, 4, 64);
     private static final ForgeConfigSpec.BooleanValue MINING_MODE_ENABLED = BUILDER
             .define("miningModeEnabled", false);
     private static final ForgeConfigSpec.BooleanValue CLICK_TO_MOVE_ENABLED = BUILDER
@@ -271,6 +278,9 @@ public class Config {
     public static int getCylinderForwardShift() { return CULLING.getCylinderForwardShift(); }
     public static int getMiningCylinderRadius() { return CULLING.getMiningCylinderRadius(); }
     public static int getMiningCylinderForwardShift() { return CULLING.getMiningCylinderForwardShift(); }
+    public static boolean isUndergroundCullingEnabled() { return CULLING.isUndergroundCullingEnabled(); }
+    public static int getUndergroundCullingStartDistance() { return CULLING.getUndergroundCullingStartDistance(); }
+    public static int getUndergroundCullingKeepDepth() { return CULLING.getUndergroundCullingKeepDepth(); }
     public static boolean isMiningModeEnabled() { return INTERACTION.isMiningModeEnabled(); }
     public static boolean isClickToMoveEnabled() { return INTERACTION.isClickToMoveEnabled(); }
     public static boolean isBaritoneRenderPath() { return INTEGRATIONS.isBaritoneRenderPath(); }
@@ -381,6 +391,9 @@ public class Config {
     public static void setCylinderForwardShift(int value) { CULLING.setCylinderForwardShift(value); }
     public static void setMiningCylinderRadius(int value) { CULLING.setMiningCylinderRadius(value); }
     public static void setMiningCylinderForwardShift(int value) { CULLING.setMiningCylinderForwardShift(value); }
+    public static void setUndergroundCullingEnabled(boolean value) { CULLING.setUndergroundCullingEnabled(value); }
+    public static void setUndergroundCullingStartDistance(int value) { CULLING.setUndergroundCullingStartDistance(value); }
+    public static void setUndergroundCullingKeepDepth(int value) { CULLING.setUndergroundCullingKeepDepth(value); }
     public static void setMiningModeEnabled(boolean value) { INTERACTION.setMiningModeEnabled(value); }
     public static void setClickToMoveEnabled(boolean value) { INTERACTION.setClickToMoveEnabled(value); }
     public static void setBaritoneRenderPath(boolean value) { INTEGRATIONS.setBaritoneRenderPath(value); }
@@ -511,6 +524,9 @@ public class Config {
         CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.get());
         CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.get());
         CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.get());
+        CULLING.setUndergroundCullingEnabled(UNDERGROUND_CULLING_ENABLED.get());
+        CULLING.setUndergroundCullingStartDistance(UNDERGROUND_CULLING_START_DISTANCE.get());
+        CULLING.setUndergroundCullingKeepDepth(UNDERGROUND_CULLING_KEEP_DEPTH.get());
         INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.get());
         INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.get());
         INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.get());
@@ -623,6 +639,9 @@ public class Config {
             CYLINDER_FORWARD_SHIFT.set(getCylinderForwardShift());
             MINING_CYLINDER_RADIUS.set(getMiningCylinderRadius());
             MINING_CYLINDER_FORWARD_SHIFT.set(getMiningCylinderForwardShift());
+            UNDERGROUND_CULLING_ENABLED.set(isUndergroundCullingEnabled());
+            UNDERGROUND_CULLING_START_DISTANCE.set(getUndergroundCullingStartDistance());
+            UNDERGROUND_CULLING_KEEP_DEPTH.set(getUndergroundCullingKeepDepth());
             MINING_MODE_ENABLED.set(isMiningModeEnabled());
             CLICK_TO_MOVE_ENABLED.set(isClickToMoveEnabled());
             BARITONE_RENDER_PATH.set(isBaritoneRenderPath());
@@ -734,6 +753,9 @@ public class Config {
         CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.getDefault());
         CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.getDefault());
         CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.getDefault());
+        CULLING.setUndergroundCullingEnabled(UNDERGROUND_CULLING_ENABLED.getDefault());
+        CULLING.setUndergroundCullingStartDistance(UNDERGROUND_CULLING_START_DISTANCE.getDefault());
+        CULLING.setUndergroundCullingKeepDepth(UNDERGROUND_CULLING_KEEP_DEPTH.getDefault());
         INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.getDefault());
         INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.getDefault());
         INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.getDefault());

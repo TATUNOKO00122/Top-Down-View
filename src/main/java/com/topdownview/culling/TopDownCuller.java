@@ -4,6 +4,7 @@ import com.topdownview.Config;
 import com.topdownview.client.InteractableBlocks;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
+import com.topdownview.culling.cache.SurfaceHeightCache;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.spatial.RoomFloodFill;
@@ -15,6 +16,7 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -22,6 +24,7 @@ import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -69,6 +72,7 @@ public final class TopDownCuller {
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
+    private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
@@ -82,6 +86,11 @@ public final class TopDownCuller {
     private double cachedFadeBlockHitThreshold;
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
+
+    private boolean undergroundCullingActive = false;
+    private double undergroundCullingStartDistSq = 0.0;
+    private int cachedUndergroundCullingKeepDepth = 0;
+    private ResourceKey<Level> lastSurfaceCacheDimension = null;
 
     private TopDownCuller() {
     }
@@ -97,6 +106,7 @@ public final class TopDownCuller {
     public void clearCache() {
         cullingCache.clear();
         fadeCache.clear();
+        surfaceHeightCache.clear();
         stairHandler.clearCache();
         ladderHandler.clearCache();
         treeHandler.clearCache();
@@ -187,6 +197,11 @@ public final class TopDownCuller {
             }
         }
 
+        if (undergroundCullingActive && isVerticallyCulled(pos)) {
+            cullingCache.put(posLong, true);
+            return true;
+        }
+
         if (Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(pos, pX, pY, pZ)) {
             if (!isProtectedBlock(pos, state, pY, level)) {
                 cullingCache.put(posLong, true);
@@ -235,6 +250,27 @@ public final class TopDownCuller {
         return pos.getX() >= pBX - rangeH && pos.getX() <= pBX + rangeH
             && pos.getZ() >= pBZ - rangeH && pos.getZ() <= pBZ + rangeH
             && pos.getY() >= pBY && pos.getY() < pBY + rangeV;
+    }
+
+    /**
+     * 注視点（プレイヤー）から一定距離以上離れた列で、地表から深い位置のブロックをカリングする。
+     * トップダウン視点では地表下は見えないため、遠方の地下ジオメトリを削減する。
+     */
+    private boolean isVerticallyCulled(BlockPos pos) {
+        double dx = (pos.getX() + 0.5) - playerX;
+        double dz = (pos.getZ() + 0.5) - playerZ;
+        if (dx * dx + dz * dz < undergroundCullingStartDistSq) {
+            return false;
+        }
+        int surfaceY = surfaceHeightCache.getSurfaceY(pos.getX(), pos.getZ());
+        if (surfaceY == SurfaceHeightCache.UNKNOWN) {
+            return false;
+        }
+        // カメラが地表以下（屋内・地下・ネザー天井下など）の列は、地表が視界を遮らないため対象外
+        if (cameraY <= surfaceY) {
+            return false;
+        }
+        return pos.getY() < surfaceY - cachedUndergroundCullingKeepDepth;
     }
 
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
@@ -353,6 +389,19 @@ public final class TopDownCuller {
         cachedFadeBlockHitThreshold = Config.getFadeBlockHitThreshold();
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
+
+        undergroundCullingActive = Config.isUndergroundCullingEnabled();
+        double undergroundCullingStartBlocks = Config.getUndergroundCullingStartDistance() * 16.0;
+        undergroundCullingStartDistSq = undergroundCullingStartBlocks * undergroundCullingStartBlocks;
+        cachedUndergroundCullingKeepDepth = Config.getUndergroundCullingKeepDepth();
+
+        if (mc.level != null) {
+            ResourceKey<Level> dimension = mc.level.dimension();
+            if (!dimension.equals(lastSurfaceCacheDimension)) {
+                lastSurfaceCacheDimension = dimension;
+                surfaceHeightCache.clear();
+            }
+        }
 
         int currentBlockX = (int) Math.floor(eyeX);
         int currentBlockY = (int) Math.floor(eyeY);
@@ -493,6 +542,7 @@ public final class TopDownCuller {
     public void reset() {
         clearCache();
         contextValid = false;
+        lastSurfaceCacheDimension = null;
         playerX = playerY = playerZ = cameraX = cameraY = cameraZ = 0.0;
     }
 
