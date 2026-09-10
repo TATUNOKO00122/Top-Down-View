@@ -16,7 +16,9 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -28,7 +30,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
 
 /**
@@ -320,35 +325,37 @@ public final class TopDownCuller {
             return true;
         }
 
+        // ドアやウェイストーンなど上下2段構成のブロックは、下段のYを基準に上下を1単位として扱う。
+        // 上段だけがカリングされて見た目が欠けるのを防ぐ。
+        int blockY = pos.getY();
+        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
+                && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER) {
+            blockY--;
+        }
+
         double blockHeight = 0.0;
-        net.minecraft.world.phys.shapes.VoxelShape shape = state.getShape(level, pos);
+        VoxelShape shape = state.getShape(level, pos);
         if (!shape.isEmpty()) {
-            blockHeight = shape.max(net.minecraft.core.Direction.Axis.Y);
+            blockHeight = shape.max(Direction.Axis.Y);
         }
         boolean isThinnerThanSlab = blockHeight > 0.0 && blockHeight < 0.5;
 
         // MODなどに対応するため、特定のクラスではなく「衝突判定を持たない（通り抜け可能な）」ブロックを
         // 全般的に草や花などの装飾ブロックとみなして保護の対象とする
-        boolean isPlantOrDecoration = state.is(net.minecraft.tags.BlockTags.FLOWERS) ||
-                state.is(net.minecraft.tags.BlockTags.TALL_FLOWERS) ||
-                state.is(net.minecraft.tags.BlockTags.REPLACEABLE) ||
+        boolean isPlantOrDecoration = state.is(BlockTags.FLOWERS) ||
+                state.is(BlockTags.TALL_FLOWERS) ||
+                state.is(BlockTags.REPLACEABLE) ||
                 state.getCollisionShape(level, pos).isEmpty();
 
         double protectThresholdY = (isThinnerThanSlab || isPlantOrDecoration) ? pY + 1.0 : pY;
 
-        if (pos.getY() + 0.5 < protectThresholdY) return true;
+        if (blockY + 0.5 < protectThresholdY) return true;
 
         if (treeHandler.isProtectedLog(pos.asLong())) return true;
 
         if (InteractableBlocks.isInteractable(state, level, pos)) {
-            int checkY = pos.getY();
-            if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
-                if (state.getValue(net.minecraft.world.level.block.DoorBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) {
-                    checkY--;
-                }
-            }
             int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
-            if (checkY <= protectY) {
+            if (blockY <= protectY) {
                 return true;
             }
         }
