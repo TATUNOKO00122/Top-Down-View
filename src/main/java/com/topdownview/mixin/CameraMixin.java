@@ -4,8 +4,10 @@ import com.topdownview.state.ModState;
 import com.topdownview.util.MathConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,6 +21,8 @@ public abstract class CameraMixin {
 
     private static final double DT = 0.05;
     private static final double MIN_DELAY = 0.001;
+    // TP判定の閾値（8ブロックの2乗）。通常移動では1フレームでこの距離は飛ばない
+    private static final double TELEPORT_JUMP_SQ = 64.0;
 
     @Shadow
     public abstract void setPosition(Vec3 pos);
@@ -37,6 +41,7 @@ public abstract class CameraMixin {
     private double cachedLerpFactorZ = 0;
     private double cachedDelayZoom = -1;
     private double cachedLerpFactorZoom = 0;
+    private ResourceKey<Level> lastDimension = null;
 
     private static double computeLerpFactor(double delaySeconds) {
         if (delaySeconds <= MIN_DELAY) return 1.0;
@@ -83,7 +88,8 @@ public abstract class CameraMixin {
         double targetY = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getEyeHeight();
         double targetZ = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
 
-        boolean skipDelay = entity.isPassenger() && !com.topdownview.Config.isFollowDelayWhileMounted();
+        boolean skipDelay = (entity.isPassenger() && !com.topdownview.Config.isFollowDelayWhileMounted())
+                || isTeleportOrWorldChange(entity, targetX, targetY, targetZ);
 
         double cameraY = calculateCameraY(targetY, skipDelay);
         double cameraBaseX = calculateCameraX(targetX, skipDelay);
@@ -172,6 +178,26 @@ public abstract class CameraMixin {
 
         ModState.CAMERA.setPitch(pitch);
         ModState.CAMERA.setCameraPosition(this.getPosition());
+    }
+
+    /**
+     * TP・ディメンション移動を検出する。
+     * 追従遅延を適用するとカメラが旧地点から滑るように移動してしまうため、
+     * 対象座標が1フレームで大きく飛んだ場合や別ディメンションへ移動した場合に遅延を除外する。
+     */
+    private boolean isTeleportOrWorldChange(Entity entity, double targetX, double targetY, double targetZ) {
+        ResourceKey<Level> dimension = entity.level().dimension();
+        boolean worldChanged = !dimension.equals(lastDimension);
+        lastDimension = dimension;
+
+        if (worldChanged || !ModState.CAMERA.isCameraXInitialized()) {
+            return worldChanged;
+        }
+
+        double dx = targetX - ModState.CAMERA.getTargetCameraX();
+        double dy = targetY - ModState.CAMERA.getTargetCameraY();
+        double dz = targetZ - ModState.CAMERA.getTargetCameraZ();
+        return dx * dx + dy * dy + dz * dz > TELEPORT_JUMP_SQ;
     }
 
     private void updateFreeCameraMode() {
