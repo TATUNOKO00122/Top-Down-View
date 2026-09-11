@@ -79,11 +79,9 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onRightClickBlock(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
         if (!event.getLevel().isClientSide()) return;
-        net.minecraft.world.level.block.Block block = event.getLevel().getBlockState(event.getPos()).getBlock();
-        if (block instanceof net.minecraft.world.level.block.ChestBlock ||
-            block instanceof net.minecraft.world.level.block.BarrelBlock ||
-            block instanceof net.minecraft.world.level.block.ShulkerBoxBlock ||
-            block instanceof net.minecraft.world.level.block.EnderChestBlock) {
+        net.minecraft.world.level.Level level = event.getLevel();
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(event.getPos());
+        if (InteractableBlocks.classify(state, level, event.getPos()) == InteractableBlocks.InteractionKind.OPEN) {
             OpenedContainerTracker.markOpened(event.getPos());
         }
     }

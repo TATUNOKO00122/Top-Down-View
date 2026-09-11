@@ -76,8 +76,10 @@ public final class InteractionPromptRenderer {
             return;
         }
 
-        // 周辺スキャンの更新
-        updateScan(mc);
+        // 周辺スキャンの更新（空間プロンプト表示時のみ）
+        if (Config.isShowSpatialPrompt()) {
+            updateScan(mc);
+        }
 
         // 照準が合っているターゲットブロック情報を取得
         BlockTargetInfo targetInfo = getTargetInfo(mc);
@@ -232,26 +234,18 @@ public final class InteractionPromptRenderer {
             return false;
         }
 
+        InteractableBlocks.InteractionKind kind = InteractableBlocks.classify(state, level, pos);
+
         // 一度開いたことのあるコンテナ類は空間プロンプトを表示しない
-        if (block instanceof ChestBlock ||
-            block instanceof net.minecraft.world.level.block.BarrelBlock ||
-            block instanceof net.minecraft.world.level.block.ShulkerBoxBlock ||
-            block instanceof net.minecraft.world.level.block.EnderChestBlock) {
-            if (OpenedContainerTracker.isOpened(pos)) {
-                return false;
-            }
+        if (kind == InteractableBlocks.InteractionKind.OPEN && OpenedContainerTracker.isOpened(pos)) {
+            return false;
         }
 
-        // 主要なコンテナ（チェスト類）のみに制限
+        // 既定では「開く」コンテナのみ、全ブロック設定時は全インタラクト対象
         if (!Config.isSpatialPromptAllBlocks()) {
-            return block instanceof ChestBlock
-                    || block instanceof net.minecraft.world.level.block.BarrelBlock
-                    || block instanceof net.minecraft.world.level.block.ShulkerBoxBlock
-                    || block instanceof net.minecraft.world.level.block.EnderChestBlock;
+            return kind == InteractableBlocks.InteractionKind.OPEN;
         }
-
-        // すべて表示する場合、アクションコンポーネントが取得できるもの（インタラクト可能）を対象とする
-        return getActionComponent(state, level, pos) != null;
+        return kind != InteractableBlocks.InteractionKind.NONE;
     }
 
     /**
@@ -561,50 +555,14 @@ public final class InteractionPromptRenderer {
      * ブロックの種類に応じたアクションテキストを取得します。
      */
     private static Component getActionComponent(BlockState state, Level level, BlockPos pos) {
-        Block block = state.getBlock();
-
-        // 1. ドア、トラップドア、ゲート
-        if (state.is(net.minecraft.tags.BlockTags.DOORS) ||
-            state.is(net.minecraft.tags.BlockTags.TRAPDOORS) ||
-            state.is(net.minecraft.tags.BlockTags.FENCE_GATES)) {
-            return Component.translatable("topdown_view.interaction.open_close");
-        }
-
-        // 2. ボタン、レバー、レッドストーン系スイッチ
-        if (state.is(net.minecraft.tags.BlockTags.BUTTONS) ||
-            block instanceof net.minecraft.world.level.block.LeverBlock ||
-            block instanceof net.minecraft.world.level.block.RepeaterBlock ||
-            block instanceof net.minecraft.world.level.block.ComparatorBlock) {
-            return Component.translatable("topdown_view.interaction.toggle");
-        }
-
-        // 3. ベッド
-        if (state.is(net.minecraft.tags.BlockTags.BEDS)) {
-            return Component.translatable("topdown_view.interaction.sleep");
-        }
-
-        // 4. チェスト、樽、シュルカーボックスなどのコンテナで「開く」に相応しいもの
-        if (block instanceof ChestBlock ||
-            block instanceof net.minecraft.world.level.block.BarrelBlock ||
-            block instanceof net.minecraft.world.level.block.ShulkerBoxBlock ||
-            block instanceof net.minecraft.world.level.block.EnderChestBlock) {
-            return Component.translatable("topdown_view.interaction.open");
-        }
-
-        // 5. MenuProvider（作業台、かまど、醸造台等）を持っているなら「使う」
-        if (state.getMenuProvider(level, pos) != null) {
-            return Component.translatable("topdown_view.interaction.use");
-        }
-
-        // 6. その他の特定のインタラクト可能ブロック
-        if (block instanceof net.minecraft.world.level.block.BellBlock ||
-            block instanceof net.minecraft.world.level.block.CakeBlock ||
-            block instanceof net.minecraft.world.level.block.JukeboxBlock ||
-            block instanceof net.minecraft.world.level.block.NoteBlock ||
-            block instanceof net.minecraft.world.level.block.AnvilBlock) {
-            return Component.translatable("topdown_view.interaction.interact");
-        }
-
-        return null;
+        return switch (InteractableBlocks.classify(state, level, pos)) {
+            case OPEN_CLOSE -> Component.translatable("topdown_view.interaction.open_close");
+            case TOGGLE -> Component.translatable("topdown_view.interaction.toggle");
+            case SLEEP -> Component.translatable("topdown_view.interaction.sleep");
+            case OPEN -> Component.translatable("topdown_view.interaction.open");
+            case USE -> Component.translatable("topdown_view.interaction.use");
+            case INTERACT -> Component.translatable("topdown_view.interaction.interact");
+            case NONE -> null;
+        };
     }
 }
