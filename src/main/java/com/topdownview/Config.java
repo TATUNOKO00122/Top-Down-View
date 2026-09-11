@@ -197,7 +197,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_MAX_DISTANCE = BUILDER
             .defineInRange("mousePanMaxDistance", 5.0, 0.0, 20.0);
     private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_SMOOTHING = BUILDER
-            .defineInRange("mousePanSmoothing", 0.1, 0.05, 1.0);
+            .defineInRange("mousePanSmoothing", 0.1, 0.01, 0.2);
     private static final ForgeConfigSpec.BooleanValue TARGET_LOCK_ENABLED = BUILDER
             .define("targetLockEnabled", true);
     private static final ForgeConfigSpec.IntValue TARGET_LOCK_DURATION = BUILDER

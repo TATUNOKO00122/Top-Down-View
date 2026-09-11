@@ -260,10 +260,6 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.staircase_exclusion_height",
-                Config.getStaircaseExclusionHeight(), 1, 10,
-                val -> Config.setStaircaseExclusionHeight(val)));
-        y += sp;
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.staircase_occlude_enabled",
                         Config.isStaircaseOccludeEnabled()),
@@ -279,6 +275,10 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.staircase_occlude_alpha",
                 Config.getStaircaseOccludeAlpha(), 0.0, 1.0,
                 val -> Config.setStaircaseOccludeAlpha(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.staircase_exclusion_height",
+                Config.getStaircaseExclusionHeight(), 1, 10,
+                val -> Config.setStaircaseExclusionHeight(val)));
         y += sp;
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.ladder_occlude_enabled",
@@ -521,7 +521,7 @@ public class ConfigScreen extends Screen {
                 Config.getMousePanMaxDistance(), 0.0, 20.0, val -> Config.setMousePanMaxDistance(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_smoothing",
-                Config.getMousePanSmoothing(), 0.05, 1.0, val -> Config.setMousePanSmoothing(val)));
+                Config.getMousePanSmoothing(), 0.01, 0.2, val -> Config.setMousePanSmoothing(val), 2));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;

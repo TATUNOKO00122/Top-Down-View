@@ -120,7 +120,7 @@ public final class CameraConfig {
     public void setMousePanMaxDistance(double value) { this.mousePanMaxDistance = clamp(value, 0.0, 20.0); }
 
     public double getMousePanSmoothing() { return mousePanSmoothing; }
-    public void setMousePanSmoothing(double value) { this.mousePanSmoothing = clamp(value, 0.05, 1.0); }
+    public void setMousePanSmoothing(double value) { this.mousePanSmoothing = clamp(value, 0.01, 0.2); }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));

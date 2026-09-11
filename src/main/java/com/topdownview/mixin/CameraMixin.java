@@ -137,13 +137,8 @@ public abstract class CameraMixin {
             double currentPanZ = ModState.CAMERA.getCurrentMousePanZ();
             double smoothing = com.topdownview.Config.getMousePanSmoothing();
             
-            if (smoothing >= 1.0) {
-                currentPanX = targetPanX;
-                currentPanZ = targetPanZ;
-            } else {
-                currentPanX += (targetPanX - currentPanX) * smoothing;
-                currentPanZ += (targetPanZ - currentPanZ) * smoothing;
-            }
+            currentPanX += (targetPanX - currentPanX) * smoothing;
+            currentPanZ += (targetPanZ - currentPanZ) * smoothing;
             
             ModState.CAMERA.setCurrentMousePanX(currentPanX);
             ModState.CAMERA.setCurrentMousePanZ(currentPanZ);
