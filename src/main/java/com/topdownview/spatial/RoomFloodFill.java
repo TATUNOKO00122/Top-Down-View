@@ -8,9 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -22,8 +20,9 @@ import java.util.Objects;
  * <p>プレイヤー足元を起点に空間をフラッドフィルスキャンし、
  * 通過可能な空気セル領域と、それを囲む1ブロック厚の壁殻 (Shell) セル領域を特定します。
  *
- * <p>各セルにおいて上方に本物の屋根があるかを自動チェック (葉ブロック等は透過) し、
- * 屋根がない屋外方向への無駄な漏れ出しを自然に防止します。
+ * <p>各セルにおいて直上に固体の覆い(天井)があるかをローカルに判定し (葉ブロック等は透過)、
+ * 覆いの無いセルで探索を打ち切ることで、密閉度ではなく「覆われた空気領域」を空間として抽出します。
+ * 空(Heightmap)に依存しないため、複雑な形の家・中庭・洞窟も扱えます。
  */
 public final class RoomFloodFill {
 
@@ -40,8 +39,8 @@ public final class RoomFloodFill {
     /** BFSで探索する最大空気セル数（安全弁） */
     public static final int MAX_FLOOD_CELLS = 8000;
 
-    /** 各セルで天井を探す上方走査距離 */
-    public static final int CEILING_SCAN_HEIGHT = 10;
+    /** 各セルで直上に覆い(固体天井)を探す走査距離 */
+    public static final int CEILING_SCAN_HEIGHT = 24;
 
     /** 探索を行う6方向 */
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -66,8 +65,8 @@ public final class RoomFloodFill {
             return Result.EMPTY;
         }
 
-        // 起点自体が屋外に開放されているかチェック
-        if (openToSky(level, mpos, startPos.getX(), startPos.getY(), startPos.getZ())) {
+        // 起点自体に直上の覆いが無い場合は屋外として扱う
+        if (!isCovered(level, mpos, startPos.getX(), startPos.getY(), startPos.getZ())) {
             return Result.EMPTY;
         }
 
@@ -91,7 +90,6 @@ public final class RoomFloodFill {
         int seedZ = startPos.getZ();
 
         int head = 0;
-        int skyStops = 0;
 
         while (head < queue.size() && visitedAir.size() < MAX_FLOOD_CELLS) {
             long currentLong = queue.getLong(head++);
@@ -131,23 +129,13 @@ public final class RoomFloodFill {
                 if (WallAnalyzer.isSolid(level, mpos)) {
                     // 固体ブロックは壁殻 (Shell) として記録（キューへは入れない）
                     visitedShell.add(nlong);
-                } else {
-                    // 通過可能空間の場合、真上に本物の屋根があるか確認
-                    if (openToSky(level, mpos, nx, ny, nz)) {
-                        // 空が開けているセルは skyStops をカウントし、キューには入れない（探索打ち切り）
-                        skyStops++;
-                    } else {
-                        // 屋根のある部屋内部の空気セル → 探索継続
-                        visitedAir.add(nlong);
-                        queue.add(nlong);
-                    }
+                } else if (isCovered(level, mpos, nx, ny, nz)) {
+                    // 直上に固体の覆いがある空気セル → 屋内/洞窟内部として探索継続
+                    visitedAir.add(nlong);
+                    queue.add(nlong);
                 }
+                // 覆いの無いセルは屋外へ漏れるためキューに入れず打ち切る
             }
-        }
-
-        // 屋外判定: 空への開口数が多く、壁シェルに対する比率が高い場合は屋外と判定
-        if (skyStops > 8 && skyStops * 3 > visitedShell.size()) {
-            return Result.EMPTY;
         }
 
         boolean enclosed = !visitedAir.isEmpty();
@@ -176,44 +164,23 @@ public final class RoomFloodFill {
     }
 
     /**
-     * 指定位置から上方に「本物の屋根」があるか判定する。
-     * 葉ブロック (LeavesBlock) は屋根とみなさず透過する。
+     * 指定位置の直上 {@link #CEILING_SCAN_HEIGHT} 以内に固体の覆い(天井)があるか判定する。
+     * 空気・葉・液体は覆いとみなさない(透過)。
      */
-    private static boolean openToSky(BlockGetter level, BlockPos.MutableBlockPos mpos, int x, int y, int z) {
-        if (level instanceof Level world) {
-            int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-            if (y >= topY) {
-                return true;
-            }
-            int limit = Math.min(topY, y + CEILING_SCAN_HEIGHT);
-            for (int yy = y + 1; yy < limit; yy++) {
-                mpos.set(x, yy, z);
-                BlockState st = level.getBlockState(mpos);
-                if (st.isAir() || st.is(BlockTags.LEAVES)) {
-                    continue;
-                }
-                VoxelShape shape = st.getCollisionShape(level, mpos, CollisionContext.empty());
-                if (!shape.isEmpty()) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Level でない場合のフォールバック走査
+    private static boolean isCovered(BlockGetter level, BlockPos.MutableBlockPos mpos, int x, int y, int z) {
         int limit = y + CEILING_SCAN_HEIGHT;
         for (int yy = y + 1; yy <= limit; yy++) {
             mpos.set(x, yy, z);
             BlockState st = level.getBlockState(mpos);
-            if (st.isAir() || st.is(BlockTags.LEAVES)) {
+            if (st.isAir() || st.is(BlockTags.LEAVES) || !st.getFluidState().isEmpty()) {
                 continue;
             }
             VoxelShape shape = st.getCollisionShape(level, mpos, CollisionContext.empty());
             if (!shape.isEmpty()) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**

@@ -101,6 +101,16 @@ public class Config {
             .defineInRange("fadeStart", 0.7, 0.0, 0.9);
     private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
             .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
+    private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
+            .comment("0 = Cylinder (legacy), 1 = Cover + Corridor (new), 2 = Cover only.")
+            .defineInRange("cullingMode", 1, 0, 2);
+    private static final ForgeConfigSpec.IntValue VIEW_WEDGE_HALF_ANGLE = BUILDER
+            .defineInRange("viewWedgeHalfAngle", 60, 10, 90);
+    private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
+            .defineInRange("coverCullingRadius", 10, 4, 24);
+    private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
+            .comment("Culls covers only over ground actually visible from the player's eye.")
+            .define("coverCullingViewshedEnabled", true);
     private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
             .define("playerNearTranslucencyEnabled", true);
     private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
@@ -303,6 +313,10 @@ public class Config {
     public static double getFadeBlockHitThreshold() { return CULLING.getFadeBlockHitThreshold(); }
     public static double getFadeStart() { return CULLING.getFadeStart(); }
     public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
+    public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
+    public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
+    public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
+    public static int getCullingMode() { return CULLING.getCullingMode(); }
     public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
     public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
     public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
@@ -416,6 +430,10 @@ public class Config {
     public static void setFadeBlockHitThreshold(double value) { CULLING.setFadeBlockHitThreshold(value); }
     public static void setFadeStart(double value) { CULLING.setFadeStart(value); }
     public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
+    public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
+    public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
+    public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
+    public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
     public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
     public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
     public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
@@ -549,6 +567,10 @@ public class Config {
         CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.get());
         CULLING.setFadeStart(FADE_START.get());
         CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.get());
+        CULLING.setViewWedgeHalfAngle(VIEW_WEDGE_HALF_ANGLE.get());
+        CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
+        CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
+        CULLING.setCullingMode(CULLING_MODE.get());
         CULLING.setPlayerNearTranslucencyEnabled(PLAYER_NEAR_TRANSLUCENCY_ENABLED.get());
         CULLING.setPlayerNearTranslucencyAlpha(PLAYER_NEAR_TRANSLUCENCY_ALPHA.get());
         CULLING.setPlayerNearTranslucencyRangeHorizontal(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get());
@@ -664,6 +686,10 @@ public class Config {
             FADE_BLOCK_HIT_THRESHOLD.set(getFadeBlockHitThreshold());
             FADE_START.set(getFadeStart());
             FADE_NEAR_ALPHA.set(getFadeNearAlpha());
+            CULLING_MODE.set(getCullingMode());
+            VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
+            COVER_CULLING_RADIUS.set(getCoverCullingRadius());
+            COVER_CULLING_VIEWSHED_ENABLED.set(isCoverCullingViewshedEnabled());
             PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(isPlayerNearTranslucencyEnabled());
             PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(getPlayerNearTranslucencyAlpha());
             PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(getPlayerNearTranslucencyRangeHorizontal());

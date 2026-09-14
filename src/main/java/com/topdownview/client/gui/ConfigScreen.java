@@ -629,6 +629,27 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
                 1.0, val -> Config.setFadeNearAlpha(val)));
         y += sp;
+        addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
+            Config.setCullingMode((Config.getCullingMode() + 1) % 3);
+            btn.setMessage(getCullingModeComponent(Config.getCullingMode()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.culling_mode.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
+                90, val -> Config.setViewWedgeHalfAngle(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
+                24, val -> Config.setCoverCullingRadius(val)));
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
+                    Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
+                        .build());
+        y += sp;
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
                     Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
@@ -705,6 +726,16 @@ public class ConfigScreen extends Screen {
         };
         return Component.translatable("topdown_view.config.sign_hover_display_mode",
                 Component.translatable("topdown_view.config.sign_hover_display_mode." + modeKey).getString());
+    }
+
+    private Component getCullingModeComponent(int mode) {
+        String modeKey = switch (mode) {
+            case 0 -> "mode_cylinder";
+            case 2 -> "mode_cover_only";
+            default -> "mode_cover_corridor";
+        };
+        return Component.translatable("topdown_view.config.culling_mode",
+                Component.translatable("topdown_view.config.culling_mode." + modeKey).getString());
     }
 
     private Component getRotateModeComponent(int mode) {

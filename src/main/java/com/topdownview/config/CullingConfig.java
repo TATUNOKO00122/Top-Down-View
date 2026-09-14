@@ -5,6 +5,13 @@ package com.topdownview.config;
  */
 public final class CullingConfig {
 
+    /** 旧方式: 円柱カリングのみ。 */
+    public static final int CULLING_MODE_CYLINDER = 0;
+    /** 新方式: 覆いカリング + 手前の壁コリドー(カメラ側で限定した円柱)。 */
+    public static final int CULLING_MODE_COVER_CORRIDOR = 1;
+    /** 新方式: 覆いカリングのみ(円柱カリングなし)。 */
+    public static final int CULLING_MODE_COVER_ONLY = 2;
+
     private int cylinderRadiusHorizontal = 5;
     private int cylinderRadiusVertical = 5;
     private int cylinderForwardShift = 1;
@@ -36,6 +43,10 @@ public final class CullingConfig {
     private double ladderOccludeAlpha = 0.4;
     private boolean treeOccludeEnabled = true;
     private double treeOccludeAlpha = 0.4;
+    private int viewWedgeHalfAngle = 60;
+    private int coverCullingRadius = 10;
+    private boolean coverCullingViewshedEnabled = true;
+    private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
     private boolean translucentFluid = true;
@@ -133,6 +144,18 @@ public final class CullingConfig {
 
     public double getTreeOccludeAlpha() { return treeOccludeAlpha; }
     public void setTreeOccludeAlpha(double value) { this.treeOccludeAlpha = clamp(value, 0.0, 1.0); }
+
+    public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
+    public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = clamp(value, 10, 90); }
+
+    public int getCoverCullingRadius() { return coverCullingRadius; }
+    public void setCoverCullingRadius(int value) { this.coverCullingRadius = clamp(value, 4, 24); }
+
+    public boolean isCoverCullingViewshedEnabled() { return coverCullingViewshedEnabled; }
+    public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }
+
+    public int getCullingMode() { return cullingMode; }
+    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_ONLY); }
 
     public boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public void setIgnoreLeavesInRaycast(boolean value) { this.ignoreLeavesInRaycast = value; }

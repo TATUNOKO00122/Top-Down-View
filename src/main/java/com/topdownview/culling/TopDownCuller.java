@@ -1,11 +1,13 @@
 package com.topdownview.culling;
 
 import com.topdownview.Config;
+import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.cache.SurfaceHeightCache;
 import com.topdownview.culling.geometry.CylinderCalculator;
+import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.SpaceProbe;
@@ -84,6 +86,7 @@ public final class TopDownCuller {
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingCullingHandler ceilingHandler = new CeilingCullingHandler();
+    private final CoverCullingHandler coverHandler = new CoverCullingHandler();
     private final FadeTransitionController fadeTransitionController = new FadeTransitionController();
 
     private double cachedFadeStart;
@@ -91,6 +94,12 @@ public final class TopDownCuller {
     private double cachedFadeBlockHitThreshold;
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
+    private boolean cachedViewWedgeProtection;
+    private boolean cachedCoverCullingActive;
+    private int cachedCullingMode;
+    private double cachedViewWedgeCos;
+    private double viewDirX = 0.0;
+    private double viewDirZ = 1.0;
 
     private boolean undergroundCullingActive = false;
     private double undergroundCullingStartDistSq = 0.0;
@@ -116,6 +125,7 @@ public final class TopDownCuller {
         ladderHandler.clearCache();
         treeHandler.clearCache();
         ceilingHandler.clearCache();
+        coverHandler.clearCache();
         fadeTransitionController.clearCache();
         
         currentSpaceEnclosed = false;
@@ -229,6 +239,11 @@ public final class TopDownCuller {
             return false;
         }
 
+        if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) {
+            cullingCache.put(posLong, true);
+            return true;
+        }
+
         if (ceilingHandler.isCeilingBlock(posLong)) {
             cullingCache.put(posLong, true);
             return true;
@@ -280,9 +295,23 @@ public final class TopDownCuller {
 
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
+        // 覆いのみモードでは円柱カリングを使わない
+        if (cachedCullingMode == CullingConfig.CULLING_MODE_COVER_ONLY) {
+            return 1.0f;
+        }
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
                 pX, pY, pZ, cX, cY, cZ);
+
+        // 円柱内でも、プレイヤーより奥や真横のブロックは保護する。
+        // カメラ側(手前)の視界コーン内だけをカリングし、手前の壁を通り抜けて見えるようにする。
+        if (cachedViewWedgeProtection && normalizedDistSq >= 0.0 && normalizedDistSq <= 1.0
+                && !OcclusionCalculator.isWithinViewWedge(
+                        pos.getX() + 0.5, pos.getZ() + 0.5,
+                        pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
+            return 1.0f;
+        }
+
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
                 pos, pX, pY, pZ, cX, cZ);
 
@@ -396,6 +425,22 @@ public final class TopDownCuller {
         cachedFadeBlockHitThreshold = Config.getFadeBlockHitThreshold();
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
+        cachedCullingMode = Config.getCullingMode();
+        cachedCoverCullingActive = cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
+        cachedViewWedgeProtection = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
+        cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
+        double wedgeDirX = playerX - cameraX;
+        double wedgeDirZ = playerZ - cameraZ;
+        double wedgeDirLen = Math.sqrt(wedgeDirX * wedgeDirX + wedgeDirZ * wedgeDirZ);
+        if (wedgeDirLen < 1.0E-4) {
+            // カメラが真上付近: yaw から前方向を求める(CylinderCalculator と同じ規約)
+            double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
+            viewDirX = -Math.sin(yawRad);
+            viewDirZ = Math.cos(yawRad);
+        } else {
+            viewDirX = wedgeDirX / wedgeDirLen;
+            viewDirZ = wedgeDirZ / wedgeDirLen;
+        }
 
         undergroundCullingActive = Config.isUndergroundCullingEnabled();
         double undergroundCullingStartBlocks = Config.getUndergroundCullingStartDistance() * 16.0;
@@ -407,6 +452,7 @@ public final class TopDownCuller {
             if (!dimension.equals(lastSurfaceCacheDimension)) {
                 lastSurfaceCacheDimension = dimension;
                 surfaceHeightCache.clear();
+                coverHandler.clearCache();
             }
         }
 
@@ -482,6 +528,16 @@ public final class TopDownCuller {
         ceilingHandler.update(currentSpaceEnclosed, roomResult);
         ladderHandler.scan(mc.level, blockX, blockZ, blockY - 1);
         stairHandler.update(mc, blockY, currentSpaceEnclosed, roomResult);
+
+        if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
+            int feetY = (int) Math.floor(mc.player.getY());
+            coverHandler.update(mc.level, blockX, feetY, blockZ, roomResult.getAirCells(),
+                    mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
+                    (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
+                    Config.isCoverCullingViewshedEnabled());
+        } else {
+            coverHandler.clearCache();
+        }
     }
 
     private void updateEntityCulling(Minecraft mc) {
@@ -559,6 +615,7 @@ public final class TopDownCuller {
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
         long posLong = pos.asLong();
+        if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) return cached;
 
@@ -581,6 +638,7 @@ public final class TopDownCuller {
         if (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled() && !Config.isStaircaseOccludeEnabled() 
             && !Config.isLadderOccludeEnabled() && !Config.isTreeOccludeEnabled()) return false;
         if (ceilingHandler.isCeilingBlock(pos.asLong())) return false;
+        if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
         float alpha = getFadeAlpha(pos, level);
         return alpha < 1.0f && alpha > cachedFadeBlockHitThreshold;
     }
@@ -647,6 +705,7 @@ public final class TopDownCuller {
 
         // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
         boolean fadeEnabled = Config.isFadeEnabled();
+        boolean cylinderFadeEnabled = fadeEnabled && cachedCullingMode != CullingConfig.CULLING_MODE_COVER_ONLY;
         boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean stairOcclude = Config.isStaircaseOccludeEnabled();
@@ -664,7 +723,7 @@ public final class TopDownCuller {
 
                     double normalizedDistSq = 0.0;
                     float tempAlpha = 1.0f;
-                    if (fadeEnabled) {
+                    if (cylinderFadeEnabled) {
                         normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(x + 0.5, y + 0.5, z + 0.5, pX, pY, pZ, cX, cY, cZ);
                         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(mutablePos, pX, pY, pZ, cX, cZ);
 
@@ -685,7 +744,7 @@ public final class TopDownCuller {
                     if (isNearTarget) {
                         isTarget = true;
                         finalAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
-                    } else if (fadeEnabled) {
+                    } else if (cylinderFadeEnabled) {
                         if (tempAlpha > 0.0f && tempAlpha < 1.0f) {
                             isTarget = true;
                             fadeTransitionController.onBlockFaded(posLong);
@@ -700,11 +759,20 @@ public final class TopDownCuller {
 
                     if (!isTarget) continue;
 
+                    if (fadeEnabled && !isNearTarget && cachedViewWedgeProtection
+                            && normalizedDistSq >= 0.0 && normalizedDistSq <= 1.0
+                            && !OcclusionCalculator.isWithinViewWedge(
+                                    mutablePos.getX() + 0.5, mutablePos.getZ() + 0.5,
+                                    pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
+                        continue;
+                    }
+
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
                     if (isProtectedBlock(mutablePos, state, pY, level)) continue;
 
                     if (ceilingHandler.isCeilingBlock(posLong)) continue;
+                    if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
