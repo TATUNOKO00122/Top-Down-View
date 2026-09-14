@@ -12,7 +12,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -124,18 +123,7 @@ public final class TargetHighlightRenderer {
      * 視線が通っているかチェック
      */
     private static boolean hasLineOfSight(Minecraft mc, Entity player, Entity target) {
-        Vec3 playerEyePos = player.getEyePosition(1.0f);
-        Vec3 targetPos = target.getBoundingBox().getCenter();
-        
-        BlockHitResult blockHit = mc.level.clip(new ClipContext(
-            playerEyePos,
-            targetPos,
-            ClipContext.Block.COLLIDER,
-            ClipContext.Fluid.NONE,
-            player
-        ));
-        
-        return blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+        return MouseRaycast.INSTANCE.hasLineOfSight(mc, player.getEyePosition(1.0f), target);
     }
 
     /**

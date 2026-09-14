@@ -11,6 +11,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.ShearsItem;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -182,11 +183,33 @@ public final class MouseRaycast {
         return tMin >= 0 ? tMin : tMax;
     }
 
-    private boolean hasLineOfSight(Minecraft mc, Vec3 fromPos, Entity target) {
+    public boolean hasLineOfSight(Minecraft mc, Vec3 fromPos, Entity target) {
+        if (mc == null || mc.level == null || mc.player == null) return false;
         Vec3 targetPos = target.getBoundingBox().getCenter();
-        BlockHitResult blockHit = mc.level.clip(new ClipContext(fromPos, targetPos,
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
-        return blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+        Vec3 currentFrom = fromPos;
+        int maxAttempts = 16;
+        for (int i = 0; i < maxAttempts; i++) {
+            BlockHitResult blockHit = mc.level.clip(new ClipContext(currentFrom, targetPos,
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
+            if (blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                return true;
+            }
+            BlockPos hitPos = blockHit.getBlockPos();
+            if (mc.level.getBlockState(hitPos).is(Blocks.BARRIER)) {
+                Vec3 hitLocation = blockHit.getLocation();
+                Vec3 dir = targetPos.subtract(fromPos);
+                double len = dir.length();
+                if (len < 1e-6) return true;
+                dir = dir.scale(1.0 / len);
+                currentFrom = hitLocation.add(dir.scale(0.01));
+                if (currentFrom.distanceToSqr(fromPos) >= targetPos.distanceToSqr(fromPos)) {
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        }
+        return false;
     }
 
     private BlockHitResult rayTraceBlocks(Minecraft mc, Vec3 start, Vec3 end) {
@@ -263,7 +286,9 @@ public final class MouseRaycast {
                 // カリング済みブロックは透過として扱う
             } else {
                 BlockState state = mc.level.getBlockState(mutablePos);
-                if (ignoreLeaves && state.is(BlockTags.LEAVES) && !isHoldingBypassTool) {
+                if (state.is(Blocks.BARRIER)) {
+                    // バリアブロックは透過として扱う
+                } else if (ignoreLeaves && state.is(BlockTags.LEAVES) && !isHoldingBypassTool) {
                     // 木の葉は透過として扱う
                 } else if (!state.isAir()) {
                     var shape = state.getShape(mc.level, mutablePos, collisionContext);
