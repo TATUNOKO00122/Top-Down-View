@@ -2,9 +2,7 @@ package com.topdownview.culling;
 
 import com.topdownview.spatial.WallAnalyzer;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -15,12 +13,16 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
- * プレイヤーが歩行できる列を探索し、その列を上方から覆うブロック（屋根・樹冠・オーバーハング）を
- * カリング対象として収集するハンドラー。
+ * プレイヤーが歩行できる列を探索し、その列を覆う最初のブロック（屋根・天井・樹冠・
+ * オーバーハング）とその上方をまとめてカリング対象として収集するハンドラー。
  *
- * <p>カメラ軸ベースの円柱/楔と異なり、壁や構造物（列自体が固体＝歩行不可）は残し、
- * 「歩ける地面の上を覆っているもの」だけを消す。室内では屋根だけが消え壁は残り、
- * 森では進行方向の地面上の樹冠が消える。
+ * <p>床上からではなく「最初の覆い」を基準に、覆いより上だけを消す。覆いより下の壁・
+ * 間仕切り・床は残るため間取りが露出せず、覆いより上の多層の屋根や上階もいっしょに
+ * 消えるので、上から見下ろしたときにプレイヤーと足元の通路が見える。
+ *
+ * <p>固体の覆い（建物の屋根・天井）はプレイヤーが屋内（閉鎖空間）にいるときだけ消す。
+ * 屋外で近くの歩行可能列が軒下などに入っていても屋根を消さない（屋外から見た屋根に
+ * 穴が開くのを防ぐ）。葉（自然の樹冠）は屋内外を問わず消す。
  */
 public final class CoverCullingHandler {
 
@@ -40,29 +42,15 @@ public final class CoverCullingHandler {
     /** 再スキャンを起こす最小移動量（マンハッタン）。カリングキャッシュのクリア間隔と揃える。 */
     private static final int SCAN_MOVE_THRESHOLD = 3;
 
-    /** 建物スライスで床上どれだけ残すか（この高さより上を消す）。 */
-    private static final int SLICE_FLOOR_KEEP = 1;
-
     /**
      * カリング対象の覆いブロック。チャンクビルドワーカーから読まれるため、
      * 再構築した集合を volatile 参照ごと差し替えて読み書きの競合を避ける。
      */
     private volatile LongOpenHashSet coverCullPositions = new LongOpenHashSet();
 
-    /**
-     * 建物スライス。空間領域(部屋 airCells)の水平フットプリントに限定し、
-     * プレイヤーの床 + {@link #SLICE_FLOOR_KEEP} 以上をカメラYまでまとめて消す。
-     * 基準を天井ではなく床にすることで低い入口でも全体を切り抜かない。
-     */
-    private volatile LongOpenHashSet sliceColumns = new LongOpenHashSet();
-    private volatile boolean sliceActive = false;
-    private volatile int sliceMinY = 0;
-    private volatile int sliceTopY = 0;
-
     private int lastScanX = Integer.MIN_VALUE;
     private int lastScanY = Integer.MIN_VALUE;
     private int lastScanZ = Integer.MIN_VALUE;
-    private boolean lastSliceActive = false;
 
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -70,14 +58,9 @@ public final class CoverCullingHandler {
         if (!coverCullPositions.isEmpty()) {
             coverCullPositions = new LongOpenHashSet();
         }
-        if (!sliceColumns.isEmpty()) {
-            sliceColumns = new LongOpenHashSet();
-        }
-        sliceActive = false;
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
         lastScanZ = Integer.MIN_VALUE;
-        lastSliceActive = false;
     }
 
     public boolean isCoverCullBlock(long posLong) {
@@ -85,42 +68,29 @@ public final class CoverCullingHandler {
         return !set.isEmpty() && set.contains(posLong);
     }
 
-    /**
-     * 空間領域のフットプリント内で、床上 {@link #SLICE_FLOOR_KEEP} 以上をカリング対象とする。
-     */
-    public boolean isSliceCulled(int x, int y, int z) {
-        if (!sliceActive || y < sliceMinY || y > sliceTopY) {
-            return false;
-        }
-        LongOpenHashSet cols = sliceColumns;
-        return !cols.isEmpty() && cols.contains(BlockPos.asLong(x, 0, z));
-    }
-
-    /** 天然の樹冠セットまたは固体の覆いスライスのいずれかに該当するか。 */
     public boolean isCoverCulled(BlockPos pos) {
-        return isCoverCullBlock(pos.asLong()) || isSliceCulled(pos.getX(), pos.getY(), pos.getZ());
+        return isCoverCullBlock(pos.asLong());
     }
 
     /**
-     * 空間領域(部屋)からスライスのフットプリントを更新し、併せて天然の樹冠(葉)を
-     * 歩行可能列から再収集する。同じ位置では再計算しない（移動時のみ）。
+     * 歩行可能列を探索し、各列の最初の覆い以降をカリング対象として収集する。
+     * 同じ位置では再計算しない（移動時のみ）。
      *
-     * @param airCells 空間領域の空気セル(packed long)。空なら屋外。
+     * @param enclosed プレイヤーが閉鎖空間（屋内）にいるか。false のとき固体の覆いは消さない
      * @param eyeX     視点X（ビューシェッド判定の起点）
      * @param eyeY     視点Y
      * @param eyeZ     視点Z
-     * @param cameraY  スライス上限に使うカメラY
+     * @param cameraY  走査上限に使うカメラY
      * @param radius   探索する水平半径（ブロック）
      * @param viewshed true なら視点から見える列だけを対象にする
      */
-    public void update(BlockGetter level, int feetX, int feetY, int feetZ, LongSet airCells,
+    public void update(BlockGetter level, int feetX, int feetY, int feetZ, boolean enclosed,
             double eyeX, double eyeY, double eyeZ, int cameraY, int radius, boolean viewshed) {
         if (level == null) {
             clearCache();
             return;
         }
-        boolean sliceNow = airCells != null && !airCells.isEmpty();
-        if (lastScanX != Integer.MIN_VALUE && sliceNow == lastSliceActive) {
+        if (lastScanX != Integer.MIN_VALUE) {
             int move = Math.abs(feetX - lastScanX)
                     + Math.abs(feetY - lastScanY)
                     + Math.abs(feetZ - lastScanZ);
@@ -128,22 +98,9 @@ public final class CoverCullingHandler {
                 return;
             }
         }
-        lastSliceActive = sliceNow;
         lastScanX = feetX;
         lastScanY = feetY;
         lastScanZ = feetZ;
-
-        if (sliceNow) {
-            sliceMinY = feetY + SLICE_FLOOR_KEEP;
-            sliceTopY = Math.min(cameraY, sliceMinY + MAX_SCAN_HEIGHT);
-            sliceColumns = buildFootprint(airCells);
-            sliceActive = true;
-        } else {
-            sliceActive = false;
-            if (!sliceColumns.isEmpty()) {
-                sliceColumns = new LongOpenHashSet();
-            }
-        }
 
         LongOpenHashSet next = new LongOpenHashSet();
 
@@ -166,7 +123,7 @@ public final class CoverCullingHandler {
             int cy = BlockPos.getY(cur);
             int cz = BlockPos.getZ(cur);
 
-            addColumnCover(level, cx, cy, cz, eyeX, eyeY, eyeZ, cameraY, viewshed, next);
+            addColumnCover(level, cx, cy, cz, enclosed, eyeX, eyeY, eyeZ, cameraY, viewshed, next);
 
             for (Direction dir : HORIZONTAL) {
                 int nx = cx + dir.getStepX();
@@ -189,12 +146,14 @@ public final class CoverCullingHandler {
     }
 
     /**
-     * 立位列の 2 ブロック上空からカメラYまで、最初の覆いが葉(自然の樹冠)のときだけ収集する。
-     * 固体の覆い(建物屋根・洞窟天井)はスライス({@link #isSliceCulled})側で処理する。
-     * 地表高(Heightmap)より上には何も無いため、走査上限を地表に丸めて屋外列を早期に打ち切る。
+     * 立位列の最初の覆い(足元+2より上で最初の非空気ブロック)から、カメラYまたは地表までを
+     * 収集する。覆いより下(壁・間仕切り・床)は残すため間取りは露出しない。
+     *
+     * <p>最初の覆いが固体(建物の屋根・天井)のときは {@code enclosed} のときだけ収集する。
+     * 屋外では近くの歩行可能列が軒下に入っていても屋根を消さない。葉(自然の樹冠)は常に収集する。
      * viewshed が有効な場合は、視点からその列の地面が見えるものだけを対象にする。
      */
-    private void addColumnCover(BlockGetter level, int x, int feetY, int z,
+    private void addColumnCover(BlockGetter level, int x, int feetY, int z, boolean enclosed,
             double eyeX, double eyeY, double eyeZ, int cameraY, boolean viewshed, LongOpenHashSet out) {
         if (viewshed && !isVisibleFromEye(level, x, feetY, z, eyeX, eyeY, eyeZ)) {
             return;
@@ -203,52 +162,22 @@ public final class CoverCullingHandler {
         if (level instanceof LevelReader reader) {
             top = Math.min(top, reader.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1);
         }
-        if (!firstCoverIsNatural(level, x, feetY, z, top)) {
-            return;
-        }
+        boolean covered = false;
         for (int y = feetY + 2; y <= top; y++) {
             mutablePos.set(x, y, z);
             BlockState state = level.getBlockState(mutablePos);
             if (state.isAir() || !state.getFluidState().isEmpty()) {
                 continue;
+            }
+            if (!covered) {
+                // 最初の覆いが固体で屋外なら、その列の屋根は残す
+                if (!enclosed && !state.is(BlockTags.LEAVES)) {
+                    return;
+                }
+                covered = true;
             }
             out.add(mutablePos.asLong());
         }
-    }
-
-    /**
-     * 空間領域(airCells)の水平フットプリント列を作る。壁を含めるため各air列の4近傍も加える。
-     * 列は (x, 0, z) でパックする。
-     */
-    private LongOpenHashSet buildFootprint(LongSet airCells) {
-        LongOpenHashSet columns = new LongOpenHashSet(Math.max(16, airCells.size()));
-        LongIterator it = airCells.iterator();
-        while (it.hasNext()) {
-            long cell = it.nextLong();
-            int x = BlockPos.getX(cell);
-            int z = BlockPos.getZ(cell);
-            columns.add(BlockPos.asLong(x, 0, z));
-            columns.add(BlockPos.asLong(x + 1, 0, z));
-            columns.add(BlockPos.asLong(x - 1, 0, z));
-            columns.add(BlockPos.asLong(x, 0, z + 1));
-            columns.add(BlockPos.asLong(x, 0, z - 1));
-        }
-        return columns;
-    }
-
-    /**
-     * 立位列の最初の覆いが葉(自然の樹冠)かどうかを返す。覆いが無ければ false。
-     */
-    private boolean firstCoverIsNatural(BlockGetter level, int x, int feetY, int z, int top) {
-        for (int y = feetY + 2; y <= top; y++) {
-            mutablePos.set(x, y, z);
-            BlockState state = level.getBlockState(mutablePos);
-            if (state.isAir() || !state.getFluidState().isEmpty()) {
-                continue;
-            }
-            return state.is(BlockTags.LEAVES);
-        }
-        return false;
     }
 
     /**

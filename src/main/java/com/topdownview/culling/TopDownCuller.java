@@ -86,6 +86,7 @@ public final class TopDownCuller {
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingCullingHandler ceilingHandler = new CeilingCullingHandler();
+    private final WallCullingHandler wallHandler = new WallCullingHandler();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
     private final FadeTransitionController fadeTransitionController = new FadeTransitionController();
 
@@ -125,6 +126,7 @@ public final class TopDownCuller {
         ladderHandler.clearCache();
         treeHandler.clearCache();
         ceilingHandler.clearCache();
+        wallHandler.clearCache();
         coverHandler.clearCache();
         fadeTransitionController.clearCache();
         
@@ -237,6 +239,11 @@ public final class TopDownCuller {
         if (isProtectedBlock(pos, state, pY, level)) {
             cullingCache.put(posLong, false);
             return false;
+        }
+
+        if (wallHandler.isOccludingWall(posLong)) {
+            cullingCache.put(posLong, true);
+            return true;
         }
 
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) {
@@ -502,6 +509,11 @@ public final class TopDownCuller {
         }
 
         updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
+        if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
+            wallHandler.refreshOccluding(cameraX, cameraZ, playerX, playerZ);
+        } else {
+            wallHandler.clearCache();
+        }
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         updateEntityCulling(mc);
     }
@@ -531,12 +543,14 @@ public final class TopDownCuller {
 
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             int feetY = (int) Math.floor(mc.player.getY());
-            coverHandler.update(mc.level, blockX, feetY, blockZ, roomResult.getAirCells(),
+            coverHandler.update(mc.level, blockX, feetY, blockZ, currentSpaceEnclosed,
                     mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
                     Config.isCoverCullingViewshedEnabled());
+            wallHandler.updateClassification(mc.level, roomResult, currentSpaceEnclosed);
         } else {
             coverHandler.clearCache();
+            wallHandler.clearCache();
         }
     }
 
@@ -616,6 +630,7 @@ public final class TopDownCuller {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
         long posLong = pos.asLong();
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
+        if (wallHandler.isOccludingWall(posLong)) return 0.0f;
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) return cached;
 
@@ -639,6 +654,7 @@ public final class TopDownCuller {
             && !Config.isLadderOccludeEnabled() && !Config.isTreeOccludeEnabled()) return false;
         if (ceilingHandler.isCeilingBlock(pos.asLong())) return false;
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
+        if (wallHandler.isOccludingWall(pos.asLong())) return false;
         float alpha = getFadeAlpha(pos, level);
         return alpha < 1.0f && alpha > cachedFadeBlockHitThreshold;
     }
@@ -773,6 +789,7 @@ public final class TopDownCuller {
 
                     if (ceilingHandler.isCeilingBlock(posLong)) continue;
                     if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
+                    if (wallHandler.isOccludingWall(posLong)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
