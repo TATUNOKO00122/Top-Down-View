@@ -146,9 +146,6 @@ repositories {
     flatDir {
         dir 'libs'
     }
-    
-    // Modrinth Maven for Embeddium
-    maven { url = 'https://api.modrinth.com/maven' }
 }
 
 dependencies {
@@ -176,11 +173,16 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    // Embeddium - カリング機能に必要（コンパイル時のみ、実行時はオプショナル）
-    compileOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
+    // Embeddium - カリング機能に必要（libs/ のローカルJARを flatDir 経由で使用）
+    // compileOnly: 本番JARには含めない（実行時はオプショナル）。runtimeOnly: 開発runで読み込む。
+    compileOnly fg.deobf("blank:embeddium:0.3.31")
+    runtimeOnly fg.deobf("blank:embeddium:0.3.31")
 
     // Oculus (Iris Forge port) - shader連携用（オプショナル）
     compileOnly fg.deobf("blank:oculus-mc1.20.1:1.8.0")
+
+    // Sound Physics Remastered - 開発runで併用するテスト用MOD（ローカルJAR、本番JARには含めない）
+    runtimeOnly fg.deobf("blank:soundphysics:1.20.1-1.5.1")
     
     // Baritone API - クリックツームーブ経路探索（オプショナル）
     compileOnly files('libs/baritone-api-forge-1.10.3.jar')
