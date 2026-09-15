@@ -3,6 +3,8 @@ package com.topdownview.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.topdownview.spatial.BuildingClassifier;
+import com.topdownview.spatial.RoomSegmentation;
 import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
@@ -103,22 +105,41 @@ public final class SpaceDebugRenderer {
         float enclosedG = result.isEnclosed() ? 1.0f : 1.0f;
         float enclosedB = 0.0f;
 
-        // 3D BFS 空気セル（緑）と壁殻セル（赤）のワイヤーフレーム描画
+        // 3D BFS 空気セルと壁殻セルのワイヤーフレーム描画
         com.topdownview.spatial.RoomFloodFill.Result roomRes = result.getRoomResult();
+        BuildingClassifier.Result cls = ModState.SPACE_DEBUG.getCurrentClassification();
+        RoomSegmentation.Result seg = ModState.SPACE_DEBUG.getCurrentSegmentation();
         if (roomRes != null && roomRes.isEnclosed()) {
-            // 空気セル (緑)
+            // 空気セル: プレイヤーの部屋は明るい緑、それ以外は暗い緑
+            RoomSegmentation.Room playerRoom = seg.getPlayerRoom();
             for (long posLong : roomRes.getAirCells()) {
                 int ax = BlockPos.getX(posLong);
                 int ay = BlockPos.getY(posLong);
                 int az = BlockPos.getZ(posLong);
-                drawBox(poseStack, vertices, ax, ay, az, cameraPos, 0.0f, 1.0f, 0.0f);
+                if (playerRoom != null && playerRoom.getAirCells().contains(posLong)) {
+                    drawBox(poseStack, vertices, ax, ay, az, cameraPos, 0.2f, 1.0f, 0.4f);
+                } else {
+                    drawBox(poseStack, vertices, ax, ay, az, cameraPos, 0.1f, 0.5f, 0.2f);
+                }
             }
-            // 壁殻セル (赤)
+            // 壁殻セル: BuildingClassifier のタグ色 (ROOF=青, WALL=橙, FLOOR=緑, UNKNOWN=灰)
             for (long posLong : roomRes.getShellCells()) {
                 int sx = BlockPos.getX(posLong);
                 int sy = BlockPos.getY(posLong);
                 int sz = BlockPos.getZ(posLong);
-                drawBox(poseStack, vertices, sx, sy, sz, cameraPos, 1.0f, 0.2f, 0.2f);
+                float r = 1.0f, g = 0.2f, b = 0.2f;
+                if (cls.isValid()) {
+                    BuildingClassifier.Label label = cls.getLabels().get(posLong);
+                    if (label != null) {
+                        switch (label) {
+                            case ROOF -> { r = 0.3f; g = 0.5f; b = 1.0f; }
+                            case WALL -> { r = 1.0f; g = 0.6f; b = 0.1f; }
+                            case FLOOR -> { r = 0.2f; g = 0.9f; b = 0.2f; }
+                            case UNKNOWN -> { r = 0.6f; g = 0.6f; b = 0.6f; }
+                        }
+                    }
+                }
+                drawBox(poseStack, vertices, sx, sy, sz, cameraPos, r, g, b);
             }
         }
 
@@ -259,6 +280,33 @@ public final class SpaceDebugRenderer {
             int dz = maxP.getZ() - minP.getZ() + 1;
             gg.drawString(mc.font, "Room AABB: " + dx + "x" + dy + "x" + dz, x, y, 0xFFCCCCCC, false);
             y += lineHeight;
+
+            RoomSegmentation.Result seg = ModState.SPACE_DEBUG.getCurrentSegmentation();
+            if (seg.isValid()) {
+                RoomSegmentation.Room pr = seg.getPlayerRoom();
+                String playerRoom = (pr != null)
+                        ? seg.getPlayerRoomIndex() + " (storey " + pr.getStorey() + ", " + pr.size() + " cells)"
+                        : "-";
+                gg.drawString(mc.font, "Storeys: " + seg.getStoreyCount() + "  Rooms: " + seg.getRooms().size()
+                        + "  PlayerRoom: " + playerRoom, x, y, 0xFF88DDFF, false);
+                y += lineHeight;
+            }
+
+            BuildingClassifier.Result cls = ModState.SPACE_DEBUG.getCurrentClassification();
+            if (cls.isValid()) {
+                int roof = 0, wall = 0, floor = 0, unknown = 0;
+                for (BuildingClassifier.Label label : cls.getLabels().values()) {
+                    switch (label) {
+                        case ROOF -> roof++;
+                        case WALL -> wall++;
+                        case FLOOR -> floor++;
+                        default -> unknown++;
+                    }
+                }
+                gg.drawString(mc.font, "Tags: ROOF=" + roof + " WALL=" + wall + " FLOOR=" + floor
+                        + " UNK=" + unknown + "  Shape=" + cls.getRoofShape(), x, y, 0xFFDDCC88, false);
+                y += lineHeight;
+            }
         }
 
         gg.drawString(mc.font, "Seed: [" + result.getOrigin().getX() + ","

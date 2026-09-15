@@ -6,11 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Objects;
 
@@ -23,6 +19,14 @@ import java.util.Objects;
  * <p>各セルにおいて直上に固体の覆い(天井)があるかをローカルに判定し (葉ブロック等は透過)、
  * 覆いの無いセルで探索を打ち切ることで、密閉度ではなく「覆われた空気領域」を空間として抽出します。
  * 空(Heightmap)に依存しないため、複雑な形の家・中庭・洞窟も扱えます。
+ *
+ * <p>さらに「屋外で頭上に覆いがあるだけ」の空間 (オーバーハング・木陰・屋根付き広場) を
+ * 屋内と誤認しないよう、横方向の境界が壁(固体)で構成されていることを屋内の条件にします
+ * ({@code lateralSolid > 0 && lateralOpen <= lateralSolid})。覆いだけでは壁にならず開口が残るため、
+ * 屋外の覆い空間は除外されます。
+ *
+ * <p>覆い判定は「直上から最初の固体に当たるまで」だけ縦走査します (天井が低いほど安価)。
+ * 覆いが見つからなかったセルは {@link Scratch} に記録して再走査を避けます。
  */
 public final class RoomFloodFill {
 
@@ -46,6 +50,32 @@ public final class RoomFloodFill {
     private static final Direction[] DIRECTIONS = Direction.values();
 
     /**
+     * フラッドフィル中に再利用する作業バッファ。
+     *
+     * <p>呼び出し側がスレッドごとに1つ保持することで、毎tickの再確保を避けます。
+     * スレッドセーフではないため、複数スレッドから同時に使わないでください。
+     */
+    public static final class Scratch {
+        private final LongOpenHashSet visitedAir = new LongOpenHashSet();
+        private final LongOpenHashSet visitedShell = new LongOpenHashSet();
+        private final LongOpenHashSet noCover = new LongOpenHashSet();
+        private final LongArrayList queue = new LongArrayList();
+        private final BlockMap blockMap = new BlockMap();
+
+        public void clear() {
+            visitedAir.clear();
+            visitedShell.clear();
+            noCover.clear();
+            queue.clear();
+        }
+
+        /** この探索で共有するブロック判定キャッシュ。 */
+        public BlockMap getBlockMap() {
+            return blockMap;
+        }
+    }
+
+    /**
      * 指定された起点から空間フラッドフィルを実行する。
      *
      * @param level ワールド
@@ -53,41 +83,60 @@ public final class RoomFloodFill {
      * @return 空間探索結果
      */
     public static Result compute(BlockGetter level, BlockPos seed) {
+        return compute(level, seed, null);
+    }
+
+    /**
+     * 作業バッファを再利用して空間フラッドフィルを実行する。
+     *
+     * @param level   ワールド
+     * @param seed    起点となるブロック座標
+     * @param scratch 再利用バッファ。{@code null} の場合は内部で生成。
+     * @return 空間探索結果
+     */
+    public static Result compute(BlockGetter level, BlockPos seed, Scratch scratch) {
         if (level == null || seed == null) {
             return Result.EMPTY;
         }
-
-        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+        final Scratch s = (scratch != null) ? scratch : new Scratch();
+        s.clear();
+        // 起点を中心にブロック判定キャッシュを構築 (flood/classifier/stair で共有)
+        s.blockMap.reset(level, seed);
 
         // 起点が通過可能かチェック。壁に埋まっている場合は頭上などを探す
-        BlockPos startPos = findValidSeed(level, seed, mpos);
+        BlockPos startPos = findValidSeed(s.blockMap, seed);
         if (startPos == null) {
             return Result.EMPTY;
         }
 
+        final int seedX = startPos.getX();
+        final int seedY = startPos.getY();
+        final int seedZ = startPos.getZ();
+
         // 起点自体に直上の覆いが無い場合は屋外として扱う
-        if (!isCovered(level, mpos, startPos.getX(), startPos.getY(), startPos.getZ())) {
+        if (!isCovered(s, seedX, seedY, seedZ)) {
             return Result.EMPTY;
         }
 
-        LongOpenHashSet visitedAir = new LongOpenHashSet();
-        LongOpenHashSet visitedShell = new LongOpenHashSet();
-        LongArrayList queue = new LongArrayList();
+        final LongOpenHashSet visitedAir = s.visitedAir;
+        final LongOpenHashSet visitedShell = s.visitedShell;
+        final LongArrayList queue = s.queue;
 
         long startLong = startPos.asLong();
         visitedAir.add(startLong);
         queue.add(startLong);
 
-        int minX = startPos.getX();
-        int minY = startPos.getY();
-        int minZ = startPos.getZ();
-        int maxX = startPos.getX();
-        int maxY = startPos.getY();
-        int maxZ = startPos.getZ();
+        int minX = seedX;
+        int minY = seedY;
+        int minZ = seedZ;
+        int maxX = seedX;
+        int maxY = seedY;
+        int maxZ = seedZ;
 
-        int seedX = startPos.getX();
-        int seedY = startPos.getY();
-        int seedZ = startPos.getZ();
+        // 横方向の境界の内訳。屋内なら壁(固体)で閉じ、屋外のオーバーハングなら
+        // 「覆いの無い空気」へ開く。これが屋内/屋外を見分ける決定的な違いになる。
+        int lateralSolid = 0;
+        int lateralOpen = 0;
 
         int head = 0;
 
@@ -118,27 +167,35 @@ public final class RoomFloodFill {
                     continue;
                 }
 
-                mpos.set(nx, ny, nz);
-                long nlong = mpos.asLong();
+                long nlong = BlockPos.asLong(nx, ny, nz);
 
                 if (visitedAir.contains(nlong) || visitedShell.contains(nlong)) {
                     continue;
                 }
 
+                boolean horizontal = dir.getStepY() == 0;
+
                 // 固体ブロック（壁・床・天井）か通過可能空間かを判定
-                if (WallAnalyzer.isSolid(level, mpos)) {
+                if (s.blockMap.isSolid(nx, ny, nz)) {
                     // 固体ブロックは壁殻 (Shell) として記録（キューへは入れない）
                     visitedShell.add(nlong);
-                } else if (isCovered(level, mpos, nx, ny, nz)) {
+                    if (horizontal) lateralSolid++;
+                } else if (isCovered(s, nx, ny, nz)) {
                     // 直上に固体の覆いがある空気セル → 屋内/洞窟内部として探索継続
                     visitedAir.add(nlong);
                     queue.add(nlong);
+                } else if (horizontal) {
+                    // 横方向に覆いの無い空気 = 屋外への開口
+                    lateralOpen++;
                 }
                 // 覆いの無いセルは屋外へ漏れるためキューに入れず打ち切る
             }
         }
 
-        boolean enclosed = !visitedAir.isEmpty();
+        // 屋内 = 横方向の境界が壁で構成されている (開口より壁が多い) こと。
+        // 頭上に覆いがあるだけの屋外空間 (オーバーハング・木陰・屋根付き広場) は
+        // 横方向が開いているため屋内と判定しない。
+        boolean enclosed = !visitedAir.isEmpty() && lateralSolid > 0 && lateralOpen <= lateralSolid;
         BlockPos min = new BlockPos(minX, minY, minZ);
         BlockPos max = new BlockPos(maxX, maxY, maxZ);
 
@@ -148,15 +205,13 @@ public final class RoomFloodFill {
     /**
      * 起点位置が通過可能か検証し、埋まっている場合は頭上など適切な空きスペースを返します。
      */
-    private static BlockPos findValidSeed(BlockGetter level, BlockPos seed, BlockPos.MutableBlockPos mpos) {
-        mpos.set(seed);
-        if (!WallAnalyzer.isSolid(level, mpos)) {
+    private static BlockPos findValidSeed(BlockMap blockMap, BlockPos seed) {
+        if (!blockMap.isSolid(seed.getX(), seed.getY(), seed.getZ())) {
             return seed;
         }
         // 足元が埋まっている場合、頭上(+1), +2 を試行
         for (int dy = 1; dy <= 2; dy++) {
-            mpos.set(seed.getX(), seed.getY() + dy, seed.getZ());
-            if (!WallAnalyzer.isSolid(level, mpos)) {
+            if (!blockMap.isSolid(seed.getX(), seed.getY() + dy, seed.getZ())) {
                 return seed.above(dy);
             }
         }
@@ -165,21 +220,20 @@ public final class RoomFloodFill {
 
     /**
      * 指定位置の直上 {@link #CEILING_SCAN_HEIGHT} 以内に固体の覆い(天井)があるか判定する。
-     * 空気・葉・液体は覆いとみなさない(透過)。
+     * 空気・葉・液体は覆いとみなさない(透過)。見つからなかったセルは記録して再走査を避ける。
      */
-    private static boolean isCovered(BlockGetter level, BlockPos.MutableBlockPos mpos, int x, int y, int z) {
-        int limit = y + CEILING_SCAN_HEIGHT;
+    private static boolean isCovered(Scratch s, int x, int y, int z) {
+        long key = BlockPos.asLong(x, y, z);
+        if (s.noCover.contains(key)) {
+            return false;
+        }
+        final int limit = y + CEILING_SCAN_HEIGHT;
         for (int yy = y + 1; yy <= limit; yy++) {
-            mpos.set(x, yy, z);
-            BlockState st = level.getBlockState(mpos);
-            if (st.isAir() || st.is(BlockTags.LEAVES) || !st.getFluidState().isEmpty()) {
-                continue;
-            }
-            VoxelShape shape = st.getCollisionShape(level, mpos, CollisionContext.empty());
-            if (!shape.isEmpty()) {
+            if (s.blockMap.isCover(x, yy, z)) {
                 return true;
             }
         }
+        s.noCover.add(key);
         return false;
     }
 
@@ -250,4 +304,3 @@ public final class RoomFloodFill {
         }
     }
 }
-

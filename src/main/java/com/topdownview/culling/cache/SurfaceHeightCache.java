@@ -3,7 +3,11 @@ package com.topdownview.culling.cache;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -19,6 +23,12 @@ public final class SurfaceHeightCache {
     public static final int UNKNOWN = Integer.MIN_VALUE;
 
     private static final int MAX_CACHE_SIZE = 1 << 15;
+
+    /**
+     * WORLD_SURFACE からこの深さまで、葉や装飾を飛ばして実際の地形面を探す。
+     * 見つからなければ WORLD_SURFACE にフォールバックする。
+     */
+    private static final int MAX_TERRAIN_SCAN = 48;
 
     private volatile int epoch = 0;
 
@@ -67,7 +77,34 @@ public final class SurfaceHeightCache {
             // 未ロード列やHeightmap未生成をワーカースレッドから生成しない（安全側でカリング無効）
             return UNKNOWN;
         }
-        return chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x & 15, z & 15);
+
+        // WORLD_SURFACE は葉・草・雪など非空気ブロックも含むため、木の列では実際の地形より高く出る。
+        // その値で切ると木の下の地面まで消えるため、葉・装飾を飛ばして衝突形状を持つ地形面まで下げる。
+        int top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x & 15, z & 15) - 1;
+        int minY = Math.max(chunk.getMinBuildHeight(), top - MAX_TERRAIN_SCAN);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int y = top; y >= minY; y--) {
+            pos.set(x, y, z);
+            BlockState state = chunk.getBlockState(pos);
+            if (isTerrainSurface(state, chunk, pos)) {
+                return y + 1;
+            }
+        }
+        return top + 1;
+    }
+
+    /**
+     * 葉・原木・草などの装飾を除いた「地形面」として扱えるブロックかどうか。
+     * 空気・葉・原木・衝突形状の無い装飾はスキップし、水面/溶岩面と衝突形状を持つブロックで止める。
+     */
+    private static boolean isTerrainSurface(BlockState state, BlockGetter level, BlockPos pos) {
+        if (state.isAir() || state.is(BlockTags.LEAVES) || state.is(BlockTags.LOGS)) {
+            return false;
+        }
+        if (!state.getFluidState().isEmpty()) {
+            return true;
+        }
+        return !state.getCollisionShape(level, pos).isEmpty();
     }
 
     /** 既存キャッシュを無効化する（ディメンション変更・設定変更時）。 */

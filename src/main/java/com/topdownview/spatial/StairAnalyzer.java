@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.StairBlock;
 
 /**
  * 階段検出エンジン。
@@ -34,7 +32,7 @@ import net.minecraft.world.level.block.StairBlock;
  *
  * <p>アルゴリズム：
  * <ol>
- *   <li>center 周辺の立方体（2*radius+1 辺）をスキャンし、候補を収集</li>
+ *   <li>center 周辺の直方体（XZ は 2*radius+1、Y は scanMinY..scanMaxY）をスキャンし、候補を収集</li>
  *     <ul>
  *       <li>候補 = 固体ブロック かつ 上が非固体（歩行可能な段）</li>
  *     </ul>
@@ -59,32 +57,47 @@ public final class StairAnalyzer {
     }
 
     /**
+     * 走査Y下限。最下段がプレイヤー基準より下にある階段でも minSteps 段を数えられるだけの
+     * 余裕を残しつつ、無関係な下層を走査しない。
+     */
+    public static int scanMinY(int feetY, int minSteps) {
+        return feetY - (minSteps - 1);
+    }
+
+    /**
+     * 走査Y上限。対象とすべき段の最大高さ (feetY + exclusionHeight) と、
+     * 最下段が feetY+1 にある階段でも minSteps 段を数えられる高さの大きい方を取る。
+     */
+    public static int scanMaxY(int feetY, int exclusionHeight, int minSteps) {
+        return feetY + Math.max(exclusionHeight, minSteps);
+    }
+
+    /**
      * 指定中心位置の周辺から階段を検出する。空間探索結果に依存しない。
      *
-     * @param level    ワールド（StairBlock判定・歩可行性判定に使用）
-     * @param center   スキャン中心位置（通常はプレイヤー位置）
-     * @param radius   スキャン半径（center を中心とした立方体の辺 = 2*radius+1）
+     * @param center   スキャン中心位置の水平基準（通常はプレイヤー位置）
+     * @param radius   水平スキャン半径（center を中心とした XZ の片側幅）
      * @param minSteps 階段として認定する最小段数（3以上を推奨）
+     * @param scanMinY 走査Y下限（{@link #scanMinY} で算出）
+     * @param scanMaxY 走査Y上限（{@link #scanMaxY} で算出）
+     * @param blockMap 固体判定キャッシュ。この探索中に構築されたものを再利用する。
      * @return 検出された階段リスト（重複ブロックなし、長い順）
      */
-    public static List<Staircase> detect(BlockGetter level, BlockPos center, int radius, int minSteps) {
-        if (level == null || center == null || radius < 1 || minSteps < 1) {
+    public static List<Staircase> detect(BlockPos center, int radius, int minSteps,
+            int scanMinY, int scanMaxY, BlockMap blockMap) {
+        if (center == null || blockMap == null || radius < 1 || minSteps < 1 || scanMinY > scanMaxY) {
             return List.of();
         }
 
-        // center 周辺の立方体をスキャンし、階段の段となりうるブロックを収集。
+        // center 周辺の直方体をスキャンし、階段の段となりうるブロックを収集。
         // 候補 = 固体ブロック かつ 上が非固体（歩行可能な段）。
-        // 半径16では最大3.5万件になり得るため、BlockPosではなくpacked longで保持してアロケーションを避ける。
+        // BlockPosではなくpacked longで保持してアロケーションを避ける。
         LongOpenHashSet candidates = new LongOpenHashSet();
-        BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
-        BlockPos.MutableBlockPos aboveMut = new BlockPos.MutableBlockPos();
-        int cx = center.getX(), cy = center.getY(), cz = center.getZ();
-        for (int y = cy - radius; y <= cy + radius; y++) {
+        int cx = center.getX(), cz = center.getZ();
+        for (int y = scanMinY; y <= scanMaxY; y++) {
             for (int x = cx - radius; x <= cx + radius; x++) {
                 for (int z = cz - radius; z <= cz + radius; z++) {
-                    mut.set(x, y, z);
-                    aboveMut.set(x, y + 1, z);
-                    if (WallAnalyzer.isSolid(level, mut) && !WallAnalyzer.isSolid(level, aboveMut)) {
+                    if (blockMap.isSolid(x, y, z) && !blockMap.isSolid(x, y + 1, z)) {
                         candidates.add(BlockPos.asLong(x, y, z));
                     }
                 }
@@ -98,8 +111,7 @@ public final class StairAnalyzer {
         // StairBlock をマーク
         LongOpenHashSet stairBlocks = new LongOpenHashSet();
         for (long p : candidates) {
-            mut.set(BlockPos.getX(p), BlockPos.getY(p), BlockPos.getZ(p));
-            if (isStairBlock(level, mut)) {
+            if (blockMap.isStair(BlockPos.getX(p), BlockPos.getY(p), BlockPos.getZ(p))) {
                 stairBlocks.add(p);
             }
         }
@@ -109,14 +121,13 @@ public final class StairAnalyzer {
         Set<Long> seenSequences = new HashSet<>();
         List<StairSeq> sequences = new ArrayList<>();
 
-        BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
         for (long start : candidates) {
             for (Direction dir : HORIZONTAL) {
-                long bottom = findBottom(level, candidates, start, dir, scratch);
+                long bottom = findBottom(candidates, start, dir, blockMap);
                 long key = sequenceKey(bottom, dir);
                 if (!seenSequences.add(key)) continue;
 
-                LongList seq = extendUp(level, candidates, bottom, dir, scratch);
+                LongList seq = extendUp(candidates, bottom, dir, blockMap);
                 if (seq.size() >= minSteps) {
                     sequences.add(new StairSeq(seq, dir));
                 }
@@ -167,26 +178,23 @@ public final class StairAnalyzer {
      * 指定ブロックが階段の段として歩可能か。
      * 候補（固体）であり、かつ上が非固体（頭上に空間がある）であること。
      */
-    private static boolean isWalkableStep(BlockGetter level, LongSet candidates, long pos,
-            BlockPos.MutableBlockPos scratch) {
+    private static boolean isWalkableStep(LongSet candidates, long pos, BlockMap blockMap) {
         if (!candidates.contains(pos)) return false;
-        scratch.set(BlockPos.getX(pos), BlockPos.getY(pos) + 1, BlockPos.getZ(pos));
-        return !WallAnalyzer.isSolid(level, scratch);
+        return !blockMap.isSolid(BlockPos.getX(pos), BlockPos.getY(pos) + 1, BlockPos.getZ(pos));
     }
 
     /**
      * 指定方向の最下段を見つける。
      * 逆方向・1下 に「上が非固体の候補」が続く限り下る。
      */
-    private static long findBottom(BlockGetter level, LongSet candidates, long pos, Direction dir,
-            BlockPos.MutableBlockPos scratch) {
+    private static long findBottom(LongSet candidates, long pos, Direction dir, BlockMap blockMap) {
         long cur = pos;
         while (true) {
             int nx = BlockPos.getX(cur) + dir.getOpposite().getStepX();
             int ny = BlockPos.getY(cur) - 1;
             int nz = BlockPos.getZ(cur) + dir.getOpposite().getStepZ();
             long next = BlockPos.asLong(nx, ny, nz);
-            if (!isWalkableStep(level, candidates, next, scratch)) break;
+            if (!isWalkableStep(candidates, next, blockMap)) break;
             cur = next;
         }
         return cur;
@@ -197,11 +205,10 @@ public final class StairAnalyzer {
      * 正方向・1上 に「上が非固体の候補」が続く限り上る。
      * 各段の上が非固体でなければ階段の段として成立しないため打ち切る。
      */
-    private static LongList extendUp(BlockGetter level, LongSet candidates, long bottom, Direction dir,
-            BlockPos.MutableBlockPos scratch) {
+    private static LongList extendUp(LongSet candidates, long bottom, Direction dir, BlockMap blockMap) {
         LongList seq = new LongArrayList();
         long cur = bottom;
-        while (isWalkableStep(level, candidates, cur, scratch)) {
+        while (isWalkableStep(candidates, cur, blockMap)) {
             seq.add(cur);
             int nx = BlockPos.getX(cur) + dir.getStepX();
             int ny = BlockPos.getY(cur) + 1;
@@ -214,11 +221,6 @@ public final class StairAnalyzer {
     /** (最下段, 方向) → long のハッシュキー生成 */
     private static long sequenceKey(long bottom, Direction dir) {
         return (bottom << 3) | dir.get3DDataValue();
-    }
-
-    /** バニラの階段ブロック(StairBlock)かどうか */
-    public static boolean isStairBlock(BlockGetter level, BlockPos pos) {
-        return level.getBlockState(pos).getBlock() instanceof StairBlock;
     }
 
     /** 内部用シーケンスホルダー */

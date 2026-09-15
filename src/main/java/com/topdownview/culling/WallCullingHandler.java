@@ -1,8 +1,11 @@
 package com.topdownview.culling;
 
+import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.BuildingClassifier;
 import com.topdownview.spatial.BuildingClassifier.Label;
 import com.topdownview.spatial.RoomFloodFill;
+import com.topdownview.spatial.RoomSegmentation;
+import com.topdownview.util.SpaceProfiler;
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -11,7 +14,6 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockGetter;
 
 /**
  * 屋内壁のカリング処理。{@link BuildingClassifier} が部屋殻を ROOF/WALL/FLOOR に分類した結果から
@@ -32,17 +34,20 @@ public final class WallCullingHandler {
 
     private static final Direction[] ALL6 = Direction.values();
 
-    /** 内向き法線と視線方向の内積がこれを超える壁を手前側とみなす。 */
-    private static final double OCCLUDING_DOT_THRESHOLD = 0.0;
+    /**
+     * 内向き法線と視線方向のなす角が 45° 以内の壁だけを手前側とみなす。
+     *
+     * <p>しきい値 0 だと数度回転しただけで隣接する2枚の壁が同時に対象になり、視点をわずかに
+     * 動かすたびに壁が2枚消えてしまう。しきい値を cos45° にすると、軸直交する4枚の壁のうち
+     * 同時に対象になるのは常に1枚以下になり、正面に近い壁だけが消える。
+     */
+    private static final double OCCLUDING_DOT_THRESHOLD = Math.cos(Math.PI / 4.0);
 
     /** カメラ→プレイヤーの水平距離がこれ未満なら真上視点とみなし、全壁を保護する。 */
     private static final double MIN_VIEW_DIR_LEN_SQ = 1.0E-4;
 
     /** 再構築をスキップする視線方向の変化量（成分ごと）。 */
     private static final double VIEW_DIR_EPSILON = 1.0E-3;
-
-    /** 再分類を起こすプレイヤーシードの移動量（マンハッタン）。 */
-    private static final int RECLASSIFY_MOVE_THRESHOLD = 2;
 
     /** 厚い壁の外層へ法線を伝播させる最大ホップ数。{@link BuildingClassifier#T_MAX} に合わせる。 */
     private static final int MAX_PROPAGATION_DEPTH = BuildingClassifier.T_MAX;
@@ -56,9 +61,15 @@ public final class WallCullingHandler {
     private Long2FloatOpenHashMap wallNormalX = new Long2FloatOpenHashMap();
     private Long2FloatOpenHashMap wallNormalZ = new Long2FloatOpenHashMap();
 
-    private int lastSeedX = Integer.MIN_VALUE;
-    private int lastSeedY = Integer.MIN_VALUE;
-    private int lastSeedZ = Integer.MIN_VALUE;
+    /** 再分類の基準にした部屋の AABB + 階。同じ部屋にいる間は建物構造が不変なので再分類しない。 */
+    private boolean hasRoomKey = false;
+    private int roomMinX;
+    private int roomMinY;
+    private int roomMinZ;
+    private int roomMaxX;
+    private int roomMaxY;
+    private int roomMaxZ;
+    private int roomStorey;
 
     private double lastViewDirX = 0.0;
     private double lastViewDirZ = 0.0;
@@ -71,9 +82,7 @@ public final class WallCullingHandler {
         wallNormalX = new Long2FloatOpenHashMap();
         wallNormalZ = new Long2FloatOpenHashMap();
         occludingWallPositions = new LongOpenHashSet();
-        lastSeedX = Integer.MIN_VALUE;
-        lastSeedY = Integer.MIN_VALUE;
-        lastSeedZ = Integer.MIN_VALUE;
+        hasRoomKey = false;
         lastViewDirX = 0.0;
         lastViewDirZ = 0.0;
         classificationDirty = true;
@@ -84,33 +93,85 @@ public final class WallCullingHandler {
         return !set.isEmpty() && set.contains(posLong);
     }
 
+    /** 直近の分類結果。未分類なら {@link BuildingClassifier.Result#EMPTY}。 */
+    public BuildingClassifier.Result getClassification() {
+        return classification;
+    }
+
+    /**
+     * 手前壁集合のみを空にする。分類結果は残すため、分類を共有する天井カリングを壊さない。
+     */
+    public void clearOccludingWalls() {
+        occludingWallPositions = new LongOpenHashSet();
+    }
+
     /**
      * 部屋殻を再分類し、WALL ブロックとその内向き法線を構築する。
-     * プレイヤーが一定量移動するまでは前回結果を再利用する。
+     *
+     * <p>同じ部屋にいる間は建物構造が変わらないため、部屋の AABB + 階が変化したときだけ再分類する。
+     * 2ブロック移動ごとに classify を走らせる従来方式に比べ、歩行中の再分類回数を大幅に削減できる。
+     *
+     * @param playerRoom プレイヤーが属する部屋。{@code null} の場合は部屋空気全体を法線計算に使う。
      */
-    public void updateClassification(BlockGetter level, RoomFloodFill.Result room, boolean enclosed) {
-        if (!enclosed || room == null || !room.isEnclosed()) {
+    public void updateClassification(RoomFloodFill.Result room, boolean enclosed,
+            RoomSegmentation.Room playerRoom, BlockMap blockMap) {
+        if (!enclosed || room == null || !room.isEnclosed() || blockMap == null) {
             if (classification.isValid() || !occludingWallPositions.isEmpty()) {
                 clearCache();
             }
             return;
         }
 
-        BlockPos seed = room.getSeed();
-        int sx = seed.getX();
-        int sy = seed.getY();
-        int sz = seed.getZ();
-        if (classification.isValid()
-                && Math.abs(sx - lastSeedX) + Math.abs(sy - lastSeedY) + Math.abs(sz - lastSeedZ)
-                    < RECLASSIFY_MOVE_THRESHOLD) {
+        final int minX;
+        final int minY;
+        final int minZ;
+        final int maxX;
+        final int maxY;
+        final int maxZ;
+        final int storey;
+        if (playerRoom != null) {
+            BlockPos mn = playerRoom.getMinPos();
+            BlockPos mx = playerRoom.getMaxPos();
+            minX = mn.getX();
+            minY = mn.getY();
+            minZ = mn.getZ();
+            maxX = mx.getX();
+            maxY = mx.getY();
+            maxZ = mx.getZ();
+            storey = playerRoom.getStorey();
+        } else {
+            BlockPos mn = room.getMinPos();
+            BlockPos mx = room.getMaxPos();
+            minX = mn.getX();
+            minY = mn.getY();
+            minZ = mn.getZ();
+            maxX = mx.getX();
+            maxY = mx.getY();
+            maxZ = mx.getZ();
+            storey = -1;
+        }
+
+        boolean roomChanged = !hasRoomKey
+                || minX != roomMinX || minY != roomMinY || minZ != roomMinZ
+                || maxX != roomMaxX || maxY != roomMaxY || maxZ != roomMaxZ
+                || storey != roomStorey;
+        if (classification.isValid() && !roomChanged) {
             return;
         }
-        lastSeedX = sx;
-        lastSeedY = sy;
-        lastSeedZ = sz;
+        hasRoomKey = true;
+        roomMinX = minX;
+        roomMinY = minY;
+        roomMinZ = minZ;
+        roomMaxX = maxX;
+        roomMaxY = maxY;
+        roomMaxZ = maxZ;
+        roomStorey = storey;
 
-        classification = BuildingClassifier.classify(level, room);
-        airCells = room.getAirCells();
+        long tClassify = System.nanoTime();
+        classification = BuildingClassifier.classify(room, blockMap);
+        SpaceProfiler.CLASSIFY.add(System.nanoTime() - tClassify);
+        // 法線はプレイヤーの部屋の空気だけを基準にする。隣室に面する壁を手前壁と誤判定しない。
+        airCells = (playerRoom != null) ? playerRoom.getAirCells() : room.getAirCells();
         buildWallData();
         classificationDirty = true;
     }

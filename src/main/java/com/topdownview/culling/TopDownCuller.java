@@ -10,10 +10,12 @@ import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.spatial.RoomFloodFill;
+import com.topdownview.spatial.RoomSegmentation;
 import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
+import com.topdownview.util.SpaceProfiler;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -76,6 +78,12 @@ public final class TopDownCuller {
 
     private boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
+    private final RoomFloodFill.Scratch spaceScratch = new RoomFloodFill.Scratch();
+    private BlockPos lastSpaceSeed = null;
+    private ResourceKey<Level> lastSpaceDimension = null;
+
+    /** 空間判定を再実行するプレイヤーシードの移動量（マンハッタン）。 */
+    private static final int SPACE_REPROBE_MOVE_THRESHOLD = 2;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -132,6 +140,9 @@ public final class TopDownCuller {
         
         currentSpaceEnclosed = false;
         currentSpaceResult = null;
+        spaceScratch.clear();
+        lastSpaceSeed = null;
+        lastSpaceDimension = null;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -333,6 +344,8 @@ public final class TopDownCuller {
         }
 
         float finalAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
+        // FASTグラフィックの葉は不透明テクスチャで描かれるため、半透明にすると「別ブロック」のように
+        // 見える。見た目の変化を避けるため、半透明化せず完全にカリングして視界から消す。
         if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) &&
                 Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
             return 0.0f;
@@ -512,10 +525,11 @@ public final class TopDownCuller {
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             wallHandler.refreshOccluding(cameraX, cameraZ, playerX, playerZ);
         } else {
-            wallHandler.clearCache();
+            wallHandler.clearOccludingWalls();
         }
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         updateEntityCulling(mc);
+        SpaceProfiler.tick();
     }
 
     private void updateSpaceRecognition(Minecraft mc, int blockX, int blockY, int blockZ) {
@@ -523,6 +537,22 @@ public final class TopDownCuller {
             currentSpaceEnclosed = false;
             return;
         }
+
+        // 空間判定・樹木検出はプレイヤーが一定量移動したときだけ再実行する。
+        // 屋内構造や樹木は数ブロックの移動では変わらないため、毎tickの全探索を避けられる。
+        final BlockPos seed = mc.player.blockPosition();
+        final boolean dimensionChanged = !mc.level.dimension().equals(lastSpaceDimension);
+        boolean needReprobe;
+        if (currentSpaceResult == null || lastSpaceSeed == null || dimensionChanged) {
+            needReprobe = true;
+        } else {
+            needReprobe = seed.distManhattan(lastSpaceSeed) >= SPACE_REPROBE_MOVE_THRESHOLD;
+        }
+        if (!needReprobe) {
+            return;
+        }
+        lastSpaceSeed = seed.immutable();
+        lastSpaceDimension = mc.level.dimension();
 
         if (Config.isProtectNaturalTreeLogs()) {
             NaturalTreeDetector.scan(mc.level, blockX, blockY, blockZ, cachedCylinderRadiusHorizontal + 2);
@@ -532,25 +562,44 @@ public final class TopDownCuller {
             treeHandler.clearCache();
         }
 
-        BlockPos seed = mc.player.blockPosition();
-        currentSpaceResult = SpaceProbe.probe(mc.level, seed);
+        long tProbe = System.nanoTime();
+        currentSpaceResult = SpaceProbe.probe(mc.level, seed, spaceScratch);
+        SpaceProfiler.PROBE.add(System.nanoTime() - tProbe);
         currentSpaceEnclosed = currentSpaceResult.isEnclosed();
 
         RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
-        ceilingHandler.update(currentSpaceEnclosed, roomResult);
+        RoomSegmentation.Room playerRoom = currentSpaceResult.getSegmentation().getPlayerRoom();
+
+        // 建物分類は壁カリング (WALL) と天井カリング (ROOF) が共有するため、天井より先に確定させる。
+        long tWall = System.nanoTime();
+        wallHandler.updateClassification(roomResult, currentSpaceEnclosed, playerRoom,
+                spaceScratch.getBlockMap());
+        SpaceProfiler.WALL.add(System.nanoTime() - tWall);
+
+        long tCeiling = System.nanoTime();
+        ceilingHandler.update(currentSpaceEnclosed, wallHandler.getClassification());
+        SpaceProfiler.CEILING.add(System.nanoTime() - tCeiling);
+
+        long tLadder = System.nanoTime();
         ladderHandler.scan(mc.level, blockX, blockZ, blockY - 1);
-        stairHandler.update(mc, blockY, currentSpaceEnclosed, roomResult);
+        SpaceProfiler.LADDER.add(System.nanoTime() - tLadder);
+
+        long tStair = System.nanoTime();
+        stairHandler.update(mc, blockY, currentSpaceEnclosed, roomResult, spaceScratch.getBlockMap());
+        SpaceProfiler.STAIR.add(System.nanoTime() - tStair);
 
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             int feetY = (int) Math.floor(mc.player.getY());
+            long tCover = System.nanoTime();
             coverHandler.update(mc.level, blockX, feetY, blockZ, currentSpaceEnclosed,
                     mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
                     Config.isCoverCullingViewshedEnabled());
-            wallHandler.updateClassification(mc.level, roomResult, currentSpaceEnclosed);
+            SpaceProfiler.COVER.add(System.nanoTime() - tCover);
         } else {
+            // 分類結果は天井カリングが使うので残し、手前壁集合だけを空にする。
             coverHandler.clearCache();
-            wallHandler.clearCache();
+            wallHandler.clearOccludingWalls();
         }
     }
 
@@ -724,8 +773,9 @@ public final class TopDownCuller {
         boolean cylinderFadeEnabled = fadeEnabled && cachedCullingMode != CullingConfig.CULLING_MODE_COVER_ONLY;
         boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
-        boolean stairOcclude = Config.isStaircaseOccludeEnabled();
+        boolean stairOcclude = Config.isStaircaseExclusionEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();
+        // FASTグラフィックの葉は半透明にすると見た目が変わるため、フェード集合へ入れず消す。
         boolean fastGraphics = Minecraft.getInstance().options.graphicsMode().get()
                 == net.minecraft.client.GraphicsStatus.FAST;
 

@@ -1,5 +1,6 @@
 package com.topdownview.spatial;
 
+import com.topdownview.util.SpaceProfiler;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,13 +48,28 @@ public final class SpaceProbe {
      * @return 判定結果
      */
     public static Result probe(BlockGetter level, BlockPos feetPos) {
+        return probe(level, feetPos, null);
+    }
+
+    /**
+     * 作業バッファを再利用して空間を判定する。
+     *
+     * @param level   ワールド
+     * @param feetPos プレイヤーの足元ブロック位置
+     * @param scratch {@link RoomFloodFill.Scratch}。{@code null} なら内部で生成。
+     * @return 判定結果
+     */
+    public static Result probe(BlockGetter level, BlockPos feetPos, RoomFloodFill.Scratch scratch) {
         if (level == null || feetPos == null) {
             int[] noWalls = new int[HORIZONTAL.length];
             java.util.Arrays.fill(noWalls, WALL_NONE);
-            return new Result(false, NO_CEILING, BlockPos.ZERO, noWalls, HORIZONTAL, RoomFloodFill.Result.EMPTY);
+            return new Result(false, NO_CEILING, BlockPos.ZERO, noWalls, HORIZONTAL,
+                    RoomFloodFill.Result.EMPTY, RoomSegmentation.Result.EMPTY);
         }
 
-        RoomFloodFill.Result roomResult = RoomFloodFill.compute(level, feetPos);
+        long tFlood = System.nanoTime();
+        RoomFloodFill.Result roomResult = RoomFloodFill.compute(level, feetPos, scratch);
+        SpaceProfiler.FLOOD.add(System.nanoTime() - tFlood);
         boolean enclosed = roomResult.isEnclosed();
         int ceilingY = roomResult.getCeilingY();
 
@@ -82,7 +98,13 @@ public final class SpaceProbe {
             java.util.Arrays.fill(wallDistances, WALL_NONE);
         }
 
-        return new Result(enclosed, ceilingY, feetPos, wallDistances, HORIZONTAL, roomResult);
+        long tSegment = System.nanoTime();
+        RoomSegmentation.Result segmentation = enclosed
+                ? RoomSegmentation.analyze(roomResult, feetPos)
+                : RoomSegmentation.Result.EMPTY;
+        SpaceProfiler.SEGMENT.add(System.nanoTime() - tSegment);
+
+        return new Result(enclosed, ceilingY, feetPos, wallDistances, HORIZONTAL, roomResult, segmentation);
     }
 
     /**
@@ -95,16 +117,18 @@ public final class SpaceProbe {
         private final int[] wallDistances;
         private final Direction[] directions;
         private final RoomFloodFill.Result roomResult;
+        private final RoomSegmentation.Result segmentation;
 
         Result(boolean enclosed, int ceilingY, BlockPos origin,
                int[] wallDistances, Direction[] directions,
-               RoomFloodFill.Result roomResult) {
+               RoomFloodFill.Result roomResult, RoomSegmentation.Result segmentation) {
             this.enclosed = enclosed;
             this.ceilingY = ceilingY;
             this.origin = origin;
             this.wallDistances = wallDistances.clone();
             this.directions = directions.clone();
             this.roomResult = roomResult;
+            this.segmentation = segmentation;
         }
 
         /** 屋内判定結果 */
@@ -151,6 +175,11 @@ public final class SpaceProbe {
         /** 詳細な 3D 部屋探索結果を取得 */
         public RoomFloodFill.Result getRoomResult() {
             return roomResult;
+        }
+
+        /** 階・部屋への分割結果を取得 */
+        public RoomSegmentation.Result getSegmentation() {
+            return segmentation;
         }
     }
 }

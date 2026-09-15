@@ -1,13 +1,15 @@
 package com.topdownview.culling;
 
-import com.topdownview.spatial.RoomFloodFill;
-import it.unimi.dsi.fastutil.longs.LongIterator;
+import com.topdownview.spatial.BuildingClassifier;
+import com.topdownview.spatial.BuildingClassifier.Label;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
-import net.minecraft.core.BlockPos;
 
 /**
- * 屋内空間として判定された領域の天井ブロックのカリング処理を担うハンドラー。
+ * 屋内空間の屋根(天井)ブロックのカリング処理を担うハンドラー。
+ *
+ * <p>{@link BuildingClassifier} が {@link Label#ROOF} と分類したセルを全てカリング対象にする。
+ * 空気直上の1層だけでなく厚い屋根の上層や、連結空間内の別部屋の屋根も含めて消えるため、
+ * トップダウン視点から建物内部まで見通せる。
  */
 public final class CeilingCullingHandler {
     private final LongOpenHashSet ceilingCullPositions = new LongOpenHashSet();
@@ -20,27 +22,17 @@ public final class CeilingCullingHandler {
         return !ceilingCullPositions.isEmpty() && ceilingCullPositions.contains(posLong);
     }
 
-    public void update(boolean currentSpaceEnclosed, RoomFloodFill.Result roomResult) {
+    public void update(boolean currentSpaceEnclosed, BuildingClassifier.Result classification) {
         ceilingCullPositions.clear();
-        if (!currentSpaceEnclosed || roomResult == null || !roomResult.isEnclosed()) {
+        if (!currentSpaceEnclosed || classification == null || !classification.isValid()) {
             return;
         }
-        
-        LongSet airCells = roomResult.getAirCells();
-        LongSet shellCells = roomResult.getShellCells();
-        if (airCells.isEmpty() || shellCells.isEmpty()) {
-            return;
-        }
-        
-        LongIterator it = shellCells.iterator();
+
+        var it = classification.getLabels().long2ObjectEntrySet().iterator();
         while (it.hasNext()) {
-            long packed = it.nextLong();
-            int x = BlockPos.getX(packed);
-            int y = BlockPos.getY(packed);
-            int z = BlockPos.getZ(packed);
-            long below = BlockPos.asLong(x, y - 1, z);
-            if (airCells.contains(below)) {
-                ceilingCullPositions.add(packed);
+            var entry = it.next();
+            if (entry.getValue() == Label.ROOF) {
+                ceilingCullPositions.add(entry.getLongKey());
             }
         }
     }

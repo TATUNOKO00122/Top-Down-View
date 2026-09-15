@@ -75,7 +75,7 @@
   "topdown_view.config.view_wedge_half_angle.tooltip": "カメラ側カリングコーンの半角（度）です。\n小さいほど通路が狭く、大きいほど広くカリングします。",
   "topdown_view.config.cover_culling_radius.tooltip": "歩行可能な地面とその上の覆いを探索する水平半径です。",
   "topdown_view.config.cover_culling_viewshed_enabled.tooltip": "プレイヤーの視点から実際に見える地面の上の覆いだけをカリングします。\nオフにすると範囲内の全歩行可能列を対象にします。",
-  "topdown_view.config.player_near_translucency_enabled.tooltip": "プレイヤーの周囲のブロックを半透明にする機能を切り替えます。",
+  "topdown_view.config.player_near_translucency_enabled.tooltip": "プレイヤーの周囲のブロックを半透明にする機能を切り替えます。\n§7FASTグラフィックでは葉ブロックのみ、半透明にすると見た目が変わるため半透明化せず完全にカリングします。",
   "topdown_view.config.player_near_translucency_alpha.tooltip": "プレイヤー周囲のブロックを半透明にする際のアルファ値です。\n0.0で完全な透明、1.0で完全に不透明になります。",
   "topdown_view.config.player_near_translucency_range_horizontal.tooltip": "プレイヤーを中心とした半透明化の水平方向の半径（ブロック数）です。\n0でプレイヤー自身のマスのみが対象になります。",
   "topdown_view.config.player_near_translucency_range_vertical.tooltip": "プレイヤーの足元から上方向への半透明化の範囲（高さのブロック数）です。\n2で足元と頭（2ブロック分）が対象になります。",

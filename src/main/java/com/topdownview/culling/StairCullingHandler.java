@@ -3,9 +3,11 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.OcclusionCalculator;
+import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
+import com.topdownview.state.SpaceDebugState;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -29,25 +31,33 @@ public final class StairCullingHandler {
         detectedStaircases = List.of();
     }
 
-    public void update(Minecraft mc, int blockY, boolean currentSpaceEnclosed, RoomFloodFill.Result roomResult) {
+    public void update(Minecraft mc, int blockY, boolean currentSpaceEnclosed, RoomFloodFill.Result roomResult,
+            BlockMap blockMap) {
         excludedStairBlocks.clear();
         detectedStaircases = List.of();
 
-        if (mc.level == null || mc.player == null || !Config.isStaircaseExclusionEnabled() || !currentSpaceEnclosed) {
+        if (mc.level == null || mc.player == null || !Config.isStaircaseExclusionEnabled() || !currentSpaceEnclosed
+                || blockMap == null) {
             return;
         }
 
         BlockPos seed = mc.player.blockPosition();
-        List<Staircase> staircases = StairAnalyzer.detect(mc.level, seed,
-                com.topdownview.state.SpaceDebugState.STAIR_SCAN_RADIUS,
-                com.topdownview.state.SpaceDebugState.MIN_STAIRCASE_STEPS);
-        
+        int minSteps = SpaceDebugState.MIN_STAIRCASE_STEPS;
+        int playerFeetY = blockY - 1;
+        int exclusionHeight = Config.getStaircaseExclusionHeight();
+        // 除外対象の段 (playerFeetY..playerFeetY+exclusionHeight) と、その段を含む階段を
+        // minSteps 段として認定できる下限/上限のみ走査する。それ以外のYは結果に寄与しない。
+        List<Staircase> staircases = StairAnalyzer.detect(seed,
+                SpaceDebugState.STAIR_SCAN_RADIUS,
+                minSteps,
+                StairAnalyzer.scanMinY(playerFeetY, minSteps),
+                StairAnalyzer.scanMaxY(playerFeetY, exclusionHeight, minSteps),
+                blockMap);
+
         if (staircases.isEmpty()) {
             return;
         }
 
-        int playerFeetY = blockY - 1;
-        int exclusionHeight = Config.getStaircaseExclusionHeight();
         int minY = playerFeetY;
         int maxY = playerFeetY + exclusionHeight;
         LongSet airCells = roomResult != null ? roomResult.getAirCells() : null;

@@ -75,7 +75,7 @@
   "topdown_view.config.view_wedge_half_angle.tooltip": "Half angle of the camera-side culling cone in degrees.\nSmaller values cull a narrower corridor, larger values cull a wider one.",
   "topdown_view.config.cover_culling_radius.tooltip": "Horizontal radius searched for walkable ground and the covers above it.",
   "topdown_view.config.cover_culling_viewshed_enabled.tooltip": "Culls covers only over ground actually visible from the player's eye.\nTurn off to cull every walkable column in range.",
-  "topdown_view.config.player_near_translucency_enabled.tooltip": "Toggles translucency rendering for blocks near the player.",
+  "topdown_view.config.player_near_translucency_enabled.tooltip": "Toggles translucency rendering for blocks near the player.\n§7On FAST graphics, leaves are fully culled instead of made translucent, since fading their opaque texture changes their appearance.",
   "topdown_view.config.player_near_translucency_alpha.tooltip": "Minimum alpha value for translucent blocks near the player.\n0.0 is fully transparent, 1.0 is fully opaque.",
   "topdown_view.config.player_near_translucency_range_horizontal.tooltip": "Horizontal radius of translucency around the player (in blocks).\n0 targets the player's column only.",
   "topdown_view.config.player_near_translucency_range_vertical.tooltip": "Height range of translucency upwards from the player's feet (in blocks).\n2 covers feet and head.",
