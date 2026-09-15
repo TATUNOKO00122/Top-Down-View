@@ -276,6 +276,43 @@ public class ConfigScreen extends Screen {
             y += sp;
         }
 
+        y = addSection(y, "topdown_view.config.section.indoor_culling", tx);
+        addRightWidget(Button.builder(getIndoorCullingModeComponent(Config.getIndoorCullingMode()), btn -> {
+            Config.setIndoorCullingMode((Config.getIndoorCullingMode() + 1) % 2);
+            this.init();
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.indoor_culling_mode.tooltip")))
+                .build());
+        y += sp;
+        if (Config.getIndoorCullingMode() == CullingConfig.INDOOR_CULLING_ELEMENT) {
+            addRightWidget(Button.builder(
+                    getOnOffComponent("topdown_view.config.indoor_wall_culling_enabled", Config.isIndoorWallCullingEnabled()),
+                    btn -> {
+                        Config.setIndoorWallCullingEnabled(!Config.isIndoorWallCullingEnabled());
+                        btn.setMessage(getOnOffComponent("topdown_view.config.indoor_wall_culling_enabled",
+                                Config.isIndoorWallCullingEnabled()));
+                    }).bounds(x, y, w, h)
+                    .tooltip(Tooltip.create(Component.translatable(
+                            "topdown_view.config.indoor_wall_culling_enabled.tooltip")))
+                    .build());
+            y += sp;
+            addRightWidget(Button.builder(
+                    getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled", Config.isIndoorCeilingCullingEnabled()),
+                    btn -> {
+                        Config.setIndoorCeilingCullingEnabled(!Config.isIndoorCeilingCullingEnabled());
+                        btn.setMessage(getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled",
+                                Config.isIndoorCeilingCullingEnabled()));
+                    }).bounds(x, y, w, h)
+                    .tooltip(Tooltip.create(Component.translatable(
+                            "topdown_view.config.indoor_ceiling_culling_enabled.tooltip")))
+                    .build());
+            y += sp;
+            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.indoor_wall_culling_half_angle",
+                    Config.getIndoorWallCullingHalfAngle(), 10, 90,
+                    val -> Config.setIndoorWallCullingHalfAngle(val)));
+            y += sp;
+        }
+
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.disable_fade_indoors", Config.isDisableFadeIndoors()), btn -> {
@@ -751,6 +788,12 @@ public class ConfigScreen extends Screen {
         String modeKey = mode == CullingConfig.CULLING_MODE_CYLINDER ? "old" : "new";
         return Component.translatable("topdown_view.config.culling_mode",
                 Component.translatable("topdown_view.config.culling_mode." + modeKey).getString());
+    }
+
+    private Component getIndoorCullingModeComponent(int mode) {
+        String modeKey = mode == CullingConfig.INDOOR_CULLING_ELEMENT ? "element" : "off";
+        return Component.translatable("topdown_view.config.indoor_culling_mode",
+                Component.translatable("topdown_view.config.indoor_culling_mode." + modeKey).getString());
     }
 
     private Component getRotateModeComponent(int mode) {

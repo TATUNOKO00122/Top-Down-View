@@ -2,6 +2,7 @@ package com.topdownview.culling;
 
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.spatial.BlockMap;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,7 @@ public final class CullingManager {
     private static int lastRebuildCameraX = Integer.MIN_VALUE;
     private static int lastRebuildCameraY = Integer.MIN_VALUE;
     private static int lastRebuildCameraZ = Integer.MIN_VALUE;
+    private static long lastRebuildGeneration = Long.MIN_VALUE;
 
     private CullingManager() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -111,7 +113,10 @@ public final class CullingManager {
 
         // 覆いカリングの時間差進行中は、プレイヤーが静止していても再構築して1つずつ消す。
         boolean coverReleasing = CULLER.hasActiveCoverRelease();
-        if (!coverReleasing
+        // 屋内要素カリングは視点の回転だけで手前壁が変わる。世代が進んだら座標が同じでも再構築する。
+        long generation = CULLER.getCullingGeneration();
+        boolean generationChanged = generation != lastRebuildGeneration;
+        if (!coverReleasing && !generationChanged
                 && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
@@ -133,12 +138,20 @@ public final class CullingManager {
         }
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
         if (coverReleasing) {
-            // 覆い対象は円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
+            // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
             int coverRadius = Config.getCoverCullingRadius();
             box = box.inflate(
                     Math.max(0, coverRadius - radiusH),
                     Math.max(0, coverRadius - radiusV),
                     Math.max(0, coverRadius - radiusH));
+        }
+        if (CULLER.isIndoorElementActive()) {
+            // 屋内要素(壁パネル/天井スライス)は分類領域まで広がるため、探索キャッシュ全域を再構築する。
+            int revealRadius = BlockMap.RADIUS_XZ;
+            box = box.inflate(
+                    Math.max(0, revealRadius - radiusH),
+                    Math.max(0, revealRadius - radiusV),
+                    Math.max(0, revealRadius - radiusH));
         }
 
         if (scheduleChunkRebuildInternal(box)) {
@@ -149,6 +162,7 @@ public final class CullingManager {
             lastRebuildCameraX = cX;
             lastRebuildCameraY = cY;
             lastRebuildCameraZ = cZ;
+            lastRebuildGeneration = generation;
         }
     }
 
@@ -198,6 +212,7 @@ public final class CullingManager {
         lastRebuildCameraX = Integer.MIN_VALUE;
         lastRebuildCameraY = Integer.MIN_VALUE;
         lastRebuildCameraZ = Integer.MIN_VALUE;
+        lastRebuildGeneration = Long.MIN_VALUE;
     }
 
     public static void forceChunkRebuild(Minecraft mc) {

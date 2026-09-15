@@ -84,6 +84,10 @@ public final class TopDownCuller {
     /** 空間判定を再実行するプレイヤーシードの移動量（マンハッタン）。 */
     private static final int SPACE_REPROBE_MOVE_THRESHOLD = 2;
 
+    /** 直前に屋内と判定した座標。この近くの非屋内判定は段差等による一瞬のブレとして無視する。 */
+    private BlockPos lastEnclosedSeed = null;
+    private static final int ENCLOSED_STICKY_MOVE = 3;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
@@ -93,6 +97,7 @@ public final class TopDownCuller {
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingCullingHandler ceilingHandler = new CeilingCullingHandler();
+    private final CeilingSliceCuller ceilingSliceCuller = new CeilingSliceCuller();
     private final WallCullingHandler wallHandler = new WallCullingHandler();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
     private final FadeTransitionController fadeTransitionController = new FadeTransitionController();
@@ -106,6 +111,10 @@ public final class TopDownCuller {
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
     private int cachedCullingMode;
+    private boolean cachedIndoorElementActive;
+    private int cachedIndoorCullingMode;
+    private boolean cachedIndoorWallEnabled;
+    private boolean cachedIndoorCeilingEnabled;
     private double cachedViewWedgeCos;
     private double viewDirX = 0.0;
     private double viewDirZ = 1.0;
@@ -134,16 +143,20 @@ public final class TopDownCuller {
         ladderHandler.clearCache();
         treeHandler.clearCache();
         ceilingHandler.clearCache();
+        ceilingSliceCuller.clearCache();
         wallHandler.clearCache();
         coverHandler.clearCache();
         fadeTransitionController.clearCache();
         
         currentSpaceEnclosed = false;
         cachedDisableIndoorFade = false;
+        cachedIndoorElementActive = false;
+        cachedCoverCullingActive = false;
         currentSpaceResult = null;
         spaceScratch.clear();
         lastSpaceSeed = null;
         lastSpaceDimension = null;
+        lastEnclosedSeed = null;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -224,6 +237,14 @@ public final class TopDownCuller {
                 cullingCache.put(posLong, false);
                 return false;
             }
+        }
+
+        // 屋内要素別カリング: 壁面パネルと天井スライスは保護の影響を受けずに消す。
+        // これ以外のブロックは下の通常カリングへ流し、通常カリング側では保護を適用する。
+        if (cachedIndoorElementActive && (wallHandler.isOccludingWall(posLong)
+                || ceilingSliceCuller.isCeilingSliceBlock(posLong))) {
+            cullingCache.put(posLong, true);
+            return true;
         }
 
         if (undergroundCullingActive && isVerticallyCulled(pos)) {
@@ -440,7 +461,9 @@ public final class TopDownCuller {
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
-        cachedCoverCullingActive = cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
+        cachedIndoorCullingMode = Config.getIndoorCullingMode();
+        cachedIndoorWallEnabled = Config.isIndoorWallCullingEnabled();
+        cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
         cachedViewWedgeProtection = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
         double wedgeDirX = playerX - cameraX;
@@ -527,8 +550,10 @@ public final class TopDownCuller {
             // 覆いのカリング開始時刻が時間で進むため、ワーカーの判定結果を毎tick作り直す。
             cullingCache.clear();
         }
-        if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
-            wallHandler.refreshOccluding(cameraX, cameraZ, playerX, playerZ);
+        boolean refreshWalls = cachedCoverCullingActive
+                || (cachedIndoorElementActive && cachedIndoorWallEnabled);
+        if (ModState.STATUS.isEnabled() && refreshWalls) {
+            wallHandler.refreshOccluding(cameraX, cameraY, cameraZ, playerX, playerY, playerZ);
         } else {
             wallHandler.clearOccludingWalls();
         }
@@ -558,6 +583,9 @@ public final class TopDownCuller {
         }
         lastSpaceSeed = seed.immutable();
         lastSpaceDimension = mc.level.dimension();
+        if (dimensionChanged) {
+            lastEnclosedSeed = null;
+        }
 
         if (Config.isProtectNaturalTreeLogs()) {
             NaturalTreeDetector.scan(mc.level, blockX, blockY, blockZ, cachedCylinderRadiusHorizontal + 2);
@@ -568,9 +596,27 @@ public final class TopDownCuller {
         }
 
         long tProbe = System.nanoTime();
-        currentSpaceResult = SpaceProbe.probe(mc.level, seed, spaceScratch);
+        SpaceProbe.Result probed = SpaceProbe.probe(mc.level, seed, spaceScratch);
         SpaceProfiler.PROBE.add(System.nanoTime() - tProbe);
-        currentSpaceEnclosed = currentSpaceResult.isEnclosed();
+
+        // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングがチカチカする。
+        // 直前まで屋内だった座標の近くならそのブレとして無視し、屋内状態を維持する。
+        if (!probed.isEnclosed() && lastEnclosedSeed != null
+                && seed.distManhattan(lastEnclosedSeed) <= ENCLOSED_STICKY_MOVE) {
+            return;
+        }
+
+        currentSpaceResult = probed;
+        currentSpaceEnclosed = probed.isEnclosed();
+        lastEnclosedSeed = currentSpaceEnclosed ? seed.immutable() : null;
+
+        // 屋内要素別カリングは通常カリングに追加する形で動かす。屋内外どちらでも通常カリング
+        // (覆い/円柱/保護など) は適用し、要素別カリング(壁パネル/天井スライス)だけ保護の対象外。
+        boolean elementActive = currentSpaceEnclosed
+                && cachedIndoorCullingMode == CullingConfig.INDOOR_CULLING_ELEMENT
+                && (cachedIndoorWallEnabled || cachedIndoorCeilingEnabled);
+        cachedIndoorElementActive = elementActive;
+        cachedCoverCullingActive = cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
 
         RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
         RoomSegmentation.Room playerRoom = currentSpaceResult.getSegmentation().getPlayerRoom();
@@ -578,11 +624,22 @@ public final class TopDownCuller {
         // 建物分類は壁カリング (WALL) と天井カリング (ROOF) が共有するため、天井より先に確定させる。
         long tWall = System.nanoTime();
         wallHandler.updateClassification(roomResult, currentSpaceEnclosed, playerRoom,
-                spaceScratch.getBlockMap());
+                spaceScratch.getBlockMap(), elementActive);
         SpaceProfiler.WALL.add(System.nanoTime() - tWall);
 
         long tCeiling = System.nanoTime();
-        ceilingHandler.update(currentSpaceEnclosed, wallHandler.getClassification(), spaceScratch.getBlockMap());
+        if (!elementActive) {
+            ceilingHandler.update(currentSpaceEnclosed, wallHandler.getClassification(), spaceScratch.getBlockMap());
+            ceilingSliceCuller.clearCache();
+        } else {
+            ceilingHandler.clearCache();
+            if (cachedIndoorCeilingEnabled) {
+                ceilingSliceCuller.update(mc.level, roomResult.getMinPos(), roomResult.getMaxPos(),
+                        blockX, blockY - 1, blockZ);
+            } else {
+                ceilingSliceCuller.clearCache();
+            }
+        }
         SpaceProfiler.CEILING.add(System.nanoTime() - tCeiling);
 
         long tLadder = System.nanoTime();
@@ -685,11 +742,26 @@ public final class TopDownCuller {
         return cachedCoverCullingActive && coverHandler.isReleasing();
     }
 
+    /** 屋内の要素別カリング(壁面パネル/天井スライス)が有効か。 */
+    public boolean isIndoorElementActive() {
+        return cachedIndoorElementActive;
+    }
+
+    /**
+     * カリング集合の世代番号。値が変わるとカリング結果が変わった可能性がある。
+     * 屋内要素カリングは視点の回転だけで手前壁が変わるため、チャンク再構築のトリガに使う。
+     */
+    public long getCullingGeneration() {
+        return wallHandler.getOccludingGeneration() + ceilingSliceCuller.getGeneration();
+    }
+
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
         long posLong = pos.asLong();
+        // 屋内要素のブロックは透明(0)。それ以外は通常のフェード/半透明をそのまま適用する。
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
         if (wallHandler.isOccludingWall(posLong)) return 0.0f;
+        if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) return 0.0f;
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) return cached;
 
@@ -713,6 +785,7 @@ public final class TopDownCuller {
         if (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled() && !Config.isStaircaseOccludeEnabled() 
             && !Config.isLadderOccludeEnabled() && !Config.isTreeOccludeEnabled()) return false;
         if (ceilingHandler.isCeilingBlock(pos.asLong())) return false;
+        if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(pos.asLong())) return false;
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
         if (wallHandler.isOccludingWall(pos.asLong())) return false;
         float alpha = getFadeAlpha(pos, level);
@@ -726,7 +799,7 @@ public final class TopDownCuller {
         boolean treeOcclude = Config.isTreeOccludeEnabled();
         boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled();
 
-        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() || 
+        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() ||
             (!fadeEnabled && !stairOcclude && !ladderOcclude && !treeOcclude && !playerNearTrans) || level == null || !contextValid) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();
@@ -849,6 +922,7 @@ public final class TopDownCuller {
                     if (isProtectedBlock(mutablePos, state, pY, level)) continue;
 
                     if (ceilingHandler.isCeilingBlock(posLong)) continue;
+                    if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) continue;
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
                     if (cachedCoverCullingActive && coverHandler.isCoverBlock(mutablePos)) continue;
                     if (wallHandler.isOccludingWall(posLong)) continue;

@@ -10,6 +10,11 @@ public final class CullingConfig {
     /** 新方式: 覆いカリング + 手前の壁コリドー(カメラ側で限定した円柱)。 */
     public static final int CULLING_MODE_COVER_CORRIDOR = 1;
 
+    /** 屋内カリング: 無効。従来どおり屋外と同じ方式で扱う。 */
+    public static final int INDOOR_CULLING_OFF = 0;
+    /** 屋内カリング: 要素別。連結した壁面パネルと天井スライスを個別に判定する。 */
+    public static final int INDOOR_CULLING_ELEMENT = 1;
+
     private int cylinderRadiusHorizontal = 5;
     private int cylinderRadiusVertical = 5;
     private int cylinderForwardShift = 1;
@@ -47,6 +52,10 @@ public final class CullingConfig {
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
+    private int indoorCullingMode = INDOOR_CULLING_ELEMENT;
+    private boolean indoorWallCullingEnabled = true;
+    private boolean indoorCeilingCullingEnabled = true;
+    private int indoorWallCullingHalfAngle = 60;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
     private boolean translucentFluid = true;
@@ -162,6 +171,18 @@ public final class CullingConfig {
 
     public int getCullingMode() { return cullingMode; }
     public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
+
+    public int getIndoorCullingMode() { return indoorCullingMode; }
+    public void setIndoorCullingMode(int value) { this.indoorCullingMode = clamp(value, INDOOR_CULLING_OFF, INDOOR_CULLING_ELEMENT); }
+
+    public boolean isIndoorWallCullingEnabled() { return indoorWallCullingEnabled; }
+    public void setIndoorWallCullingEnabled(boolean value) { this.indoorWallCullingEnabled = value; }
+
+    public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
+    public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }
+
+    public int getIndoorWallCullingHalfAngle() { return indoorWallCullingHalfAngle; }
+    public void setIndoorWallCullingHalfAngle(int value) { this.indoorWallCullingHalfAngle = clamp(value, 10, 90); }
 
     public boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public void setIgnoreLeavesInRaycast(boolean value) { this.ignoreLeavesInRaycast = value; }
