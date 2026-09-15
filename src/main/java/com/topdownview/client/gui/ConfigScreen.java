@@ -2,6 +2,7 @@ package com.topdownview.client.gui;
 
 import com.topdownview.Config;
 import com.topdownview.baritone.BaritoneIntegration;
+import com.topdownview.config.CullingConfig;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -238,28 +239,42 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.culling_method", tx);
+        y = addSection(y, "topdown_view.config.section.culling_settings", tx);
         addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
-            Config.setCullingMode((Config.getCullingMode() + 1) % 3);
-            btn.setMessage(getCullingModeComponent(Config.getCullingMode()));
+            Config.setCullingMode((Config.getCullingMode() + 1) % 2);
+            this.init();
         }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.culling_mode.tooltip")))
                 .build());
         y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
-                90, val -> Config.setViewWedgeHalfAngle(val)));
+        boolean coverMode = Config.getCullingMode() != CullingConfig.CULLING_MODE_CYLINDER;
+        if (coverMode) {
+            addRightWidget(
+                    Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
+                        Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
+                        btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
+                    }).bounds(x, y, w, h)
+                            .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
+                            .build());
+            y += sp;
+            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
+                    24, val -> Config.setCoverCullingRadius(val)));
+            y += sp;
+        }
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
+                Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));
         y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
-                24, val -> Config.setCoverCullingRadius(val)));
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_vertical",
+                Config.getCylinderRadiusVertical(), 1, 10, val -> Config.setCylinderRadiusVertical(val)));
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
-                    Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
-                        .build());
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
+                Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
+        if (coverMode) {
+            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
+                    90, val -> Config.setViewWedgeHalfAngle(val)));
+            y += sp;
+        }
 
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addRightWidget(
@@ -290,8 +305,6 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
                 1.0, val -> Config.setFadeSmoothingHalfLife(val)));
         y += sp;
-
-        y = addSection(y, "topdown_view.config.section.player_near_translucency", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
                     Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
@@ -413,17 +426,6 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.underground_culling_keep_depth",
                 Config.getUndergroundCullingKeepDepth(), 4, 64,
                 val -> Config.setUndergroundCullingKeepDepth(val)));
-        y += sp;
-
-        y = addSection(y, "topdown_view.config.section.culling", tx);
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
-                Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_vertical",
-                Config.getCylinderRadiusVertical(), 1, 10, val -> Config.setCylinderRadiusVertical(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
-                Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -746,11 +748,7 @@ public class ConfigScreen extends Screen {
     }
 
     private Component getCullingModeComponent(int mode) {
-        String modeKey = switch (mode) {
-            case 0 -> "mode_cylinder";
-            case 2 -> "mode_cover_only";
-            default -> "mode_cover_corridor";
-        };
+        String modeKey = mode == CullingConfig.CULLING_MODE_CYLINDER ? "old" : "new";
         return Component.translatable("topdown_view.config.culling_mode",
                 Component.translatable("topdown_view.config.culling_mode." + modeKey).getString());
     }

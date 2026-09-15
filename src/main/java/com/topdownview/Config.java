@@ -105,8 +105,8 @@ public class Config {
             .comment("Exponential smoothing half-life (seconds) for the translucent fade alpha. 0 disables smoothing.")
             .defineInRange("fadeSmoothingHalfLife", 0.14, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
-            .comment("0 = Cylinder (legacy), 1 = Cover + Corridor (new), 2 = Cover only.")
-            .defineInRange("cullingMode", 1, 0, 2);
+            .comment("0 = Legacy (cylinder), 1 = New (cover + corridor).")
+            .defineInRange("cullingMode", 1, 0, 1);
     private static final ForgeConfigSpec.IntValue VIEW_WEDGE_HALF_ANGLE = BUILDER
             .defineInRange("viewWedgeHalfAngle", 60, 10, 90);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER

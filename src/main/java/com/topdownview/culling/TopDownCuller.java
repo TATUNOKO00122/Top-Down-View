@@ -3,6 +3,7 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
+import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.cache.SurfaceHeightCache;
@@ -34,8 +35,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
@@ -219,9 +218,8 @@ public final class TopDownCuller {
         int playerBlockX = (int) Math.floor(pX);
         int playerBlockZ = (int) Math.floor(pZ);
         int playerFeetY = (int) Math.floor(pY) - 1;
-        boolean nearTransActive = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorFade;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ) {
-            int maxProtectY = nearTransActive ? playerFeetY : playerFeetY + 1;
+            int maxProtectY = Config.isPlayerNearTranslucencyEnabled() ? playerFeetY : playerFeetY + 1;
             if (pos.getY() >= playerFeetY && pos.getY() <= maxProtectY) {
                 cullingCache.put(posLong, false);
                 return false;
@@ -233,7 +231,7 @@ public final class TopDownCuller {
             return true;
         }
 
-        if (nearTransActive && isPlayerNearBlock(pos, pX, pY, pZ)) {
+        if (Config.isPlayerNearTranslucencyEnabled() && isPlayerNearBlock(pos, pX, pY, pZ)) {
             if (!isProtectedBlock(pos, state, pY, level)) {
                 cullingCache.put(posLong, true);
                 return true;
@@ -316,14 +314,6 @@ public final class TopDownCuller {
 
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
-        // 覆いのみモードでは円柱カリングを使わない
-        if (cachedCullingMode == CullingConfig.CULLING_MODE_COVER_ONLY) {
-            return 1.0f;
-        }
-        // 屋内ではフェードを無効化する(カリングで穴を開けず、室内をそのまま表示する)
-        if (cachedDisableIndoorFade) {
-            return 1.0f;
-        }
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
                 pX, pY, pZ, cX, cY, cZ);
@@ -381,13 +371,9 @@ public final class TopDownCuller {
             return true;
         }
 
-        // ドアやウェイストーンなど上下2段構成のブロックは、下段のYを基準に上下を1単位として扱う。
-        // 上段だけがカリングされて見た目が欠けるのを防ぐ。
-        int blockY = pos.getY();
-        if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
-                && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER) {
-            blockY--;
-        }
+        // ドア・ウェイストーン・FastPaintingsの絵画など上下に連結した構造は、最下段のYを基準に
+        // 1単位として扱い、一部の段だけがカリングされて見た目が欠けるのを防ぐ。
+        int blockY = VerticalUnitHelper.getUnitAnchorY(state, pos.getY());
 
         double blockHeight = 0.0;
         VoxelShape shape = state.getShape(level, pos);
@@ -703,7 +689,6 @@ public final class TopDownCuller {
         long posLong = pos.asLong();
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
         if (wallHandler.isOccludingWall(posLong)) return 0.0f;
-        if (cachedDisableIndoorFade) return 1.0f;
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) return cached;
 
@@ -715,7 +700,8 @@ public final class TopDownCuller {
             }
         }
 
-        if (!Config.isFadeEnabled()) return 1.0f;
+        // 屋内では境界フェードの半透明ゴーストを止める(カリング自体は calculateFadeAlpha 側で維持)
+        if (!Config.isFadeEnabled() || cachedDisableIndoorFade) return 1.0f;
         float alpha = calculateFadeAlpha(pos, level, level.getBlockState(pos), playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         fadeCache.putFadeAlpha(posLong, alpha);
         return alpha;
@@ -737,7 +723,7 @@ public final class TopDownCuller {
         boolean stairOcclude = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();
-        boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorFade;
+        boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled();
 
         if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() || 
             (!fadeEnabled && !stairOcclude && !ladderOcclude && !treeOcclude && !playerNearTrans) || level == null || !contextValid) {
@@ -794,8 +780,8 @@ public final class TopDownCuller {
 
         // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
         boolean fadeEnabled = Config.isFadeEnabled() && !cachedDisableIndoorFade;
-        boolean cylinderFadeEnabled = fadeEnabled && cachedCullingMode != CullingConfig.CULLING_MODE_COVER_ONLY;
-        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorFade;
+        boolean cylinderFadeEnabled = fadeEnabled;
+        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean stairOcclude = Config.isStaircaseExclusionEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();

@@ -9,8 +9,6 @@ public final class CullingConfig {
     public static final int CULLING_MODE_CYLINDER = 0;
     /** 新方式: 覆いカリング + 手前の壁コリドー(カメラ側で限定した円柱)。 */
     public static final int CULLING_MODE_COVER_CORRIDOR = 1;
-    /** 新方式: 覆いカリングのみ(円柱カリングなし)。 */
-    public static final int CULLING_MODE_COVER_ONLY = 2;
 
     private int cylinderRadiusHorizontal = 5;
     private int cylinderRadiusVertical = 5;
@@ -163,7 +161,7 @@ public final class CullingConfig {
     public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }
 
     public int getCullingMode() { return cullingMode; }
-    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_ONLY); }
+    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
 
     public boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public void setIgnoreLeavesInRaycast(boolean value) { this.ignoreLeavesInRaycast = value; }
