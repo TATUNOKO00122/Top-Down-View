@@ -522,6 +522,10 @@ public final class TopDownCuller {
         }
 
         updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
+        if (cachedCoverCullingActive && coverHandler.isReleasing()) {
+            // 覆いのカリング開始時刻が時間で進むため、ワーカーの判定結果を毎tick作り直す。
+            cullingCache.clear();
+        }
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             wallHandler.refreshOccluding(cameraX, cameraZ, playerX, playerZ);
         } else {
@@ -674,6 +678,11 @@ public final class TopDownCuller {
 
     public int getCulledBlockCount() { return cullingCache.getCulledCount(); }
     public int getCacheSize() { return cullingCache.size(); }
+
+    /** 覆いカリングが時間差で進行中か(進行中はチャンク再構築を強制する必要がある)。 */
+    public boolean hasActiveCoverRelease() {
+        return cachedCoverCullingActive && coverHandler.isReleasing();
+    }
 
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
@@ -838,7 +847,8 @@ public final class TopDownCuller {
                     if (isProtectedBlock(mutablePos, state, pY, level)) continue;
 
                     if (ceilingHandler.isCeilingBlock(posLong)) continue;
-                    if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
+                    // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
+                    if (cachedCoverCullingActive && coverHandler.isCoverBlock(mutablePos)) continue;
                     if (wallHandler.isOccludingWall(posLong)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;

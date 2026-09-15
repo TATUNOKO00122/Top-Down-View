@@ -101,6 +101,9 @@ public class Config {
             .defineInRange("fadeStart", 0.7, 0.0, 0.9);
     private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
             .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
+    private static final ForgeConfigSpec.DoubleValue FADE_SMOOTHING_HALF_LIFE = BUILDER
+            .comment("Exponential smoothing half-life (seconds) for the translucent fade alpha. 0 disables smoothing.")
+            .defineInRange("fadeSmoothingHalfLife", 0.14, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
             .comment("0 = Cylinder (legacy), 1 = Cover + Corridor (new), 2 = Cover only.")
             .defineInRange("cullingMode", 1, 0, 2);
@@ -313,6 +316,7 @@ public class Config {
     public static double getFadeBlockHitThreshold() { return CULLING.getFadeBlockHitThreshold(); }
     public static double getFadeStart() { return CULLING.getFadeStart(); }
     public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
+    public static double getFadeSmoothingHalfLife() { return CULLING.getFadeSmoothingHalfLife(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
@@ -430,6 +434,7 @@ public class Config {
     public static void setFadeBlockHitThreshold(double value) { CULLING.setFadeBlockHitThreshold(value); }
     public static void setFadeStart(double value) { CULLING.setFadeStart(value); }
     public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
+    public static void setFadeSmoothingHalfLife(double value) { CULLING.setFadeSmoothingHalfLife(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
@@ -567,6 +572,7 @@ public class Config {
         CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.get());
         CULLING.setFadeStart(FADE_START.get());
         CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.get());
+        CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.get());
         CULLING.setViewWedgeHalfAngle(VIEW_WEDGE_HALF_ANGLE.get());
         CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
         CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
@@ -686,6 +692,7 @@ public class Config {
             FADE_BLOCK_HIT_THRESHOLD.set(getFadeBlockHitThreshold());
             FADE_START.set(getFadeStart());
             FADE_NEAR_ALPHA.set(getFadeNearAlpha());
+            FADE_SMOOTHING_HALF_LIFE.set(getFadeSmoothingHalfLife());
             CULLING_MODE.set(getCullingMode());
             VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
             COVER_CULLING_RADIUS.set(getCoverCullingRadius());
@@ -804,6 +811,7 @@ public class Config {
         CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.getDefault());
         CULLING.setFadeStart(FADE_START.getDefault());
         CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.getDefault());
+        CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.getDefault());
         INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.getDefault());
         INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.getDefault());
         INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.getDefault());

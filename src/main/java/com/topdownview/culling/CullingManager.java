@@ -109,7 +109,10 @@ public final class CullingManager {
         int cY = (int) Math.floor(cameraPos.y);
         int cZ = (int) Math.floor(cameraPos.z);
 
-        if (pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
+        // 覆いカリングの時間差進行中は、プレイヤーが静止していても再構築して1つずつ消す。
+        boolean coverReleasing = CULLER.hasActiveCoverRelease();
+        if (!coverReleasing
+                && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
         }
@@ -129,6 +132,14 @@ public final class CullingManager {
             radiusV = Config.getCylinderRadiusVertical();
         }
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
+        if (coverReleasing) {
+            // 覆い対象は円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
+            int coverRadius = Config.getCoverCullingRadius();
+            box = box.inflate(
+                    Math.max(0, coverRadius - radiusH),
+                    Math.max(0, coverRadius - radiusV),
+                    Math.max(0, coverRadius - radiusH));
+        }
 
         if (scheduleChunkRebuildInternal(box)) {
             lastChunkRebuildTime = currentTime;

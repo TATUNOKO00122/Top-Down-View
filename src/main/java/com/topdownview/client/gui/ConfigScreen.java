@@ -629,6 +629,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
                 1.0, val -> Config.setFadeNearAlpha(val)));
         y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
+                1.0, val -> Config.setFadeSmoothingHalfLife(val)));
+        y += sp;
         addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
             Config.setCullingMode((Config.getCullingMode() + 1) % 3);
             btn.setMessage(getCullingModeComponent(Config.getCullingMode()));

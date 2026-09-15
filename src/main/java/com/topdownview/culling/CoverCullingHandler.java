@@ -1,7 +1,10 @@
 package com.topdownview.culling;
 
 import com.topdownview.spatial.WallAnalyzer;
+import it.unimi.dsi.fastutil.longs.Long2LongMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -43,10 +46,19 @@ public final class CoverCullingHandler {
     private static final int SCAN_MOVE_THRESHOLD = 3;
 
     /**
-     * カリング対象の覆いブロック。チャンクビルドワーカーから読まれるため、
-     * 再構築した集合を volatile 参照ごと差し替えて読み書きの競合を避ける。
+     * 覆い集合が入れ替わってから、全ブロックが消えるまでの猶予。プレイヤーからの距離に比例させて
+     * 開始時刻をずらすことで、塊ではなく近い順に1ブロックずつ消える。
      */
-    private volatile LongOpenHashSet coverCullPositions = new LongOpenHashSet();
+    private static final long RELEASE_WINDOW_MS = 700L;
+
+    /**
+     * 覆いブロックとそのカリング開始時刻(ms)。集合全体を一斉に消すと樹冠などが塊で
+     * 消えるため、ブロックごとに開始時刻をずらす。ワーカーから読むため volatile 参照を差し替える。
+     */
+    private volatile Long2LongMap coverCullDeadlines = new Long2LongOpenHashMap();
+
+    /** 未カリングのブロックが残る最終時刻(ms)。これを過ぎたら再構築を強制する必要はない。 */
+    private volatile long releaseEndMillis;
 
     private int lastScanX = Integer.MIN_VALUE;
     private int lastScanY = Integer.MIN_VALUE;
@@ -55,21 +67,37 @@ public final class CoverCullingHandler {
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
     public void clearCache() {
-        if (!coverCullPositions.isEmpty()) {
-            coverCullPositions = new LongOpenHashSet();
-        }
+        coverCullDeadlines = new Long2LongOpenHashMap();
+        releaseEndMillis = 0L;
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
         lastScanZ = Integer.MIN_VALUE;
     }
 
+    /** 指定位置が覆いカリング対象か(開始時刻の到達に関係なく)。 */
+    public boolean isCoverBlock(long posLong) {
+        Long2LongMap deadlines = coverCullDeadlines;
+        return !deadlines.isEmpty() && deadlines.containsKey(posLong);
+    }
+
+    public boolean isCoverBlock(BlockPos pos) {
+        return isCoverBlock(pos.asLong());
+    }
+
+    /** 指定位置が覆いカリング対象で、かつ開始時刻に達しているか。 */
     public boolean isCoverCullBlock(long posLong) {
-        LongOpenHashSet set = coverCullPositions;
-        return !set.isEmpty() && set.contains(posLong);
+        Long2LongMap deadlines = coverCullDeadlines;
+        long deadline = deadlines.getOrDefault(posLong, Long.MIN_VALUE);
+        return deadline != Long.MIN_VALUE && System.currentTimeMillis() >= deadline;
     }
 
     public boolean isCoverCulled(BlockPos pos) {
         return isCoverCullBlock(pos.asLong());
+    }
+
+    /** まだカリング開始待ちのブロックが残っているか(チャンク再構築の強制が必要か)。 */
+    public boolean isReleasing() {
+        return System.currentTimeMillis() < releaseEndMillis;
     }
 
     /**
@@ -106,7 +134,7 @@ public final class CoverCullingHandler {
 
         int startY = findStandableY(level, feetX, feetY, feetZ);
         if (startY == NOT_STANDABLE) {
-            coverCullPositions = next;
+            applyCollected(next, feetX, feetY, feetZ, radius);
             return;
         }
 
@@ -142,7 +170,47 @@ public final class CoverCullingHandler {
             }
         }
 
-        coverCullPositions = next;
+        applyCollected(next, feetX, feetY, feetZ, radius);
+    }
+
+    /**
+     * 収集した覆い集合へ、カリング開始時刻を割り当てて差し替える。プレイヤーに近いブロックほど
+     * 早く消え、同距離帯は位置ハッシュでばらけさせて輪状の塊にならないようにする。
+     * 既存ブロックの開始時刻は引き継ぐ(再割り当てすると、既に消えた覆いが復活してしまう)。
+     */
+    private void applyCollected(LongOpenHashSet next, int refX, int refY, int refZ, int radius) {
+        long now = System.currentTimeMillis();
+        Long2LongMap previous = coverCullDeadlines;
+        Long2LongOpenHashMap deadlines = new Long2LongOpenHashMap(next.size());
+        LongIterator iterator = next.iterator();
+        long end = 0L;
+        while (iterator.hasNext()) {
+            long posLong = iterator.nextLong();
+            long deadline = previous.getOrDefault(posLong,
+                    now + staggerDelayMillis(posLong, refX, refY, refZ, radius));
+            deadlines.put(posLong, deadline);
+            if (deadline > end) {
+                end = deadline;
+            }
+        }
+        coverCullDeadlines = deadlines;
+        releaseEndMillis = end;
+    }
+
+    /** プレイヤーからの距離に比例した遅延(近いほど早い)＋同一距離帯を散らす小さなジッタ。 */
+    private static long staggerDelayMillis(long posLong, int refX, int refY, int refZ, int radius) {
+        double dx = BlockPos.getX(posLong) + 0.5 - refX;
+        double dy = BlockPos.getY(posLong) + 0.5 - refY;
+        double dz = BlockPos.getZ(posLong) + 0.5 - refZ;
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double normalized = Math.min(distance / (radius + 1.0), 1.0);
+        long base = (long) (normalized * RELEASE_WINDOW_MS);
+        long span = Math.max(1L, RELEASE_WINDOW_MS / 6L);
+        long hash = posLong;
+        hash ^= hash >>> 33;
+        hash *= 0xff51afd7ed558ccdL;
+        hash ^= hash >>> 33;
+        return base + (hash & Long.MAX_VALUE) % span;
     }
 
     /**
