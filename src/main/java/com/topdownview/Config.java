@@ -122,6 +122,9 @@ public class Config {
             .defineInRange("playerNearTranslucencyRangeHorizontal", 1, 0, 5);
     private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
             .defineInRange("playerNearTranslucencyRangeVertical", 1, 1, 5);
+    private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
+            .comment("Disables boundary fade and player-near translucency while the player is indoors.")
+            .define("disableFadeIndoors", true);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -195,7 +198,7 @@ public class Config {
     private static final ForgeConfigSpec.IntValue BOAT_BODY_MAX_TWIST = BUILDER
             .defineInRange("boatBodyMaxTwist", 45, 15, 90);
     private static final ForgeConfigSpec.IntValue TOP_DOWN_FOV = BUILDER
-            .defineInRange("topDownFov", 30, 30, 110);
+            .defineInRange("topDownFov", 30, 5, 110);
     private static final ForgeConfigSpec.BooleanValue LOCKED_TOP_DOWN = BUILDER
             .comment("Locks the camera to top-down view.", "Edit the config file directly to change it.")
             .define("lockedTopDown", false);
@@ -317,6 +320,7 @@ public class Config {
     public static double getFadeStart() { return CULLING.getFadeStart(); }
     public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
     public static double getFadeSmoothingHalfLife() { return CULLING.getFadeSmoothingHalfLife(); }
+    public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
@@ -435,6 +439,7 @@ public class Config {
     public static void setFadeStart(double value) { CULLING.setFadeStart(value); }
     public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
     public static void setFadeSmoothingHalfLife(double value) { CULLING.setFadeSmoothingHalfLife(value); }
+    public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
@@ -573,6 +578,7 @@ public class Config {
         CULLING.setFadeStart(FADE_START.get());
         CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.get());
         CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.get());
+        CULLING.setDisableFadeIndoors(DISABLE_FADE_INDOORS.get());
         CULLING.setViewWedgeHalfAngle(VIEW_WEDGE_HALF_ANGLE.get());
         CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
         CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
@@ -693,6 +699,7 @@ public class Config {
             FADE_START.set(getFadeStart());
             FADE_NEAR_ALPHA.set(getFadeNearAlpha());
             FADE_SMOOTHING_HALF_LIFE.set(getFadeSmoothingHalfLife());
+            DISABLE_FADE_INDOORS.set(isDisableFadeIndoors());
             CULLING_MODE.set(getCullingMode());
             VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
             COVER_CULLING_RADIUS.set(getCoverCullingRadius());
@@ -812,6 +819,7 @@ public class Config {
         CULLING.setFadeStart(FADE_START.getDefault());
         CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.getDefault());
         CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.getDefault());
+        CULLING.setDisableFadeIndoors(DISABLE_FADE_INDOORS.getDefault());
         INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.getDefault());
         INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.getDefault());
         INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.getDefault());

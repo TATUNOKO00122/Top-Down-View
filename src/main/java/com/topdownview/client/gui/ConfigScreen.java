@@ -238,16 +238,97 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.culling", tx);
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
-                Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));
+        y = addSection(y, "topdown_view.config.section.culling_method", tx);
+        addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
+            Config.setCullingMode((Config.getCullingMode() + 1) % 3);
+            btn.setMessage(getCullingModeComponent(Config.getCullingMode()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.culling_mode.tooltip")))
+                .build());
         y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_vertical",
-                Config.getCylinderRadiusVertical(), 1, 10, val -> Config.setCylinderRadiusVertical(val)));
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
+                90, val -> Config.setViewWedgeHalfAngle(val)));
         y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
-                Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
+                24, val -> Config.setCoverCullingRadius(val)));
         y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
+                    Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
+                        .build());
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.fade", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.disable_fade_indoors", Config.isDisableFadeIndoors()), btn -> {
+                    Config.setDisableFadeIndoors(!Config.isDisableFadeIndoors());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.disable_fade_indoors", Config.isDisableFadeIndoors()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.disable_fade_indoors.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()), btn -> {
+                    Config.setFadeEnabled(!Config.isFadeEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_block_hit_threshold", Config.getFadeBlockHitThreshold(), 0.0,
+                1.0, val -> Config.setFadeBlockHitThreshold(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.getFadeStart(), 0.0, 0.9,
+                val -> Config.setFadeStart(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
+                1.0, val -> Config.setFadeNearAlpha(val)));
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
+                1.0, val -> Config.setFadeSmoothingHalfLife(val)));
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.player_near_translucency", tx);
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
+                    Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_enabled.tooltip")))
+                        .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
+                1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 0,
+                5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
+                5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.fluid", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.translucent_fluid",
+                        Config.isTranslucentFluid()),
+                btn -> {
+                    Config.setTranslucentFluid(!Config.isTranslucentFluid());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.translucent_fluid",
+                            Config.isTranslucentFluid()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.translucent_fluid.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fluid_alpha",
+                Config.getFluidAlpha(), 0.05, 1.0,
+                val -> Config.setFluidAlpha(val)));
+        y += sp;
+
+        y = addSection(y, "topdown_view.config.section.entity_culling", tx);
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.mob_culling_enabled", Config.isMobCullingEnabled()),
                 btn -> {
@@ -334,6 +415,17 @@ public class ConfigScreen extends Screen {
                 val -> Config.setUndergroundCullingKeepDepth(val)));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.culling", tx);
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
+                Config.getCylinderRadiusHorizontal(), 1, 10, val -> Config.setCylinderRadiusHorizontal(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_vertical",
+                Config.getCylinderRadiusVertical(), 1, 10, val -> Config.setCylinderRadiusVertical(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_forward_shift",
+                Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
@@ -405,7 +497,7 @@ public class ConfigScreen extends Screen {
                 val -> Config.setCameraPitch(val), 0));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.top_down_fov",
-                Config.getTopDownFov(), 30, 110, val -> Config.setTopDownFov(val)));
+                Config.getTopDownFov(), 5, 110, val -> Config.setTopDownFov(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_screen_offset", Config.getPlayerScreenOffset(), -10.0, 10.0,
                 val -> Config.setPlayerScreenOffset(val)));
@@ -611,66 +703,6 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildVisualTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.fade", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()), btn -> {
-                    Config.setFadeEnabled(!Config.isFadeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
-                        .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_block_hit_threshold", Config.getFadeBlockHitThreshold(), 0.0,
-                1.0, val -> Config.setFadeBlockHitThreshold(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.getFadeStart(), 0.0, 0.9,
-                val -> Config.setFadeStart(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
-                1.0, val -> Config.setFadeNearAlpha(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
-                1.0, val -> Config.setFadeSmoothingHalfLife(val)));
-        y += sp;
-        addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
-            Config.setCullingMode((Config.getCullingMode() + 1) % 3);
-            btn.setMessage(getCullingModeComponent(Config.getCullingMode()));
-        }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.culling_mode.tooltip")))
-                .build());
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
-                90, val -> Config.setViewWedgeHalfAngle(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
-                24, val -> Config.setCoverCullingRadius(val)));
-        y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
-                    Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
-                        .build());
-        y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
-                    Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_enabled.tooltip")))
-                        .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
-                1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 0,
-                5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
-                5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);
         addRightWidget(
                 Button.builder(getOnOffComponent("topdown_view.config.placement_preview_enabled",
@@ -698,24 +730,6 @@ public class ConfigScreen extends Screen {
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.sign_hover_scale", Config.getSignHoverScale(), 0.0,
                 1.0, val -> Config.setSignHoverScale(val), 1));
-        y += sp;
-
-        y = addSection(y, "topdown_view.config.section.fluid", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.translucent_fluid",
-                        Config.isTranslucentFluid()),
-                btn -> {
-                    Config.setTranslucentFluid(!Config.isTranslucentFluid());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.translucent_fluid",
-                            Config.isTranslucentFluid()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.translucent_fluid.tooltip")))
-                .build());
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fluid_alpha",
-                Config.getFluidAlpha(), 0.05, 1.0,
-                val -> Config.setFluidAlpha(val)));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;

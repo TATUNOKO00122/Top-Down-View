@@ -99,7 +99,7 @@ public final class CameraConfig {
     public void setBoatBodyMaxTwist(int value) { this.boatBodyMaxTwist = clamp(value, 15, 90); }
 
     public int getTopDownFov() { return topDownFov; }
-    public void setTopDownFov(int value) { this.topDownFov = clamp(value, 30, 110); }
+    public void setTopDownFov(int value) { this.topDownFov = clamp(value, 5, 110); }
 
     public boolean isLockedTopDown() { return lockedTopDown; }
     public void setLockedTopDown(boolean value) { this.lockedTopDown = value; }
