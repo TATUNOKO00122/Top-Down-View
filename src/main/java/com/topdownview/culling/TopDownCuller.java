@@ -391,7 +391,8 @@ public final class TopDownCuller {
 
         double protectThresholdY = (isThinnerThanSlab || isPlantOrDecoration) ? pY + 1.0 : pY;
 
-        if (blockY + 0.5 < protectThresholdY) return true;
+        // 手前壁は眼の高さ以下のY保護より優先して消す。下側が残ると壁がプレイヤーを隠すため。
+        if (blockY + 0.5 < protectThresholdY && !wallHandler.isOccludingWall(pos.asLong())) return true;
 
         if (treeHandler.isProtectedLog(pos.asLong())) return true;
 
@@ -581,7 +582,7 @@ public final class TopDownCuller {
         SpaceProfiler.WALL.add(System.nanoTime() - tWall);
 
         long tCeiling = System.nanoTime();
-        ceilingHandler.update(currentSpaceEnclosed, wallHandler.getClassification());
+        ceilingHandler.update(currentSpaceEnclosed, wallHandler.getClassification(), spaceScratch.getBlockMap());
         SpaceProfiler.CEILING.add(System.nanoTime() - tCeiling);
 
         long tLadder = System.nanoTime();
