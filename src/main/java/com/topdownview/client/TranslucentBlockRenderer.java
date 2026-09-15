@@ -13,13 +13,19 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.ColorResolver;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.model.data.ModelData;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * カリング境界フェード描画 & マイニングモード動的描画
@@ -74,6 +80,7 @@ public final class TranslucentBlockRenderer {
         // パフォーマンス最適化: ラッパーオブジェクトを再利用
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
+        FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (Long2FloatMap.Entry entry : fadeBlocks.long2FloatEntrySet()) {
@@ -98,7 +105,7 @@ public final class TranslucentBlockRenderer {
             SMOOTHED_ALPHAS.put(posLong, alpha);
 
             mutablePos.set(bx, by, bz);
-            renderFadeBlock(mc.level, mutablePos, poseStack, blockRenderer, alphaConsumer, alpha, cameraPos);
+            renderFadeBlock(mc.level, fadeLevel, mutablePos, poseStack, blockRenderer, alphaConsumer, alpha, cameraPos);
         }
 
         // フェード集合から外れたブロックの平滑化状態を破棄(無制限な増加を防ぐ)
@@ -125,6 +132,7 @@ public final class TranslucentBlockRenderer {
 
     private static void renderFadeBlock(
             BlockAndTintGetter level,
+            FadeBlockGetter fadeLevel,
             BlockPos pos,
             PoseStack poseStack,
             BlockRenderDispatcher blockRenderer,
@@ -157,10 +165,11 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // 隣接面の判定は実ブロックで行う(通常の面カリング)。フェードαに依存した閾値判定を
-        // 使うと、αが動くたびに面の描画/非描画が反転して点滅する。
+        // 面カリングはフェード集合の所属だけで判定する(α値には依存しない)。
+        // 実ブロックで判定すると、隣が不透明ブロックの面まで消えて露出面(多くの場合は上面)しか
+        // 描かれず、Blockが一面だけの板に見える。フェード同士は面を消して二重合成を防ぐ。
         blockRenderer.getModelRenderer().tesselateBlock(
-                level,
+                fadeLevel,
                 model,
                 state,
                 pos,
@@ -241,6 +250,68 @@ public final class TranslucentBlockRenderer {
         @Override
         public void unsetDefaultColor() {
             delegate.unsetDefaultColor();
+        }
+    }
+
+    private static final BlockState AIR_STATE = Blocks.AIR.defaultBlockState();
+
+    /**
+     * フェードブロック描画用のBlockAndTintGetterプロキシ。
+     * フェード集合内のブロックは実状態を返し(面カリング対象)、集合外のブロックは空気として扱う。
+     * こうすることで、フェードブロックは不透明ブロックと接する面も描画され、Blockの形を保つ。
+     * 判定は集合の所属のみで行うため、α値が変化しても面の描画は反転しない。
+     */
+    private static class FadeBlockGetter implements BlockAndTintGetter {
+        private final BlockAndTintGetter delegate;
+        private final Long2FloatMap fadeBlocks;
+
+        FadeBlockGetter(BlockAndTintGetter delegate, Long2FloatMap fadeBlocks) {
+            this.delegate = delegate;
+            this.fadeBlocks = fadeBlocks;
+        }
+
+        @Override
+        public float getShade(Direction direction, boolean shade) {
+            return delegate.getShade(direction, shade);
+        }
+
+        @Override
+        public LevelLightEngine getLightEngine() {
+            return delegate.getLightEngine();
+        }
+
+        @Override
+        public int getBlockTint(BlockPos pos, ColorResolver resolver) {
+            return delegate.getBlockTint(pos, resolver);
+        }
+
+        @Nullable
+        @Override
+        public BlockEntity getBlockEntity(BlockPos pos) {
+            return delegate.getBlockEntity(pos);
+        }
+
+        @Override
+        public BlockState getBlockState(BlockPos pos) {
+            if (fadeBlocks.containsKey(pos.asLong())) {
+                return delegate.getBlockState(pos);
+            }
+            return AIR_STATE;
+        }
+
+        @Override
+        public FluidState getFluidState(BlockPos pos) {
+            return delegate.getFluidState(pos);
+        }
+
+        @Override
+        public int getHeight() {
+            return delegate.getHeight();
+        }
+
+        @Override
+        public int getMinBuildHeight() {
+            return delegate.getMinBuildHeight();
         }
     }
 }
