@@ -85,15 +85,8 @@ public final class TargetHighlightRenderer {
      * ターゲット状態を更新（射程判定含む）
      */
     private static void updateTargetState(Minecraft mc, Player player, @Nullable LivingEntity target) {
-        LivingEntity lastTarget = ModState.TARGET_HIGHLIGHT.getCurrentTarget();
-        boolean glowEnabled = com.topdownview.Config.isTargetGlowEnabled();
-
-        // 前回のターゲットの発光フラグをクリア
-        if (lastTarget != null && (lastTarget != target || !glowEnabled)) {
-            ((com.topdownview.mixin.EntityAccessor) lastTarget).callSetSharedFlag(6, false);
-        }
-
-        // 新しいターゲットを設定
+        // 発光はMinecraftMixin.shouldEntityAppearGlowingが毎フレーム判定するため、
+        // エンティティの共有フラグは書き換えない（視点OFF後に発光が残るのを防ぐ）
         ModState.TARGET_HIGHLIGHT.setCurrentTarget(target);
 
         if (target != null) {
@@ -109,11 +102,6 @@ public final class TargetHighlightRenderer {
             }
             
             ModState.TARGET_HIGHLIGHT.setInRange(inRange);
-
-            // 発光フラグを設定（設定ON時のみ）
-            if (glowEnabled) {
-                ((com.topdownview.mixin.EntityAccessor) target).callSetSharedFlag(6, true);
-            }
         } else {
             ModState.TARGET_HIGHLIGHT.setInRange(false);
         }
