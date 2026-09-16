@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.topdownview.culling.TopDownCuller;
 import com.topdownview.spatial.BuildingClassifier;
 import com.topdownview.spatial.RoomSegmentation;
 import com.topdownview.spatial.SpaceProbe;
@@ -308,6 +309,14 @@ public final class SpaceDebugRenderer {
                 y += lineHeight;
             }
         }
+
+        int sliceY = TopDownCuller.getInstance().getCeilingSliceY();
+        String sliceText = (sliceY == Integer.MIN_VALUE)
+                ? "none"
+                : "Y=" + sliceY + " cols=" + TopDownCuller.getInstance().getCeilingSliceColumns();
+        gg.drawString(mc.font, "CeilingSlice: " + sliceText
+                + "  playerY=" + mc.player.blockPosition().getY(), x, y, 0xFFFFAA66, false);
+        y += lineHeight;
 
         gg.drawString(mc.font, "Seed: [" + result.getOrigin().getX() + ","
                 + result.getOrigin().getY() + "," + result.getOrigin().getZ() + "]", x, y, 0xFFCCCCCC, false);

@@ -290,17 +290,6 @@ public class ConfigScreen extends Screen {
                 .build());
         y += sp;
         addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.indoor_wall_culling_enabled", Config.isIndoorWallCullingEnabled()),
-                btn -> {
-                    Config.setIndoorWallCullingEnabled(!Config.isIndoorWallCullingEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.indoor_wall_culling_enabled",
-                            Config.isIndoorWallCullingEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.indoor_wall_culling_enabled.tooltip")))
-                .build());
-        y += sp;
-        addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled", Config.isIndoorCeilingCullingEnabled()),
                 btn -> {
                     Config.setIndoorCeilingCullingEnabled(!Config.isIndoorCeilingCullingEnabled());
@@ -311,12 +300,6 @@ public class ConfigScreen extends Screen {
                         "topdown_view.config.indoor_ceiling_culling_enabled.tooltip")))
                 .build());
         y += sp;
-        if (Config.getIndoorCullingMode() == CullingConfig.INDOOR_CULLING_ELEMENT) {
-            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.indoor_wall_culling_half_angle",
-                    Config.getIndoorWallCullingHalfAngle(), 10, 90,
-                    val -> Config.setIndoorWallCullingHalfAngle(val)));
-            y += sp;
-        }
 
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addRightWidget(

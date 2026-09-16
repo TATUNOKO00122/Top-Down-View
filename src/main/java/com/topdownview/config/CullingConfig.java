@@ -56,9 +56,7 @@ public final class CullingConfig {
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private int indoorCullingMode = INDOOR_CULLING_ELEMENT;
-    private boolean indoorWallCullingEnabled = true;
     private boolean indoorCeilingCullingEnabled = true;
-    private int indoorWallCullingHalfAngle = 60;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
     private boolean translucentFluid = true;
@@ -181,14 +179,8 @@ public final class CullingConfig {
     public int getIndoorCullingMode() { return indoorCullingMode; }
     public void setIndoorCullingMode(int value) { this.indoorCullingMode = clamp(value, INDOOR_CULLING_OFF, INDOOR_CULLING_ELEMENT); }
 
-    public boolean isIndoorWallCullingEnabled() { return indoorWallCullingEnabled; }
-    public void setIndoorWallCullingEnabled(boolean value) { this.indoorWallCullingEnabled = value; }
-
     public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
     public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }
-
-    public int getIndoorWallCullingHalfAngle() { return indoorWallCullingHalfAngle; }
-    public void setIndoorWallCullingHalfAngle(int value) { this.indoorWallCullingHalfAngle = clamp(value, 10, 90); }
 
     public boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public void setIgnoreLeavesInRaycast(boolean value) { this.ignoreLeavesInRaycast = value; }

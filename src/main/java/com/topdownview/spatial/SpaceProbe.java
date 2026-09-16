@@ -100,7 +100,11 @@ public final class SpaceProbe {
 
         long tSegment = System.nanoTime();
         RoomSegmentation.Result segmentation = enclosed
-                ? RoomSegmentation.analyze(roomResult, feetPos, scratch != null ? scratch.getBlockMap() : null)
+                // 生の足元位置ではなく、flood が実際に起点にした有効セルを渡す。スラブ床の上では
+                // blockPosition() が固体セルになり、そのセルはどの部屋にも含まれず PlayerRoom が
+                // 失われるため (階段は踏面の上の空気セルなので問題が出ない)。
+                ? RoomSegmentation.analyze(roomResult, roomResult.getSeed(),
+                        scratch != null ? scratch.getBlockMap() : null)
                 : RoomSegmentation.Result.EMPTY;
         PerfMonitor.SEGMENT.add(System.nanoTime() - tSegment);
 

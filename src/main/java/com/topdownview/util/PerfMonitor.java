@@ -50,16 +50,12 @@ public final class PerfMonitor {
     public static final Timer FLOOD = new Timer();
     /** RoomSegmentation.analyze。 */
     public static final Timer SEGMENT = new Timer();
-    /** BuildingClassifier.classify。 */
-    public static final Timer CLASSIFY = new Timer();
     /** StairAnalyzer.detect を含む階段ハンドラー更新。 */
     public static final Timer STAIR = new Timer();
-    /** CeilingCullingHandler.update。 */
+    /** CeilingSliceCuller.update。 */
     public static final Timer CEILING = new Timer();
     /** LadderCullingHandler.scan。 */
     public static final Timer LADDER = new Timer();
-    /** WallCullingHandler.updateClassification。 */
-    public static final Timer WALL = new Timer();
     /** CoverCullingHandler.update。 */
     public static final Timer COVER = new Timer();
 
@@ -128,10 +124,10 @@ public final class PerfMonitor {
         LOGGER.info("[TopDownView][Perf] fps={} frame avg={}ms max={}ms | drop(>25ms)={} freeze(>100ms)={} frames={}",
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
         LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick cull={} entity={}ms | "
-                        + "space probe={} flood={} seg={} classify={} wall={} ceiling={} stair={} ladder={} cover={} | "
+                        + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
                         + "chunk rebuild={} (wide={}) ({}) sections={} | isBlockCulled={} fadeBlocks={}",
                 FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, CULL_UPDATE, ENTITY_CULL,
-                PROBE, FLOOD, SEGMENT, CLASSIFY, WALL, CEILING, STAIR, LADDER, COVER,
+                PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
                 IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
 
@@ -149,11 +145,9 @@ public final class PerfMonitor {
         PROBE.reset();
         FLOOD.reset();
         SEGMENT.reset();
-        CLASSIFY.reset();
         STAIR.reset();
         CEILING.reset();
         LADDER.reset();
-        WALL.reset();
         COVER.reset();
         IS_BLOCK_CULLED.reset();
         CHUNK_REBUILDS.reset();
