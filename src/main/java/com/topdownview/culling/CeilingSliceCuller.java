@@ -1,7 +1,9 @@
 package com.topdownview.culling;
 
+import com.topdownview.culling.geometry.BlockChangeBox;
 import com.topdownview.spatial.RoomSegmentation;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
@@ -29,13 +31,31 @@ public final class CeilingSliceCuller {
     private volatile LongOpenHashSet slicePositions = new LongOpenHashSet();
     private volatile long generation = 0;
 
+    /** 前回の再構築以降に追加/削除されたセルの範囲。差分再構築に使う(ティック/描画スレッドのみ)。 */
+    private final BlockChangeBox pendingChange = new BlockChangeBox();
+
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
     public void clearCache() {
-        if (!slicePositions.isEmpty()) {
-            slicePositions = new LongOpenHashSet();
+        // 既に空ならカリング結果は変わらないため、世代を進めない(無駄な再構築を避ける)。
+        if (slicePositions.isEmpty()) {
+            return;
         }
+        LongIterator removed = slicePositions.iterator();
+        while (removed.hasNext()) {
+            pendingChange.includeCell(removed.nextLong());
+        }
+        slicePositions = new LongOpenHashSet();
         generation++;
+    }
+
+    /** 差分再構築のために蓄積した変更範囲。消費側で {@link #clearPendingChange()} を呼ぶ。 */
+    public BlockChangeBox getPendingChange() {
+        return pendingChange;
+    }
+
+    public void clearPendingChange() {
+        pendingChange.reset();
     }
 
     public boolean isCeilingSliceBlock(long posLong) {
@@ -148,6 +168,27 @@ public final class CeilingSliceCuller {
     }
 
     private void apply(LongOpenHashSet next) {
+        // 集合が同一ならカリング結果は変わらない。世代を進める(=チャンク再構築を誘発する)と
+        // 歩行中に毎probe再構築が走ってしまうため、変化したときだけ差し替える。
+        if (next.equals(slicePositions)) {
+            return;
+        }
+        // 追加/削除されたセルだけを再構築対象として記録する(探索キャッシュ全域を避ける)。
+        LongOpenHashSet previous = slicePositions;
+        LongIterator added = next.iterator();
+        while (added.hasNext()) {
+            long cell = added.nextLong();
+            if (!previous.contains(cell)) {
+                pendingChange.includeCell(cell);
+            }
+        }
+        LongIterator removed = previous.iterator();
+        while (removed.hasNext()) {
+            long cell = removed.nextLong();
+            if (!next.contains(cell)) {
+                pendingChange.includeCell(cell);
+            }
+        }
         slicePositions = next;
         generation++;
     }

@@ -7,6 +7,7 @@ import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.cache.SurfaceHeightCache;
+import com.topdownview.culling.geometry.BlockChangeBox;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
@@ -16,7 +17,7 @@ import com.topdownview.spatial.SpaceProbe;
 import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
-import com.topdownview.util.SpaceProfiler;
+import com.topdownview.util.PerfMonitor;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -83,7 +84,7 @@ public final class TopDownCuller {
     private ResourceKey<Level> lastSpaceDimension = null;
 
     /** 空間判定を再実行するプレイヤーシードの移動量（マンハッタン）。 */
-    private static final int SPACE_REPROBE_MOVE_THRESHOLD = 2;
+    private static final int SPACE_REPROBE_MOVE_THRESHOLD = 3;
 
     /** 直前に屋内と判定した座標。この近くの非屋内判定は段差等による一瞬のブレとして無視する。 */
     private BlockPos lastEnclosedSeed = null;
@@ -117,6 +118,10 @@ public final class TopDownCuller {
     private long viewConeGeneration = 0L;
     private double lastConeDirX = Double.NaN;
     private double lastConeDirZ = Double.NaN;
+    /** 前回の再構築以降に視界コーンが変化したか(差分ボックスを持たないため広域再構築が必要)。 */
+    private boolean coneChangePending = false;
+    /** 壁パネル/天井スライスの差分を union した再構築範囲。 */
+    private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
     private int cachedCullingMode;
@@ -167,6 +172,11 @@ public final class TopDownCuller {
         lastSpaceDimension = null;
         lastEnclosedSeed = null;
         lastConeDirX = Double.NaN;
+        coneChangePending = false;
+        pendingElementChange.reset();
+        // 次元/ワールドをまたいだ差分を持ち越さない。
+        ceilingSliceCuller.clearPendingChange();
+        wallHandler.clearPendingChange();
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -209,6 +219,8 @@ public final class TopDownCuller {
         }
         cacheClearedOnDisabled = false;
         if (level == null) return false;
+
+        PerfMonitor.IS_BLOCK_CULLED.increment();
 
         long posLong = pos.asLong();
         Boolean cached = cullingCache.get(posLong);
@@ -584,7 +596,13 @@ public final class TopDownCuller {
             }
         }
 
+        long genBefore = getCullingGeneration();
         updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
+        // 要素集合(壁パネル/天井スライス)が変わったら、ワーカーの判定キャッシュを破棄して
+        // 再構築後のメッシュが古い判定を拾わないようにする。
+        if (getCullingGeneration() != genBefore) {
+            cullingCache.clear();
+        }
         // 屋内判定が変わったらキャッシュを破棄して、フェード/近接半透明化の切替を即座に反映する
         boolean disableIndoorFade = Config.isDisableFadeIndoors() && currentSpaceEnclosed;
         if (disableIndoorFade != cachedDisableIndoorFade) {
@@ -608,8 +626,9 @@ public final class TopDownCuller {
             wallHandler.clearOccludingWalls();
         }
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+        long tEntity = System.nanoTime();
         updateEntityCulling(mc);
-        SpaceProfiler.tick();
+        PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
     }
 
     /**
@@ -627,6 +646,8 @@ public final class TopDownCuller {
             lastConeDirX = viewDirX;
             lastConeDirZ = viewDirZ;
             viewConeGeneration++;
+            // コーンは差分ボックスを保持しないため、変化時は探索キャッシュ全域の再構築が必要。
+            coneChangePending = true;
             // 向きが変わるとコーン集合も変わる。座標が同じでも古い判定を残さないよう破棄する。
             cullingCache.clear();
         }
@@ -667,7 +688,7 @@ public final class TopDownCuller {
 
         long tProbe = System.nanoTime();
         SpaceProbe.Result probed = SpaceProbe.probe(mc.level, seed, spaceScratch);
-        SpaceProfiler.PROBE.add(System.nanoTime() - tProbe);
+        PerfMonitor.PROBE.add(System.nanoTime() - tProbe);
 
         // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングがチカチカする。
         // 直前まで屋内だった座標の近くならそのブレとして無視し、屋内状態を維持する。
@@ -691,11 +712,21 @@ public final class TopDownCuller {
         RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
         RoomSegmentation.Room playerRoom = currentSpaceResult.getSegmentation().getPlayerRoom();
 
-        // 建物分類は壁カリング (WALL) と天井カリング (ROOF) が共有するため、天井より先に確定させる。
+        // 建物分類 (BuildingClassifier) は壁パネルと旧天井カリングだけが消費する。要素別の
+        // 天井スライスは airCells と segmentation しか使わないため、壁パネル無効時は
+        // classify を丸ごと省く(数十ms/probe の削減)。
+        boolean needWallClassification = (!cachedViewConeActive && cachedIndoorWallEnabled
+                && (cachedCoverCullingActive || elementActive))
+                || (!elementActive && cachedIndoorCeilingEnabled);
         long tWall = System.nanoTime();
-        wallHandler.updateClassification(roomResult, currentSpaceEnclosed, playerRoom,
-                spaceScratch.getBlockMap(), elementActive);
-        SpaceProfiler.WALL.add(System.nanoTime() - tWall);
+        if (needWallClassification) {
+            wallHandler.updateClassification(roomResult, currentSpaceEnclosed, playerRoom,
+                    spaceScratch.getBlockMap(), elementActive);
+        } else {
+            // 分類結果は誰も読まない。世代を進めずに手前壁集合だけ空にしておく。
+            wallHandler.clearOccludingWalls();
+        }
+        PerfMonitor.WALL.add(System.nanoTime() - tWall);
 
         long tCeiling = System.nanoTime();
         if (!elementActive) {
@@ -717,15 +748,15 @@ public final class TopDownCuller {
                 ceilingSliceCuller.clearCache();
             }
         }
-        SpaceProfiler.CEILING.add(System.nanoTime() - tCeiling);
+        PerfMonitor.CEILING.add(System.nanoTime() - tCeiling);
 
         long tLadder = System.nanoTime();
         ladderHandler.scan(mc.level, blockX, blockZ, blockY - 1);
-        SpaceProfiler.LADDER.add(System.nanoTime() - tLadder);
+        PerfMonitor.LADDER.add(System.nanoTime() - tLadder);
 
         long tStair = System.nanoTime();
         stairHandler.update(mc, blockY, currentSpaceEnclosed, roomResult, spaceScratch.getBlockMap());
-        SpaceProfiler.STAIR.add(System.nanoTime() - tStair);
+        PerfMonitor.STAIR.add(System.nanoTime() - tStair);
 
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             int feetY = (int) Math.floor(mc.player.getY());
@@ -734,7 +765,7 @@ public final class TopDownCuller {
                     mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
                     Config.isCoverCullingViewshedEnabled());
-            SpaceProfiler.COVER.add(System.nanoTime() - tCover);
+            PerfMonitor.COVER.add(System.nanoTime() - tCover);
         } else {
             // 分類結果は天井カリングが使うので残し、手前壁集合だけを空にする。
             coverHandler.clearCache();
@@ -832,6 +863,29 @@ public final class TopDownCuller {
         return wallHandler.getOccludingGeneration() + ceilingSliceCuller.getGeneration() + viewConeGeneration;
     }
 
+    /**
+     * 壁パネル/天井スライスの差分範囲を返す(呼ぶたびに union し直す)。空なら差分追跡できている
+     * 要素集合の変化は無い。{@link #hasConeChangePending()} が true の間はコーン変化分を
+     * 含まないため、広域再構築を選ぶこと。
+     */
+    public BlockChangeBox getPendingElementChange() {
+        pendingElementChange.reset();
+        pendingElementChange.includeBox(wallHandler.getPendingChange());
+        pendingElementChange.includeBox(ceilingSliceCuller.getPendingChange());
+        return pendingElementChange;
+    }
+
+    public boolean hasConeChangePending() {
+        return coneChangePending;
+    }
+
+    /** 再構築を実際にスケジュールした後に呼ぶ。次回の差分を新しく蓄積し直す。 */
+    public void clearPendingElementChange() {
+        wallHandler.clearPendingChange();
+        ceilingSliceCuller.clearPendingChange();
+        coneChangePending = false;
+    }
+
     public float getFadeAlpha(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
         long posLong = pos.asLong();
@@ -872,6 +926,13 @@ public final class TopDownCuller {
     }
 
     public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
+        long tCollect = System.nanoTime();
+        it.unimi.dsi.fastutil.longs.Long2FloatMap result = collectFadeBlocksImpl(level);
+        PerfMonitor.FADE_COLLECT.add(System.nanoTime() - tCollect);
+        return result;
+    }
+
+    private it.unimi.dsi.fastutil.longs.Long2FloatMap collectFadeBlocksImpl(BlockGetter level) {
         boolean fadeEnabled = Config.isFadeEnabled() && !cachedDisableIndoorFade;
         boolean stairOcclude = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();

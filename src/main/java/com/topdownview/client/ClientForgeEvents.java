@@ -5,6 +5,7 @@ import com.topdownview.TopDownViewMod;
 import com.topdownview.state.ModState;
 import com.topdownview.Config;
 import com.topdownview.client.gui.ConfigScreen;
+import com.topdownview.util.PerfMonitor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -45,6 +46,10 @@ public final class ClientForgeEvents {
     public static void onRenderTick(TickEvent.RenderTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getInstance();
+        if (ModState.STATUS.isEnabled()) {
+            // フレーム先頭で前フレームとの間隔を計測(描画/ロジック/再構築の切り分け用)
+            PerfMonitor.onFrame();
+        }
         if (mc.level != null && mc.player != null) {
             PlayerRotationController.onRenderTick(mc, event.renderTickTime);
         }

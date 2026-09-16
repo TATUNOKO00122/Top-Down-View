@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.state.ModState;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.placement.PlacementRenderer;
+import com.topdownview.util.PerfMonitor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -28,15 +29,19 @@ public final class RenderEventHandler {
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            long tRender = System.nanoTime();
             TranslucentBlockRenderer.renderFadeBlocks(event);
             DestinationHighlightRenderer.onRenderLevelStage(event);
             PlacementRenderer.onRenderLevelStage(event);
+            PerfMonitor.OVERLAY_RENDER.add(System.nanoTime() - tRender);
         }
 
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+            long tRender = System.nanoTime();
             TargetHighlightRenderer.onRenderLevelStage(event);
             SignHoverRenderer.onRenderLevelStage(event);
             InteractionPromptRenderer.onRenderLevelStage(event);
+            PerfMonitor.OVERLAY_RENDER.add(System.nanoTime() - tRender);
         }
     }
 
@@ -44,6 +49,9 @@ public final class RenderEventHandler {
     public static void onRenderGui(RenderGuiEvent.Pre event) {
         if (ModState.SPACE_DEBUG.isEnabled()) {
             SpaceDebugRenderer.onRenderGui(event);
+        }
+        if (ModState.STATUS.isEnabled()) {
+            PerfOverlayRenderer.render(event.getGuiGraphics());
         }
     }
 

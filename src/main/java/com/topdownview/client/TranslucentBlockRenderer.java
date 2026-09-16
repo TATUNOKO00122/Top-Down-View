@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.topdownview.Config;
 import com.topdownview.culling.TopDownCuller;
+import com.topdownview.util.PerfMonitor;
 import it.unimi.dsi.fastutil.longs.Long2FloatMap;
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import net.minecraft.client.Minecraft;
@@ -47,6 +48,12 @@ public final class TranslucentBlockRenderer {
     }
 
     public static void renderFadeBlocks(RenderLevelStageEvent event) {
+        long tRender = System.nanoTime();
+        renderFadeBlocksInternal(event);
+        PerfMonitor.FADE_RENDER.add(System.nanoTime() - tRender);
+    }
+
+    private static void renderFadeBlocksInternal(RenderLevelStageEvent event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
             return;
@@ -54,6 +61,7 @@ public final class TranslucentBlockRenderer {
 
         // フェード有効/無効の判定は getFadeBlocks() 側で行う。
         Long2FloatMap fadeBlocks = TopDownCuller.getInstance().getFadeBlocks(mc.level);
+        PerfMonitor.recordFadeBlocks(fadeBlocks.size());
 
         if (fadeBlocks.isEmpty()) {
             SMOOTHED_ALPHAS.clear();

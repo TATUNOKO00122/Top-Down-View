@@ -2,8 +2,10 @@ package com.topdownview.culling;
 
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
+import com.topdownview.culling.geometry.BlockChangeBox;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.state.ModState;
+import com.topdownview.util.PerfMonitor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
@@ -83,7 +85,9 @@ public final class CullingManager {
 
         int frequency = CULLER.getFrequency();
         if (mc.player.tickCount % frequency == 0) {
+            long tUpdate = System.nanoTime();
             CULLER.update();
+            PerfMonitor.CULL_UPDATE.add(System.nanoTime() - tUpdate);
         }
 
         if (ModState.STATUS.isEnabled()) {
@@ -145,13 +149,29 @@ public final class CullingManager {
                     Math.max(0, coverRadius - radiusV),
                     Math.max(0, coverRadius - radiusH));
         }
-        if (CULLER.isIndoorElementActive()) {
-            // 屋内要素(壁パネル/天井スライス)は分類領域まで広がるため、探索キャッシュ全域を再構築する。
-            int revealRadius = BlockMap.RADIUS_XZ;
-            box = box.inflate(
-                    Math.max(0, revealRadius - radiusH),
-                    Math.max(0, revealRadius - radiusV),
-                    Math.max(0, revealRadius - radiusH));
+        boolean elementRebuild = generationChanged && CULLER.isIndoorElementActive();
+        boolean wideElementRebuild = false;
+        if (elementRebuild) {
+            BlockChangeBox pending = CULLER.getPendingElementChange();
+            if (!pending.isEmpty() && !CULLER.hasConeChangePending()) {
+                // 壁パネル/天井スライスの差分セルだけを再構築する。集合の変化は通常数ブロック
+                // なので、探索キャッシュ全域(RADIUS_XZ)を再構築するより大幅に軽い。
+                box = new AABB(
+                        Math.min(box.minX, pending.getMinX()),
+                        Math.min(box.minY, pending.getMinY()),
+                        Math.min(box.minZ, pending.getMinZ()),
+                        Math.max(box.maxX, pending.getMaxX() + 1.0),
+                        Math.max(box.maxY, pending.getMaxY() + 1.0),
+                        Math.max(box.maxZ, pending.getMaxZ() + 1.0));
+            } else {
+                // コーン変化や差分不明時のみ探索キャッシュ全域へ広げる。
+                wideElementRebuild = true;
+                int revealRadius = BlockMap.RADIUS_XZ;
+                box = box.inflate(
+                        Math.max(0, revealRadius - radiusH),
+                        Math.max(0, revealRadius - radiusV),
+                        Math.max(0, revealRadius - radiusH));
+            }
         }
 
         if (scheduleChunkRebuildInternal(box)) {
@@ -163,26 +183,40 @@ public final class CullingManager {
             lastRebuildCameraY = cY;
             lastRebuildCameraZ = cZ;
             lastRebuildGeneration = generation;
+            if (elementRebuild) {
+                // 差分を消費したのでリセットする。要素非アクティブ時の変更は残しておき、
+                // 次に要素カリングが有効になった再構築でまとめて反映する。
+                CULLER.clearPendingElementChange();
+            }
+            if (wideElementRebuild) {
+                PerfMonitor.CHUNK_REBUILDS_WIDE.increment();
+            }
         }
     }
 
     private static boolean scheduleChunkRebuildInternal(AABB box) {
         if (!initialized) return false;
 
+        long start = System.nanoTime();
+        boolean scheduled = false;
         try {
             Object renderer = instanceMethod.invoke(null);
             if (renderer == null) {
                 LOGGER.debug("SodiumWorldRenderer instance is null");
-                return false;
+            } else {
+                rebuildMethod.invoke(renderer,
+                        (int) box.minX, (int) box.minY, (int) box.minZ,
+                        (int) box.maxX, (int) box.maxY, (int) box.maxZ,
+                        true);
+                scheduled = true;
+
+                // 再構築規模の目安として要求ボックスのセクション数を積算する。
+                int sx = ((int) box.maxX - (int) box.minX) / 16 + 1;
+                int sy = ((int) box.maxY - (int) box.minY) / 16 + 1;
+                int sz = ((int) box.maxZ - (int) box.minZ) / 16 + 1;
+                PerfMonitor.CHUNK_REBUILDS.increment();
+                PerfMonitor.CHUNK_REBUILD_SECTIONS.add((long) Math.max(sx, 1) * Math.max(sy, 1) * Math.max(sz, 1));
             }
-
-            rebuildMethod.invoke(renderer,
-                    (int) box.minX, (int) box.minY, (int) box.minZ,
-                    (int) box.maxX, (int) box.maxY, (int) box.maxZ,
-                    true);
-
-            return true;
-
         } catch (IllegalAccessException e) {
             LOGGER.error("Cannot access Embeddium method: {}", e.getMessage());
         } catch (java.lang.reflect.InvocationTargetException e) {
@@ -191,8 +225,9 @@ public final class CullingManager {
         } catch (Exception e) {
             LOGGER.error("Failed to schedule chunk rebuild: {}", e.getMessage());
         }
+        PerfMonitor.CHUNK_REBUILD.add(System.nanoTime() - start);
 
-        return false;
+        return scheduled;
     }
 
     public static boolean isCulled(BlockPos pos) {

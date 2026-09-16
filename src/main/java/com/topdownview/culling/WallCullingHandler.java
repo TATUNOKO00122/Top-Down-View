@@ -1,12 +1,13 @@
 package com.topdownview.culling;
 
 import com.topdownview.Config;
+import com.topdownview.culling.geometry.BlockChangeBox;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.BuildingClassifier;
 import com.topdownview.spatial.BuildingClassifier.Label;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.RoomSegmentation;
-import com.topdownview.util.SpaceProfiler;
+import com.topdownview.util.PerfMonitor;
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -60,6 +61,9 @@ public final class WallCullingHandler {
     private static final double MIN_SECTOR_LEN_SQ = 1.0E-4;
 
     private volatile LongOpenHashSet occludingWallPositions = new LongOpenHashSet();
+
+    /** 前回の再構築以降に手前壁集合へ出入りしたセルの範囲。差分再構築に使う。 */
+    private final BlockChangeBox pendingChange = new BlockChangeBox();
 
     private BuildingClassifier.Result classification = BuildingClassifier.Result.EMPTY;
     private LongSet airCells = null;
@@ -115,6 +119,10 @@ public final class WallCullingHandler {
         wallCells = new LongOpenHashSet();
         wallNormalX = new Long2FloatOpenHashMap();
         wallNormalZ = new Long2FloatOpenHashMap();
+        LongIterator removed = occludingWallPositions.iterator();
+        while (removed.hasNext()) {
+            pendingChange.includeCell(removed.nextLong());
+        }
         occludingWallPositions = new LongOpenHashSet();
         panels.clear();
         panelOf.clear();
@@ -152,9 +160,22 @@ public final class WallCullingHandler {
      */
     public void clearOccludingWalls() {
         if (!occludingWallPositions.isEmpty()) {
+            LongIterator removed = occludingWallPositions.iterator();
+            while (removed.hasNext()) {
+                pendingChange.includeCell(removed.nextLong());
+            }
             occludingWallPositions = new LongOpenHashSet();
             occludingGeneration++;
         }
+    }
+
+    /** 差分再構築のために蓄積した変更範囲。消費側で {@link #clearPendingChange()} を呼ぶ。 */
+    public BlockChangeBox getPendingChange() {
+        return pendingChange;
+    }
+
+    public void clearPendingChange() {
+        pendingChange.reset();
     }
 
     /**
@@ -225,7 +246,7 @@ public final class WallCullingHandler {
 
         long tClassify = System.nanoTime();
         classification = BuildingClassifier.classify(room, blockMap);
-        SpaceProfiler.CLASSIFY.add(System.nanoTime() - tClassify);
+        PerfMonitor.CLASSIFY.add(System.nanoTime() - tClassify);
         // 法線はプレイヤーの部屋の空気だけを基準にする。隣室に面する壁を手前壁と誤判定しない。
         airCells = (playerRoom != null) ? playerRoom.getAirCells() : room.getAirCells();
         buildWallData();
@@ -531,6 +552,22 @@ public final class WallCullingHandler {
     private void applyOccludingSet(LongOpenHashSet set) {
         if (set.equals(occludingWallPositions)) {
             return;
+        }
+        // 出入りしたセルだけを再構築対象として記録する。
+        LongOpenHashSet previous = occludingWallPositions;
+        LongIterator added = set.iterator();
+        while (added.hasNext()) {
+            long cell = added.nextLong();
+            if (!previous.contains(cell)) {
+                pendingChange.includeCell(cell);
+            }
+        }
+        LongIterator removed = previous.iterator();
+        while (removed.hasNext()) {
+            long cell = removed.nextLong();
+            if (!set.contains(cell)) {
+                pendingChange.includeCell(cell);
+            }
         }
         occludingWallPositions = set;
         occludingGeneration++;

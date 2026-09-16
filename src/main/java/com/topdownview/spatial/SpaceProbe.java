@@ -1,6 +1,6 @@
 package com.topdownview.spatial;
 
-import com.topdownview.util.SpaceProfiler;
+import com.topdownview.util.PerfMonitor;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -69,7 +69,7 @@ public final class SpaceProbe {
 
         long tFlood = System.nanoTime();
         RoomFloodFill.Result roomResult = RoomFloodFill.compute(level, feetPos, scratch);
-        SpaceProfiler.FLOOD.add(System.nanoTime() - tFlood);
+        PerfMonitor.FLOOD.add(System.nanoTime() - tFlood);
         boolean enclosed = roomResult.isEnclosed();
         int ceilingY = roomResult.getCeilingY();
 
@@ -102,7 +102,7 @@ public final class SpaceProbe {
         RoomSegmentation.Result segmentation = enclosed
                 ? RoomSegmentation.analyze(roomResult, feetPos)
                 : RoomSegmentation.Result.EMPTY;
-        SpaceProfiler.SEGMENT.add(System.nanoTime() - tSegment);
+        PerfMonitor.SEGMENT.add(System.nanoTime() - tSegment);
 
         return new Result(enclosed, ceilingY, feetPos, wallDistances, HORIZONTAL, roomResult, segmentation);
     }
