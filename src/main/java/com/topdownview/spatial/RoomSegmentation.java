@@ -1,7 +1,6 @@
 package com.topdownview.spatial;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -16,9 +15,13 @@ import java.util.List;
 /**
  * {@link RoomFloodFill} の閉空間を「階 (storey)」と「部屋 (room)」に分割する。
  *
- * <p>階の判定: 同じ列で上下を空気に挟まれた壁殻セル（水平スラブ = 天井/床）を分離層とみなし、
- * 各空気セルより下にある分離層の数を階インデックスとする。階段の開口部では列に分離層が無いため
- * 上下が同じ階に属し、スラブ上へ登ったセルだけが上の階に振り分けられる。
+ * <p>階の判定: 下が空間の空気である幅広い壁殻セル（スラブの下面）を起点に、連続する固体層の
+ * 上面 Y を求め、Y ごとに集計して複数列に現れる Y を床レベルとする。各空気セルの階インデックスは、
+ * その下にある床レベルの数。厚い床や厚い橋デッキでも1つのレベルになり、階段の開口部はその列に
+ * 床が無いだけなので、周囲の列のスラブから床レベルが検出され、開口を挟んだ上階側の空気も
+ * 正しい階に割り当てられる（旧: 同列だけで数えたため上階側が下階へ漏れた）。
+ * 下面基準なので、上に覆いが無い開けた橋のデッキも床レベルになり、橋の下が別階に分かれて
+ * デッキが天井と誤認されない。
  *
  * <p>部屋の判定: 水平 4 方向のうち対向する 2 方向が空気でないセルを「狭窄セル (ドア/通路)」として
  * 除外し、残った広いセルの 6 連結成分を部屋とする。除外した狭窄セルは隣接する部屋へ再割り当てする。
@@ -36,6 +39,12 @@ public final class RoomSegmentation {
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST
     };
+
+    /** 床レベルとみなす最小列数。浮いた小さなスラブ (平台/梁) を床と誤認しないための閾値。 */
+    private static final int MIN_FLOOR_COLUMNS = 2;
+
+    /** スラブとみなす固体層の最大厚。これより厚い塊(壁・柱)は床レベルにしない。 */
+    private static final int MAX_SLAB_THICKNESS = 8;
 
     /** 分割された 1 部屋。 */
     public static final class Room {
@@ -129,11 +138,14 @@ public final class RoomSegmentation {
     /**
      * 閉空間を階・部屋へ分割する。
      *
-     * @param room {@link RoomFloodFill} の結果。{@code null}/非閉空間なら {@link Result#EMPTY}。
-     * @param seed プレイヤー位置 (所属部屋の特定に使用)。{@code null} なら {@code room.getSeed()}。
+     * @param room     {@link RoomFloodFill} の結果。{@code null}/非閉空間なら {@link Result#EMPTY}。
+     * @param seed     プレイヤー位置 (所属部屋の特定に使用)。{@code null} なら {@code room.getSeed()}。
+     * @param blockMap プローブのブロック判定キャッシュ。スラブ下面から連続する固体層の上面を
+     *                 求めるために使う（厚い床・厚い橋デッキも床レベルとして検出する）。
+     *                 {@code null} なら下面セルの Y をそのまま床レベルにする。
      * @return 分割結果。
      */
-    public static Result analyze(RoomFloodFill.Result room, BlockPos seed) {
+    public static Result analyze(RoomFloodFill.Result room, BlockPos seed, BlockMap blockMap) {
         if (room == null || !room.isEnclosed()) {
             return Result.EMPTY;
         }
@@ -143,35 +155,53 @@ public final class RoomSegmentation {
             return Result.EMPTY;
         }
         final BlockPos roomSeed = room.getSeed();
-        final int yLo = roomSeed.getY() - RoomFloodFill.MAX_RADIUS_Y;
 
-        // ==================== 階: 上下を空気に挟まれた壁殻セルを列ごとの分離層 bitmask にする ====================
-        final Long2LongOpenHashMap sepMaskByColumn = new Long2LongOpenHashMap();
+        // ==================== 階: 空間全体の床レベルを検出する ====================
+        // 「下が空間の空気」で「幅広い」スラブ下面をスラブとみなし、その固体層の上面 Y を Y ごとに
+        // 数えて、複数列に現れる Y を床レベルとする。厚い床・厚い橋デッキでも1つのレベルになり、
+        // 階段の開口部はその列に床が無いだけで周囲の列にはあるため上階側も正しい階に割り当てられる。
+        // 上面 Y を記録するのは、梁と天井が連続する場合でも同じ Y にまとまり、下の部屋を分割しないため。
+        final Long2IntOpenHashMap sepCountByY = new Long2IntOpenHashMap();
         for (long cell : shell) {
             int x = BlockPos.getX(cell);
             int y = BlockPos.getY(cell);
             int z = BlockPos.getZ(cell);
-            if (air.contains(BlockPos.asLong(x, y - 1, z)) && air.contains(BlockPos.asLong(x, y + 1, z))
-                    && isWideSlab(shell, x, y, z)) {
-                int idx = y - yLo;
-                if (idx >= 0 && idx < Long.SIZE) {
-                    long column = BlockPos.asLong(x, 0, z);
-                    sepMaskByColumn.put(column, sepMaskByColumn.get(column) | (1L << idx));
-                }
+            if (!air.contains(BlockPos.asLong(x, y - 1, z)) || !isWideSlab(shell, x, y, z)) {
+                continue;
+            }
+            if (blockMap == null) {
+                sepCountByY.addTo(y, 1);
+                continue;
+            }
+            // 連続する固体層の上面まで登る。厚すぎる塊(壁など)はスラブではないので除外する。
+            int top = y;
+            int limit = y + MAX_SLAB_THICKNESS;
+            while (top < limit && blockMap.isSolid(x, top + 1, z)) {
+                top++;
+            }
+            if (!blockMap.isSolid(x, top + 1, z)) {
+                sepCountByY.addTo(top, 1);
             }
         }
+        final LongArrayList floorLevels = new LongArrayList();
+        for (var entry : sepCountByY.long2IntEntrySet()) {
+            if (entry.getIntValue() >= MIN_FLOOR_COLUMNS) {
+                floorLevels.add(entry.getLongKey());
+            }
+        }
+        floorLevels.sort(null);
 
         final Long2IntOpenHashMap storeyOf = new Long2IntOpenHashMap(air.size());
         storeyOf.defaultReturnValue(0);
         int maxStorey = 0;
         for (long cell : air) {
             int y = BlockPos.getY(cell);
-            int idx = y - yLo;
             int storey = 0;
-            if (idx > 0) {
-                long sep = sepMaskByColumn.get(BlockPos.asLong(BlockPos.getX(cell), 0, BlockPos.getZ(cell)));
-                if (sep != 0L) {
-                    storey = Long.bitCount(sep & ((1L << idx) - 1L));
+            for (int i = 0; i < floorLevels.size(); i++) {
+                if (floorLevels.getLong(i) < y) {
+                    storey++;
+                } else {
+                    break;
                 }
             }
             storeyOf.put(cell, storey);

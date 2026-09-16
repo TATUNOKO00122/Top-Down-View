@@ -100,7 +100,7 @@ public final class SpaceProbe {
 
         long tSegment = System.nanoTime();
         RoomSegmentation.Result segmentation = enclosed
-                ? RoomSegmentation.analyze(roomResult, feetPos)
+                ? RoomSegmentation.analyze(roomResult, feetPos, scratch != null ? scratch.getBlockMap() : null)
                 : RoomSegmentation.Result.EMPTY;
         PerfMonitor.SEGMENT.add(System.nanoTime() - tSegment);
 
