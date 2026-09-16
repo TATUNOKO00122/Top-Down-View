@@ -30,12 +30,14 @@ public final class BlockMap {
     private static final byte FLAG_COVER = 2;
     /** バニラ階段ブロック。 */
     private static final byte FLAG_STAIR = 4;
+    /** 扉・フェンスゲートなどの連結部。閉じていても屋内なら通路として貫通させる。 */
+    private static final byte FLAG_CONNECTOR = 8;
 
     /** 計算済みマーカー。未計算 (0) と区別する。 */
     private static final byte COMPUTED = (byte) 0x80;
 
     /** 実フラグのビットマスク。 */
-    private static final byte FLAG_MASK = FLAG_SOLID | FLAG_COVER | FLAG_STAIR;
+    private static final byte FLAG_MASK = FLAG_SOLID | FLAG_COVER | FLAG_STAIR | FLAG_CONNECTOR;
 
     /** 起点からの XZ 半径。flood/classifier の最大到達を覆う。 */
     public static final int RADIUS_XZ = RoomFloodFill.MAX_RADIUS_XZ + BuildingClassifier.T_MAX + 1;
@@ -82,6 +84,11 @@ public final class BlockMap {
         return (flagsAt(x, y, z) & FLAG_STAIR) != 0;
     }
 
+    /** 扉やフェンスゲートなど、閉じていても屋内の通路として貫通させるブロックか。 */
+    public boolean isConnector(int x, int y, int z) {
+        return (flagsAt(x, y, z) & FLAG_CONNECTOR) != 0;
+    }
+
     private byte flagsAt(int x, int y, int z) {
         int lx = x - originX;
         int ly = y - originY;
@@ -112,6 +119,9 @@ public final class BlockMap {
         }
         if (state.getBlock() instanceof StairBlock) {
             f |= FLAG_STAIR;
+        }
+        if (state.is(BlockTags.DOORS) || state.is(BlockTags.FENCE_GATES)) {
+            f |= FLAG_CONNECTOR;
         }
         return f;
     }

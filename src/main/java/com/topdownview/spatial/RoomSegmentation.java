@@ -33,6 +33,9 @@ public final class RoomSegmentation {
     }
 
     private static final Direction[] ALL6 = Direction.values();
+    private static final Direction[] HORIZONTAL = {
+            Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST
+    };
 
     /** 分割された 1 部屋。 */
     public static final class Room {
@@ -77,16 +80,18 @@ public final class RoomSegmentation {
     /** 分割結果。 */
     public static final class Result {
 
-        public static final Result EMPTY = new Result(List.of(), -1, 0);
+        public static final Result EMPTY = new Result(List.of(), -1, 0, new Long2IntOpenHashMap());
 
         private final List<Room> rooms;
         private final int playerRoomIndex;
         private final int storeyCount;
+        private final Long2IntOpenHashMap storeyOf;
 
-        Result(List<Room> rooms, int playerRoomIndex, int storeyCount) {
+        Result(List<Room> rooms, int playerRoomIndex, int storeyCount, Long2IntOpenHashMap storeyOf) {
             this.rooms = List.copyOf(rooms);
             this.playerRoomIndex = playerRoomIndex;
             this.storeyCount = storeyCount;
+            this.storeyOf = storeyOf;
         }
 
         /** 分割された全部屋 (空気セル数の降順)。 */
@@ -108,6 +113,11 @@ public final class RoomSegmentation {
         /** 検出した階数。 */
         public int getStoreyCount() {
             return storeyCount;
+        }
+
+        /** 指定した空気セル (packed long) の階インデックス。未知のセルは 0。 */
+        public int getStoreyOf(long cell) {
+            return storeyOf.get(cell);
         }
 
         /** 有効な分割結果か。 */
@@ -141,7 +151,8 @@ public final class RoomSegmentation {
             int x = BlockPos.getX(cell);
             int y = BlockPos.getY(cell);
             int z = BlockPos.getZ(cell);
-            if (air.contains(BlockPos.asLong(x, y - 1, z)) && air.contains(BlockPos.asLong(x, y + 1, z))) {
+            if (air.contains(BlockPos.asLong(x, y - 1, z)) && air.contains(BlockPos.asLong(x, y + 1, z))
+                    && isWideSlab(shell, x, y, z)) {
                 int idx = y - yLo;
                 if (idx >= 0 && idx < Long.SIZE) {
                     long column = BlockPos.asLong(x, 0, z);
@@ -282,7 +293,7 @@ public final class RoomSegmentation {
         }
         rooms.sort(Comparator.comparingInt(Room::size).reversed());
         int playerRoomIndex = indexOfRoomContaining(rooms, seed != null ? seed : roomSeed);
-        return new Result(rooms, playerRoomIndex, maxStorey + 1);
+        return new Result(rooms, playerRoomIndex, maxStorey + 1, storeyOf);
     }
 
     private static Result buildRooms(LongSet air, Long2IntOpenHashMap componentOf,
@@ -307,7 +318,21 @@ public final class RoomSegmentation {
                 storeyCount = room.getStorey() + 1;
             }
         }
-        return new Result(rooms, playerRoomIndex, storeyCount);
+        return new Result(rooms, playerRoomIndex, storeyCount, storeyOf);
+    }
+
+    /**
+     * 水平に広がる面(スラブ)か。上下を空気に挟まれた殻セルでも、梁のような細い遮蔽物は
+     * 水平4近傍のうち3つ以上が殻にならないため面とみなさない(階を分割しない)。
+     */
+    private static boolean isWideSlab(LongSet shell, int x, int y, int z) {
+        int solid = 0;
+        for (Direction d : HORIZONTAL) {
+            if (shell.contains(BlockPos.asLong(x + d.getStepX(), y, z + d.getStepZ()))) {
+                solid++;
+            }
+        }
+        return solid >= 3;
     }
 
     private static int indexOfRoomContaining(List<Room> rooms, BlockPos pos) {

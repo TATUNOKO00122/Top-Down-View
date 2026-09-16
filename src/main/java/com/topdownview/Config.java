@@ -105,10 +105,13 @@ public class Config {
             .comment("Exponential smoothing half-life (seconds) for the translucent fade alpha. 0 disables smoothing.")
             .defineInRange("fadeSmoothingHalfLife", 0.14, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
-            .comment("0 = Legacy (cylinder), 1 = New (cover + corridor).")
-            .defineInRange("cullingMode", 1, 0, 1);
+            .comment("0 = Legacy (cylinder), 1 = New (cover + corridor), 2 = View Cone (hard-cull the camera->player cone).")
+            .defineInRange("cullingMode", 1, 0, 2);
     private static final ForgeConfigSpec.IntValue VIEW_WEDGE_HALF_ANGLE = BUILDER
             .defineInRange("viewWedgeHalfAngle", 60, 10, 90);
+    private static final ForgeConfigSpec.IntValue VIEW_CONE_HALF_ANGLE = BUILDER
+            .comment("Half angle (degrees) of the camera-side aperture of the view cone.")
+            .defineInRange("viewConeHalfAngle", 45, 10, 90);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
             .defineInRange("coverCullingRadius", 10, 4, 24);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
@@ -334,6 +337,7 @@ public class Config {
     public static double getFadeSmoothingHalfLife() { return CULLING.getFadeSmoothingHalfLife(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
+    public static int getViewConeHalfAngle() { return CULLING.getViewConeHalfAngle(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
@@ -457,6 +461,7 @@ public class Config {
     public static void setFadeSmoothingHalfLife(double value) { CULLING.setFadeSmoothingHalfLife(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
+    public static void setViewConeHalfAngle(int value) { CULLING.setViewConeHalfAngle(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
@@ -600,6 +605,7 @@ public class Config {
         CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.get());
         CULLING.setDisableFadeIndoors(DISABLE_FADE_INDOORS.get());
         CULLING.setViewWedgeHalfAngle(VIEW_WEDGE_HALF_ANGLE.get());
+        CULLING.setViewConeHalfAngle(VIEW_CONE_HALF_ANGLE.get());
         CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
         CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
         CULLING.setCullingMode(CULLING_MODE.get());
@@ -730,6 +736,7 @@ public class Config {
             INDOOR_CEILING_CULLING_ENABLED.set(isIndoorCeilingCullingEnabled());
             INDOOR_WALL_CULLING_HALF_ANGLE.set(getIndoorWallCullingHalfAngle());
             VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
+            VIEW_CONE_HALF_ANGLE.set(getViewConeHalfAngle());
             COVER_CULLING_RADIUS.set(getCoverCullingRadius());
             COVER_CULLING_VIEWSHED_ENABLED.set(isCoverCullingViewshedEnabled());
             PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(isPlayerNearTranslucencyEnabled());

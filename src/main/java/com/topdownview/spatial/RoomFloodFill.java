@@ -177,9 +177,16 @@ public final class RoomFloodFill {
 
                 // 固体ブロック（壁・床・天井）か通過可能空間かを判定
                 if (s.blockMap.isSolid(nx, ny, nz)) {
-                    // 固体ブロックは壁殻 (Shell) として記録（キューへは入れない）
-                    visitedShell.add(nlong);
-                    if (horizontal) lateralSolid++;
+                    // 閉じた扉などの連結部は、直上に覆いがあるなら屋内の通路として空気同様に扱い
+                    // 探索を継続する。これがないと閉じた扉で建物が部屋ごとに分断される。
+                    // 屋外のフェンスゲートが外を建物内へ取り込まないよう covered を要求する。
+                    if (s.blockMap.isConnector(nx, ny, nz) && isCovered(s, nx, ny, nz)) {
+                        visitedAir.add(nlong);
+                        queue.add(nlong);
+                    } else {
+                        visitedShell.add(nlong);
+                        if (horizontal) lateralSolid++;
+                    }
                 } else if (isCovered(s, nx, ny, nz)) {
                     // 直上に固体の覆いがある空気セル → 屋内/洞窟内部として探索継続
                     visitedAir.add(nlong);
