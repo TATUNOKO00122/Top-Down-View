@@ -1,6 +1,7 @@
 package com.topdownview.client;
 
 import com.topdownview.state.ModState;
+import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.placement.PlacementRenderer;
 import com.topdownview.util.PerfMonitor;
@@ -50,7 +51,7 @@ public final class RenderEventHandler {
         if (ModState.SPACE_DEBUG.isEnabled()) {
             SpaceDebugRenderer.onRenderGui(event);
         }
-        if (ModState.STATUS.isEnabled()) {
+        if (ModState.STATUS.isEnabled() && Config.isPerformanceMonitorEnabled()) {
             PerfOverlayRenderer.render(event.getGuiGraphics());
         }
     }

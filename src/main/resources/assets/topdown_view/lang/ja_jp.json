@@ -277,5 +277,8 @@
   "topdown_view.config.mob_near_radius": "Mob至近可視半径: %.1f",
   "topdown_view.config.mob_near_radius.tooltip": "プレイヤーの至近距離にいるMobを、視界コーンの向きに関わらず表示する半径を設定します。",
   "topdown_view.config.mob_fog_end": "Mob最大視認距離: %.1f",
-  "topdown_view.config.mob_fog_end.tooltip": "Mobを表示する最大の距離を設定します。この距離を超えたMobは完全に非表示になります。"
+  "topdown_view.config.mob_fog_end.tooltip": "Mobを表示する最大の距離を設定します。この距離を超えたMobは完全に非表示になります。",
+  "topdown_view.config.section.performance_monitor": "パフォーマンス計測",
+  "topdown_view.config.performance_monitor_enabled": "パフォーマンスモニター: %s",
+  "topdown_view.config.performance_monitor_enabled.tooltip": "画面右上にFPSや各処理の所要時間をライブ表示し、5秒ごとにサマリをログへ出力します。\n動作が重い原因の切り分け用です。"
 }

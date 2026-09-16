@@ -830,6 +830,11 @@ public final class TopDownCuller {
         return ceilingSliceCuller.getLastColumnCount();
     }
 
+    /** デバッグ用: 処理量超過により天井スライスがクールダウン中か。 */
+    public boolean isCeilingSliceCoolingDown() {
+        return ceilingSliceCuller.isCoolingDown();
+    }
+
     /**
      * カリング集合の世代番号。値が変わるとカリング結果が変わった可能性がある。
      * 屋内天井スライスは視点の回転や階の移動で変わるため、チャンク再構築のトリガに使う。

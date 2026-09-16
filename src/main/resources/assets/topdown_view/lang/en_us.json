@@ -277,5 +277,8 @@
   "topdown_view.config.mob_near_radius": "Mob Proximity Radius: %.1f",
   "topdown_view.config.mob_near_radius.tooltip": "Sets the radius within which mobs are always visible, regardless of the vision cone direction.",
   "topdown_view.config.mob_fog_end": "Mob Max Render Distance: %.1f",
-  "topdown_view.config.mob_fog_end.tooltip": "Sets the maximum distance at which mobs are visible. Mobs beyond this distance are completely hidden."
+  "topdown_view.config.mob_fog_end.tooltip": "Sets the maximum distance at which mobs are visible. Mobs beyond this distance are completely hidden.",
+  "topdown_view.config.section.performance_monitor": "Performance Monitor",
+  "topdown_view.config.performance_monitor_enabled": "Performance Monitor: %s",
+  "topdown_view.config.performance_monitor_enabled.tooltip": "Shows FPS and per-phase timings live in the top-right corner, and logs a summary every 5 seconds.\nUseful for diagnosing performance issues."
 }

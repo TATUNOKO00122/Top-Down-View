@@ -9,7 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
  * パフォーマンス計測の画面オーバーレイ。
  *
  * <p>{@link PerfMonitor} の値を右上にライブ表示し、FPS低下が描画由来かロジック由来かを
- * 目視で切り分けるための計測用。トップダウンビュー有効中は常時表示する。
+ * 目視で切り分けるための計測用。トップダウンビュー有効中かつパフォーマンスモニター有効時に表示する。
  */
 public final class PerfOverlayRenderer {
 

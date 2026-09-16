@@ -41,6 +41,7 @@ public final class InteractionConfig {
     private boolean showSpatialPrompt = false;
     private double spatialPromptRadius = 8.0;
     private boolean spatialPromptAllBlocks = false;
+    private boolean performanceMonitorEnabled = false;
 
     public boolean isMiningModeEnabled() { return miningModeEnabled; }
     public void setMiningModeEnabled(boolean value) { this.miningModeEnabled = value; }
@@ -153,6 +154,9 @@ public final class InteractionConfig {
 
     public boolean isSpatialPromptAllBlocks() { return spatialPromptAllBlocks; }
     public void setSpatialPromptAllBlocks(boolean value) { this.spatialPromptAllBlocks = value; }
+
+    public boolean isPerformanceMonitorEnabled() { return performanceMonitorEnabled; }
+    public void setPerformanceMonitorEnabled(boolean value) { this.performanceMonitorEnabled = value; }
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));

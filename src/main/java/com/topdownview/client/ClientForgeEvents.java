@@ -46,7 +46,7 @@ public final class ClientForgeEvents {
     public static void onRenderTick(TickEvent.RenderTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getInstance();
-        if (ModState.STATUS.isEnabled()) {
+        if (ModState.STATUS.isEnabled() && Config.isPerformanceMonitorEnabled()) {
             // フレーム先頭で前フレームとの間隔を計測(描画/ロジック/再構築の切り分け用)
             PerfMonitor.onFrame();
         }

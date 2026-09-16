@@ -29,6 +29,8 @@ public final class PerfMonitor {
     private static final long FRAME_DROP_NANOS = 25_000_000L;
     /** 100ms超えのプチフリ。 */
     private static final long FRAME_FREEZE_NANOS = 100_000_000L;
+    /** これ以上フレームが空いたら計測を仕切り直す(初回/ロード明け/モニター復帰)。 */
+    private static final long RESUME_GAP_NANOS = 1_000_000_000L;
 
     // ==================== フェーズ別タイマー ====================
     /** TopDownCuller.update 全体。 */
@@ -88,26 +90,33 @@ public final class PerfMonitor {
     /** 毎フレーム先頭で呼ぶ。前フレームとの間隔を計測し、スパイク/サマリを判定する。 */
     public static void onFrame() {
         long now = System.nanoTime();
-        if (lastFrameNanos != 0L) {
-            long dt = now - lastFrameNanos;
-            frameCount++;
-            frameTotalNanos += dt;
-            if (dt > frameMaxNanos) {
-                frameMaxNanos = dt;
-            }
-            if (dt > FRAME_DROP_NANOS) {
-                dropFrames++;
-            }
-            if (dt > FRAME_FREEZE_NANOS) {
-                freezeFrames++;
-            }
-            if (dt > SPIKE_NANOS && now - lastSpikeLogNanos >= SPIKE_LOG_INTERVAL_NANOS) {
-                lastSpikeLogNanos = now;
-                LOGGER.info("[TopDownView][Perf] SPIKE frame={}ms | render fade={}ms overlay={}ms | "
-                                + "tick cull={}ms probe={}ms | chunk rebuild={}ms ({} calls) | isBlockCulled={}",
-                        f1(dt / 1.0E6), FADE_RENDER, OVERLAY_RENDER, CULL_UPDATE, PROBE,
-                        CHUNK_REBUILD, CHUNK_REBUILDS.sum(), IS_BLOCK_CULLED.sum());
-            }
+
+        // 初回・ロード画面明け・モニター無効化からの復帰は、離散的な巨大フレームを統計に混ぜないよう仕切り直す
+        if (lastFrameNanos == 0L || now - lastFrameNanos > RESUME_GAP_NANOS) {
+            resetAll();
+            windowStart = now;
+            lastFrameNanos = now;
+            return;
+        }
+
+        long dt = now - lastFrameNanos;
+        frameCount++;
+        frameTotalNanos += dt;
+        if (dt > frameMaxNanos) {
+            frameMaxNanos = dt;
+        }
+        if (dt > FRAME_DROP_NANOS) {
+            dropFrames++;
+        }
+        if (dt > FRAME_FREEZE_NANOS) {
+            freezeFrames++;
+        }
+        if (dt > SPIKE_NANOS && now - lastSpikeLogNanos >= SPIKE_LOG_INTERVAL_NANOS) {
+            lastSpikeLogNanos = now;
+            LOGGER.info("[TopDownView][Perf] SPIKE frame={}ms | render fade={}ms overlay={}ms | "
+                            + "tick cull={}ms probe={}ms | chunk rebuild={}ms ({} calls) | isBlockCulled={}",
+                    f1(dt / 1.0E6), FADE_RENDER, OVERLAY_RENDER, CULL_UPDATE, PROBE,
+                    CHUNK_REBUILD, CHUNK_REBUILDS.sum(), IS_BLOCK_CULLED.sum());
         }
         lastFrameNanos = now;
 

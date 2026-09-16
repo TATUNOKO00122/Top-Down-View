@@ -279,6 +279,9 @@ public class Config {
             .defineInRange("spatialPromptRadius", 8.0, 1.0, 16.0);
     private static final ForgeConfigSpec.BooleanValue SPATIAL_PROMPT_ALL_BLOCKS = BUILDER
             .define("spatialPromptAllBlocks", false);
+    private static final ForgeConfigSpec.BooleanValue PERFORMANCE_MONITOR_ENABLED = BUILDER
+            .comment("Shows the live performance overlay (FPS, phase timings) and logs a summary every 5 seconds.")
+            .define("performanceMonitorEnabled", false);
 
     private static final ForgeConfigSpec.BooleanValue IGNORE_LEAVES_IN_RAYCAST = BUILDER
             .define("ignoreLeavesInRaycast", false);
@@ -414,6 +417,7 @@ public class Config {
     public static boolean isShowSpatialPrompt() { return INTERACTION.isShowSpatialPrompt(); }
     public static double getSpatialPromptRadius() { return INTERACTION.getSpatialPromptRadius(); }
     public static boolean isSpatialPromptAllBlocks() { return INTERACTION.isSpatialPromptAllBlocks(); }
+    public static boolean isPerformanceMonitorEnabled() { return INTERACTION.isPerformanceMonitorEnabled(); }
 
     public static double getEffectiveReachDistance() { return INTERACTION.getEffectiveReachDistance(); }
     public static void setSyncedServerReach(double value) { INTERACTION.setSyncedServerReach(value); }
@@ -535,6 +539,7 @@ public class Config {
     public static void setShowSpatialPrompt(boolean value) { INTERACTION.setShowSpatialPrompt(value); }
     public static void setSpatialPromptRadius(double value) { INTERACTION.setSpatialPromptRadius(value); }
     public static void setSpatialPromptAllBlocks(boolean value) { INTERACTION.setSpatialPromptAllBlocks(value); }
+    public static void setPerformanceMonitorEnabled(boolean value) { INTERACTION.setPerformanceMonitorEnabled(value); }
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent.Loading event) {
@@ -677,6 +682,7 @@ public class Config {
         INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.get());
         INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.get());
         INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.get());
+        INTERACTION.setPerformanceMonitorEnabled(PERFORMANCE_MONITOR_ENABLED.get());
     }
 
     private static void loadCommonConfig() {
@@ -801,6 +807,7 @@ public class Config {
             SHOW_SPATIAL_PROMPT.set(isShowSpatialPrompt());
             SPATIAL_PROMPT_RADIUS.set(getSpatialPromptRadius());
             SPATIAL_PROMPT_ALL_BLOCKS.set(isSpatialPromptAllBlocks());
+            PERFORMANCE_MONITOR_ENABLED.set(isPerformanceMonitorEnabled());
             SPEC.save();
         } finally {
             isSaving = false;
@@ -912,6 +919,7 @@ public class Config {
         INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.getDefault());
         INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.getDefault());
         INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.getDefault());
+        INTERACTION.setPerformanceMonitorEnabled(PERFORMANCE_MONITOR_ENABLED.getDefault());
     }
 
     public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {

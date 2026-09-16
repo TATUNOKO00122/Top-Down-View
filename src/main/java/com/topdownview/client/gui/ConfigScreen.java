@@ -726,6 +726,20 @@ public class ConfigScreen extends Screen {
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.spatial_prompt_all_blocks.tooltip")))
                 .build());
         y += sp;
+
+        // パフォーマンス計測
+        y = addSection(y, "topdown_view.config.section.performance_monitor", tx);
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.performance_monitor_enabled", Config.isPerformanceMonitorEnabled()),
+                btn -> {
+                    Config.setPerformanceMonitorEnabled(!Config.isPerformanceMonitorEnabled());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.performance_monitor_enabled",
+                            Config.isPerformanceMonitorEnabled()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.performance_monitor_enabled.tooltip")))
+                .build());
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 

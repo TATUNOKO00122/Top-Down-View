@@ -314,6 +314,9 @@ public final class SpaceDebugRenderer {
         String sliceText = (sliceY == Integer.MIN_VALUE)
                 ? "none"
                 : "Y=" + sliceY + " cols=" + TopDownCuller.getInstance().getCeilingSliceColumns();
+        if (TopDownCuller.getInstance().isCeilingSliceCoolingDown()) {
+            sliceText += " [cooldown]";
+        }
         gg.drawString(mc.font, "CeilingSlice: " + sliceText
                 + "  playerY=" + mc.player.blockPosition().getY(), x, y, 0xFFFFAA66, false);
         y += lineHeight;

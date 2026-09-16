@@ -1,5 +1,6 @@
 package com.topdownview.culling;
 
+import com.mojang.logging.LogUtils;
 import com.topdownview.culling.geometry.BlockChangeBox;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -9,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import org.slf4j.Logger;
 
 /**
  * 屋内用の天井スライスカリング。
@@ -25,6 +27,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
  */
 public final class CeilingSliceCuller {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private static final int NO_CEILING = Integer.MIN_VALUE;
 
     /** 天井候補を探し始める足元からの高さ。プレイヤー(1.8)の頭の上を空ける。 */
@@ -36,6 +40,24 @@ public final class CeilingSliceCuller {
     /** 検出範囲は空気セルの AABB なので、外壁の頂部も含めるため壁厚分マージンする。 */
     private static final int RANGE_MARGIN = 1;
 
+    /**
+     * 1回の update の時間予算。地下のように天井の上までブロックで埋まった空間では
+     * 「天井Y→地表」の走査量が跳ね上がるため、超えたらその空間では処理を諦める。
+     */
+    private static final long TIME_BUDGET_NANOS = 8_000_000L;
+
+    /** 時間チェックの間隔(セル数)。nanoTime の呼び出しを間引く。 */
+    private static final int TIME_CHECK_INTERVAL = 512;
+
+    /** 予算超過後の再試行待ちの初期値。連続で超過するたび倍に伸ばす。 */
+    private static final long COOLDOWN_BASE_NANOS = 2_000_000_000L;
+
+    /** 再試行待ちの上限。 */
+    private static final long COOLDOWN_MAX_NANOS = 8_000_000_000L;
+
+    /** 諦めた空間のログ出力の最短間隔。 */
+    private static final long SKIP_LOG_INTERVAL_NANOS = 5_000_000_000L;
+
     private volatile LongOpenHashSet slicePositions = new LongOpenHashSet();
     private volatile long generation = 0;
 
@@ -43,12 +65,25 @@ public final class CeilingSliceCuller {
     private volatile int lastCeilingY = NO_CEILING;
     private volatile int lastColumnCount = 0;
 
+    // ==================== 作業量ガード(ティック/描画スレッドのみ) ====================
+    private long updateStartNanos;
+    private int scanCount;
+    private boolean overBudget;
+    /** 予算超過後の再試行待ち。連続で超過するたび倍に伸ばす。 */
+    private long cooldownNanos = COOLDOWN_BASE_NANOS;
+    /** この時刻までは update を再試行しない。 */
+    private long nextRetryNanos;
+    private long lastSkipLogNanos;
+
     /** 前回の再構築以降に追加/削除されたセルの範囲。差分再構築に使う(ティック/描画スレッドのみ)。 */
     private final BlockChangeBox pendingChange = new BlockChangeBox();
 
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
     public void clearCache() {
+        // 空間を離れた/屋外に出たので、作業量ガードのバックオフもやり直す。
+        cooldownNanos = COOLDOWN_BASE_NANOS;
+        nextRetryNanos = 0L;
         // 既に空ならカリング結果は変わらないため、世代を進めない(無駄な再構築を避ける)。
         if (slicePositions.isEmpty()) {
             return;
@@ -91,14 +126,28 @@ public final class CeilingSliceCuller {
      */
     public void update(LevelReader level, BlockPos minPos, BlockPos maxPos, LongSet floorCells,
             int playerLevelY) {
-        LongOpenHashSet next = new LongOpenHashSet();
         if (level == null || minPos == null || maxPos == null) {
-            apply(next);
+            apply(new LongOpenHashSet());
+            return;
+        }
+        // 予算超過で諦めた直後はしばらく再試行しない(密な空間での毎probe再スキャンを避ける)。
+        if (System.nanoTime() < nextRetryNanos) {
             return;
         }
 
+        updateStartNanos = System.nanoTime();
+        scanCount = 0;
+        overBudget = false;
+        LongOpenHashSet next = new LongOpenHashSet();
+
         int ceilingY = findDominantCeilingY(level, floorCells, playerLevelY);
+        if (overBudget) {
+            abort(minPos, maxPos);
+            apply(next);
+            return;
+        }
         if (ceilingY == NO_CEILING) {
+            cooldownNanos = COOLDOWN_BASE_NANOS;
             apply(next);
             return;
         }
@@ -108,6 +157,8 @@ public final class CeilingSliceCuller {
         int maxZ = maxPos.getZ() + RANGE_MARGIN;
         int maxBuildHeight = level.getMaxBuildHeight() - 1;
 
+        boolean over = false;
+        cullLoop:
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 // 天井より上を全部消す。列の地表高さまでで打ち切る (その上は空気)。
@@ -116,6 +167,10 @@ public final class CeilingSliceCuller {
                     top = ceilingY;
                 }
                 for (int y = ceilingY; y <= top; y++) {
+                    if (budgetExceeded()) {
+                        over = true;
+                        break cullLoop;
+                    }
                     mutablePos.set(x, y, z);
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
@@ -125,7 +180,53 @@ public final class CeilingSliceCuller {
                 }
             }
         }
+        if (over) {
+            // 途中結果は破棄する。集合を空にするとこの空間では天井スライスが無効になる。
+            abort(minPos, maxPos);
+            next.clear();
+            apply(next);
+            return;
+        }
+        // 予算内で完了したのでバックオフを初期値に戻す。
+        cooldownNanos = COOLDOWN_BASE_NANOS;
         apply(next);
+    }
+
+    /**
+     * 時間予算の超過を検出する。全セルで nanoTime を呼ばないよう {@link #TIME_CHECK_INTERVAL}
+     * セルごとに判定する。超過後は常に true を返す。
+     */
+    private boolean budgetExceeded() {
+        if (overBudget) {
+            return true;
+        }
+        if ((scanCount++ & (TIME_CHECK_INTERVAL - 1)) == 0
+                && System.nanoTime() - updateStartNanos > TIME_BUDGET_NANOS) {
+            overBudget = true;
+        }
+        return overBudget;
+    }
+
+    /**
+     * 処理量が予算を超えた空間を諦める。集合は空のまま(この空間では天井スライス無効)にして、
+     * 再試行までクールダウンを置く。連続で超過するたび待ち時間を倍に伸ばす。
+     */
+    private void abort(BlockPos minPos, BlockPos maxPos) {
+        long now = System.nanoTime();
+        long applied = cooldownNanos;
+        nextRetryNanos = now + applied;
+        cooldownNanos = Math.min(cooldownNanos * 2, COOLDOWN_MAX_NANOS);
+        if (now - lastSkipLogNanos >= SKIP_LOG_INTERVAL_NANOS) {
+            lastSkipLogNanos = now;
+            LOGGER.info("[TopDownView] Ceiling slice paused: work >{}ms (scanned={}, space {}x{}, retry in {}s)",
+                    TIME_BUDGET_NANOS / 1.0E6, scanCount, maxPos.getX() - minPos.getX() + 1,
+                    maxPos.getZ() - minPos.getZ() + 1, applied / 1.0E9);
+        }
+    }
+
+    /** デバッグ用: 作業量ガードのクールダウン中か。 */
+    public boolean isCoolingDown() {
+        return System.nanoTime() < nextRetryNanos;
     }
 
     /**
@@ -149,6 +250,11 @@ public final class CeilingSliceCuller {
         // 立ち位置レベルの空気がある列だけを対象にする。
         LongOpenHashSet columns = new LongOpenHashSet();
         for (long cell : floorCells) {
+            if (budgetExceeded()) {
+                lastCeilingY = NO_CEILING;
+                lastColumnCount = columns.size();
+                return NO_CEILING;
+            }
             if (BlockPos.getY(cell) < playerLevelY) {
                 continue;
             }
@@ -167,6 +273,11 @@ public final class CeilingSliceCuller {
             int x = BlockPos.getX(column);
             int z = BlockPos.getZ(column);
             for (int y = startY; y <= maxY; y++) {
+                if (budgetExceeded()) {
+                    lastCeilingY = NO_CEILING;
+                    lastColumnCount = columns.size();
+                    return NO_CEILING;
+                }
                 mutablePos.set(x, y, z);
                 if (!level.getBlockState(mutablePos).isAir()) {
                     counts.addTo(y, 1);
