@@ -60,6 +60,21 @@ public final class SpaceProbe {
      * @return 判定結果
      */
     public static Result probe(BlockGetter level, BlockPos feetPos, RoomFloodFill.Scratch scratch) {
+        return probe(level, feetPos, scratch, true);
+    }
+
+    /**
+     * 作業バッファを再利用して空間を判定する。
+     *
+     * @param level   ワールド
+     * @param feetPos プレイヤーの足元ブロック位置
+     * @param scratch {@link RoomFloodFill.Scratch}。{@code null} なら内部で生成。
+     * @param measurePhases {@code false} なら flood/segment の内部分単位計測をしない。
+     *                      非同期ワーカーから呼ぶ場合、タイマーはティック/描画スレッド専用なので false にする。
+     * @return 判定結果
+     */
+    public static Result probe(BlockGetter level, BlockPos feetPos, RoomFloodFill.Scratch scratch,
+                               boolean measurePhases) {
         if (level == null || feetPos == null) {
             int[] noWalls = new int[HORIZONTAL.length];
             java.util.Arrays.fill(noWalls, WALL_NONE);
@@ -67,9 +82,11 @@ public final class SpaceProbe {
                     RoomFloodFill.Result.EMPTY, RoomSegmentation.Result.EMPTY);
         }
 
-        long tFlood = System.nanoTime();
+        long tFlood = measurePhases ? System.nanoTime() : 0L;
         RoomFloodFill.Result roomResult = RoomFloodFill.compute(level, feetPos, scratch);
-        PerfMonitor.FLOOD.add(System.nanoTime() - tFlood);
+        if (measurePhases) {
+            PerfMonitor.FLOOD.add(System.nanoTime() - tFlood);
+        }
         boolean enclosed = roomResult.isEnclosed();
         int ceilingY = roomResult.getCeilingY();
 
@@ -98,7 +115,7 @@ public final class SpaceProbe {
             java.util.Arrays.fill(wallDistances, WALL_NONE);
         }
 
-        long tSegment = System.nanoTime();
+        long tSegment = measurePhases ? System.nanoTime() : 0L;
         RoomSegmentation.Result segmentation = enclosed
                 // 生の足元位置ではなく、flood が実際に起点にした有効セルを渡す。スラブ床の上では
                 // blockPosition() が固体セルになり、そのセルはどの部屋にも含まれず PlayerRoom が
@@ -106,7 +123,9 @@ public final class SpaceProbe {
                 ? RoomSegmentation.analyze(roomResult, roomResult.getSeed(),
                         scratch != null ? scratch.getBlockMap() : null)
                 : RoomSegmentation.Result.EMPTY;
-        PerfMonitor.SEGMENT.add(System.nanoTime() - tSegment);
+        if (measurePhases) {
+            PerfMonitor.SEGMENT.add(System.nanoTime() - tSegment);
+        }
 
         return new Result(enclosed, ceilingY, feetPos, wallDistances, HORIZONTAL, roomResult, segmentation);
     }

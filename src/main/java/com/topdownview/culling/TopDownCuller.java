@@ -20,6 +20,8 @@ import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.topdownview.util.PerfMonitor;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -80,9 +82,33 @@ public final class TopDownCuller {
 
     private boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
-    private final RoomFloodFill.Scratch spaceScratch = new RoomFloodFill.Scratch();
+    private RoomFloodFill.Scratch spaceScratch = new RoomFloodFill.Scratch();
     private BlockPos lastSpaceSeed = null;
     private ResourceKey<Level> lastSpaceDimension = null;
+
+    // ==================== 非同期空間解析 ====================
+    /**
+     * flood/segment は密な空間で 100ms 超になるため、Render thread の同期実行をやめ
+     * 1スレッドの daemon ワーカーで計算し、完成品を volatile スロット経由で受け取る。
+     * 排他は「投げる側=メインスレッド、受け取る側=メインスレッド」に限定し、
+     * ワーカーは単一スロットへの1回の volatile 書き込みしかしない。
+     */
+    private ExecutorService probeExecutor;
+    private volatile TopDownCuller.ProbeOutcome probeOutcome;
+    private volatile boolean probeInFlight;
+    private volatile int probeEpoch;
+    /** probe が失敗した直後に再試行しない期間(ワーカー例外のループ防止)。 */
+    private long probeRetryAfterNanos;
+    private static final long PROBE_RETRY_NANOS = 500_000_000L;
+    /** ワーカー例外ログのスパム防止。 */
+    private long probeErrorLogAfterNanos;
+
+    /**
+     * ワーカーからメインスレッドへ渡す probe 完了データ。不変なので参照の volatile 読みだけで安全に受け渡せる。
+     */
+    private record ProbeOutcome(int epoch, Level level, BlockPos seed,
+                                SpaceProbe.Result result, RoomFloodFill.Scratch scratch, long elapsedNanos) {
+    }
 
     /** 空間判定を再実行するプレイヤーシードの移動量（マンハッタン）。 */
     private static final int SPACE_REPROBE_MOVE_THRESHOLD = 3;
@@ -169,6 +195,10 @@ public final class TopDownCuller {
         lastSpaceSeed = null;
         lastSpaceDimension = null;
         lastEnclosedSeed = null;
+        probeEpoch++;
+        probeOutcome = null;
+        probeInFlight = false;
+        probeRetryAfterNanos = 0L;
         lastConeDirX = Double.NaN;
         coneChangePending = false;
         pendingElementChange.reset();
@@ -626,6 +656,9 @@ public final class TopDownCuller {
     }
 
     private void updateSpaceRecognition(Minecraft mc, int blockX, int blockY, int blockZ) {
+        // 完成した probe をまず受理する (前回結果と入れ替わったタイミングで再構築が走る)。
+        acceptProbeResult(mc);
+
         if (mc.level == null || mc.player == null) {
             currentSpaceEnclosed = false;
             return;
@@ -644,6 +677,15 @@ public final class TopDownCuller {
         if (!needReprobe) {
             return;
         }
+        // 進行中の probe は受理後にゲート再判定で再依頼する。重ねて依頼しない。
+        if (probeInFlight) {
+            return;
+        }
+        // 直前に失敗した probe の連投防止。
+        if (System.nanoTime() < probeRetryAfterNanos) {
+            return;
+        }
+
         lastSpaceSeed = seed.immutable();
         lastSpaceDimension = mc.level.dimension();
         if (dimensionChanged) {
@@ -658,10 +700,108 @@ public final class TopDownCuller {
             treeHandler.clearCache();
         }
 
-        long tProbe = System.nanoTime();
-        SpaceProbe.Result probed = SpaceProbe.probe(mc.level, seed, spaceScratch);
-        PerfMonitor.PROBE.add(System.nanoTime() - tProbe);
+        if (submitProbe(mc, seed, probeEpoch)) {
+            return;
+        }
 
+        // ワーカーが使えない場合のみ同期実行にフォールバックする。
+        long tProbe = System.nanoTime();
+        SpaceProbe.Result probed;
+        try {
+            probed = SpaceProbe.probe(mc.level, seed, spaceScratch);
+        } catch (Throwable t) {
+            logProbeFailure(t);
+            return;
+        }
+        PerfMonitor.PROBE.add(System.nanoTime() - tProbe);
+        applySpaceResult(mc, mc.level, seed, probed);
+    }
+
+    /**
+     * probe をワーカースレッドへ依頼する。
+     *
+     * @return ワーカーに依頼できた場合 true。フォールバックで同期実行すべき false。
+     */
+    private boolean submitProbe(Minecraft mc, BlockPos seed, int epoch) {
+        try {
+            if (probeExecutor == null) {
+                probeExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+                    Thread probeThread = new Thread(runnable, "TopDownView-SpaceProbe");
+                    probeThread.setDaemon(true);
+                    probeThread.setPriority(Thread.NORM_PRIORITY - 1);
+                    return probeThread;
+                });
+            }
+            final Level level = mc.level;
+            final BlockPos fixedSeed = seed.immutable();
+            probeInFlight = true;
+            probeExecutor.execute(() -> {
+                // Scratch は probe ごとに新規確保。受理時にメインスレッドへ所有権ごと渡すため、
+                // 前回の BlockMap を引きずらない (BlockMap は probe 起点中心の領域で reset される)。
+                RoomFloodFill.Scratch probeScratch = new RoomFloodFill.Scratch();
+                runProbe(level, fixedSeed, probeScratch, epoch);
+            });
+            return true;
+        } catch (Throwable t) {
+            probeInFlight = false;
+            LOGGER.warn("[TopDownView] space probe executor unavailable ({}), using sync fallback", t.toString());
+            return false;
+        }
+    }
+
+    /**
+     * ワーカースレッド本体。例外でスロットが空のままになることを避けるため必ず結果を発行する。
+     */
+    private void runProbe(Level level, BlockPos seed, RoomFloodFill.Scratch probeScratch, int epoch) {
+        SpaceProbe.Result result;
+        long elapsedNanos;
+        try {
+            long tProbe = System.nanoTime();
+            result = SpaceProbe.probe(level, seed, probeScratch, false);
+            elapsedNanos = System.nanoTime() - tProbe;
+        } catch (Throwable t) {
+            result = null;
+            elapsedNanos = 0L;
+            logProbeFailure(t);
+        }
+        probeOutcome = new ProbeOutcome(epoch, level, seed, result, probeScratch, elapsedNanos);
+    }
+
+    /**
+     * メインスレッドから完成 probe を受理する。世代とレベル一致だけを検証し、
+     * 当初の受理ロジック (スティッキー/ハンドラ更新) は {@link #applySpaceResult} に委譲する。
+     */
+    private void acceptProbeResult(Minecraft mc) {
+        ProbeOutcome outcome = probeOutcome;
+        if (outcome == null) {
+            return;
+        }
+        probeOutcome = null;
+        probeInFlight = false;
+
+        if (outcome.epoch() != probeEpoch) {
+            return;
+        }
+        if (mc.level == null || mc.level != outcome.level()
+                || !mc.level.dimension().equals(outcome.level().dimension())) {
+            return;
+        }
+        if (outcome.result() == null) {
+            // 失敗結果は一定時間捨てて再試行する。
+            probeRetryAfterNanos = System.nanoTime() + PROBE_RETRY_NANOS;
+            return;
+        }
+
+        PerfMonitor.PROBE.add(outcome.elapsedNanos());
+        spaceScratch = outcome.scratch();
+        applySpaceResult(mc, outcome.level(), outcome.seed(), outcome.result());
+    }
+
+    /**
+     * probe 結果を確定させる (スティッピー屋内判定/天井スライス/はしご/階段/覆い)。
+     * メインスレッドからのみ呼ぶこと ({@code mc} とハンドラ内部状態を更新する)。
+     */
+    private void applySpaceResult(Minecraft mc, Level level, BlockPos seed, SpaceProbe.Result probed) {
         // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングがチカチカする。
         // 直前まで屋内だった座標の近くならそのブレとして無視し、屋内状態を維持する。
         if (!probed.isEnclosed() && lastEnclosedSeed != null
@@ -687,25 +827,30 @@ public final class TopDownCuller {
             // 母集団はプレイヤーがいる部屋のセルに限り、立ち位置より下は集計側で除外する。
             // これで橋の下や地下道のような下の階が天井候補に混ざらない。
             LongSet floorCells = playerRoom != null ? playerRoom.getAirCells() : roomResult.getAirCells();
-            ceilingSliceCuller.update(mc.level, roomResult.getMinPos(), roomResult.getMaxPos(),
+            ceilingSliceCuller.update(level, roomResult.getMinPos(), roomResult.getMaxPos(),
                     floorCells, resolveStandingY(seed));
         } else {
             ceilingSliceCuller.clearCache();
         }
         PerfMonitor.CEILING.add(System.nanoTime() - tCeiling);
 
+        // 受理時点のプレイヤー位置で走査する (依頼時の座標は probe 遅延で既に古い可能性がある)。
+        final int currentBlockX = (int) Math.floor(mc.player.getX());
+        final int currentBlockY = (int) Math.floor(mc.player.getEyeY());
+        final int currentBlockZ = (int) Math.floor(mc.player.getZ());
+
         long tLadder = System.nanoTime();
-        ladderHandler.scan(mc.level, blockX, blockZ, blockY - 1);
+        ladderHandler.scan(level, currentBlockX, currentBlockZ, currentBlockY - 1);
         PerfMonitor.LADDER.add(System.nanoTime() - tLadder);
 
         long tStair = System.nanoTime();
-        stairHandler.update(mc, blockY, currentSpaceEnclosed, roomResult, spaceScratch.getBlockMap());
+        stairHandler.update(mc, currentBlockY, currentSpaceEnclosed, roomResult, spaceScratch.getBlockMap());
         PerfMonitor.STAIR.add(System.nanoTime() - tStair);
 
         if (ModState.STATUS.isEnabled() && cachedCoverCullingActive) {
             int feetY = (int) Math.floor(mc.player.getY());
             long tCover = System.nanoTime();
-            coverHandler.update(mc.level, blockX, feetY, blockZ, currentSpaceEnclosed,
+            coverHandler.update(level, currentBlockX, feetY, currentBlockZ, currentSpaceEnclosed,
                     mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
                     Config.isCoverCullingViewshedEnabled());
@@ -713,6 +858,16 @@ public final class TopDownCuller {
         } else {
             coverHandler.clearCache();
         }
+    }
+
+    /** probe ワーカー例外のログ (スパム防止で最初の1件のみ)。 */
+    private void logProbeFailure(Throwable cause) {
+        long now = System.nanoTime();
+        if (now < probeErrorLogAfterNanos) {
+            return;
+        }
+        probeErrorLogAfterNanos = now + 10_000_000_000L;
+        LOGGER.error("[TopDownView] space probe failed: {}", cause.toString());
     }
 
     /**
