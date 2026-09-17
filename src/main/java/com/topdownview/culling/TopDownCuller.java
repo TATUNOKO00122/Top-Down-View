@@ -296,7 +296,7 @@ public final class TopDownCuller {
 
         // 視界コーン方式: カメラとプレイヤーの間に張る3Dコーンを保護より先に評価し、
         // 手前の壁(支持構造)も丸ごとメッシュから除去する。床はYゲートで残す。
-        if (cachedViewConeActive && isInForegroundCone(pos)) {
+        if (cachedViewConeActive && isInForegroundCone(pos, state, level)) {
             cullingCache.put(posLong, true);
             return true;
         }
@@ -349,15 +349,17 @@ public final class TopDownCuller {
      * ブロックがカメラ→プレイヤーの前景コーン上にあるか。プレイヤーの足元より十分上だけを
      * 対象にすることで、床や足元のブロックが消えないようにする(dungeons_iso と同じ Y ゲート)。
      */
-    private boolean isInForegroundCone(BlockPos pos) {
+    private boolean isInForegroundCone(BlockPos pos, BlockState state, BlockGetter level) {
         if (!contextValid) {
             return false;
         }
-        if (pos.getY() + 0.5 <= playerFeetBlockY + 1.0) {
+        // 上下に連結した構造はタイル単位ではなく1単位で判定し、一部だけ消えるのを防ぐ。
+        BlockPos anchor = VerticalUnitHelper.getUnitAnchorPos(state, pos, level);
+        if (anchor.getY() + 0.5 <= playerFeetBlockY + 1.0) {
             return false;
         }
         return OcclusionCalculator.isWithinForegroundCone(
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                anchor.getX() + 0.5, anchor.getY() + 0.5, anchor.getZ() + 0.5,
                 cameraX, cameraY, cameraZ,
                 playerX, playerY, playerZ,
                 cachedViewConeCos, cachedViewConePlayerCos);
@@ -460,7 +462,7 @@ public final class TopDownCuller {
 
         // ドア・ウェイストーン・FastPaintingsの絵画など上下に連結した構造は、最下段のYを基準に
         // 1単位として扱い、一部の段だけがカリングされて見た目が欠けるのを防ぐ。
-        int blockY = VerticalUnitHelper.getUnitAnchorY(state, pos.getY());
+        int blockY = VerticalUnitHelper.getUnitAnchorY(state, pos, level);
 
         double blockHeight = 0.0;
         VoxelShape shape = state.getShape(level, pos);
@@ -1020,7 +1022,7 @@ public final class TopDownCuller {
         // 天井スライスのブロックは透明(0)。それ以外は通常のフェード/半透明をそのまま適用する。
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
         if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) return 0.0f;
-        if (cachedViewConeActive && isInForegroundCone(pos)) return 0.0f;
+        if (cachedViewConeActive && level != null && isInForegroundCone(pos, level.getBlockState(pos), level)) return 0.0f;
         Float cached = fadeCache.getFadeAlpha(posLong);
         if (cached != null) return cached;
 
@@ -1045,7 +1047,7 @@ public final class TopDownCuller {
             && !Config.isLadderOccludeEnabled() && !Config.isTreeOccludeEnabled()) return false;
         if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(pos.asLong())) return false;
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
-        if (cachedViewConeActive && isInForegroundCone(pos)) return false;
+        if (cachedViewConeActive && isInForegroundCone(pos, level.getBlockState(pos), level)) return false;
         float alpha = getFadeAlpha(pos, level);
         return alpha < 1.0f && alpha > cachedFadeBlockHitThreshold;
     }
@@ -1189,7 +1191,7 @@ public final class TopDownCuller {
                     if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) continue;
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
                     if (cachedCoverCullingActive && coverHandler.isCoverBlock(mutablePos)) continue;
-                    if (cachedViewConeActive && isInForegroundCone(mutablePos)) continue;
+                    if (cachedViewConeActive && isInForegroundCone(mutablePos, state, level)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
