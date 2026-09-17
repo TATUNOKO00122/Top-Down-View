@@ -12,11 +12,6 @@ public final class CullingConfig {
     /** 視界コーン方式: カメラ→プレイヤーの3Dコーン上のブロックをメッシュから除去する。 */
     public static final int CULLING_MODE_VIEW_CONE = 2;
 
-    /** 屋内カリング: 無効。従来どおり屋外と同じ方式で扱う。 */
-    public static final int INDOOR_CULLING_OFF = 0;
-    /** 屋内カリング: 要素別。連結した壁面パネルと天井スライスを個別に判定する。 */
-    public static final int INDOOR_CULLING_ELEMENT = 1;
-
     private int cylinderRadiusHorizontal = 5;
     private int cylinderRadiusVertical = 5;
     private int cylinderForwardShift = 1;
@@ -34,9 +29,9 @@ public final class CullingConfig {
     private double fadeSmoothingHalfLife = 0.14;
     private boolean disableFadeIndoors = true;
     private boolean playerNearTranslucencyEnabled = true;
-    private double playerNearTranslucencyAlpha = 0.4;
-    private int playerNearTranslucencyRangeHorizontal = 1;
-    private int playerNearTranslucencyRangeVertical = 1;
+    private double playerNearTranslucencyAlpha = 0.6;
+    private int playerNearTranslucencyRangeHorizontal = 2;
+    private int playerNearTranslucencyRangeVertical = 2;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
     private double mobConeFadeAngle = 10.0;
@@ -55,7 +50,6 @@ public final class CullingConfig {
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
-    private int indoorCullingMode = INDOOR_CULLING_ELEMENT;
     private boolean indoorCeilingCullingEnabled = true;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
@@ -175,9 +169,6 @@ public final class CullingConfig {
 
     public int getCullingMode() { return cullingMode; }
     public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_VIEW_CONE); }
-
-    public int getIndoorCullingMode() { return indoorCullingMode; }
-    public void setIndoorCullingMode(int value) { this.indoorCullingMode = clamp(value, INDOOR_CULLING_OFF, INDOOR_CULLING_ELEMENT); }
 
     public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
     public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }

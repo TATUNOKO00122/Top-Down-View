@@ -128,7 +128,6 @@ public final class TopDownCuller {
     private boolean cachedDisableIndoorFade;
     private int cachedCullingMode;
     private boolean cachedIndoorElementActive;
-    private int cachedIndoorCullingMode;
     private boolean cachedIndoorCeilingEnabled;
     private double cachedViewWedgeCos;
     private double viewDirX = 0.0;
@@ -498,7 +497,6 @@ public final class TopDownCuller {
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
-        cachedIndoorCullingMode = Config.getIndoorCullingMode();
         cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
         cachedViewWedgeProtection = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
@@ -677,9 +675,7 @@ public final class TopDownCuller {
 
         // 屋内の天井スライスは通常カリングに追加する形で動かす。屋内外どちらでも通常カリング
         // (覆い/円柱/保護など) は適用し、天井スライスだけ保護の対象外。
-        boolean elementActive = currentSpaceEnclosed
-                && cachedIndoorCullingMode == CullingConfig.INDOOR_CULLING_ELEMENT
-                && cachedIndoorCeilingEnabled;
+        boolean elementActive = currentSpaceEnclosed && cachedIndoorCeilingEnabled;
         cachedIndoorElementActive = elementActive;
         cachedCoverCullingActive = cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
 

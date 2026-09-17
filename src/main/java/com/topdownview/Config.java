@@ -117,20 +117,17 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
             .comment("Culls covers only over ground actually visible from the player's eye.")
             .define("coverCullingViewshedEnabled", true);
-    private static final ForgeConfigSpec.IntValue INDOOR_CULLING_MODE = BUILDER
-            .comment("Indoor culling strategy: 0 = off (inherit outdoor), 1 = ceiling slice for the player's floor.")
-            .defineInRange("indoorCullingMode", 1, 0, 1);
     private static final ForgeConfigSpec.BooleanValue INDOOR_CEILING_CULLING_ENABLED = BUILDER
             .comment("Culls the ceiling slice above the player's floor while indoors.")
             .define("indoorCeilingCullingEnabled", true);
     private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
             .define("playerNearTranslucencyEnabled", true);
     private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
-            .defineInRange("playerNearTranslucencyAlpha", 0.4, 0.0, 1.0);
+            .defineInRange("playerNearTranslucencyAlpha", 0.6, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL = BUILDER
-            .defineInRange("playerNearTranslucencyRangeHorizontal", 1, 0, 5);
+            .defineInRange("playerNearTranslucencyRangeHorizontal", 2, 0, 5);
     private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
-            .defineInRange("playerNearTranslucencyRangeVertical", 1, 1, 5);
+            .defineInRange("playerNearTranslucencyRangeVertical", 2, 1, 5);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
             .comment("Disables boundary fade and player-near translucency while the player is indoors.")
             .define("disableFadeIndoors", true);
@@ -222,7 +219,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_MAX_DISTANCE = BUILDER
             .defineInRange("mousePanMaxDistance", 5.0, 0.0, 20.0);
     private static final ForgeConfigSpec.DoubleValue MOUSE_PAN_SMOOTHING = BUILDER
-            .defineInRange("mousePanSmoothing", 0.1, 0.01, 0.2);
+            .defineInRange("mousePanSmoothing", 0.010, 0.005, 0.100);
     private static final ForgeConfigSpec.BooleanValue TARGET_LOCK_ENABLED = BUILDER
             .define("targetLockEnabled", true);
     private static final ForgeConfigSpec.IntValue TARGET_LOCK_DURATION = BUILDER
@@ -338,7 +335,6 @@ public class Config {
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
-    public static int getIndoorCullingMode() { return CULLING.getIndoorCullingMode(); }
     public static boolean isIndoorCeilingCullingEnabled() { return CULLING.isIndoorCeilingCullingEnabled(); }
     public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
     public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
@@ -461,7 +457,6 @@ public class Config {
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
-    public static void setIndoorCullingMode(int value) { CULLING.setIndoorCullingMode(value); }
     public static void setIndoorCeilingCullingEnabled(boolean value) { CULLING.setIndoorCeilingCullingEnabled(value); }
     public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
     public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
@@ -604,7 +599,6 @@ public class Config {
         CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
         CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
         CULLING.setCullingMode(CULLING_MODE.get());
-        CULLING.setIndoorCullingMode(INDOOR_CULLING_MODE.get());
         CULLING.setIndoorCeilingCullingEnabled(INDOOR_CEILING_CULLING_ENABLED.get());
         CULLING.setPlayerNearTranslucencyEnabled(PLAYER_NEAR_TRANSLUCENCY_ENABLED.get());
         CULLING.setPlayerNearTranslucencyAlpha(PLAYER_NEAR_TRANSLUCENCY_ALPHA.get());
@@ -725,7 +719,6 @@ public class Config {
             FADE_SMOOTHING_HALF_LIFE.set(getFadeSmoothingHalfLife());
             DISABLE_FADE_INDOORS.set(isDisableFadeIndoors());
             CULLING_MODE.set(getCullingMode());
-            INDOOR_CULLING_MODE.set(getIndoorCullingMode());
             INDOOR_CEILING_CULLING_ENABLED.set(isIndoorCeilingCullingEnabled());
             VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
             VIEW_CONE_HALF_ANGLE.set(getViewConeHalfAngle());

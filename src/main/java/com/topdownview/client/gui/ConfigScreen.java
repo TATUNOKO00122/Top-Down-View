@@ -282,13 +282,6 @@ public class ConfigScreen extends Screen {
         }
 
         y = addSection(y, "topdown_view.config.section.indoor_culling", tx);
-        addRightWidget(Button.builder(getIndoorCullingModeComponent(Config.getIndoorCullingMode()), btn -> {
-            Config.setIndoorCullingMode((Config.getIndoorCullingMode() + 1) % 2);
-            this.init();
-        }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.indoor_culling_mode.tooltip")))
-                .build());
-        y += sp;
         addRightWidget(Button.builder(
                 getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled", Config.isIndoorCeilingCullingEnabled()),
                 btn -> {
@@ -640,7 +633,7 @@ public class ConfigScreen extends Screen {
                 Config.getMousePanMaxDistance(), 0.0, 20.0, val -> Config.setMousePanMaxDistance(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_smoothing",
-                Config.getMousePanSmoothing(), 0.01, 0.2, val -> Config.setMousePanSmoothing(val), 2));
+                Config.getMousePanSmoothing(), 0.005, 0.100, val -> Config.setMousePanSmoothing(val), 3));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -794,12 +787,6 @@ public class ConfigScreen extends Screen {
         };
         return Component.translatable("topdown_view.config.culling_mode",
                 Component.translatable("topdown_view.config.culling_mode." + modeKey).getString());
-    }
-
-    private Component getIndoorCullingModeComponent(int mode) {
-        String modeKey = mode == CullingConfig.INDOOR_CULLING_ELEMENT ? "element" : "off";
-        return Component.translatable("topdown_view.config.indoor_culling_mode",
-                Component.translatable("topdown_view.config.indoor_culling_mode." + modeKey).getString());
     }
 
     private Component getRotateModeComponent(int mode) {
