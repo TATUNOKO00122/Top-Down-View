@@ -153,7 +153,7 @@ public final class CullingManager {
         boolean wideElementRebuild = false;
         if (elementRebuild) {
             BlockChangeBox pending = CULLER.getPendingElementChange();
-            if (!pending.isEmpty() && !CULLER.hasConeChangePending()) {
+            if (!pending.isEmpty()) {
                 // 壁パネル/天井スライスの差分セルだけを再構築する。集合の変化は通常数ブロック
                 // なので、探索キャッシュ全域(RADIUS_XZ)を再構築するより大幅に軽い。
                 box = new AABB(
@@ -164,7 +164,7 @@ public final class CullingManager {
                         Math.max(box.maxY, pending.getMaxY() + 1.0),
                         Math.max(box.maxZ, pending.getMaxZ() + 1.0));
             } else {
-                // コーン変化や差分不明時のみ探索キャッシュ全域へ広げる。
+                // 差分不明時のみ探索キャッシュ全域へ広げる。
                 wideElementRebuild = true;
                 int revealRadius = BlockMap.RADIUS_XZ;
                 box = box.inflate(

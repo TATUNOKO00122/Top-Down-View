@@ -9,8 +9,6 @@ public final class CullingConfig {
     public static final int CULLING_MODE_CYLINDER = 0;
     /** 新方式: 覆いカリング + 手前の壁コリドー(カメラ側で限定した円柱)。 */
     public static final int CULLING_MODE_COVER_CORRIDOR = 1;
-    /** 視界コーン方式: カメラ→プレイヤーの3Dコーン上のブロックをメッシュから除去する。 */
-    public static final int CULLING_MODE_VIEW_CONE = 2;
 
     private int cylinderRadiusHorizontal = 5;
     private int cylinderRadiusVertical = 5;
@@ -46,7 +44,6 @@ public final class CullingConfig {
     private boolean treeOccludeEnabled = true;
     private double treeOccludeAlpha = 0.4;
     private int viewWedgeHalfAngle = 60;
-    private int viewConeHalfAngle = 45;
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
@@ -158,9 +155,6 @@ public final class CullingConfig {
     public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
     public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = clamp(value, 10, 90); }
 
-    public int getViewConeHalfAngle() { return viewConeHalfAngle; }
-    public void setViewConeHalfAngle(int value) { this.viewConeHalfAngle = clamp(value, 10, 90); }
-
     public int getCoverCullingRadius() { return coverCullingRadius; }
     public void setCoverCullingRadius(int value) { this.coverCullingRadius = clamp(value, 4, 24); }
 
@@ -168,7 +162,7 @@ public final class CullingConfig {
     public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }
 
     public int getCullingMode() { return cullingMode; }
-    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_VIEW_CONE); }
+    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
 
     public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
     public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }

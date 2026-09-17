@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 public final class OcclusionCalculator {
 
     private static final double MIN_HORIZONTAL_LENGTH_SQ = 1.0E-8;
-    private static final double MIN_CONE_LENGTH_SQ = 1.0E-6;
 
     private OcclusionCalculator() {}
 
@@ -38,47 +37,6 @@ public final class OcclusionCalculator {
         double invLen = 1.0 / Math.sqrt(lenSq);
         double cos = (toBX * dirX + toBZ * dirZ) * invLen;
         return cos <= -cosHalfAngle;
-    }
-
-    /**
-     * ブロックがカメラ→プレイヤーの視線上に張る「前景コーン(3D)」の内側かを判定する。
-     *
-     * <p>カメラ側の開口角とプレイヤー側の半角の両方を満たすブロックだけを対象にするため、
-     * カメラとプレイヤーの間にある手前の壁・天井だけが消え、プレイヤーより奥や真横の構造物は
-     * 残る。dungeons_iso の 2 角度判定と同じ考え方。
-     *
-     * @param cosCameraHalfAngle カメラ側の半角のコサイン(視野の開口)
-     * @param cosPlayerHalfAngle プレイヤー側の半角のコサイン
-     * @return true = コーン内(カリング対象) / false = コーン外
-     */
-    public static boolean isWithinForegroundCone(
-            double bX, double bY, double bZ,
-            double cX, double cY, double cZ,
-            double pX, double pY, double pZ,
-            double cosCameraHalfAngle, double cosPlayerHalfAngle) {
-        double cpX = pX - cX, cpY = pY - cY, cpZ = pZ - cZ;
-        double cbX = bX - cX, cbY = bY - cY, cbZ = bZ - cZ;
-        double cpLenSq = cpX * cpX + cpY * cpY + cpZ * cpZ;
-        double cbLenSq = cbX * cbX + cbY * cbY + cbZ * cbZ;
-        if (cbLenSq < MIN_CONE_LENGTH_SQ) {
-            return true; // カメラがブロック内: 視界を遮るため消す
-        }
-        if (cpLenSq < MIN_CONE_LENGTH_SQ) {
-            return false; // カメラとプレイヤーが同一位置(退化)
-        }
-        double cosTheta = (cpX * cbX + cpY * cbY + cpZ * cbZ) / Math.sqrt(cpLenSq * cbLenSq);
-        if (cosTheta < cosCameraHalfAngle) {
-            return false;
-        }
-
-        double pbX = bX - pX, pbY = bY - pY, pbZ = bZ - pZ;
-        double pcX = cX - pX, pcY = cY - pY, pcZ = cZ - pZ;
-        double pbLenSq = pbX * pbX + pbY * pbY + pbZ * pbZ;
-        if (pbLenSq < MIN_CONE_LENGTH_SQ) {
-            return true; // プレイヤーがブロック内
-        }
-        double cosPhi = (pbX * pcX + pbY * pcY + pbZ * pcZ) / Math.sqrt(pbLenSq * cpLenSq);
-        return cosPhi >= cosPlayerHalfAngle;
     }
 
     public static boolean isOccludingView(BlockPos pos, double cX, double cY, double cZ, double pX, double pY, double pZ) {

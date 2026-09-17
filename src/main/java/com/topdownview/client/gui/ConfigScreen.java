@@ -241,7 +241,7 @@ public class ConfigScreen extends Screen {
     private void buildCullingTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.culling_settings", tx);
         addRightWidget(Button.builder(getCullingModeComponent(Config.getCullingMode()), btn -> {
-            Config.setCullingMode((Config.getCullingMode() + 1) % 3);
+            Config.setCullingMode((Config.getCullingMode() + 1) % 2);
             this.init();
         }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.culling_mode.tooltip")))
@@ -273,11 +273,6 @@ public class ConfigScreen extends Screen {
         if (coverMode) {
             addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
                     90, val -> Config.setViewWedgeHalfAngle(val)));
-            y += sp;
-        }
-        if (Config.getCullingMode() == CullingConfig.CULLING_MODE_VIEW_CONE) {
-            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_cone_half_angle", Config.getViewConeHalfAngle(), 10,
-                    90, val -> Config.setViewConeHalfAngle(val)));
             y += sp;
         }
 
@@ -632,8 +627,10 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_max_distance",
                 Config.getMousePanMaxDistance(), 0.0, 20.0, val -> Config.setMousePanMaxDistance(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_smoothing",
-                Config.getMousePanSmoothing(), 0.005, 0.100, val -> Config.setMousePanSmoothing(val), 3));
+        // 表示は0〜100の整数、内部値は1000分の1スケールの係数
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_smoothing",
+                (int) Math.round(Config.getMousePanSmoothing() * 1000.0), 0, 100,
+                val -> Config.setMousePanSmoothing(val / 1000.0)));
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -782,7 +779,6 @@ public class ConfigScreen extends Screen {
     private Component getCullingModeComponent(int mode) {
         String modeKey = switch (mode) {
             case CullingConfig.CULLING_MODE_CYLINDER -> "old";
-            case CullingConfig.CULLING_MODE_VIEW_CONE -> "view_cone";
             default -> "new";
         };
         return Component.translatable("topdown_view.config.culling_mode",
