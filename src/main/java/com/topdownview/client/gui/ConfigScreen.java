@@ -329,11 +329,19 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
                 1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
         y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 0,
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 1,
                 5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
                 5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
+        y += sp;
+        addRightWidget(
+                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_hittable", Config.isPlayerNearTranslucencyHittable()), btn -> {
+                    Config.setPlayerNearTranslucencyHittable(!Config.isPlayerNearTranslucencyHittable());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_hittable", Config.isPlayerNearTranslucencyHittable()));
+                }).bounds(x, y, w, h)
+                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_hittable.tooltip")))
+                        .build());
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.fluid", tx);

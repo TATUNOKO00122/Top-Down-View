@@ -78,6 +78,7 @@ public final class TopDownCuller {
     private int lastFadeCBlockY = Integer.MIN_VALUE;
     private int lastFadeCBlockZ = Integer.MIN_VALUE;
     private boolean cacheClearedOnDisabled = false;
+    private boolean spaceClearedOnDisabled = false;
 
     private boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
@@ -134,6 +135,7 @@ public final class TopDownCuller {
     private double cachedFadeStart;
     private double cachedFadeNearAlpha;
     private double cachedFadeBlockHitThreshold;
+    private boolean cachedPlayerNearTranslucencyHittable;
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
     private boolean cachedViewWedgeProtection;
@@ -441,6 +443,16 @@ public final class TopDownCuller {
     }
 
     public void update() {
+        // カリングが無効な間は空間判定(flood/segment)・階段/ハシゴ/樹木/覆いの探索も含めて全て止める。
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
+            if (!spaceClearedOnDisabled) {
+                clearCache();
+                spaceClearedOnDisabled = true;
+            }
+            return;
+        }
+        spaceClearedOnDisabled = false;
+
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) {
             contextValid = false;
@@ -472,6 +484,7 @@ public final class TopDownCuller {
         cachedFadeStart = Config.getFadeStart();
         cachedFadeNearAlpha = Config.getFadeNearAlpha();
         cachedFadeBlockHitThreshold = Config.getFadeBlockHitThreshold();
+        cachedPlayerNearTranslucencyHittable = Config.isPlayerNearTranslucencyHittable();
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
@@ -970,7 +983,23 @@ public final class TopDownCuller {
         if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(pos.asLong())) return false;
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
         float alpha = getFadeAlpha(pos, level);
-        return alpha < 1.0f && alpha > cachedFadeBlockHitThreshold;
+        if (alpha >= 1.0f) return false;
+        // 近接ブロック表示は不透明度が固定のため、オン/オフ設定で触れ可否を決める
+        if (isPlayerNearTranslucencyBlock(pos, level)) return cachedPlayerNearTranslucencyHittable;
+        return alpha > cachedFadeBlockHitThreshold;
+    }
+
+    /**
+     * {@link #getFadeAlpha} が近接半透明化を適用したブロックかを判定する。
+     * 同じ条件(カリング済み・プレイヤー近傍・保護対象外・FAST葉以外)を再評価する。
+     */
+    private boolean isPlayerNearTranslucencyBlock(BlockPos pos, BlockGetter level) {
+        if (!Config.isPlayerNearTranslucencyEnabled()) return false;
+        if (!isPlayerNearBlock(pos, playerX, playerY, playerZ)) return false;
+        BlockState state = level.getBlockState(pos);
+        if (isProtectedBlock(pos, state, playerY, level)) return false;
+        if (isFastGraphicsLeaves(state)) return false;
+        return calculateFadeAlpha(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ) < 1.0f;
     }
 
     public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
@@ -987,7 +1016,7 @@ public final class TopDownCuller {
         boolean treeOcclude = Config.isTreeOccludeEnabled();
         boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled();
 
-        if (!ModState.STATUS.isEnabled() || ModState.STATUS.isMiningMode() ||
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() ||
             (!fadeEnabled && !stairOcclude && !ladderOcclude && !treeOcclude && !playerNearTrans) || level == null || !contextValid) {
             fadeCache.clearFadeBlocks();
             return fadeCache.getFadeBlocksCache();

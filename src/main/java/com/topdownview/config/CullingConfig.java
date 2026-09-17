@@ -30,6 +30,7 @@ public final class CullingConfig {
     private double playerNearTranslucencyAlpha = 0.6;
     private int playerNearTranslucencyRangeHorizontal = 2;
     private int playerNearTranslucencyRangeVertical = 2;
+    private boolean playerNearTranslucencyHittable = true;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
     private double mobConeFadeAngle = 10.0;
@@ -108,10 +109,13 @@ public final class CullingConfig {
     public void setPlayerNearTranslucencyAlpha(double value) { this.playerNearTranslucencyAlpha = clamp(value, 0.0, 1.0); }
 
     public int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
-    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = clamp(value, 0, 5); }
+    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = clamp(value, 1, 5); }
 
     public int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
     public void setPlayerNearTranslucencyRangeVertical(int value) { this.playerNearTranslucencyRangeVertical = clamp(value, 1, 5); }
+
+    public boolean isPlayerNearTranslucencyHittable() { return playerNearTranslucencyHittable; }
+    public void setPlayerNearTranslucencyHittable(boolean value) { this.playerNearTranslucencyHittable = value; }
 
     public boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
     public void setMobConeCullingEnabled(boolean value) { this.mobConeCullingEnabled = value; }

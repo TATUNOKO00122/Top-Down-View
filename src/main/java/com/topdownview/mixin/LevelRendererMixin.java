@@ -75,7 +75,7 @@ public class LevelRendererMixin {
     private void onRenderEntityHead(Entity entity, double camX, double camY, double camZ,
             float partialTick, PoseStack poseStack, MultiBufferSource bufferSource,
             CallbackInfo ci) {
-        if (!ModState.STATUS.isEnabled()) return;
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
 

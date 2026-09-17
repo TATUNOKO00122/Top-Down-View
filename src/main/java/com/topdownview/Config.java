@@ -122,9 +122,12 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
             .defineInRange("playerNearTranslucencyAlpha", 0.6, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL = BUILDER
-            .defineInRange("playerNearTranslucencyRangeHorizontal", 2, 0, 5);
+            .defineInRange("playerNearTranslucencyRangeHorizontal", 2, 1, 5);
     private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
             .defineInRange("playerNearTranslucencyRangeVertical", 2, 1, 5);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_HITTABLE = BUILDER
+            .comment("Whether proximity-displayed blocks can be hit by the mouse raycast.")
+            .define("playerNearTranslucencyHittable", true);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
             .comment("Disables boundary fade and player-near translucency while the player is indoors.")
             .define("disableFadeIndoors", true);
@@ -336,6 +339,7 @@ public class Config {
     public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
     public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
     public static int getPlayerNearTranslucencyRangeVertical() { return CULLING.getPlayerNearTranslucencyRangeVertical(); }
+    public static boolean isPlayerNearTranslucencyHittable() { return CULLING.isPlayerNearTranslucencyHittable(); }
     public static boolean isRangeIndicatorEnabled() { return INTERACTION.isRangeIndicatorEnabled(); }
     public static boolean isDestinationHighlightEnabled() { return INTERACTION.isDestinationHighlightEnabled(); }
     public static double getRangeEmptyHand() { return INTERACTION.getRangeEmptyHand(); }
@@ -457,6 +461,7 @@ public class Config {
     public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
     public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
     public static void setPlayerNearTranslucencyRangeVertical(int value) { CULLING.setPlayerNearTranslucencyRangeVertical(value); }
+    public static void setPlayerNearTranslucencyHittable(boolean value) { CULLING.setPlayerNearTranslucencyHittable(value); }
     public static void setRangeIndicatorEnabled(boolean value) { INTERACTION.setRangeIndicatorEnabled(value); }
     public static void setDestinationHighlightEnabled(boolean value) { INTERACTION.setDestinationHighlightEnabled(value); }
     public static void setRangeEmptyHand(double value) { INTERACTION.setRangeEmptyHand(value); }
@@ -598,6 +603,7 @@ public class Config {
         CULLING.setPlayerNearTranslucencyAlpha(PLAYER_NEAR_TRANSLUCENCY_ALPHA.get());
         CULLING.setPlayerNearTranslucencyRangeHorizontal(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get());
         CULLING.setPlayerNearTranslucencyRangeVertical(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.get());
+        CULLING.setPlayerNearTranslucencyHittable(PLAYER_NEAR_TRANSLUCENCY_HITTABLE.get());
         INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.get());
         INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.get());
         INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.get());
@@ -721,6 +727,7 @@ public class Config {
             PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(getPlayerNearTranslucencyAlpha());
             PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(getPlayerNearTranslucencyRangeHorizontal());
             PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.set(getPlayerNearTranslucencyRangeVertical());
+            PLAYER_NEAR_TRANSLUCENCY_HITTABLE.set(isPlayerNearTranslucencyHittable());
             RANGE_INDICATOR_ENABLED.set(isRangeIndicatorEnabled());
             DESTINATION_HIGHLIGHT_ENABLED.set(isDestinationHighlightEnabled());
             RANGE_EMPTY_HAND.set(getRangeEmptyHand());
