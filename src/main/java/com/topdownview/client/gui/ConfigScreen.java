@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ConfigScreen extends Screen {
+    private static final double AUTO_ALIGN_SPEED_MIN = 0.01;
+    private static final double AUTO_ALIGN_SPEED_MAX = 0.19;
+
     private final Screen lastScreen;
     private int currentTab = 0;
 
@@ -566,8 +569,25 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.stable_direction_ticks",
                 Config.getStableDirectionTicks(), 5, 60, val -> Config.setStableDirectionTicks(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.auto_align_animation_speed",
-                Config.getAutoAlignAnimationSpeed(), 0.05, 0.5, val -> Config.setAutoAlignAnimationSpeed(val)));
+        // 表示は 0..100 の整数。0.01..0.19 の速度範囲へ線形写像（0.1 が中央 50）
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.auto_align_animation_speed",
+                (int) Math.round((Config.getAutoAlignAnimationSpeed() - AUTO_ALIGN_SPEED_MIN)
+                        / (AUTO_ALIGN_SPEED_MAX - AUTO_ALIGN_SPEED_MIN) * 100.0),
+                0, 100,
+                val -> Config.setAutoAlignAnimationSpeed(
+                        AUTO_ALIGN_SPEED_MIN + val * (AUTO_ALIGN_SPEED_MAX - AUTO_ALIGN_SPEED_MIN) / 100.0)));
+        y += sp;
+        addRightWidget(Button.builder(
+                getOnOffComponent("topdown_view.config.auto_align_animation_acceleration",
+                        Config.isAutoAlignAnimationAcceleration()),
+                btn -> {
+                    Config.setAutoAlignAnimationAcceleration(!Config.isAutoAlignAnimationAcceleration());
+                    btn.setMessage(getOnOffComponent("topdown_view.config.auto_align_animation_acceleration",
+                            Config.isAutoAlignAnimationAcceleration()));
+                }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(
+                        "topdown_view.config.auto_align_animation_acceleration.tooltip")))
+                .build());
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.camera_follow_delay", tx);

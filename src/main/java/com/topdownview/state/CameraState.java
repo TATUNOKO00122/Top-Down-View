@@ -46,6 +46,8 @@ public final class CameraState {
     private volatile float lastMovementDirection = 0.0f;
     private volatile int stableDirectionTicks = 0;
     private volatile boolean isAutoAlignAnimation = false;
+    // 自動回転の加速モード用ランプ係数（0.0〜1.0）
+    private volatile float autoAlignAnimationRamp = 0.0f;
 
     private volatile boolean isDragging = false;
     private volatile float dragStartYaw = DEFAULT_YAW;
@@ -177,6 +179,10 @@ public final class CameraState {
         return isAutoAlignAnimation;
     }
 
+    public float getAutoAlignAnimationRamp() {
+        return autoAlignAnimationRamp;
+    }
+
     // ==================== Setters with Validation ====================
 
     public void setYaw(float value) {
@@ -257,6 +263,13 @@ public final class CameraState {
 
     public void setAutoAlignAnimation(boolean value) {
         isAutoAlignAnimation = value;
+    }
+
+    public void setAutoAlignAnimationRamp(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            throw new IllegalArgumentException("Auto align animation ramp must be finite: " + value);
+        }
+        autoAlignAnimationRamp = Math.max(0.0f, Math.min(1.0f, value));
     }
 
     // ==================== Drag Rotation Getters ====================
@@ -513,6 +526,7 @@ public final class CameraState {
         lastMovementDirection = 0.0f;
         stableDirectionTicks = 0;
         isAutoAlignAnimation = false;
+        autoAlignAnimationRamp = 0.0f;
         isDragging = false;
         dragStartYaw = DEFAULT_YAW;
         dragStartMouseX = 0.0;

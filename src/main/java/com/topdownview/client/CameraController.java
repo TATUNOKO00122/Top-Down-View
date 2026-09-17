@@ -33,6 +33,10 @@ public final class CameraController {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    // 加速モードで最高速に達するまでのティック数（約0.4秒）
+    private static final float AUTO_ALIGN_ACCEL_RAMP_TICKS = 8.0f;
+    private static final float AUTO_ALIGN_ACCEL_RAMP_STEP = 1.0f / AUTO_ALIGN_ACCEL_RAMP_TICKS;
+
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         if (ModState.STATUS.isEnabled()) {
@@ -108,11 +112,19 @@ public final class CameraController {
             ModState.CAMERA.setYaw(targetYaw);
             ModState.CAMERA.setAnimating(false);
             ModState.CAMERA.setAutoAlignAnimation(false);
+            ModState.CAMERA.setAutoAlignAnimationRamp(0.0f);
         } else {
             // 線形補間（Lerp）による滑らかな回転
             float lerpStrength = ModState.CAMERA.isAutoAlignAnimation()
                     ? (float) com.topdownview.Config.getAutoAlignAnimationSpeed()
                     : (float) com.topdownview.Config.getCameraSnapRotationSpeed();
+            // 加速モード: 開始直後は速度を絞り、数ティックかけて最高速へ引き上げる
+            if (ModState.CAMERA.isAutoAlignAnimation()
+                    && com.topdownview.Config.isAutoAlignAnimationAcceleration()) {
+                float ramp = Math.min(1.0f, ModState.CAMERA.getAutoAlignAnimationRamp() + AUTO_ALIGN_ACCEL_RAMP_STEP);
+                ModState.CAMERA.setAutoAlignAnimationRamp(ramp);
+                lerpStrength *= ramp;
+            }
             ModState.CAMERA.setYaw(currentYaw + diff * lerpStrength);
         }
     }
@@ -250,6 +262,7 @@ public final class CameraController {
         } else {
             ModState.CAMERA.setTargetYaw(targetYaw);
             ModState.CAMERA.setAutoAlignAnimation(true);
+            ModState.CAMERA.setAutoAlignAnimationRamp(0.0f);
             ModState.CAMERA.setAnimating(true);
         }
     }
@@ -300,6 +313,7 @@ public final class CameraController {
 
         ModState.CAMERA.setTargetYaw(targetYaw);
         ModState.CAMERA.setAutoAlignAnimation(true);
+        ModState.CAMERA.setAutoAlignAnimationRamp(0.0f);
         ModState.CAMERA.setAnimating(true);
         ModState.CAMERA.setLastAutoAlignTick(currentTick);
         ModState.CAMERA.setStableDirectionTicks(0);

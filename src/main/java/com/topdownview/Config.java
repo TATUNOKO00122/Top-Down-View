@@ -82,7 +82,9 @@ public class Config {
     private static final ForgeConfigSpec.IntValue STABLE_DIRECTION_TICKS = BUILDER
             .defineInRange("stableDirectionTicks", 20, 5, 60);
     private static final ForgeConfigSpec.DoubleValue AUTO_ALIGN_ANIMATION_SPEED = BUILDER
-            .defineInRange("autoAlignAnimationSpeed", 0.1, 0.05, 0.5);
+            .defineInRange("autoAlignAnimationSpeed", 0.1, 0.01, 0.19);
+    private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_ANIMATION_ACCELERATION = BUILDER
+            .define("autoAlignAnimationAcceleration", false);
     private static final ForgeConfigSpec.BooleanValue MOB_CULLING_ENABLED = BUILDER
             .define("mobCullingEnabled", true);
     private static final ForgeConfigSpec.BooleanValue MOB_TRANSLUCENCY_ENABLED = BUILDER
@@ -319,6 +321,7 @@ public class Config {
     public static int getStableDirectionAngle() { return INTERACTION.getStableDirectionAngle(); }
     public static int getStableDirectionTicks() { return INTERACTION.getStableDirectionTicks(); }
     public static double getAutoAlignAnimationSpeed() { return INTERACTION.getAutoAlignAnimationSpeed(); }
+    public static boolean isAutoAlignAnimationAcceleration() { return INTERACTION.isAutoAlignAnimationAcceleration(); }
     public static boolean isMobCullingEnabled() { return CULLING.isMobCullingEnabled(); }
     public static boolean isMobTranslucencyEnabled() { return CULLING.isMobTranslucencyEnabled(); }
     public static double getMobTranslucencyAlpha() { return CULLING.getMobTranslucencyAlpha(); }
@@ -441,6 +444,7 @@ public class Config {
     public static void setStableDirectionAngle(int value) { INTERACTION.setStableDirectionAngle(value); }
     public static void setStableDirectionTicks(int value) { INTERACTION.setStableDirectionTicks(value); }
     public static void setAutoAlignAnimationSpeed(double value) { INTERACTION.setAutoAlignAnimationSpeed(value); }
+    public static void setAutoAlignAnimationAcceleration(boolean value) { INTERACTION.setAutoAlignAnimationAcceleration(value); }
     public static void setMobCullingEnabled(boolean value) { CULLING.setMobCullingEnabled(value); }
     public static void setMobTranslucencyEnabled(boolean value) { CULLING.setMobTranslucencyEnabled(value); }
     public static void setMobTranslucencyAlpha(double value) { CULLING.setMobTranslucencyAlpha(value); }
@@ -583,6 +587,7 @@ public class Config {
         INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.get());
         INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.get());
         INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.get());
+        INTERACTION.setAutoAlignAnimationAcceleration(AUTO_ALIGN_ANIMATION_ACCELERATION.get());
         CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.get());
         CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.get());
         CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.get());
@@ -707,6 +712,7 @@ public class Config {
             STABLE_DIRECTION_ANGLE.set(getStableDirectionAngle());
             STABLE_DIRECTION_TICKS.set(getStableDirectionTicks());
             AUTO_ALIGN_ANIMATION_SPEED.set(getAutoAlignAnimationSpeed());
+            AUTO_ALIGN_ANIMATION_ACCELERATION.set(isAutoAlignAnimationAcceleration());
             MOB_CULLING_ENABLED.set(isMobCullingEnabled());
             MOB_TRANSLUCENCY_ENABLED.set(isMobTranslucencyEnabled());
             MOB_TRANSLUCENCY_ALPHA.set(getMobTranslucencyAlpha());
@@ -830,6 +836,7 @@ public class Config {
         INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.getDefault());
         INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.getDefault());
         INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.getDefault());
+        INTERACTION.setAutoAlignAnimationAcceleration(AUTO_ALIGN_ANIMATION_ACCELERATION.getDefault());
         CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.getDefault());
         CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.getDefault());
         CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.getDefault());

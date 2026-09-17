@@ -16,6 +16,7 @@ public final class InteractionConfig {
     private int stableDirectionAngle = 15;
     private int stableDirectionTicks = 20;
     private double autoAlignAnimationSpeed = 0.1;
+    private boolean autoAlignAnimationAcceleration = false;
     private boolean rangeIndicatorEnabled = false;
     private boolean destinationHighlightEnabled = true;
     private double rangeEmptyHand = 3.0;
@@ -74,7 +75,10 @@ public final class InteractionConfig {
     public void setStableDirectionTicks(int value) { this.stableDirectionTicks = clamp(value, 5, 60); }
 
     public double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
-    public void setAutoAlignAnimationSpeed(double value) { this.autoAlignAnimationSpeed = clamp(value, 0.05, 0.5); }
+    public void setAutoAlignAnimationSpeed(double value) { this.autoAlignAnimationSpeed = clamp(value, 0.01, 0.19); }
+
+    public boolean isAutoAlignAnimationAcceleration() { return autoAlignAnimationAcceleration; }
+    public void setAutoAlignAnimationAcceleration(boolean value) { this.autoAlignAnimationAcceleration = value; }
 
     public boolean isRangeIndicatorEnabled() { return rangeIndicatorEnabled; }
     public void setRangeIndicatorEnabled(boolean value) { this.rangeIndicatorEnabled = value; }
