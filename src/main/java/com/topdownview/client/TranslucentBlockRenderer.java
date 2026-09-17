@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.topdownview.Config;
@@ -126,7 +127,17 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        bufferSource.endBatch(RenderType.translucent());
+        // 復帰ゴースト(alpha=1)は再構築済みメッシュのブロックと同一平面に描かれることがある。
+        // 深度をわずかに奥へずらし、コプレーナな不透明メッシュに負けさせる。ずらさないと
+        // 半透明ゴーストが不透明ブロックに重なってブレンドされ、明るく光って見える。
+        RenderSystem.enablePolygonOffset();
+        RenderSystem.polygonOffset(1.0f, 1.0f);
+        try {
+            bufferSource.endBatch(RenderType.translucent());
+        } finally {
+            RenderSystem.polygonOffset(0.0f, 0.0f);
+            RenderSystem.disablePolygonOffset();
+        }
     }
 
     /** フレームレート非依存の指数減衰。halfLife<=0 なら即時追従。 */
