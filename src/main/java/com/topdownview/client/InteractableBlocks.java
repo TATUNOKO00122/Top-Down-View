@@ -49,8 +49,17 @@ public final class InteractableBlocks {
             return byBlock;
         }
 
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+
+        // バニラ基底を継承しない MOD 産コンテナも、ブロックエンティティが
+        // インベントリ（Container）なら「開く」として扱う。
+        // かまど・ホッパー等の既知ユーティリティは保護対象なので除外し、USE に委ねる。
+        if (blockEntity instanceof Container && !isProtectionOnlyBlock(state)) {
+            return InteractionKind.OPEN;
+        }
+
         // GUI 持ち: BaseEntityBlock 以外の独自実装も含めてジェネリックに検出
-        if (state.getMenuProvider(level, pos) != null) {
+        if (blockEntity instanceof MenuProvider || state.getMenuProvider(level, pos) != null) {
             return InteractionKind.USE;
         }
 

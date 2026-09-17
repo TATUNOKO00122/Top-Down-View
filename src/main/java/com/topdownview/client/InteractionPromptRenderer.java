@@ -29,6 +29,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 /**
  * インタラクト可能ブロックの周囲にSF風のターゲットブラケットと操作ガイドを表示するレンダラー。
@@ -43,6 +44,10 @@ public final class InteractionPromptRenderer {
 
     // 不変リテラルはstaticで共有（per-frameアロケーション回避）
     private static final Component SPATIAL_ICON = Component.literal("?");
+
+    // 枠のローカル座標(1ブロック=20px)をワールド単位へ戻す係数。
+    // 既定サイズで枠がブロックを囲むよう、従来の既定カメラ距離付近の見た目に合わせている。
+    private static final float FRAME_WORLD_PER_PX = 0.06F;
 
     private record BlockTargetInfo(BlockPos pos, Component blockName, Component actionText, InputConstants.Key key, AABB localBounds) {}
 
@@ -125,12 +130,9 @@ public final class InteractionPromptRenderer {
         poseStack.mulPose(Axis.YP.rotationDegrees(-camera.getYRot()));
         poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
 
-        // スケール調整（カメラからの距離とサイズ設定を適用）
-        double distance = Math.sqrt(cameraPos.distanceToSqr(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
-        float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
-        
-        // 極端に小さくなったり大きくなったりするのを防ぐためのクランプ制限値
-        scale = Math.max(0.005F * (float) Config.getInteractionPromptScale(), Math.min(0.15F * (float) Config.getInteractionPromptScale(), scale));
+        // 枠はブロックの周囲に表示するため、ブロックの見かけの大きさ（20px/ブロック）に固定する。
+        // 距離に比例させるとズームで枠だけ大きさが変わってしまうため距離は使わない。
+        float scale = FRAME_WORLD_PER_PX * (float) Config.getInteractionPromptScale();
         poseStack.scale(-scale, -scale, scale);
 
         Matrix4f matrix = poseStack.last().pose();
@@ -352,6 +354,13 @@ public final class InteractionPromptRenderer {
         double y = pos.getY() + center.y - cameraPos.y;
         double z = pos.getZ() + center.z - cameraPos.z;
 
+        // 視線方向の奥行き。負（カメラ後方）だと投影が反転するため描画しない
+        Vector3f look = camera.getLookVector();
+        double depth = x * look.x() + y * look.y() + z * look.z();
+        if (depth <= 0.01D) {
+            return;
+        }
+
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         poseStack.translate(x, y, z);
@@ -360,13 +369,9 @@ public final class InteractionPromptRenderer {
         poseStack.mulPose(Axis.YP.rotationDegrees(-camera.getYRot()));
         poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
 
-        // スケール調整
-        double distance = Math.sqrt(cameraPos.distanceToSqr(pos.getX() + center.x, pos.getY() + center.y, pos.getZ() + center.z));
-        float scale = (float) (0.002F * distance * Config.getInteractionPromptScale());
-        scale = Math.max(0.005F * (float) Config.getInteractionPromptScale(), Math.min(0.15F * (float) Config.getInteractionPromptScale(), scale));
-        
+        // 奥行きに比例させることで、ズームしても画面上の大きさを一定に保つ。
         // 空間プロンプトはターゲットプロンプトよりも少し控えめ（75%スケール）で表示
-        scale *= 0.75F;
+        float scale = 0.002F * (float) depth * (float) Config.getInteractionPromptScale() * 0.75F;
         poseStack.scale(-scale, -scale, scale);
 
         Matrix4f matrix = poseStack.last().pose();
