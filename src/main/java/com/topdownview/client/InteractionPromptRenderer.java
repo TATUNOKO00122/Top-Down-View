@@ -1,6 +1,12 @@
 package com.topdownview.client;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -19,12 +25,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.SignBlock;
+import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -37,8 +47,8 @@ import org.joml.Vector3f;
  */
 public final class InteractionPromptRenderer {
 
-    private static final java.util.List<BlockPos> scanCache = new java.util.ArrayList<>();
-    private static final java.util.Set<AABB> scannedBoundsCache = new java.util.HashSet<>();
+    private static final List<BlockPos> scanCache = new ArrayList<>();
+    private static final Set<AABB> scannedBoundsCache = new HashSet<>();
     private static Vec3 lastScanPlayerPos = null;
     private static int scanCooldown = 0;
 
@@ -49,14 +59,14 @@ public final class InteractionPromptRenderer {
     // 既定サイズで枠がブロックを囲むよう、従来の既定カメラ距離付近の見た目に合わせている。
     private static final float FRAME_WORLD_PER_PX = 0.06F;
 
-    private record BlockTargetInfo(BlockPos pos, Component blockName, Component actionText, InputConstants.Key key, AABB localBounds) {}
+    private record BlockTargetInfo(BlockPos pos, Component blockName, InputConstants.Key key, AABB localBounds) {}
 
     private InteractionPromptRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
     /**
-     * 3Dワールド内のターゲットブロックにSF風 of values ターゲットUIを描画し、
+     * 3Dワールド内のターゲットブロックにSF風ターゲットUIを描画し、
      * 周辺ブロックに空間プロンプト（はてなアイコン）を描画します。
      * RenderLevelStageEvent で呼び出されます。
      */
@@ -90,12 +100,12 @@ public final class InteractionPromptRenderer {
         BlockTargetInfo targetInfo = getTargetInfo(mc);
         BlockPos targetPos = targetInfo != null ? targetInfo.pos() : null;
 
-        // 1. ターゲットがある場合、操作ガイドプロンプトを描画
+        // ターゲットがある場合、操作ガイドプロンプトを描画
         if (targetInfo != null) {
             renderTargetPrompt(event, mc, targetInfo);
         }
 
-        // 2. 周辺ブロックの空間プロンプト（はてなマーク）を描画
+        // 周辺ブロックの空間プロンプト（はてなマーク）を描画
         if (Config.isShowSpatialPrompt() && !scanCache.isEmpty()) {
             for (BlockPos pos : scanCache) {
                 // ターゲット中のブロック（および同じ結合ブロック）はスキップ
@@ -139,7 +149,7 @@ public final class InteractionPromptRenderer {
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         Font font = mc.font;
 
-        // 8つの頂点をビルボード空間（カメラ of the line 視線方向）に射影して、見かけ上のサイズ（幅・高さ）を計算する
+        // 8つの頂点をビルボード空間（カメラ視線方向）に射影して、見かけ上のサイズ（幅・高さ）を計算する
         double ry = Math.toRadians(camera.getYRot());
         double rx = Math.toRadians(camera.getXRot());
 
@@ -186,21 +196,21 @@ public final class InteractionPromptRenderer {
         float thickness = 1.0F;   // L字の線の太さ
 
         // 深度テストを一時的に無効化し、他のあらゆる3D要素（ブロック、プレビューなど）より手前に表示する
-        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+        RenderSystem.disableDepthTest();
 
-        // 1. L字ブラケット（ターゲット枠）の描画
+        // L字ブラケット（ターゲット枠）の描画
         VertexConsumer builder = bufferSource.getBuffer(RenderType.textBackgroundSeeThrough());
         drawLBracket(builder, matrix, xMin, xMax, yMin, yMax, len, thickness);
 
         boolean shadow = Config.isInteractionPromptShadow();
 
-        // 2. オブジェクト名（中央上）の描画
+        // オブジェクト名（中央上）の描画
         Component blockName = info.blockName();
         float nameX = -font.width(blockName) / 2.0F;
         float nameY = yMin - font.lineHeight - 2.0F; // 枠の少し上
         font.drawInBatch(blockName, nameX, nameY, 0xFFFFFFFF, shadow, matrix, bufferSource, Font.DisplayMode.SEE_THROUGH, 0, 15728880);
 
-        // 3. キーアイコンのみの描画（アクション名テキストは非表示）
+        // キーアイコンのみの描画（アクション名テキストは非表示）
         InputConstants.Key key = info.key();
         ResourceLocation icon = KeyIconMapper.getIcon(key);
 
@@ -208,7 +218,6 @@ public final class InteractionPromptRenderer {
         float startX = xMin - iconSize - 6.0F; // 枠の左端から6px左に離す
         float iconY = -iconSize / 2.0F;          // アイコンも縦中央
 
-        // キーアイコンを描画
         drawKeyIcon(bufferSource, matrix, icon, startX, iconY, iconSize);
 
         poseStack.popPose();
@@ -218,7 +227,7 @@ public final class InteractionPromptRenderer {
         bufferSource.endBatch();
 
         // 深度テストを有効化に戻す
-        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
+        RenderSystem.enableDepthTest();
     }
 
     /**
@@ -229,10 +238,7 @@ public final class InteractionPromptRenderer {
             return false;
         }
 
-        Block block = state.getBlock();
-        // 看板は除外（SignHoverRendererが別で動作するため）
-        if (block instanceof net.minecraft.world.level.block.SignBlock || 
-            block instanceof net.minecraft.world.level.block.WallSignBlock) {
+        if (isSign(state.getBlock())) {
             return false;
         }
 
@@ -279,7 +285,7 @@ public final class InteractionPromptRenderer {
 
         scanCache.clear();
         scannedBoundsCache.clear();
-        java.util.Set<AABB> scannedBounds = scannedBoundsCache;
+        Set<AABB> scannedBounds = scannedBoundsCache;
 
         int rxLimit = (int) Math.ceil(radius);
         int ryLimit = 4; // 垂直方向は ±4 ブロックで十分
@@ -296,14 +302,13 @@ public final class InteractionPromptRenderer {
                     BlockState state = mc.level.getBlockState(mutablePos);
 
                     if (isTargetForSpatialPrompt(state, mc.level, mutablePos)) {
-                        // 結合ブロックを含む境界ボックスを取得
                         AABB worldBounds = getBlockInteractionBounds(state, mc.level, mutablePos)
                                 .move(mutablePos.getX(), mutablePos.getY(), mutablePos.getZ());
 
                         // すでに重複するバウンディングボックスがスキャン済みか確認
                         boolean duplicate = false;
                         for (AABB bounds : scannedBounds) {
-                            if (bounds.minmax(worldBounds).getSize() < worldBounds.getSize() + 0.1D) {
+                            if (approxContains(worldBounds, bounds)) {
                                 duplicate = true;
                                 break;
                             }
@@ -381,7 +386,7 @@ public final class InteractionPromptRenderer {
         float textX = -font.width(iconText) / 2.0F;
         float textY = -font.lineHeight / 2.0F;
 
-        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+        RenderSystem.disableDepthTest();
 
         boolean shadow = Config.isInteractionPromptShadow();
 
@@ -393,7 +398,7 @@ public final class InteractionPromptRenderer {
         bufferSource.endBatch(RenderType.textBackgroundSeeThrough());
         bufferSource.endBatch();
 
-        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
+        RenderSystem.enableDepthTest();
     }
 
     /**
@@ -462,24 +467,22 @@ public final class InteractionPromptRenderer {
             return null;
         }
 
-        net.minecraft.world.phys.HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
-        if (hitResult == null || hitResult.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+        if (hitResult == null || hitResult.getType() != HitResult.Type.BLOCK) {
             return null;
         }
 
-        net.minecraft.world.phys.BlockHitResult blockHit = (net.minecraft.world.phys.BlockHitResult) hitResult;
+        BlockHitResult blockHit = (BlockHitResult) hitResult;
         BlockPos pos = blockHit.getBlockPos();
         BlockState state = mc.level.getBlockState(pos);
 
-        // 看板（SignBlock）は除外（SignHoverRendererが別で動作するため）
-        Block block = state.getBlock();
-        if (block instanceof net.minecraft.world.level.block.SignBlock || 
-            block instanceof net.minecraft.world.level.block.WallSignBlock) {
+        // 看板は SignHoverRenderer が担当するため対象外
+        if (isSign(state.getBlock())) {
             return null;
         }
+        Block block = state.getBlock();
 
-        Component action = getActionComponent(state, mc.level, pos);
-        if (action == null) {
+        if (InteractableBlocks.classify(state, mc.level, pos) == InteractableBlocks.InteractionKind.NONE) {
             return null;
         }
 
@@ -491,7 +494,7 @@ public final class InteractionPromptRenderer {
         // ブロック形状の取得（ドアやベッドなどの結合ブロックに対応）
         AABB localBounds = getBlockInteractionBounds(state, mc.level, pos);
 
-        return new BlockTargetInfo(pos, blockName, action, key, localBounds);
+        return new BlockTargetInfo(pos, blockName, key, localBounds);
     }
 
     /**
@@ -504,7 +507,7 @@ public final class InteractionPromptRenderer {
         // ワールド座標系（ブロック絶対座標）に一時的にマッピング
         AABB worldBounds = bounds.move(pos.getX(), pos.getY(), pos.getZ());
 
-        // 1. ドアの場合 (上下マージ)
+        // ドアの場合 (上下マージ)
         if (block instanceof DoorBlock) {
             DoubleBlockHalf half = state.getValue(DoorBlock.HALF);
             BlockPos otherPos = (half == DoubleBlockHalf.LOWER) ? pos.above() : pos.below();
@@ -514,7 +517,7 @@ public final class InteractionPromptRenderer {
                 worldBounds = worldBounds.minmax(otherBounds);
             }
         }
-        // 2. ベッドの場合 (前後マージ)
+        // ベッドの場合 (前後マージ)
         else if (block instanceof BedBlock) {
             BedPart part = state.getValue(BedBlock.PART);
             Direction direction = state.getValue(BedBlock.FACING);
@@ -525,7 +528,7 @@ public final class InteractionPromptRenderer {
                 worldBounds = worldBounds.minmax(otherBounds);
             }
         }
-        // 3. ダブルチェストの場合 (左右マージ)
+        // ダブルチェストの場合 (左右マージ)
         else if (block instanceof ChestBlock) {
             ChestType chestType = state.getValue(ChestBlock.TYPE);
             if (chestType != ChestType.SINGLE) {
@@ -555,19 +558,13 @@ public final class InteractionPromptRenderer {
         }
         return shape.bounds();
     }
+    /** 看板は SignHoverRenderer が担当するため、操作プロンプトの対象外。 */
+    private static boolean isSign(Block block) {
+        return block instanceof SignBlock || block instanceof WallSignBlock;
+    }
 
-    /**
-     * ブロックの種類に応じたアクションテキストを取得します。
-     */
-    private static Component getActionComponent(BlockState state, Level level, BlockPos pos) {
-        return switch (InteractableBlocks.classify(state, level, pos)) {
-            case OPEN_CLOSE -> Component.translatable("topdown_view.interaction.open_close");
-            case TOGGLE -> Component.translatable("topdown_view.interaction.toggle");
-            case SLEEP -> Component.translatable("topdown_view.interaction.sleep");
-            case OPEN -> Component.translatable("topdown_view.interaction.open");
-            case USE -> Component.translatable("topdown_view.interaction.use");
-            case INTERACT -> Component.translatable("topdown_view.interaction.interact");
-            case NONE -> null;
-        };
+    /** outer が candidate をほぼ包含するか（union のサイズが outer とほぼ同じかで近似）。 */
+    private static boolean approxContains(AABB outer, AABB candidate) {
+        return outer.minmax(candidate).getSize() < outer.getSize() + 0.1D;
     }
 }

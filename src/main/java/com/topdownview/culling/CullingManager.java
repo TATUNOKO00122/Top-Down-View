@@ -154,7 +154,7 @@ public final class CullingManager {
         if (elementRebuild) {
             BlockChangeBox pending = CULLER.getPendingElementChange();
             if (!pending.isEmpty()) {
-                // 壁パネル/天井スライスの差分セルだけを再構築する。集合の変化は通常数ブロック
+                // 天井スライス等の差分セルだけを再構築する。集合の変化は通常数ブロック
                 // なので、探索キャッシュ全域(RADIUS_XZ)を再構築するより大幅に軽い。
                 box = new AABB(
                         Math.min(box.minX, pending.getMinX()),

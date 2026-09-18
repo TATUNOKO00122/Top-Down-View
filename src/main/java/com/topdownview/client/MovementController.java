@@ -4,7 +4,6 @@ import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.Input;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;

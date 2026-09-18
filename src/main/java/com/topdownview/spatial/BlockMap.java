@@ -13,8 +13,7 @@ import java.util.Arrays;
  * プローブ1回分のブロック判定キャッシュ。
  *
  * <p>{@link RoomFloodFill} / {@link BuildingClassifier} / {@link StairAnalyzer} は同じ領域の
- * ブロックを何度も参照する。従来は呼び出しごとに {@code getBlockState} と
- * {@code getCollisionShape} を実行していた。本クラスは起点を中心とした領域を {@code byte[]} に
+ * ブロックを何度も参照する。本クラスは起点を中心とした領域を {@code byte[]} に
  * 遅延キャッシュし、各セルの判定を1回に集約する。
  *
  * <p>遅延方式のため実際に触れたセルしか計算しない。領域外の座標はキャッシュせず都度計算する

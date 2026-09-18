@@ -1,5 +1,7 @@
 package com.topdownview.config;
 
+import com.topdownview.util.MathUtil;
+
 /**
  * カメラに関する設定項目とキャッシュ状態を保持する構成クラス。
  */
@@ -36,46 +38,46 @@ public final class CameraConfig {
     private double mousePanSmoothing = 0.010;
 
     public int getRotateAngleMode() { return rotateAngleMode; }
-    public void setRotateAngleMode(int value) { this.rotateAngleMode = clamp(value, 0, 2); }
+    public void setRotateAngleMode(int value) { this.rotateAngleMode = MathUtil.clamp(value, 0, 2); }
 
     public double getCameraSnapRotationSpeed() { return cameraSnapRotationSpeed; }
-    public void setCameraSnapRotationSpeed(double value) { this.cameraSnapRotationSpeed = clamp(value, 0.05, 0.5); }
+    public void setCameraSnapRotationSpeed(double value) { this.cameraSnapRotationSpeed = MathUtil.clamp(value, 0.05, 0.5); }
 
     public double getCameraPitch() { return cameraPitch; }
-    public void setCameraPitch(double value) { this.cameraPitch = clamp(value, 10.0, 90.0); }
+    public void setCameraPitch(double value) { this.cameraPitch = MathUtil.clamp(value, 10.0, 90.0); }
 
     public double getMiningModePitch() { return miningModePitch; }
-    public void setMiningModePitch(double value) { this.miningModePitch = clamp(value, 10.0, 90.0); }
+    public void setMiningModePitch(double value) { this.miningModePitch = MathUtil.clamp(value, 10.0, 90.0); }
 
     public double getMaxCameraDistance() { return maxCameraDistance; }
-    public void setMaxCameraDistance(double value) { this.maxCameraDistance = clamp(value, 0.0, 200.0); }
+    public void setMaxCameraDistance(double value) { this.maxCameraDistance = MathUtil.clamp(value, 0.0, 200.0); }
 
     public double getDefaultCameraDistance() { return defaultCameraDistance; }
-    public void setDefaultCameraDistance(double value) { this.defaultCameraDistance = Math.min(clamp(value, 0.0, 200.0), maxCameraDistance); }
+    public void setDefaultCameraDistance(double value) { this.defaultCameraDistance = Math.min(MathUtil.clamp(value, 0.0, 200.0), maxCameraDistance); }
 
     public boolean isCameraYFollowDelayEnabled() { return cameraYFollowDelayEnabled; }
     public void setCameraYFollowDelayEnabled(boolean value) { this.cameraYFollowDelayEnabled = value; }
 
     public double getCameraYFollowDelay() { return cameraYFollowDelay; }
-    public void setCameraYFollowDelay(double value) { this.cameraYFollowDelay = clamp(value, 0.0, 4.0); }
+    public void setCameraYFollowDelay(double value) { this.cameraYFollowDelay = MathUtil.clamp(value, 0.0, 4.0); }
 
     public boolean isCameraXFollowDelayEnabled() { return cameraXFollowDelayEnabled; }
     public void setCameraXFollowDelayEnabled(boolean value) { this.cameraXFollowDelayEnabled = value; }
 
     public double getCameraXFollowDelay() { return cameraXFollowDelay; }
-    public void setCameraXFollowDelay(double value) { this.cameraXFollowDelay = clamp(value, 0.0, 4.0); }
+    public void setCameraXFollowDelay(double value) { this.cameraXFollowDelay = MathUtil.clamp(value, 0.0, 4.0); }
 
     public boolean isCameraZFollowDelayEnabled() { return cameraZFollowDelayEnabled; }
     public void setCameraZFollowDelayEnabled(boolean value) { this.cameraZFollowDelayEnabled = value; }
 
     public double getCameraZFollowDelay() { return cameraZFollowDelay; }
-    public void setCameraZFollowDelay(double value) { this.cameraZFollowDelay = clamp(value, 0.0, 4.0); }
+    public void setCameraZFollowDelay(double value) { this.cameraZFollowDelay = MathUtil.clamp(value, 0.0, 4.0); }
 
     public boolean isFollowDelayWhileMounted() { return followDelayWhileMounted; }
     public void setFollowDelayWhileMounted(boolean value) { this.followDelayWhileMounted = value; }
 
     public double getPlayerScreenOffset() { return playerScreenOffset; }
-    public void setPlayerScreenOffset(double value) { this.playerScreenOffset = clamp(value, -10.0, 10.0); }
+    public void setPlayerScreenOffset(double value) { this.playerScreenOffset = MathUtil.clamp(value, -10.0, 10.0); }
 
     public boolean isHeadBodyRotationEnabled() { return headBodyRotationEnabled; }
     public void setHeadBodyRotationEnabled(boolean value) { this.headBodyRotationEnabled = value; }
@@ -87,19 +89,19 @@ public final class CameraConfig {
     public void setIndependentMountAim(boolean value) { this.independentMountAim = value; }
 
     public int getMountAimMaxTwist() { return mountAimMaxTwist; }
-    public void setMountAimMaxTwist(int value) { this.mountAimMaxTwist = clamp(value, 45, 360); }
+    public void setMountAimMaxTwist(int value) { this.mountAimMaxTwist = MathUtil.clamp(value, 45, 360); }
 
     public double getMountTurnSmoothing() { return mountTurnSmoothing; }
-    public void setMountTurnSmoothing(double value) { this.mountTurnSmoothing = clamp(value, 0.05, 1.0); }
+    public void setMountTurnSmoothing(double value) { this.mountTurnSmoothing = MathUtil.clamp(value, 0.05, 1.0); }
 
     public int getBoatHeadMaxTwist() { return boatHeadMaxTwist; }
-    public void setBoatHeadMaxTwist(int value) { this.boatHeadMaxTwist = clamp(value, 30, 180); }
+    public void setBoatHeadMaxTwist(int value) { this.boatHeadMaxTwist = MathUtil.clamp(value, 30, 180); }
 
     public int getBoatBodyMaxTwist() { return boatBodyMaxTwist; }
-    public void setBoatBodyMaxTwist(int value) { this.boatBodyMaxTwist = clamp(value, 15, 90); }
+    public void setBoatBodyMaxTwist(int value) { this.boatBodyMaxTwist = MathUtil.clamp(value, 15, 90); }
 
     public int getTopDownFov() { return topDownFov; }
-    public void setTopDownFov(int value) { this.topDownFov = clamp(value, 5, 110); }
+    public void setTopDownFov(int value) { this.topDownFov = MathUtil.clamp(value, 5, 110); }
 
     public boolean isLockedTopDown() { return lockedTopDown; }
     public void setLockedTopDown(boolean value) { this.lockedTopDown = value; }
@@ -111,22 +113,15 @@ public final class CameraConfig {
     public void setCameraZoomSmoothingEnabled(boolean value) { this.cameraZoomSmoothingEnabled = value; }
 
     public double getCameraZoomSmoothing() { return cameraZoomSmoothing; }
-    public void setCameraZoomSmoothing(double value) { this.cameraZoomSmoothing = clamp(value, 0.0, 1.0); }
+    public void setCameraZoomSmoothing(double value) { this.cameraZoomSmoothing = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isMousePanEnabled() { return mousePanEnabled; }
     public void setMousePanEnabled(boolean value) { this.mousePanEnabled = value; }
 
     public double getMousePanMaxDistance() { return mousePanMaxDistance; }
-    public void setMousePanMaxDistance(double value) { this.mousePanMaxDistance = clamp(value, 0.0, 20.0); }
+    public void setMousePanMaxDistance(double value) { this.mousePanMaxDistance = MathUtil.clamp(value, 0.0, 20.0); }
 
     public double getMousePanSmoothing() { return mousePanSmoothing; }
-    public void setMousePanSmoothing(double value) { this.mousePanSmoothing = clamp(value, 0.0, 0.100); }
+    public void setMousePanSmoothing(double value) { this.mousePanSmoothing = MathUtil.clamp(value, 0.0, 0.100); }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }

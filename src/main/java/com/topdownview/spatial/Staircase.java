@@ -37,11 +37,6 @@ public final class Staircase {
         return steps.size();
     }
 
-    /** 上昇方向（下から上へ進む水平方向） */
-    public Direction getAscendDirection() {
-        return ascendDirection;
-    }
-
     /** バニラの階段ブロック(StairBlock)が含まれるか */
     public boolean containsStairBlocks() {
         return containsStairBlocks;
@@ -50,11 +45,6 @@ public final class Staircase {
     /** 最下段の位置 */
     public BlockPos getBottomPos() {
         return steps.get(0);
-    }
-
-    /** 最上段の位置 */
-    public BlockPos getTopPos() {
-        return steps.get(steps.size() - 1);
     }
 
     @Override

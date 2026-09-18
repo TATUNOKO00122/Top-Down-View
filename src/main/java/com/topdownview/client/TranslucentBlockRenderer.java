@@ -86,7 +86,7 @@ public final class TranslucentBlockRenderer {
         double pZ = mc.player.getZ();
         double maxDistSq = 24.0 * 24.0; // 24ブロックより遠いフェードブロックは描画をスキップ
 
-        // パフォーマンス最適化: ラッパーオブジェクトを再利用
+        // ラッパーオブジェクトを再利用してアロケーションを抑える
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
         FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
@@ -205,8 +205,8 @@ public final class TranslucentBlockRenderer {
     }
 
     /**
-     * 頂点カラーのアルファ値を強制的に上書きするVertexConsumerラッパー
-     * パフォーマンス最適化: alpha値を更新して再利用可能
+     * 頂点カラーのアルファ値を強制的に上書きするVertexConsumerラッパー。
+     * alpha値を更新して再利用できる。
      */
     private static class ReusableAlphaVertexConsumer implements VertexConsumer {
         private final VertexConsumer delegate;

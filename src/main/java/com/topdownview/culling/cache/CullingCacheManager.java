@@ -56,12 +56,4 @@ public final class CullingCacheManager {
         // エポックをインクリメントして全スレッドのキャッシュを無効化
         currentEpoch++;
     }
-
-    public int size() {
-        return threadLocalCache.get().cache.size();
-    }
-
-    public int getCulledCount() {
-        return 0;
-    }
 }

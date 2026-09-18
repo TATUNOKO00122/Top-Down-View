@@ -69,7 +69,6 @@ public final class TargetHighlightRenderer {
             }
         }
 
-        // ターゲット状態を更新
         updateTargetState(mc, mc.player, currentEntity);
 
         PoseStack poseStack = event.getPoseStack();

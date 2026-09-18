@@ -9,10 +9,7 @@ import net.minecraft.world.level.BlockGetter;
 /**
  * 局所空間判定プローブ。
  *
- * <p>従来は4方向の射線スキャンと天井スキャンを行っていましたが、
- * 新しく {@link RoomFloodFill} による 3D BFS フラッドフィル部屋認識エンジンへ移設されました。
- *
- * <p>外部 API の互換性を全方位で維持しつつ、部屋内部の空気セルや壁殻セル情報を提供します。
+ * <p>{@link RoomFloodFill} のフラッドフィル結果を基に、部屋内部の空気セルや壁殻セル情報を提供する。
  */
 public final class SpaceProbe {
 
@@ -26,9 +23,6 @@ public final class SpaceProbe {
     /** 壁を探す水平スキャン距離 */
     public static final int WALL_SCAN_DISTANCE = RoomFloodFill.MAX_RADIUS_XZ;
 
-    /** 屋内判定に必要な壁方向数（後方互換用） */
-    public static final int MIN_WALLED_DIRS = 3;
-
     /** 天井未検出を示すsentinel値 */
     public static final int NO_CEILING = Integer.MIN_VALUE;
 
@@ -39,17 +33,6 @@ public final class SpaceProbe {
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST
     };
-
-    /**
-     * 指定位置の空間を判定する（RoomFloodFill に委譲）。
-     *
-     * @param level   ワールド
-     * @param feetPos プレイヤーの足元ブロック位置
-     * @return 判定結果
-     */
-    public static Result probe(BlockGetter level, BlockPos feetPos) {
-        return probe(level, feetPos, null);
-    }
 
     /**
      * 作業バッファを再利用して空間を判定する。

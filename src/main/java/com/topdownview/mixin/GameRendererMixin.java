@@ -1,7 +1,6 @@
 package com.topdownview.mixin;
 
 import com.topdownview.client.MouseRaycast;
-import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;

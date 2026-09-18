@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import com.topdownview.util.MathConstants;
+import com.topdownview.util.MathUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -57,7 +58,7 @@ public final class MountSteeringController {
             float moveAngleDeg = (float) Math.toDegrees(Math.atan2(-strafe, forward));
             float targetYaw = Mth.wrapDegrees(cameraYaw + moveAngleDeg);
             float turnSpeed = (float) Config.getMountTurnSmoothing();
-            smoothMountTargetYaw = lerpAngleDegrees(smoothMountTargetYaw, targetYaw, turnSpeed);
+            smoothMountTargetYaw = MathUtil.lerpAngle(smoothMountTargetYaw, targetYaw, turnSpeed);
         } else {
             smoothMountTargetYaw = mountYaw;
         }
@@ -71,11 +72,6 @@ public final class MountSteeringController {
         } else {
             tickLinkedAim(player, aim[0], aim[1], mc, mountYaw);
         }
-    }
-
-    private static float lerpAngleDegrees(float from, float to, float t) {
-        float diff = Mth.wrapDegrees(to - from);
-        return Mth.wrapDegrees(from + diff * t);
     }
 
     private static float[] computeAimFromPlayerEye(Minecraft mc, LocalPlayer player) {

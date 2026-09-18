@@ -5,6 +5,7 @@ import com.topdownview.client.MouseRaycast;
 import com.topdownview.client.MountSteeringController;
 import com.topdownview.state.ModState;
 import com.topdownview.util.MathConstants;
+import com.topdownview.util.MathUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -149,8 +150,8 @@ public abstract class LocalPlayerMixin {
         prevBoatHeadYaw = currentBoatHeadYaw;
         prevBoatBodyYaw = currentBoatBodyYaw;
 
-        currentBoatHeadYaw = lerpAngleDeg(currentBoatHeadYaw, targetHeadYaw, BOAT_HEAD_LERP_SPEED);
-        currentBoatBodyYaw = lerpAngleDeg(currentBoatBodyYaw, targetBodyYaw, BOAT_BODY_LERP_SPEED);
+        currentBoatHeadYaw = MathUtil.lerpAngle(currentBoatHeadYaw, targetHeadYaw, BOAT_HEAD_LERP_SPEED);
+        currentBoatBodyYaw = MathUtil.lerpAngle(currentBoatBodyYaw, targetBodyYaw, BOAT_BODY_LERP_SPEED);
 
         float clampedBody = Mth.wrapDegrees(currentBoatBodyYaw);
         float bodyDiff = Mth.wrapDegrees(clampedBody - currentBoatHeadYaw);
@@ -167,17 +168,12 @@ public abstract class LocalPlayerMixin {
         player.setXRot(aimPitch);
     }
 
-    private static float lerpAngleDeg(float from, float to, float t) {
-        float diff = Mth.wrapDegrees(to - from);
-        return Mth.wrapDegrees(from + diff * t);
-    }
-
     private void handleElytraFlight(LocalPlayer player, Minecraft mc) {
         MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
         float[] yawPitch = MouseRaycast.INSTANCE.getMouseTargetYawPitch(mc, mc.getFrameTime());
         if (yawPitch == null) return;
 
-        float mouseTargetYaw = normalizeAngle(yawPitch[0]);
+        float mouseTargetYaw = MathUtil.normalizeAngle(yawPitch[0]);
         float targetPitch = Math.max(-90.0f, Math.min(90.0f, yawPitch[1]));
 
         player.setXRot(targetPitch);
@@ -186,13 +182,5 @@ public abstract class LocalPlayerMixin {
         player.yBodyRot = mouseTargetYaw;
         player.yRotO = mouseTargetYaw;
         player.yHeadRotO = mouseTargetYaw;
-    }
-
-    private static float normalizeAngle(float angle) {
-        if (!Float.isFinite(angle)) return 0.0f;
-        angle = angle % 360.0f;
-        if (angle >= 180.0f) angle -= 360.0f;
-        if (angle < -180.0f) angle += 360.0f;
-        return angle;
     }
 }

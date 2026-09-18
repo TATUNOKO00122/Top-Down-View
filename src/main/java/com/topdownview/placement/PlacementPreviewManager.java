@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -17,7 +16,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -136,9 +134,6 @@ public final class PlacementPreviewManager {
         } else {
             fakeBlockGetter.clear();
         }
-
-        // 半径分の実ブロックをコピー（FakeBlockGetterはdelegateから読むので不要）
-        // → FakeBlockGetter は実ワールドに委譲するため、コピー不要
 
         // メインハンドで試行（オフハンドはプレビュー対象外）
         if (isPlaceableItem(mainHand)) {
@@ -270,7 +265,7 @@ public final class PlacementPreviewManager {
      * ドアやベッドなどのマルチブロック構成ブロックの追加パーツを配置シミュレーションに追加する
      */
     private void handleMultiBlockPlacement(BlockPos targetPos, BlockState state) {
-        // 1. ドアや背の高い植物などの上下2マスのブロック
+        // ドアや背の高い植物などの上下2マスのブロック
         if (state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
             DoubleBlockHalf half = state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
             if (half == DoubleBlockHalf.LOWER) {
@@ -284,7 +279,7 @@ public final class PlacementPreviewManager {
             }
         }
 
-        // 2. ベッドなどの前後2マスのブロック
+        // ベッドなどの前後2マスのブロック
         if (state.hasProperty(BlockStateProperties.BED_PART) && state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
             BedPart part = state.getValue(BlockStateProperties.BED_PART);
             Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);

@@ -1,5 +1,7 @@
 package com.topdownview.config;
 
+import com.topdownview.util.MathUtil;
+
 /**
  * ブロック/モブのカリングおよび透過表示に関する設定項目を保持する構成クラス。
  */
@@ -55,19 +57,19 @@ public final class CullingConfig {
     private double fluidAlpha = 0.35;
 
     public int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
-    public void setCylinderRadiusHorizontal(int value) { this.cylinderRadiusHorizontal = clamp(value, 1, 10); }
+    public void setCylinderRadiusHorizontal(int value) { this.cylinderRadiusHorizontal = MathUtil.clamp(value, 1, 10); }
 
     public int getCylinderRadiusVertical() { return cylinderRadiusVertical; }
-    public void setCylinderRadiusVertical(int value) { this.cylinderRadiusVertical = clamp(value, 1, 10); }
+    public void setCylinderRadiusVertical(int value) { this.cylinderRadiusVertical = MathUtil.clamp(value, 1, 10); }
 
     public int getCylinderForwardShift() { return cylinderForwardShift; }
-    public void setCylinderForwardShift(int value) { this.cylinderForwardShift = clamp(value, 0, 10); }
+    public void setCylinderForwardShift(int value) { this.cylinderForwardShift = MathUtil.clamp(value, 0, 10); }
 
     public int getMiningCylinderRadius() { return miningCylinderRadius; }
-    public void setMiningCylinderRadius(int value) { this.miningCylinderRadius = clamp(value, 1, 16); }
+    public void setMiningCylinderRadius(int value) { this.miningCylinderRadius = MathUtil.clamp(value, 1, 16); }
 
     public int getMiningCylinderForwardShift() { return miningCylinderForwardShift; }
-    public void setMiningCylinderForwardShift(int value) { this.miningCylinderForwardShift = clamp(value, 0, 10); }
+    public void setMiningCylinderForwardShift(int value) { this.miningCylinderForwardShift = MathUtil.clamp(value, 0, 10); }
 
     public boolean isMobCullingEnabled() { return mobCullingEnabled; }
     public void setMobCullingEnabled(boolean value) { this.mobCullingEnabled = value; }
@@ -76,28 +78,28 @@ public final class CullingConfig {
     public void setMobTranslucencyEnabled(boolean value) { this.mobTranslucencyEnabled = value; }
 
     public double getMobTranslucencyAlpha() { return mobTranslucencyAlpha; }
-    public void setMobTranslucencyAlpha(double value) { this.mobTranslucencyAlpha = clamp(value, 0.0, 1.0); }
+    public void setMobTranslucencyAlpha(double value) { this.mobTranslucencyAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isTrapdoorTranslucencyEnabled() { return trapdoorTranslucencyEnabled; }
     public void setTrapdoorTranslucencyEnabled(boolean value) { this.trapdoorTranslucencyEnabled = value; }
 
     public double getTrapdoorTransparency() { return trapdoorTransparency; }
-    public void setTrapdoorTransparency(double value) { this.trapdoorTransparency = clamp(value, 0.0, 1.0); }
+    public void setTrapdoorTransparency(double value) { this.trapdoorTransparency = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isFadeEnabled() { return fadeEnabled; }
     public void setFadeEnabled(boolean value) { this.fadeEnabled = value; }
 
     public double getFadeBlockHitThreshold() { return fadeBlockHitThreshold; }
-    public void setFadeBlockHitThreshold(double value) { this.fadeBlockHitThreshold = clamp(value, 0.0, 1.0); }
+    public void setFadeBlockHitThreshold(double value) { this.fadeBlockHitThreshold = MathUtil.clamp(value, 0.0, 1.0); }
 
     public double getFadeStart() { return fadeStart; }
-    public void setFadeStart(double value) { this.fadeStart = clamp(value, 0.0, 0.9); }
+    public void setFadeStart(double value) { this.fadeStart = MathUtil.clamp(value, 0.0, 0.9); }
 
     public double getFadeNearAlpha() { return fadeNearAlpha; }
-    public void setFadeNearAlpha(double value) { this.fadeNearAlpha = clamp(value, 0.0, 1.0); }
+    public void setFadeNearAlpha(double value) { this.fadeNearAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public double getFadeSmoothingHalfLife() { return fadeSmoothingHalfLife; }
-    public void setFadeSmoothingHalfLife(double value) { this.fadeSmoothingHalfLife = clamp(value, 0.0, 1.0); }
+    public void setFadeSmoothingHalfLife(double value) { this.fadeSmoothingHalfLife = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isDisableFadeIndoors() { return disableFadeIndoors; }
     public void setDisableFadeIndoors(boolean value) { this.disableFadeIndoors = value; }
@@ -106,13 +108,13 @@ public final class CullingConfig {
     public void setPlayerNearTranslucencyEnabled(boolean value) { this.playerNearTranslucencyEnabled = value; }
 
     public double getPlayerNearTranslucencyAlpha() { return playerNearTranslucencyAlpha; }
-    public void setPlayerNearTranslucencyAlpha(double value) { this.playerNearTranslucencyAlpha = clamp(value, 0.0, 1.0); }
+    public void setPlayerNearTranslucencyAlpha(double value) { this.playerNearTranslucencyAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
-    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = clamp(value, 1, 5); }
+    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = MathUtil.clamp(value, 1, 5); }
 
     public int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
-    public void setPlayerNearTranslucencyRangeVertical(int value) { this.playerNearTranslucencyRangeVertical = clamp(value, 1, 5); }
+    public void setPlayerNearTranslucencyRangeVertical(int value) { this.playerNearTranslucencyRangeVertical = MathUtil.clamp(value, 1, 5); }
 
     public boolean isPlayerNearTranslucencyHittable() { return playerNearTranslucencyHittable; }
     public void setPlayerNearTranslucencyHittable(boolean value) { this.playerNearTranslucencyHittable = value; }
@@ -121,52 +123,52 @@ public final class CullingConfig {
     public void setMobConeCullingEnabled(boolean value) { this.mobConeCullingEnabled = value; }
 
     public double getMobConeHalfAngle() { return mobConeHalfAngle; }
-    public void setMobConeHalfAngle(double value) { this.mobConeHalfAngle = clamp(value, 10.0, 90.0); }
+    public void setMobConeHalfAngle(double value) { this.mobConeHalfAngle = MathUtil.clamp(value, 10.0, 90.0); }
 
     public double getMobConeFadeAngle() { return mobConeFadeAngle; }
-    public void setMobConeFadeAngle(double value) { this.mobConeFadeAngle = clamp(value, 0.0, 90.0); }
+    public void setMobConeFadeAngle(double value) { this.mobConeFadeAngle = MathUtil.clamp(value, 0.0, 90.0); }
 
     public double getMobNearRadius() { return mobNearRadius; }
-    public void setMobNearRadius(double value) { this.mobNearRadius = clamp(value, 0.0, 20.0); }
+    public void setMobNearRadius(double value) { this.mobNearRadius = MathUtil.clamp(value, 0.0, 20.0); }
 
     public double getMobFogEnd() { return mobFogEnd; }
-    public void setMobFogEnd(double value) { this.mobFogEnd = clamp(value, 1.0, 50.0); }
+    public void setMobFogEnd(double value) { this.mobFogEnd = MathUtil.clamp(value, 1.0, 50.0); }
 
     public boolean isStaircaseExclusionEnabled() { return staircaseExclusionEnabled; }
     public void setStaircaseExclusionEnabled(boolean value) { this.staircaseExclusionEnabled = value; }
 
     public int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
-    public void setStaircaseExclusionHeight(int value) { this.staircaseExclusionHeight = clamp(value, 1, 10); }
+    public void setStaircaseExclusionHeight(int value) { this.staircaseExclusionHeight = MathUtil.clamp(value, 1, 10); }
 
     public boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
     public void setStaircaseOccludeEnabled(boolean value) { this.staircaseOccludeEnabled = value; }
 
     public double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
-    public void setStaircaseOccludeAlpha(double value) { this.staircaseOccludeAlpha = clamp(value, 0.0, 1.0); }
+    public void setStaircaseOccludeAlpha(double value) { this.staircaseOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
     public void setLadderOccludeEnabled(boolean value) { this.ladderOccludeEnabled = value; }
 
     public double getLadderOccludeAlpha() { return ladderOccludeAlpha; }
-    public void setLadderOccludeAlpha(double value) { this.ladderOccludeAlpha = clamp(value, 0.0, 1.0); }
+    public void setLadderOccludeAlpha(double value) { this.ladderOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isTreeOccludeEnabled() { return treeOccludeEnabled; }
     public void setTreeOccludeEnabled(boolean value) { this.treeOccludeEnabled = value; }
 
     public double getTreeOccludeAlpha() { return treeOccludeAlpha; }
-    public void setTreeOccludeAlpha(double value) { this.treeOccludeAlpha = clamp(value, 0.0, 1.0); }
+    public void setTreeOccludeAlpha(double value) { this.treeOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
-    public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = clamp(value, 10, 90); }
+    public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = MathUtil.clamp(value, 10, 90); }
 
     public int getCoverCullingRadius() { return coverCullingRadius; }
-    public void setCoverCullingRadius(int value) { this.coverCullingRadius = clamp(value, 4, 24); }
+    public void setCoverCullingRadius(int value) { this.coverCullingRadius = MathUtil.clamp(value, 4, 24); }
 
     public boolean isCoverCullingViewshedEnabled() { return coverCullingViewshedEnabled; }
     public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }
 
     public int getCullingMode() { return cullingMode; }
-    public void setCullingMode(int value) { this.cullingMode = clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
+    public void setCullingMode(int value) { this.cullingMode = MathUtil.clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
 
     public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
     public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }
@@ -181,7 +183,7 @@ public final class CullingConfig {
     public void setTranslucentFluid(boolean value) { this.translucentFluid = value; }
 
     public double getFluidAlpha() { return fluidAlpha; }
-    public void setFluidAlpha(double value) { this.fluidAlpha = clamp(value, 0.05, 1.0); }
+    public void setFluidAlpha(double value) { this.fluidAlpha = MathUtil.clamp(value, 0.05, 1.0); }
 
     private boolean undergroundCullingEnabled = true;
     private int undergroundCullingStartDistance = 4;
@@ -191,16 +193,9 @@ public final class CullingConfig {
     public void setUndergroundCullingEnabled(boolean value) { this.undergroundCullingEnabled = value; }
 
     public int getUndergroundCullingStartDistance() { return undergroundCullingStartDistance; }
-    public void setUndergroundCullingStartDistance(int value) { this.undergroundCullingStartDistance = clamp(value, 1, 16); }
+    public void setUndergroundCullingStartDistance(int value) { this.undergroundCullingStartDistance = MathUtil.clamp(value, 1, 16); }
 
     public int getUndergroundCullingKeepDepth() { return undergroundCullingKeepDepth; }
-    public void setUndergroundCullingKeepDepth(int value) { this.undergroundCullingKeepDepth = clamp(value, 4, 64); }
+    public void setUndergroundCullingKeepDepth(int value) { this.undergroundCullingKeepDepth = MathUtil.clamp(value, 4, 64); }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }

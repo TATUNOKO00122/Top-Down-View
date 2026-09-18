@@ -4,7 +4,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.SlabType;
@@ -52,14 +51,11 @@ public final class PlacementHandler {
      * DirectionProperty（UP/DOWN許容）、HALF、SLAB_TYPE を同時に操作。
      */
     private static BlockState applyVertical(BlockState state, Direction facing) {
-        boolean changed = false;
-
         // DirectionProperty で UP/DOWN を許容するもの
         for (Property<?> prop : state.getProperties()) {
             if (prop instanceof DirectionProperty dp) {
                 if (dp.getPossibleValues().contains(facing)) {
                     state = state.setValue(dp, facing);
-                    changed = true;
                 }
             }
         }
@@ -68,7 +64,6 @@ public final class PlacementHandler {
         if (state.hasProperty(BlockStateProperties.HALF)) {
             Half half = (facing == Direction.UP) ? Half.TOP : Half.BOTTOM;
             state = state.setValue(BlockStateProperties.HALF, half);
-            changed = true;
         }
 
         // SLAB_TYPE プロパティ（ハーフブロック: top/bottom/double）
@@ -78,7 +73,6 @@ public final class PlacementHandler {
                 SlabType slabType = (facing == Direction.UP) ? SlabType.TOP : SlabType.BOTTOM;
                 if (BlockStateProperties.SLAB_TYPE.getPossibleValues().contains(slabType)) {
                     state = state.setValue(BlockStateProperties.SLAB_TYPE, slabType);
-                    changed = true;
                 }
             }
         }

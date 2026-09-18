@@ -15,7 +15,6 @@ import java.util.Map;
  * {@code assets/topdown_view/textures/gui/keys/} に配置済み。
  *
  * <p>未対応のキー（スキャンコードや特殊キー）は {@code keyboard_any} アイコンへフォールバックする。
- * テキストフォールバックが必要な場合は {@link #hasIcon(InputConstants.Key)} で判定可能。</p>
  */
 public final class KeyIconMapper {
 
@@ -134,30 +133,6 @@ public final class KeyIconMapper {
             return DEFAULT_ICON;
         }
         return getIcon(mapping.getKey());
-    }
-
-    /**
-     * 指定されたキーに専用アイコンが存在するか判定する。
-     * {@code false} の場合はテキストフォールバックの使用を推奨。
-     */
-    public static boolean hasIcon(InputConstants.Key key) {
-        if (key == null) {
-            return false;
-        }
-        if (key.getType() == InputConstants.Type.MOUSE) {
-            return MOUSE_MAP.containsKey(key.getValue());
-        }
-        if (key.getType() == InputConstants.Type.KEYSYM) {
-            return KEYBOARD_MAP.containsKey(key.getValue());
-        }
-        return false;
-    }
-
-    /**
-     * フォールバック用デフォルトアイコン（{@code keyboard_any}）を返す。
-     */
-    public static ResourceLocation getDefaultIcon() {
-        return DEFAULT_ICON;
     }
 
     private static ResourceLocation rl(String name) {

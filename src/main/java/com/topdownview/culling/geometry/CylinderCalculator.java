@@ -135,15 +135,6 @@ public final class CylinderCalculator {
                 + (distY * distY) / (radiusV * radiusV);
     }
 
-    public static boolean isInCylinder(BlockPos pos, Vec3 playerPos, Vec3 cameraPos, double yaw) {
-        double normalizedDistSq = computeNormalizedDistSq(
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                playerPos.x, playerPos.y, playerPos.z,
-                cameraPos.x, cameraPos.y, cameraPos.z,
-                true, yaw);
-        return normalizedDistSq >= 0 && normalizedDistSq <= 1.0;
-    }
-
     public static boolean isInCylinderForTrapdoor(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
         return isInCylinderForTrapdoor(pos, playerPos.x, playerPos.y, playerPos.z, cameraPos.x, cameraPos.y, cameraPos.z);
     }

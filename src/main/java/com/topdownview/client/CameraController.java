@@ -7,9 +7,7 @@ import com.topdownview.culling.CullingManager;
 import com.topdownview.util.MathConstants;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.EntityHitResult;
@@ -83,7 +81,6 @@ public final class CameraController {
         // ドラッグ回転の処理
         InputHandler.updateDragRotation(mc);
 
-        // アニメーションの更新
         updateAnimation();
 
         // プレイヤー回転制御

@@ -14,10 +14,6 @@ public final class TimeState {
 
     private TimeState() {}
 
-    public long getStartTime() {
-        return startTime;
-    }
-
     public void setStartTime(long value) {
         if (value < 0) {
             throw new IllegalArgumentException("Time must be non-negative: " + value);

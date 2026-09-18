@@ -1,5 +1,7 @@
 package com.topdownview.config;
 
+import com.topdownview.util.MathUtil;
+
 /**
  * プレイヤー操作、移動、インタラクション、連携機能に関する設定項目を保持する構成クラス。
  */
@@ -51,31 +53,31 @@ public final class InteractionConfig {
     public void setClickToMoveEnabled(boolean value) { this.clickToMoveEnabled = value; }
 
     public double getArrivalThreshold() { return arrivalThreshold; }
-    public void setArrivalThreshold(double value) { this.arrivalThreshold = clamp(value, 0.5, 5.0); }
+    public void setArrivalThreshold(double value) { this.arrivalThreshold = MathUtil.clamp(value, 0.5, 5.0); }
 
     public boolean isForceAutoJump() { return forceAutoJump; }
     public void setForceAutoJump(boolean value) { this.forceAutoJump = value; }
 
     public double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
-    public void setSprintDistanceThreshold(double value) { this.sprintDistanceThreshold = clamp(value, 1.0, 50.0); }
+    public void setSprintDistanceThreshold(double value) { this.sprintDistanceThreshold = MathUtil.clamp(value, 1.0, 50.0); }
 
     public boolean isAutoAlignToMovementEnabled() { return autoAlignToMovementEnabled; }
     public void setAutoAlignToMovementEnabled(boolean value) { this.autoAlignToMovementEnabled = value; }
 
     public int getAutoAlignAngleThreshold() { return autoAlignAngleThreshold; }
-    public void setAutoAlignAngleThreshold(int value) { this.autoAlignAngleThreshold = clamp(value, 0, 90); }
+    public void setAutoAlignAngleThreshold(int value) { this.autoAlignAngleThreshold = MathUtil.clamp(value, 0, 90); }
 
     public int getAutoAlignCooldownTicks() { return autoAlignCooldownTicks; }
-    public void setAutoAlignCooldownTicks(int value) { this.autoAlignCooldownTicks = clamp(value, 0, 100); }
+    public void setAutoAlignCooldownTicks(int value) { this.autoAlignCooldownTicks = MathUtil.clamp(value, 0, 100); }
 
     public int getStableDirectionAngle() { return stableDirectionAngle; }
-    public void setStableDirectionAngle(int value) { this.stableDirectionAngle = clamp(value, 5, 60); }
+    public void setStableDirectionAngle(int value) { this.stableDirectionAngle = MathUtil.clamp(value, 5, 60); }
 
     public int getStableDirectionTicks() { return stableDirectionTicks; }
-    public void setStableDirectionTicks(int value) { this.stableDirectionTicks = clamp(value, 5, 60); }
+    public void setStableDirectionTicks(int value) { this.stableDirectionTicks = MathUtil.clamp(value, 5, 60); }
 
     public double getAutoAlignAnimationSpeed() { return autoAlignAnimationSpeed; }
-    public void setAutoAlignAnimationSpeed(double value) { this.autoAlignAnimationSpeed = clamp(value, 0.01, 0.19); }
+    public void setAutoAlignAnimationSpeed(double value) { this.autoAlignAnimationSpeed = MathUtil.clamp(value, 0.01, 0.19); }
 
     public boolean isAutoAlignAnimationAcceleration() { return autoAlignAnimationAcceleration; }
     public void setAutoAlignAnimationAcceleration(boolean value) { this.autoAlignAnimationAcceleration = value; }
@@ -87,22 +89,22 @@ public final class InteractionConfig {
     public void setDestinationHighlightEnabled(boolean value) { this.destinationHighlightEnabled = value; }
 
     public double getRangeEmptyHand() { return rangeEmptyHand; }
-    public void setRangeEmptyHand(double value) { this.rangeEmptyHand = clamp(value, 1.0, 10.0); }
+    public void setRangeEmptyHand(double value) { this.rangeEmptyHand = MathUtil.clamp(value, 1.0, 10.0); }
 
     public double getRangeSword() { return rangeSword; }
-    public void setRangeSword(double value) { this.rangeSword = clamp(value, 1.0, 10.0); }
+    public void setRangeSword(double value) { this.rangeSword = MathUtil.clamp(value, 1.0, 10.0); }
 
     public double getRangeAxe() { return rangeAxe; }
-    public void setRangeAxe(double value) { this.rangeAxe = clamp(value, 1.0, 10.0); }
+    public void setRangeAxe(double value) { this.rangeAxe = MathUtil.clamp(value, 1.0, 10.0); }
 
     public double getRangePickaxe() { return rangePickaxe; }
-    public void setRangePickaxe(double value) { this.rangePickaxe = clamp(value, 1.0, 10.0); }
+    public void setRangePickaxe(double value) { this.rangePickaxe = MathUtil.clamp(value, 1.0, 10.0); }
 
     public double getRangeShovel() { return rangeShovel; }
-    public void setRangeShovel(double value) { this.rangeShovel = clamp(value, 1.0, 10.0); }
+    public void setRangeShovel(double value) { this.rangeShovel = MathUtil.clamp(value, 1.0, 10.0); }
 
     public double getRangeOther() { return rangeOther; }
-    public void setRangeOther(double value) { this.rangeOther = clamp(value, 1.0, 10.0); }
+    public void setRangeOther(double value) { this.rangeOther = MathUtil.clamp(value, 1.0, 10.0); }
 
     public boolean isDefaultEnabled() { return defaultEnabled; }
     public void setDefaultEnabled(boolean value) { this.defaultEnabled = value; }
@@ -114,19 +116,19 @@ public final class InteractionConfig {
     public void setTargetLockEnabled(boolean value) { this.targetLockEnabled = value; }
 
     public int getTargetLockDuration() { return targetLockDuration; }
-    public void setTargetLockDuration(int value) { this.targetLockDuration = clamp(value, 0, 600); }
+    public void setTargetLockDuration(int value) { this.targetLockDuration = MathUtil.clamp(value, 0, 600); }
 
     public double getTargetHitboxExpansion() { return targetHitboxExpansion; }
-    public void setTargetHitboxExpansion(double value) { this.targetHitboxExpansion = clamp(value, 0.0, 5.0); }
+    public void setTargetHitboxExpansion(double value) { this.targetHitboxExpansion = MathUtil.clamp(value, 0.0, 5.0); }
 
     public boolean isScreenReachEnabled() { return screenReachEnabled; }
     public void setScreenReachEnabled(boolean value) { this.screenReachEnabled = value; }
 
     public double getReachDistance() { return reachDistance; }
-    public void setReachDistance(double value) { this.reachDistance = clamp(value, 1.0, 100.0); }
+    public void setReachDistance(double value) { this.reachDistance = MathUtil.clamp(value, 1.0, 100.0); }
 
     public double getServerReachDistance() { return serverReachDistance; }
-    public void setServerReachDistance(double value) { this.serverReachDistance = clamp(value, 1.0, 100.0); }
+    public void setServerReachDistance(double value) { this.serverReachDistance = MathUtil.clamp(value, 1.0, 100.0); }
 
     public double getEffectiveReachDistance() {
         return syncedServerReach >= 0 ? syncedServerReach : reachDistance;
@@ -136,16 +138,16 @@ public final class InteractionConfig {
     public boolean hasSyncedServerReach() { return syncedServerReach >= 0; }
 
     public int getSignHoverDisplayMode() { return signHoverDisplayMode; }
-    public void setSignHoverDisplayMode(int value) { this.signHoverDisplayMode = clamp(value, 0, 2); }
+    public void setSignHoverDisplayMode(int value) { this.signHoverDisplayMode = MathUtil.clamp(value, 0, 2); }
 
     public double getSignHoverScale() { return signHoverScale; }
-    public void setSignHoverScale(double value) { this.signHoverScale = clamp(value, 0.0, 1.0); }
+    public void setSignHoverScale(double value) { this.signHoverScale = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isShowInteractionPrompt() { return showInteractionPrompt; }
     public void setShowInteractionPrompt(boolean value) { this.showInteractionPrompt = value; }
 
     public double getInteractionPromptScale() { return interactionPromptScale; }
-    public void setInteractionPromptScale(double value) { this.interactionPromptScale = clamp(value, 0.0, 1.0); }
+    public void setInteractionPromptScale(double value) { this.interactionPromptScale = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isInteractionPromptShadow() { return interactionPromptShadow; }
     public void setInteractionPromptShadow(boolean value) { this.interactionPromptShadow = value; }
@@ -154,7 +156,7 @@ public final class InteractionConfig {
     public void setShowSpatialPrompt(boolean value) { this.showSpatialPrompt = value; }
 
     public double getSpatialPromptRadius() { return spatialPromptRadius; }
-    public void setSpatialPromptRadius(double value) { this.spatialPromptRadius = clamp(value, 1.0, 16.0); }
+    public void setSpatialPromptRadius(double value) { this.spatialPromptRadius = MathUtil.clamp(value, 1.0, 16.0); }
 
     public boolean isSpatialPromptAllBlocks() { return spatialPromptAllBlocks; }
     public void setSpatialPromptAllBlocks(boolean value) { this.spatialPromptAllBlocks = value; }
@@ -162,11 +164,4 @@ public final class InteractionConfig {
     public boolean isPerformanceMonitorEnabled() { return performanceMonitorEnabled; }
     public void setPerformanceMonitorEnabled(boolean value) { this.performanceMonitorEnabled = value; }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }

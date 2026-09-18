@@ -21,13 +21,9 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 public final class InteractableBlocks {
 
     public enum InteractionKind {
-        NONE,
-        OPEN_CLOSE, // ドア・トラップドア・フェンスゲート
-        TOGGLE,     // ボタン・レバー・レッドストーン素子
-        SLEEP,      // ベッド
-        OPEN,       // チェスト系コンテナ（「開く」）
-        USE,        // GUI 持ち（作業台・かまど等）
-        INTERACT    // その他の右クリック操作（鐘・ケーキ等）
+        NONE,     // 操作不可
+        OPEN,     // チェスト系コンテナ（空間プロンプト「?」対象）
+        INTERACT  // その他の右クリック操作（ドア・ボタン・GUI・鐘など）
     }
 
     private InteractableBlocks() {
@@ -44,6 +40,12 @@ public final class InteractableBlocks {
             return InteractionKind.NONE;
         }
 
+        // ユーザー定義 (interactions.json) が最優先。NONE は明示的な除外。
+        InteractionKind override = InteractionRegistry.getOverride(state.getBlock());
+        if (override != null) {
+            return override;
+        }
+
         InteractionKind byBlock = classifyByBlock(state);
         if (byBlock != InteractionKind.NONE) {
             return byBlock;
@@ -53,14 +55,14 @@ public final class InteractableBlocks {
 
         // バニラ基底を継承しない MOD 産コンテナも、ブロックエンティティが
         // インベントリ（Container）なら「開く」として扱う。
-        // かまど・ホッパー等の既知ユーティリティは保護対象なので除外し、USE に委ねる。
+        // かまど・ホッパー等の既知ユーティリティは保護対象なので除外し、INTERACT に委ねる。
         if (blockEntity instanceof Container && !isProtectionOnlyBlock(state)) {
             return InteractionKind.OPEN;
         }
 
         // GUI 持ち: BaseEntityBlock 以外の独自実装も含めてジェネリックに検出
         if (blockEntity instanceof MenuProvider || state.getMenuProvider(level, pos) != null) {
-            return InteractionKind.USE;
+            return InteractionKind.INTERACT;
         }
 
         return classifyByProperty(state);
@@ -72,6 +74,18 @@ public final class InteractableBlocks {
      */
     public static boolean isInteractable(BlockState state, BlockGetter level, BlockPos pos) {
         if (state == null || level == null || pos == null) return false;
+
+        // OPEN / INTERACT の明示指定は保護対象。NONE はプロンプトのみ除外して保護は維持し、
+        // EXCLUDE は保護からも除外する。
+        InteractionKind override = InteractionRegistry.getOverride(state.getBlock());
+        if (override != null) {
+            if (override != InteractionKind.NONE) {
+                return true;
+            }
+            if (InteractionRegistry.isUnprotected(state.getBlock())) {
+                return false;
+            }
+        }
 
         if (classifyByBlock(state) != InteractionKind.NONE) return true;
 
@@ -94,28 +108,19 @@ public final class InteractableBlocks {
     private static InteractionKind classifyByBlock(BlockState state) {
         Block block = state.getBlock();
 
-        if (block instanceof DoorBlock || state.is(BlockTags.DOORS)
-                || block instanceof TrapDoorBlock || state.is(BlockTags.TRAPDOORS)
-                || block instanceof FenceGateBlock || state.is(BlockTags.FENCE_GATES)) {
-            return InteractionKind.OPEN_CLOSE;
-        }
-
-        if (block instanceof ButtonBlock || state.is(BlockTags.BUTTONS)
-                || block instanceof LeverBlock
-                || block instanceof RepeaterBlock
-                || block instanceof ComparatorBlock) {
-            return InteractionKind.TOGGLE;
-        }
-
-        if (block instanceof BedBlock || state.is(BlockTags.BEDS)) {
-            return InteractionKind.SLEEP;
-        }
-
         if (isOpenContainer(block)) {
             return InteractionKind.OPEN;
         }
 
-        if (block instanceof BellBlock
+        if (block instanceof DoorBlock || state.is(BlockTags.DOORS)
+                || block instanceof TrapDoorBlock || state.is(BlockTags.TRAPDOORS)
+                || block instanceof FenceGateBlock || state.is(BlockTags.FENCE_GATES)
+                || block instanceof ButtonBlock || state.is(BlockTags.BUTTONS)
+                || block instanceof LeverBlock
+                || block instanceof RepeaterBlock
+                || block instanceof ComparatorBlock
+                || block instanceof BedBlock || state.is(BlockTags.BEDS)
+                || block instanceof BellBlock
                 || block instanceof CakeBlock
                 || block instanceof JukeboxBlock
                 || block instanceof NoteBlock) {
@@ -130,15 +135,11 @@ public final class InteractableBlocks {
      * OPEN は開閉系、FACING+POWERED はボタン/レバー系にほぼ固有（オブザーバーのみ除外）。
      */
     private static InteractionKind classifyByProperty(BlockState state) {
-        if (state.hasProperty(BlockStateProperties.OPEN)) {
-            return InteractionKind.OPEN_CLOSE;
-        }
-        if (state.hasProperty(BlockStateProperties.POWERED)
+        boolean openable = state.hasProperty(BlockStateProperties.OPEN);
+        boolean toggle = state.hasProperty(BlockStateProperties.POWERED)
                 && state.hasProperty(BlockStateProperties.FACING)
-                && !(state.getBlock() instanceof ObserverBlock)) {
-            return InteractionKind.TOGGLE;
-        }
-        return InteractionKind.NONE;
+                && !(state.getBlock() instanceof ObserverBlock);
+        return (openable || toggle) ? InteractionKind.INTERACT : InteractionKind.NONE;
     }
 
     private static boolean isOpenContainer(Block block) {

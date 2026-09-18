@@ -1,7 +1,7 @@
 package com.topdownview.state;
 
+import com.topdownview.util.MathUtil;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 
 public final class PlayerRotationState {
 
@@ -43,23 +43,14 @@ public final class PlayerRotationState {
         targetPitch = Mth.clamp(pitch, -90.0f, 90.0f);
     }
 
-    public void updateTargetHeadYaw(Vec3 playerEyePos, Vec3 targetPos) {
-        if (playerEyePos == null || targetPos == null) return;
-
-        double dx = targetPos.x - playerEyePos.x;
-        double dz = targetPos.z - playerEyePos.z;
-        targetHeadYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
-        targetHeadYaw = normalizeAngle(targetHeadYaw);
-    }
-
     public void updateTargetHeadYawDirect(float yaw) {
-        targetHeadYaw = normalizeAngle(yaw);
+        targetHeadYaw = MathUtil.normalizeAngle(yaw);
     }
 
     public void updateTargetBodyYaw(float movementYaw, boolean hasInput) {
         hasMovementInput = hasInput;
         if (hasInput) {
-            targetBodyYaw = normalizeAngle(movementYaw);
+            targetBodyYaw = MathUtil.normalizeAngle(movementYaw);
         }
     }
 
@@ -83,14 +74,14 @@ public final class PlayerRotationState {
             return;
         }
 
-        currentHeadYaw = lerpAngle(currentHeadYaw, targetHeadYaw, headLerpSpeed);
+        currentHeadYaw = MathUtil.lerpAngle(currentHeadYaw, targetHeadYaw, headLerpSpeed);
         currentPitch = Mth.lerp(headLerpSpeed, currentPitch, targetPitch);
 
         if (hasMovementInput) {
             float constrainedBodyYaw = constrainBodyToHead(targetBodyYaw, currentHeadYaw);
-            currentBodyYaw = lerpAngle(currentBodyYaw, constrainedBodyYaw, bodyLerpSpeed);
+            currentBodyYaw = MathUtil.lerpAngle(currentBodyYaw, constrainedBodyYaw, bodyLerpSpeed);
         } else {
-            currentBodyYaw = lerpAngle(currentBodyYaw, currentHeadYaw, bodyLerpSpeed);
+            currentBodyYaw = MathUtil.lerpAngle(currentBodyYaw, currentHeadYaw, bodyLerpSpeed);
         }
 
         // 頭部の Yaw を現在の体の Yaw に対して MAX_HEAD_BODY_DIFF 内にクランプする
@@ -103,12 +94,12 @@ public final class PlayerRotationState {
     }
 
     public float getLerpHeadYaw(float partialTick) {
-        float diff = normalizeAngle(currentHeadYaw - prevHeadYaw);
+        float diff = MathUtil.normalizeAngle(currentHeadYaw - prevHeadYaw);
         return prevHeadYaw + partialTick * diff;
     }
 
     public float getLerpBodyYaw(float partialTick) {
-        float diff = normalizeAngle(currentBodyYaw - prevBodyYaw);
+        float diff = MathUtil.normalizeAngle(currentBodyYaw - prevBodyYaw);
         return prevBodyYaw + partialTick * diff;
     }
 
@@ -130,10 +121,6 @@ public final class PlayerRotationState {
 
     public float getCurrentPitch() {
         return currentPitch;
-    }
-
-    public float getPrevPitch() {
-        return prevPitch;
     }
 
     public boolean isUsingItem() {
@@ -174,10 +161,10 @@ public final class PlayerRotationState {
     }
 
     public void initializeFromPlayer(float headYaw, float bodyYaw, float pitch) {
-        targetHeadYaw = normalizeAngle(headYaw);
+        targetHeadYaw = MathUtil.normalizeAngle(headYaw);
         currentHeadYaw = targetHeadYaw;
         prevHeadYaw = targetHeadYaw;
-        targetBodyYaw = normalizeAngle(bodyYaw);
+        targetBodyYaw = MathUtil.normalizeAngle(bodyYaw);
         currentBodyYaw = targetBodyYaw;
         prevBodyYaw = targetBodyYaw;
         targetPitch = Mth.clamp(pitch, -90.0f, 90.0f);
@@ -186,8 +173,8 @@ public final class PlayerRotationState {
     }
 
     public void lockAttackRotation(float headYaw, float bodyYaw, float pitch, int ticks) {
-        float normHead = normalizeAngle(headYaw);
-        float normBody = normalizeAngle(bodyYaw);
+        float normHead = MathUtil.normalizeAngle(headYaw);
+        float normBody = MathUtil.normalizeAngle(bodyYaw);
         this.lockedHeadYaw = normHead;
         this.lockedBodyYaw = normBody;
         this.lockedPitch = pitch;
@@ -218,21 +205,21 @@ public final class PlayerRotationState {
     }
 
     private float constrainBodyToHead(float bodyYaw, float headYaw) {
-        float diff = normalizeAngle(bodyYaw - headYaw);
+        float diff = MathUtil.normalizeAngle(bodyYaw - headYaw);
         if (diff > MAX_HEAD_BODY_DIFF) {
-            return normalizeAngle(headYaw + MAX_HEAD_BODY_DIFF);
+            return MathUtil.normalizeAngle(headYaw + MAX_HEAD_BODY_DIFF);
         } else if (diff < -MAX_HEAD_BODY_DIFF) {
-            return normalizeAngle(headYaw - MAX_HEAD_BODY_DIFF);
+            return MathUtil.normalizeAngle(headYaw - MAX_HEAD_BODY_DIFF);
         }
         return bodyYaw;
     }
 
     private float constrainHeadToBody(float headYaw, float bodyYaw) {
-        float diff = normalizeAngle(headYaw - bodyYaw);
+        float diff = MathUtil.normalizeAngle(headYaw - bodyYaw);
         if (diff > MAX_HEAD_BODY_DIFF) {
-            return normalizeAngle(bodyYaw + MAX_HEAD_BODY_DIFF);
+            return MathUtil.normalizeAngle(bodyYaw + MAX_HEAD_BODY_DIFF);
         } else if (diff < -MAX_HEAD_BODY_DIFF) {
-            return normalizeAngle(bodyYaw - MAX_HEAD_BODY_DIFF);
+            return MathUtil.normalizeAngle(bodyYaw - MAX_HEAD_BODY_DIFF);
         }
         return headYaw;
     }
@@ -240,18 +227,5 @@ public final class PlayerRotationState {
     public void resetLerpSpeeds() {
         this.bodyLerpSpeed = DEFAULT_LERP_SPEED;
         this.headLerpSpeed = HEAD_LERP_SPEED;
-    }
-
-    private static float lerpAngle(float from, float to, float speed) {
-        float diff = normalizeAngle(to - from);
-        return normalizeAngle(from + diff * speed);
-    }
-
-    private static float normalizeAngle(float angle) {
-        if (!Float.isFinite(angle)) return 0.0f;
-        angle = angle % 360.0f;
-        if (angle >= 180.0f) angle -= 360.0f;
-        if (angle < -180.0f) angle += 360.0f;
-        return angle;
     }
 }

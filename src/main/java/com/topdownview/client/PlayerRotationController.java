@@ -2,16 +2,13 @@ package com.topdownview.client;
 
 import com.topdownview.state.ModState;
 import com.topdownview.state.PlayerRotationState;
+import com.topdownview.util.MathUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -233,7 +230,7 @@ public final class PlayerRotationController {
 
             float cameraYaw = ModState.CAMERA.getYaw();
             float inputAngle = (float) Math.toDegrees(Math.atan2(-rawStrafe, rawForward));
-            float movementYaw = normalizeAngle(cameraYaw + inputAngle);
+            float movementYaw = MathUtil.normalizeAngle(cameraYaw + inputAngle);
 
             state.updateTargetBodyYaw(movementYaw, true);
             state.updateTargetHeadYawDirect(movementYaw);
@@ -264,7 +261,7 @@ public final class PlayerRotationController {
         } else {
             float cameraYaw = ModState.CAMERA.getYaw();
             float inputAngle = (float) Math.toDegrees(Math.atan2(-strafe, forward));
-            movementYaw = normalizeAngle(cameraYaw + inputAngle);
+            movementYaw = MathUtil.normalizeAngle(cameraYaw + inputAngle);
         }
 
         state.updateTargetBodyYaw(movementYaw, true);
@@ -306,14 +303,6 @@ public final class PlayerRotationController {
         if (!state.isUsingItem()) {
             player.setYBodyRot(bodyYaw);
         }
-    }
-
-    private static float normalizeAngle(float angle) {
-        if (!Float.isFinite(angle)) return 0.0f;
-        angle = angle % 360.0f;
-        if (angle >= 180.0f) angle -= 360.0f;
-        if (angle < -180.0f) angle += 360.0f;
-        return angle;
     }
 
     public static void initializeFromPlayer(Player player) {

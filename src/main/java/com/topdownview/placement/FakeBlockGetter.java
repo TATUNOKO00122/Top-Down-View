@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.lighting.LevelLightEngine;
@@ -53,13 +52,6 @@ public final class FakeBlockGetter implements BlockAndTintGetter {
      */
     public Set<BlockPos> getChangedPositions() {
         return fakeBlocks.keySet();
-    }
-
-    /**
-     * 指定位置にシミュレーション上のブロックが存在するか
-     */
-    public boolean hasFakeBlock(BlockPos pos) {
-        return fakeBlocks.containsKey(pos);
     }
 
     // ==================== BlockAndTintGetter 実装 ====================

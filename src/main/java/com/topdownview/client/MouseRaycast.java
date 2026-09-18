@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
@@ -358,16 +359,8 @@ public final class MouseRaycast {
         return camPos.add(dir.scale(t));
     }
 
-    public net.minecraft.world.phys.HitResult getLastHitResult() {
+    public HitResult getLastHitResult() {
         return lastHitResult;
-    }
-
-    public BlockHitResult getLastBlockHit() {
-        return lastBlockHit;
-    }
-
-    public EntityHitResult getLastEntityHit() {
-        return lastEntityHit;
     }
 
     private Vec3 getMouseRayDirection(Minecraft mc, float partialTick) {

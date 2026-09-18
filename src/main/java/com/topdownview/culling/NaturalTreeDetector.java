@@ -52,16 +52,6 @@ public final class NaturalTreeDetector {
     }
 
     /**
-     * 指定位置のブロックが自然木のログかどうかを判定する。
-     *
-     * @param posLong ブロック位置の long エンコード（{@link BlockPos#asLong()}）
-     * @return 自然木のログの場合 true
-     */
-    public static boolean isNaturalTreeLog(long posLong) {
-        return naturalTreeLogs.contains(posLong);
-    }
-
-    /**
      * 現在キャッシュされている自然木ログ位置のセットを返す。
      * 呼び出し元は走査目的でのみ使用し、変更してはならない。
      *

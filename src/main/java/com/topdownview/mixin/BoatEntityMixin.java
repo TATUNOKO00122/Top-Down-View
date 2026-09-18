@@ -1,7 +1,6 @@
 package com.topdownview.mixin;
 
 import com.topdownview.state.ModState;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.vehicle.Boat;

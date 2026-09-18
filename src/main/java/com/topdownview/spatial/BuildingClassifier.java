@@ -22,17 +22,18 @@ import java.util.Objects;
  *
  * <p>アルゴリズムは 5 フェーズで構成されます:
  * <ol>
+ *   <li><b>Phase 0 床/天井 Y 推定</b> — 内部空気セルから floorY / ceilingY の基準を求める。</li>
  *   <li><b>Phase 1 建物固体マス構築</b> — {@link RoomFloodFill.Result#getShellCells()} を種に、
  *       固体連結性に基づき BFS で外側・内側へ厚さ {@link #T_MAX} まで拡張。
  *       空気隣接ではなく固体連結で補捉するため、角の離脱ブロックも漏れません。</li>
  *   <li><b>Phase 2 シード・ラベリング</b> — 内部空気に直接接するブロックを ROOF/WALL/FLOOR
  *       シードとして印付けます (確信度の高い初期ラベル)。</li>
  *   <li><b>Phase 3 多始点距離比較</b> — 建物マス上で ROOF/WALL/FLOOR を1本の多始点 BFS で
- *       同時伝播し、各セルの最小距離と到達種マスクからラベルを決定 (従来の種別3回 BFS と等価)。
+ *       同時伝播し、各セルの最小距離と到達種マスクからラベルを決定。
  *       同点時は y 座標で tiebreak。</li>
  *   <li><b>Phase 4 屋根形状識別</b> — ROOF ラベルのブロックから heightmap を構築し、
  *       高低差の有無で {@link RoofShape#FLAT} / {@link RoofShape#SLOPE} を判定。
- *       形状の細分類 (切妻/寄棟等) は将来拡張余地として SLOPE に集約。</li>
+ *       形状の細分類 (切妻/寄棟等) は行わず SLOPE に集約。</li>
  * </ol>
  *
  * <p>本クラスはスレッドセーフではありません。呼び出し側が単一スレッド (主に
@@ -214,8 +215,7 @@ public final class BuildingClassifier {
 
         // ==================== Phase 3: 多始点 BFS (距離 + 種マスク) + ラベル決定 ====================
         // ROOF/WALL/FLOOR を1本の多始点 BFS で伝播し、各セルが最小距離で到達した種のビットマスクを
-        // 記録する。シード群ごとに BFS を3回走らせる従来方式と等価な結果を1回で得る。
-        // 同点時は y 座標で tiebreak (y > ceilingY → ROOF, y < floorY → FLOOR, 中間 → WALL)。
+        // 記録する。同点時は y 座標で tiebreak (y > ceilingY → ROOF, y < floorY → FLOOR, 中間 → WALL)。
         Long2LongOpenHashMap arrival = bfsArrival(mass.keySet(), roofSeeds, wallSeeds, floorSeeds);
 
         final Long2ObjectOpenHashMap<Label> labels = new Long2ObjectOpenHashMap<>(mass.size());

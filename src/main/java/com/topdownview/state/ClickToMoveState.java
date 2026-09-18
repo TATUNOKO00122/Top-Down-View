@@ -27,19 +27,15 @@ public final class ClickToMoveState {
     private volatile boolean isInteracting = false;
     private volatile BlockPos interactTargetBlock = null;
 
-    public static final double DEFAULT_ARRIVAL_THRESHOLD = 1.5;
-    public static final double DEFAULT_ATTACK_RANGE = 3.0;
     public static final double DEFAULT_INTERACT_RANGE = 2.5;
     public static final double DEFAULT_DESTROY_RANGE = 4.5;
 
     private ClickToMoveState() {}
 
     public Vec3 getTargetPosition() { return targetPosition; }
-    public Vec3 getOriginalLocation() { return originalLocation; }
     public Entity getTargetEntity() { return targetEntity; }
     public boolean isMoving() { return isMoving; }
     public boolean useBaritone() { return useBaritone; }
-    public int getBaritoneStartTick() { return baritoneStartTick; }
     public boolean isAttacking() { return isAttacking; }
     public boolean isDestroying() { return isDestroying; }
     public BlockPos getDestroyTargetBlock() { return destroyTargetBlock; }
@@ -73,44 +69,6 @@ public final class ClickToMoveState {
         this.isMoving = (pos != null);
     }
 
-    public void setOriginalLocation(Vec3 pos) {
-        if (pos != null && (!Double.isFinite(pos.x) || !Double.isFinite(pos.y) || !Double.isFinite(pos.z))) {
-            throw new IllegalArgumentException("Original location must be finite");
-        }
-        this.originalLocation = pos;
-    }
-
-    public void setTargetEntity(Entity entity) {
-        this.targetEntity = entity;
-        if (entity != null) {
-            this.isMoving = true;
-        }
-    }
-
-    public void setAttacking(boolean attacking) {
-        this.isAttacking = attacking;
-    }
-
-    public void setDestroying(boolean destroying) {
-        this.isDestroying = destroying;
-    }
-
-    public void setDestroyTargetBlock(BlockPos pos) {
-        this.destroyTargetBlock = pos;
-    }
-
-    public void setDestroyDirection(Direction dir) {
-        this.destroyDirection = dir;
-    }
-
-    public void setInteracting(boolean interacting) {
-        this.isInteracting = interacting;
-    }
-
-    public void setInteractTargetBlock(BlockPos pos) {
-        this.interactTargetBlock = pos;
-    }
-
     public void startFollowAndAttack(Entity entity, Vec3 playerPos) {
         clearAllTargets();
         this.targetEntity = entity;
@@ -123,14 +81,6 @@ public final class ClickToMoveState {
     public void startMoveTo(Vec3 destination, Vec3 playerPos) {
         clearAllTargets();
         this.targetPosition = destination;
-        this.originalLocation = playerPos;
-        this.isMoving = true;
-    }
-
-    public void startFollowEntity(Entity entity, Vec3 playerPos) {
-        clearAllTargets();
-        this.targetEntity = entity;
-        this.targetPosition = entity.position();
         this.originalLocation = playerPos;
         this.isMoving = true;
     }
@@ -206,15 +156,6 @@ public final class ClickToMoveState {
         if (!isMoving) return true;
 
         double distSq = playerPos.distanceToSqr(targetEntity.position());
-        return distSq < threshold * threshold;
-    }
-
-    public boolean hasArrivedAtBlock(Vec3 playerPos, BlockPos blockPos, double threshold) {
-        if (blockPos == null) return true;
-        if (!isMoving) return true;
-
-        Vec3 blockCenter = Vec3.atCenterOf(blockPos);
-        double distSq = playerPos.distanceToSqr(blockCenter);
         return distSq < threshold * threshold;
     }
 

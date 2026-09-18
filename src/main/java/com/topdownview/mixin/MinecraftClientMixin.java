@@ -1,11 +1,7 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.ClickActionHandler;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;

@@ -139,7 +139,7 @@ public final class TopDownCuller {
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
     private boolean cachedViewWedgeProtection;
-    /** 壁パネル/天井スライスの差分を union した再構築範囲。 */
+    /** 天井スライス等の要素集合の差分を union した再構築範囲。 */
     private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
@@ -200,8 +200,8 @@ public final class TopDownCuller {
 
     private void resetLastBlockCoords() {
         fadeTransitionController.clearCache();
-        stairHandler.clearCache(); // wait, we don't need resetLastScanPos, clearCache handles variables
-        
+        stairHandler.clearCache();
+
         lastFadePBlockX = Integer.MIN_VALUE;
         lastFadePBlockY = Integer.MIN_VALUE;
         lastFadePBlockZ = Integer.MIN_VALUE;
@@ -565,7 +565,7 @@ public final class TopDownCuller {
 
         long genBefore = getCullingGeneration();
         updateSpaceRecognition(mc, currentBlockX, currentBlockY, currentBlockZ);
-        // 要素集合(壁パネル/天井スライス)が変わったら、ワーカーの判定キャッシュを破棄して
+        // 要素集合(天井スライス等)が変わったら、ワーカーの判定キャッシュを破棄して
         // 再構築後のメッシュが古い判定を拾わないようにする。
         if (getCullingGeneration() != genBefore) {
             cullingCache.clear();
@@ -890,9 +890,6 @@ public final class TopDownCuller {
         playerX = playerY = playerZ = cameraX = cameraY = cameraZ = 0.0;
     }
 
-    public int getCulledBlockCount() { return cullingCache.getCulledCount(); }
-    public int getCacheSize() { return cullingCache.size(); }
-
     /** 覆いカリングが時間差で進行中か(進行中はチャンク再構築を強制する必要がある)。 */
     public boolean hasActiveCoverRelease() {
         return cachedCoverCullingActive && coverHandler.isReleasing();
@@ -1152,11 +1149,5 @@ public final class TopDownCuller {
         }
 
         fadeTransitionController.onEndCollection();
-    }
-
-    public boolean isEntityCulled(Entity entity) {
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) return false;
-        if (entity instanceof Cullable) return ((Cullable) entity).topdownview_isCulled();
-        return false;
     }
 }

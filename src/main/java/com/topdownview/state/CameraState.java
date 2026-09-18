@@ -1,5 +1,6 @@
 package com.topdownview.state;
 
+import com.topdownview.util.MathUtil;
 import net.minecraft.client.CameraType;
 import net.minecraft.world.phys.Vec3;
 
@@ -11,15 +12,12 @@ import net.minecraft.world.phys.Vec3;
 public final class CameraState {
 
     // 角度計算定数
-    private static final float ANGLE_RANGE = 360.0f;
-    private static final float HALF_ANGLE_RANGE = 180.0f;
     private static final float MIN_PITCH = -90.0f;
     private static final float MAX_PITCH = 90.0f;
 
     // デフォルト値定数
     public static final float DEFAULT_PITCH = 45.0f;
     public static final float DEFAULT_YAW = 0.0f;
-    public static final float DEFAULT_ZOOM = 5.0f;
     public static final Vec3 DEFAULT_POSITION = Vec3.ZERO;
 
     // カメラ距離定数（Single Source of Truth）
@@ -36,7 +34,6 @@ public final class CameraState {
     private volatile float pitch = DEFAULT_PITCH;
     private volatile double x = 0.0;
     private volatile double z = 0.0;
-    private volatile float zoom = DEFAULT_ZOOM;
     private volatile double cameraDistance = DEFAULT_CAMERA_DISTANCE;
     // レンダリング用補間済み距離（スムージング有効時は target=cameraDistance へ追従）
     private volatile double renderCameraDistance = DEFAULT_CAMERA_DISTANCE;
@@ -88,10 +85,6 @@ public final class CameraState {
         return yaw;
     }
 
-    public float getPrevYaw() {
-        return prevYaw;
-    }
-
     public float getTargetYaw() {
         return targetYaw;
     }
@@ -110,10 +103,6 @@ public final class CameraState {
 
     public double getZ() {
         return z;
-    }
-
-    public float getZoom() {
-        return zoom;
     }
 
     public double getCameraDistance() {
@@ -199,23 +188,6 @@ public final class CameraState {
 
     public void setPitch(float value) {
         pitch = clampPitch(value);
-    }
-
-    public void setX(double value) {
-        validateFinite(value, "X coordinate");
-        x = value;
-    }
-
-    public void setZ(double value) {
-        validateFinite(value, "Z coordinate");
-        z = value;
-    }
-
-    public void setZoom(float value) {
-        if (value < 0.0f || Float.isNaN(value) || Float.isInfinite(value)) {
-            throw new IllegalArgumentException("Zoom must be non-negative and finite: " + value);
-        }
-        zoom = value;
     }
 
     public void setCameraDistance(double value) {
@@ -411,10 +383,6 @@ public final class CameraState {
         return freeCameraPitch;
     }
 
-    public float getPrevFreeCameraPitch() {
-        return prevFreeCameraPitch;
-    }
-
     public float getLerpFreeCameraPitch(float partialTicks) {
         return prevFreeCameraPitch + (freeCameraPitch - prevFreeCameraPitch) * partialTicks;
     }
@@ -488,25 +456,6 @@ public final class CameraState {
     }
 
     /**
-     * カメラ距離を増加
-     */
-    public double increaseCameraDistance(double delta) {
-        double maxDistance = getEffectiveMaxCameraDistance();
-        double newDistance = Math.min(maxDistance, cameraDistance + delta);
-        setCameraDistance(newDistance);
-        return newDistance;
-    }
-
-    /**
-     * カメラ距離を減少
-     */
-    public double decreaseCameraDistance(double delta) {
-        double newDistance = Math.max(MIN_CAMERA_DISTANCE, cameraDistance - delta);
-        setCameraDistance(newDistance);
-        return newDistance;
-    }
-
-    /**
      * 状態をリセット
      */
     public void reset() {
@@ -517,7 +466,6 @@ public final class CameraState {
         pitch = DEFAULT_PITCH;
         x = 0.0;
         z = 0.0;
-        zoom = DEFAULT_ZOOM;
         cameraDistance = getEffectiveDefaultCameraDistance();
         renderCameraDistance = cameraDistance;
         cameraPosition = DEFAULT_POSITION;
@@ -607,21 +555,14 @@ public final class CameraState {
             throw new IllegalArgumentException("Angle must be finite: " + angle);
         }
 
-        float result = angle % ANGLE_RANGE;
-        if (result > HALF_ANGLE_RANGE) {
-            result -= ANGLE_RANGE;
-        } else if (result < -HALF_ANGLE_RANGE) {
-            result += ANGLE_RANGE;
-        }
-
-        return result;
+        return MathUtil.normalizeAngle(angle);
     }
 
     private static float clampPitch(float pitch) {
         if (Float.isNaN(pitch) || Float.isInfinite(pitch)) {
             throw new IllegalArgumentException("Pitch must be finite: " + pitch);
         }
-        return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitch));
+        return MathUtil.clamp(pitch, MIN_PITCH, MAX_PITCH);
     }
 
     private static void validateFinite(double value, String name) {

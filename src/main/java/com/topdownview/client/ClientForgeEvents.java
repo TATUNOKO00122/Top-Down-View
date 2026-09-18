@@ -62,6 +62,7 @@ public final class ClientForgeEvents {
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
         ReachManager.forceUpdate();
         OpenedContainerTracker.init();
+        InteractionRegistry.reload();
         
         if (Minecraft.getInstance().player != null) {
             PlayerRotationController.initializeFromPlayer(Minecraft.getInstance().player);

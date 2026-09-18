@@ -4,7 +4,6 @@ import com.mojang.blaze3d.audio.Listener;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;

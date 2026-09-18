@@ -9,8 +9,11 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Mod全体の設定管理ファサードクラス。
@@ -565,123 +568,161 @@ public class Config {
         }
     }
 
+    private interface Binding {
+        void load();
+
+        void save();
+
+        void reset();
+    }
+
+    private record SpecBinding<T>(ForgeConfigSpec.ConfigValue<T> spec,
+                                  Consumer<T> setter, Supplier<T> getter) implements Binding {
+        @Override
+        public void load() {
+            setter.accept(spec.get());
+        }
+
+        @Override
+        public void save() {
+            spec.set(getter.get());
+        }
+
+        @Override
+        public void reset() {
+            setter.accept(spec.getDefault());
+        }
+    }
+
+    // スペックの読み込み・保存・既定値復元を一箇所で定義する単一情報源。
+    private static final List<Binding> BINDINGS = new ArrayList<>();
+
+    private static <T> void addBinding(ForgeConfigSpec.ConfigValue<T> spec,
+                                       Consumer<T> setter, Supplier<T> getter) {
+        BINDINGS.add(new SpecBinding<>(spec, setter, getter));
+    }
+
+    static {
+        addBinding(CYLINDER_RADIUS_HORIZONTAL, CULLING::setCylinderRadiusHorizontal, Config::getCylinderRadiusHorizontal);
+        addBinding(CYLINDER_RADIUS_VERTICAL, CULLING::setCylinderRadiusVertical, Config::getCylinderRadiusVertical);
+        addBinding(CYLINDER_FORWARD_SHIFT, CULLING::setCylinderForwardShift, Config::getCylinderForwardShift);
+        addBinding(MINING_CYLINDER_RADIUS, CULLING::setMiningCylinderRadius, Config::getMiningCylinderRadius);
+        addBinding(MINING_CYLINDER_FORWARD_SHIFT, CULLING::setMiningCylinderForwardShift, Config::getMiningCylinderForwardShift);
+        addBinding(UNDERGROUND_CULLING_ENABLED, CULLING::setUndergroundCullingEnabled, Config::isUndergroundCullingEnabled);
+        addBinding(UNDERGROUND_CULLING_START_DISTANCE, CULLING::setUndergroundCullingStartDistance, Config::getUndergroundCullingStartDistance);
+        addBinding(UNDERGROUND_CULLING_KEEP_DEPTH, CULLING::setUndergroundCullingKeepDepth, Config::getUndergroundCullingKeepDepth);
+        addBinding(MINING_MODE_ENABLED, INTERACTION::setMiningModeEnabled, Config::isMiningModeEnabled);
+        addBinding(CLICK_TO_MOVE_ENABLED, INTERACTION::setClickToMoveEnabled, Config::isClickToMoveEnabled);
+        addBinding(BARITONE_RENDER_PATH, INTEGRATIONS::setBaritoneRenderPath, Config::isBaritoneRenderPath);
+        addBinding(BARITONE_RENDER_GOAL, INTEGRATIONS::setBaritoneRenderGoal, Config::isBaritoneRenderGoal);
+        addBinding(ARRIVAL_THRESHOLD, INTERACTION::setArrivalThreshold, Config::getArrivalThreshold);
+        addBinding(FORCE_AUTO_JUMP, INTERACTION::setForceAutoJump, Config::isForceAutoJump);
+        addBinding(SPRINT_DISTANCE_THRESHOLD, INTERACTION::setSprintDistanceThreshold, Config::getSprintDistanceThreshold);
+        addBinding(AUTO_ALIGN_TO_MOVEMENT_ENABLED, INTERACTION::setAutoAlignToMovementEnabled, Config::isAutoAlignToMovementEnabled);
+        addBinding(AUTO_ALIGN_ANGLE_THRESHOLD, INTERACTION::setAutoAlignAngleThreshold, Config::getAutoAlignAngleThreshold);
+        addBinding(AUTO_ALIGN_COOLDOWN_TICKS, INTERACTION::setAutoAlignCooldownTicks, Config::getAutoAlignCooldownTicks);
+        addBinding(STABLE_DIRECTION_ANGLE, INTERACTION::setStableDirectionAngle, Config::getStableDirectionAngle);
+        addBinding(STABLE_DIRECTION_TICKS, INTERACTION::setStableDirectionTicks, Config::getStableDirectionTicks);
+        addBinding(AUTO_ALIGN_ANIMATION_SPEED, INTERACTION::setAutoAlignAnimationSpeed, Config::getAutoAlignAnimationSpeed);
+        addBinding(AUTO_ALIGN_ANIMATION_ACCELERATION, INTERACTION::setAutoAlignAnimationAcceleration, Config::isAutoAlignAnimationAcceleration);
+        addBinding(MOB_CULLING_ENABLED, CULLING::setMobCullingEnabled, Config::isMobCullingEnabled);
+        addBinding(MOB_TRANSLUCENCY_ENABLED, CULLING::setMobTranslucencyEnabled, Config::isMobTranslucencyEnabled);
+        addBinding(MOB_TRANSLUCENCY_ALPHA, CULLING::setMobTranslucencyAlpha, Config::getMobTranslucencyAlpha);
+        addBinding(TRAPDOOR_TRANSLUCENCY_ENABLED, CULLING::setTrapdoorTranslucencyEnabled, Config::isTrapdoorTranslucencyEnabled);
+        addBinding(TRAPDOOR_TRANSPARENCY, CULLING::setTrapdoorTransparency, Config::getTrapdoorTransparency);
+        addBinding(FADE_ENABLED, CULLING::setFadeEnabled, Config::isFadeEnabled);
+        addBinding(FADE_BLOCK_HIT_THRESHOLD, CULLING::setFadeBlockHitThreshold, Config::getFadeBlockHitThreshold);
+        addBinding(FADE_START, CULLING::setFadeStart, Config::getFadeStart);
+        addBinding(FADE_NEAR_ALPHA, CULLING::setFadeNearAlpha, Config::getFadeNearAlpha);
+        addBinding(FADE_SMOOTHING_HALF_LIFE, CULLING::setFadeSmoothingHalfLife, Config::getFadeSmoothingHalfLife);
+        addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
+        addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
+        addBinding(COVER_CULLING_RADIUS, CULLING::setCoverCullingRadius, Config::getCoverCullingRadius);
+        addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
+        addBinding(CULLING_MODE, CULLING::setCullingMode, Config::getCullingMode);
+        addBinding(INDOOR_CEILING_CULLING_ENABLED, CULLING::setIndoorCeilingCullingEnabled, Config::isIndoorCeilingCullingEnabled);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_ENABLED, CULLING::setPlayerNearTranslucencyEnabled, Config::isPlayerNearTranslucencyEnabled);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_ALPHA, CULLING::setPlayerNearTranslucencyAlpha, Config::getPlayerNearTranslucencyAlpha);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL, CULLING::setPlayerNearTranslucencyRangeHorizontal, Config::getPlayerNearTranslucencyRangeHorizontal);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL, CULLING::setPlayerNearTranslucencyRangeVertical, Config::getPlayerNearTranslucencyRangeVertical);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_HITTABLE, CULLING::setPlayerNearTranslucencyHittable, Config::isPlayerNearTranslucencyHittable);
+        addBinding(RANGE_INDICATOR_ENABLED, INTERACTION::setRangeIndicatorEnabled, Config::isRangeIndicatorEnabled);
+        addBinding(DESTINATION_HIGHLIGHT_ENABLED, INTERACTION::setDestinationHighlightEnabled, Config::isDestinationHighlightEnabled);
+        addBinding(RANGE_EMPTY_HAND, INTERACTION::setRangeEmptyHand, Config::getRangeEmptyHand);
+        addBinding(RANGE_SWORD, INTERACTION::setRangeSword, Config::getRangeSword);
+        addBinding(RANGE_AXE, INTERACTION::setRangeAxe, Config::getRangeAxe);
+        addBinding(RANGE_PICKAXE, INTERACTION::setRangePickaxe, Config::getRangePickaxe);
+        addBinding(RANGE_SHOVEL, INTERACTION::setRangeShovel, Config::getRangeShovel);
+        addBinding(RANGE_OTHER, INTERACTION::setRangeOther, Config::getRangeOther);
+        addBinding(DEFAULT_ENABLED, INTERACTION::setDefaultEnabled, Config::isDefaultEnabled);
+        addBinding(TARGET_GLOW_ENABLED, INTERACTION::setTargetGlowEnabled, Config::isTargetGlowEnabled);
+        addBinding(MOB_CONE_CULLING_ENABLED, CULLING::setMobConeCullingEnabled, Config::isMobConeCullingEnabled);
+        addBinding(MOB_CONE_HALF_ANGLE, CULLING::setMobConeHalfAngle, Config::getMobConeHalfAngle);
+        addBinding(MOB_CONE_FADE_ANGLE, CULLING::setMobConeFadeAngle, Config::getMobConeFadeAngle);
+        addBinding(MOB_NEAR_RADIUS, CULLING::setMobNearRadius, Config::getMobNearRadius);
+        addBinding(MOB_FOG_END, CULLING::setMobFogEnd, Config::getMobFogEnd);
+        addBinding(ROTATE_ANGLE_MODE, CAMERA::setRotateAngleMode, Config::getRotateAngleMode);
+        addBinding(CAMERA_SNAP_ROTATION_SPEED, CAMERA::setCameraSnapRotationSpeed, Config::getCameraSnapRotationSpeed);
+        addBinding(CAMERA_PITCH, CAMERA::setCameraPitch, Config::getCameraPitch);
+        addBinding(MINING_MODE_PITCH, CAMERA::setMiningModePitch, Config::getMiningModePitch);
+        addBinding(MAX_CAMERA_DISTANCE, CAMERA::setMaxCameraDistance, Config::getMaxCameraDistance);
+        addBinding(DEFAULT_CAMERA_DISTANCE, CAMERA::setDefaultCameraDistance, Config::getDefaultCameraDistance);
+        addBinding(CAMERA_Y_FOLLOW_DELAY_ENABLED, CAMERA::setCameraYFollowDelayEnabled, Config::isCameraYFollowDelayEnabled);
+        addBinding(CAMERA_Y_FOLLOW_DELAY, CAMERA::setCameraYFollowDelay, Config::getCameraYFollowDelay);
+        addBinding(CAMERA_X_FOLLOW_DELAY_ENABLED, CAMERA::setCameraXFollowDelayEnabled, Config::isCameraXFollowDelayEnabled);
+        addBinding(CAMERA_X_FOLLOW_DELAY, CAMERA::setCameraXFollowDelay, Config::getCameraXFollowDelay);
+        addBinding(CAMERA_Z_FOLLOW_DELAY_ENABLED, CAMERA::setCameraZFollowDelayEnabled, Config::isCameraZFollowDelayEnabled);
+        addBinding(CAMERA_Z_FOLLOW_DELAY, CAMERA::setCameraZFollowDelay, Config::getCameraZFollowDelay);
+        addBinding(FOLLOW_DELAY_WHILE_MOUNTED, CAMERA::setFollowDelayWhileMounted, Config::isFollowDelayWhileMounted);
+        addBinding(PLAYER_SCREEN_OFFSET, CAMERA::setPlayerScreenOffset, Config::getPlayerScreenOffset);
+        addBinding(HEAD_BODY_ROTATION_ENABLED, CAMERA::setHeadBodyRotationEnabled, Config::isHeadBodyRotationEnabled);
+        addBinding(WATER_MOVEMENT_CONTROL_ENABLED, CAMERA::setWaterMovementControlEnabled, Config::isWaterMovementControlEnabled);
+        addBinding(INDEPENDENT_MOUNT_AIM, CAMERA::setIndependentMountAim, Config::isIndependentMountAim);
+        addBinding(MOUNT_AIM_MAX_TWIST, CAMERA::setMountAimMaxTwist, Config::getMountAimMaxTwist);
+        addBinding(MOUNT_TURN_SMOOTHING, CAMERA::setMountTurnSmoothing, Config::getMountTurnSmoothing);
+        addBinding(BOAT_HEAD_MAX_TWIST, CAMERA::setBoatHeadMaxTwist, Config::getBoatHeadMaxTwist);
+        addBinding(BOAT_BODY_MAX_TWIST, CAMERA::setBoatBodyMaxTwist, Config::getBoatBodyMaxTwist);
+        addBinding(TOP_DOWN_FOV, CAMERA::setTopDownFov, Config::getTopDownFov);
+        addBinding(LOCKED_TOP_DOWN, CAMERA::setLockedTopDown, Config::isLockedTopDown);
+        addBinding(SCROLL_ONLY_ZOOM_ENABLED, CAMERA::setScrollOnlyZoomEnabled, Config::isScrollOnlyZoomEnabled);
+        addBinding(CAMERA_ZOOM_SMOOTHING_ENABLED, CAMERA::setCameraZoomSmoothingEnabled, Config::isCameraZoomSmoothingEnabled);
+        addBinding(CAMERA_ZOOM_SMOOTHING, CAMERA::setCameraZoomSmoothing, Config::getCameraZoomSmoothing);
+        addBinding(MOUSE_PAN_ENABLED, CAMERA::setMousePanEnabled, Config::isMousePanEnabled);
+        addBinding(MOUSE_PAN_MAX_DISTANCE, CAMERA::setMousePanMaxDistance, Config::getMousePanMaxDistance);
+        addBinding(MOUSE_PAN_SMOOTHING, CAMERA::setMousePanSmoothing, Config::getMousePanSmoothing);
+        addBinding(TARGET_LOCK_ENABLED, INTERACTION::setTargetLockEnabled, Config::isTargetLockEnabled);
+        addBinding(TARGET_LOCK_DURATION, INTERACTION::setTargetLockDuration, Config::getTargetLockDuration);
+        addBinding(TARGET_HITBOX_EXPANSION, INTERACTION::setTargetHitboxExpansion, Config::getTargetHitboxExpansion);
+        addBinding(SCREEN_REACH_ENABLED, INTERACTION::setScreenReachEnabled, Config::isScreenReachEnabled);
+        addBinding(REACH_DISTANCE, INTERACTION::setReachDistance, Config::getReachDistance);
+        addBinding(PLACEMENT_PREVIEW_ENABLED, PLACEMENT::setPlacementPreviewEnabled, Config::isPlacementPreviewEnabled);
+        addBinding(PLACEMENT_TRANSPARENCY, PLACEMENT::setPlacementTransparency, Config::getPlacementTransparency);
+        addBinding(CLICK_POSITION_PLACEMENT_ENABLED, PLACEMENT::setClickPositionPlacementEnabled, Config::isClickPositionPlacementEnabled);
+        addBinding(STAIRCASE_EXCLUSION_ENABLED, CULLING::setStaircaseExclusionEnabled, Config::isStaircaseExclusionEnabled);
+        addBinding(STAIRCASE_EXCLUSION_HEIGHT, CULLING::setStaircaseExclusionHeight, Config::getStaircaseExclusionHeight);
+        addBinding(STAIRCASE_OCCLUDE_ENABLED, CULLING::setStaircaseOccludeEnabled, Config::isStaircaseOccludeEnabled);
+        addBinding(STAIRCASE_OCCLUDE_ALPHA, CULLING::setStaircaseOccludeAlpha, Config::getStaircaseOccludeAlpha);
+        addBinding(LADDER_OCCLUDE_ENABLED, CULLING::setLadderOccludeEnabled, Config::isLadderOccludeEnabled);
+        addBinding(LADDER_OCCLUDE_ALPHA, CULLING::setLadderOccludeAlpha, Config::getLadderOccludeAlpha);
+        addBinding(TREE_OCCLUDE_ENABLED, CULLING::setTreeOccludeEnabled, Config::isTreeOccludeEnabled);
+        addBinding(TREE_OCCLUDE_ALPHA, CULLING::setTreeOccludeAlpha, Config::getTreeOccludeAlpha);
+        addBinding(IGNORE_LEAVES_IN_RAYCAST, CULLING::setIgnoreLeavesInRaycast, Config::isIgnoreLeavesInRaycast);
+        addBinding(PROTECT_NATURAL_TREE_LOGS, CULLING::setProtectNaturalTreeLogs, Config::isProtectNaturalTreeLogs);
+        addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);
+        addBinding(FLUID_ALPHA, CULLING::setFluidAlpha, Config::getFluidAlpha);
+        addBinding(SIGN_HOVER_DISPLAY_MODE, INTERACTION::setSignHoverDisplayMode, Config::getSignHoverDisplayMode);
+        addBinding(SIGN_HOVER_SCALE, INTERACTION::setSignHoverScale, Config::getSignHoverScale);
+        addBinding(SHOW_INTERACTION_PROMPT, INTERACTION::setShowInteractionPrompt, Config::isShowInteractionPrompt);
+        addBinding(INTERACTION_PROMPT_SCALE, INTERACTION::setInteractionPromptScale, Config::getInteractionPromptScale);
+        addBinding(INTERACTION_PROMPT_SHADOW, INTERACTION::setInteractionPromptShadow, Config::isInteractionPromptShadow);
+        addBinding(SHOW_SPATIAL_PROMPT, INTERACTION::setShowSpatialPrompt, Config::isShowSpatialPrompt);
+        addBinding(SPATIAL_PROMPT_RADIUS, INTERACTION::setSpatialPromptRadius, Config::getSpatialPromptRadius);
+        addBinding(SPATIAL_PROMPT_ALL_BLOCKS, INTERACTION::setSpatialPromptAllBlocks, Config::isSpatialPromptAllBlocks);
+        addBinding(PERFORMANCE_MONITOR_ENABLED, INTERACTION::setPerformanceMonitorEnabled, Config::isPerformanceMonitorEnabled);
+    }
+
     private static void loadClientConfig() {
-        CULLING.setCylinderRadiusHorizontal(CYLINDER_RADIUS_HORIZONTAL.get());
-        CULLING.setCylinderRadiusVertical(CYLINDER_RADIUS_VERTICAL.get());
-        CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.get());
-        CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.get());
-        CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.get());
-        CULLING.setUndergroundCullingEnabled(UNDERGROUND_CULLING_ENABLED.get());
-        CULLING.setUndergroundCullingStartDistance(UNDERGROUND_CULLING_START_DISTANCE.get());
-        CULLING.setUndergroundCullingKeepDepth(UNDERGROUND_CULLING_KEEP_DEPTH.get());
-        INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.get());
-        INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.get());
-        INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.get());
-        INTEGRATIONS.setBaritoneRenderGoal(BARITONE_RENDER_GOAL.get());
-        INTERACTION.setArrivalThreshold(ARRIVAL_THRESHOLD.get());
-        INTERACTION.setForceAutoJump(FORCE_AUTO_JUMP.get());
-        INTERACTION.setSprintDistanceThreshold(SPRINT_DISTANCE_THRESHOLD.get());
-        INTERACTION.setAutoAlignToMovementEnabled(AUTO_ALIGN_TO_MOVEMENT_ENABLED.get());
-        INTERACTION.setAutoAlignAngleThreshold(AUTO_ALIGN_ANGLE_THRESHOLD.get());
-        INTERACTION.setAutoAlignCooldownTicks(AUTO_ALIGN_COOLDOWN_TICKS.get());
-        INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.get());
-        INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.get());
-        INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.get());
-        INTERACTION.setAutoAlignAnimationAcceleration(AUTO_ALIGN_ANIMATION_ACCELERATION.get());
-        CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.get());
-        CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.get());
-        CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.get());
-        CULLING.setTrapdoorTranslucencyEnabled(TRAPDOOR_TRANSLUCENCY_ENABLED.get());
-        CULLING.setTrapdoorTransparency(TRAPDOOR_TRANSPARENCY.get());
-        CULLING.setFadeEnabled(FADE_ENABLED.get());
-        CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.get());
-        CULLING.setFadeStart(FADE_START.get());
-        CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.get());
-        CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.get());
-        CULLING.setDisableFadeIndoors(DISABLE_FADE_INDOORS.get());
-        CULLING.setViewWedgeHalfAngle(VIEW_WEDGE_HALF_ANGLE.get());
-        CULLING.setCoverCullingRadius(COVER_CULLING_RADIUS.get());
-        CULLING.setCoverCullingViewshedEnabled(COVER_CULLING_VIEWSHED_ENABLED.get());
-        CULLING.setCullingMode(CULLING_MODE.get());
-        CULLING.setIndoorCeilingCullingEnabled(INDOOR_CEILING_CULLING_ENABLED.get());
-        CULLING.setPlayerNearTranslucencyEnabled(PLAYER_NEAR_TRANSLUCENCY_ENABLED.get());
-        CULLING.setPlayerNearTranslucencyAlpha(PLAYER_NEAR_TRANSLUCENCY_ALPHA.get());
-        CULLING.setPlayerNearTranslucencyRangeHorizontal(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.get());
-        CULLING.setPlayerNearTranslucencyRangeVertical(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.get());
-        CULLING.setPlayerNearTranslucencyHittable(PLAYER_NEAR_TRANSLUCENCY_HITTABLE.get());
-        INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.get());
-        INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.get());
-        INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.get());
-        INTERACTION.setRangeSword(RANGE_SWORD.get());
-        INTERACTION.setRangeAxe(RANGE_AXE.get());
-        INTERACTION.setRangePickaxe(RANGE_PICKAXE.get());
-        INTERACTION.setRangeShovel(RANGE_SHOVEL.get());
-        INTERACTION.setRangeOther(RANGE_OTHER.get());
-        INTERACTION.setDefaultEnabled(DEFAULT_ENABLED.get());
-        INTERACTION.setTargetGlowEnabled(TARGET_GLOW_ENABLED.get());
-        CULLING.setMobConeCullingEnabled(MOB_CONE_CULLING_ENABLED.get());
-        CULLING.setMobConeHalfAngle(MOB_CONE_HALF_ANGLE.get());
-        CULLING.setMobConeFadeAngle(MOB_CONE_FADE_ANGLE.get());
-        CULLING.setMobNearRadius(MOB_NEAR_RADIUS.get());
-        CULLING.setMobFogEnd(MOB_FOG_END.get());
-        CAMERA.setRotateAngleMode(ROTATE_ANGLE_MODE.get());
-        CAMERA.setCameraSnapRotationSpeed(CAMERA_SNAP_ROTATION_SPEED.get());
-        CAMERA.setCameraPitch(CAMERA_PITCH.get());
-        CAMERA.setMiningModePitch(MINING_MODE_PITCH.get());
-        CAMERA.setMaxCameraDistance(MAX_CAMERA_DISTANCE.get());
-        CAMERA.setDefaultCameraDistance(DEFAULT_CAMERA_DISTANCE.get());
-        CAMERA.setCameraYFollowDelayEnabled(CAMERA_Y_FOLLOW_DELAY_ENABLED.get());
-        CAMERA.setCameraYFollowDelay(CAMERA_Y_FOLLOW_DELAY.get());
-        CAMERA.setCameraXFollowDelayEnabled(CAMERA_X_FOLLOW_DELAY_ENABLED.get());
-        CAMERA.setCameraXFollowDelay(CAMERA_X_FOLLOW_DELAY.get());
-        CAMERA.setCameraZFollowDelayEnabled(CAMERA_Z_FOLLOW_DELAY_ENABLED.get());
-        CAMERA.setCameraZFollowDelay(CAMERA_Z_FOLLOW_DELAY.get());
-        CAMERA.setFollowDelayWhileMounted(FOLLOW_DELAY_WHILE_MOUNTED.get());
-        CAMERA.setPlayerScreenOffset(PLAYER_SCREEN_OFFSET.get());
-        CAMERA.setHeadBodyRotationEnabled(HEAD_BODY_ROTATION_ENABLED.get());
-        CAMERA.setWaterMovementControlEnabled(WATER_MOVEMENT_CONTROL_ENABLED.get());
-        CAMERA.setIndependentMountAim(INDEPENDENT_MOUNT_AIM.get());
-        CAMERA.setMountAimMaxTwist(MOUNT_AIM_MAX_TWIST.get());
-        CAMERA.setMountTurnSmoothing(MOUNT_TURN_SMOOTHING.get());
-        CAMERA.setBoatHeadMaxTwist(BOAT_HEAD_MAX_TWIST.get());
-        CAMERA.setBoatBodyMaxTwist(BOAT_BODY_MAX_TWIST.get());
-        CAMERA.setTopDownFov(TOP_DOWN_FOV.get());
-        CAMERA.setLockedTopDown(LOCKED_TOP_DOWN.get());
-        CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.get());
-        CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.get());
-        CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.get());
-        CAMERA.setMousePanEnabled(MOUSE_PAN_ENABLED.get());
-        CAMERA.setMousePanMaxDistance(MOUSE_PAN_MAX_DISTANCE.get());
-        CAMERA.setMousePanSmoothing(MOUSE_PAN_SMOOTHING.get());
-        INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.get());
-        INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.get());
-        INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.get());
-        INTERACTION.setScreenReachEnabled(SCREEN_REACH_ENABLED.get());
-        INTERACTION.setReachDistance(REACH_DISTANCE.get());
-        PLACEMENT.setPlacementPreviewEnabled(PLACEMENT_PREVIEW_ENABLED.get());
-        PLACEMENT.setPlacementTransparency(PLACEMENT_TRANSPARENCY.get());
-        PLACEMENT.setClickPositionPlacementEnabled(CLICK_POSITION_PLACEMENT_ENABLED.get());
-        CULLING.setStaircaseExclusionEnabled(STAIRCASE_EXCLUSION_ENABLED.get());
-        CULLING.setStaircaseExclusionHeight(STAIRCASE_EXCLUSION_HEIGHT.get());
-        CULLING.setStaircaseOccludeEnabled(STAIRCASE_OCCLUDE_ENABLED.get());
-        CULLING.setStaircaseOccludeAlpha(STAIRCASE_OCCLUDE_ALPHA.get());
-        CULLING.setLadderOccludeEnabled(LADDER_OCCLUDE_ENABLED.get());
-        CULLING.setLadderOccludeAlpha(LADDER_OCCLUDE_ALPHA.get());
-        CULLING.setTreeOccludeEnabled(TREE_OCCLUDE_ENABLED.get());
-        CULLING.setTreeOccludeAlpha(TREE_OCCLUDE_ALPHA.get());
-        CULLING.setIgnoreLeavesInRaycast(IGNORE_LEAVES_IN_RAYCAST.get());
-        CULLING.setProtectNaturalTreeLogs(PROTECT_NATURAL_TREE_LOGS.get());
-        CULLING.setTranslucentFluid(TRANSLUCENT_FLUID.get());
-        CULLING.setFluidAlpha(FLUID_ALPHA.get());
-        INTERACTION.setSignHoverDisplayMode(SIGN_HOVER_DISPLAY_MODE.get());
-        INTERACTION.setSignHoverScale(SIGN_HOVER_SCALE.get());
-        INTERACTION.setShowInteractionPrompt(SHOW_INTERACTION_PROMPT.get());
-        INTERACTION.setInteractionPromptScale(INTERACTION_PROMPT_SCALE.get());
-        INTERACTION.setInteractionPromptShadow(INTERACTION_PROMPT_SHADOW.get());
-        INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.get());
-        INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.get());
-        INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.get());
-        INTERACTION.setPerformanceMonitorEnabled(PERFORMANCE_MONITOR_ENABLED.get());
+        BINDINGS.forEach(Binding::load);
     }
 
     private static void loadCommonConfig() {
@@ -691,122 +732,7 @@ public class Config {
     public static void save() {
         isSaving = true;
         try {
-            CYLINDER_RADIUS_HORIZONTAL.set(getCylinderRadiusHorizontal());
-            CYLINDER_RADIUS_VERTICAL.set(getCylinderRadiusVertical());
-            CYLINDER_FORWARD_SHIFT.set(getCylinderForwardShift());
-            MINING_CYLINDER_RADIUS.set(getMiningCylinderRadius());
-            MINING_CYLINDER_FORWARD_SHIFT.set(getMiningCylinderForwardShift());
-            UNDERGROUND_CULLING_ENABLED.set(isUndergroundCullingEnabled());
-            UNDERGROUND_CULLING_START_DISTANCE.set(getUndergroundCullingStartDistance());
-            UNDERGROUND_CULLING_KEEP_DEPTH.set(getUndergroundCullingKeepDepth());
-            MINING_MODE_ENABLED.set(isMiningModeEnabled());
-            CLICK_TO_MOVE_ENABLED.set(isClickToMoveEnabled());
-            BARITONE_RENDER_PATH.set(isBaritoneRenderPath());
-            BARITONE_RENDER_GOAL.set(isBaritoneRenderGoal());
-            ARRIVAL_THRESHOLD.set(getArrivalThreshold());
-            FORCE_AUTO_JUMP.set(isForceAutoJump());
-            SPRINT_DISTANCE_THRESHOLD.set(getSprintDistanceThreshold());
-            AUTO_ALIGN_TO_MOVEMENT_ENABLED.set(isAutoAlignToMovementEnabled());
-            AUTO_ALIGN_ANGLE_THRESHOLD.set(getAutoAlignAngleThreshold());
-            AUTO_ALIGN_COOLDOWN_TICKS.set(getAutoAlignCooldownTicks());
-            STABLE_DIRECTION_ANGLE.set(getStableDirectionAngle());
-            STABLE_DIRECTION_TICKS.set(getStableDirectionTicks());
-            AUTO_ALIGN_ANIMATION_SPEED.set(getAutoAlignAnimationSpeed());
-            AUTO_ALIGN_ANIMATION_ACCELERATION.set(isAutoAlignAnimationAcceleration());
-            MOB_CULLING_ENABLED.set(isMobCullingEnabled());
-            MOB_TRANSLUCENCY_ENABLED.set(isMobTranslucencyEnabled());
-            MOB_TRANSLUCENCY_ALPHA.set(getMobTranslucencyAlpha());
-            TRAPDOOR_TRANSLUCENCY_ENABLED.set(isTrapdoorTranslucencyEnabled());
-            TRAPDOOR_TRANSPARENCY.set(getTrapdoorTransparency());
-            FADE_ENABLED.set(isFadeEnabled());
-            FADE_BLOCK_HIT_THRESHOLD.set(getFadeBlockHitThreshold());
-            FADE_START.set(getFadeStart());
-            FADE_NEAR_ALPHA.set(getFadeNearAlpha());
-            FADE_SMOOTHING_HALF_LIFE.set(getFadeSmoothingHalfLife());
-            DISABLE_FADE_INDOORS.set(isDisableFadeIndoors());
-            CULLING_MODE.set(getCullingMode());
-            INDOOR_CEILING_CULLING_ENABLED.set(isIndoorCeilingCullingEnabled());
-            VIEW_WEDGE_HALF_ANGLE.set(getViewWedgeHalfAngle());
-            COVER_CULLING_RADIUS.set(getCoverCullingRadius());
-            COVER_CULLING_VIEWSHED_ENABLED.set(isCoverCullingViewshedEnabled());
-            PLAYER_NEAR_TRANSLUCENCY_ENABLED.set(isPlayerNearTranslucencyEnabled());
-            PLAYER_NEAR_TRANSLUCENCY_ALPHA.set(getPlayerNearTranslucencyAlpha());
-            PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL.set(getPlayerNearTranslucencyRangeHorizontal());
-            PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL.set(getPlayerNearTranslucencyRangeVertical());
-            PLAYER_NEAR_TRANSLUCENCY_HITTABLE.set(isPlayerNearTranslucencyHittable());
-            RANGE_INDICATOR_ENABLED.set(isRangeIndicatorEnabled());
-            DESTINATION_HIGHLIGHT_ENABLED.set(isDestinationHighlightEnabled());
-            RANGE_EMPTY_HAND.set(getRangeEmptyHand());
-            RANGE_SWORD.set(getRangeSword());
-            RANGE_AXE.set(getRangeAxe());
-            RANGE_PICKAXE.set(getRangePickaxe());
-            RANGE_SHOVEL.set(getRangeShovel());
-            RANGE_OTHER.set(getRangeOther());
-            DEFAULT_ENABLED.set(isDefaultEnabled());
-            TARGET_GLOW_ENABLED.set(isTargetGlowEnabled());
-            MOB_CONE_CULLING_ENABLED.set(isMobConeCullingEnabled());
-            MOB_CONE_HALF_ANGLE.set(getMobConeHalfAngle());
-            MOB_CONE_FADE_ANGLE.set(getMobConeFadeAngle());
-            MOB_NEAR_RADIUS.set(getMobNearRadius());
-            MOB_FOG_END.set(getMobFogEnd());
-            ROTATE_ANGLE_MODE.set(getRotateAngleMode());
-            CAMERA_SNAP_ROTATION_SPEED.set(getCameraSnapRotationSpeed());
-            CAMERA_PITCH.set(getCameraPitch());
-            MINING_MODE_PITCH.set(getMiningModePitch());
-            MAX_CAMERA_DISTANCE.set(getMaxCameraDistance());
-            DEFAULT_CAMERA_DISTANCE.set(getDefaultCameraDistance());
-            CAMERA_Y_FOLLOW_DELAY_ENABLED.set(isCameraYFollowDelayEnabled());
-            CAMERA_Y_FOLLOW_DELAY.set(getCameraYFollowDelay());
-            CAMERA_X_FOLLOW_DELAY_ENABLED.set(isCameraXFollowDelayEnabled());
-            CAMERA_X_FOLLOW_DELAY.set(getCameraXFollowDelay());
-            CAMERA_Z_FOLLOW_DELAY_ENABLED.set(isCameraZFollowDelayEnabled());
-            CAMERA_Z_FOLLOW_DELAY.set(getCameraZFollowDelay());
-            FOLLOW_DELAY_WHILE_MOUNTED.set(isFollowDelayWhileMounted());
-            PLAYER_SCREEN_OFFSET.set(getPlayerScreenOffset());
-            HEAD_BODY_ROTATION_ENABLED.set(isHeadBodyRotationEnabled());
-            WATER_MOVEMENT_CONTROL_ENABLED.set(isWaterMovementControlEnabled());
-            INDEPENDENT_MOUNT_AIM.set(isIndependentMountAim());
-            MOUNT_AIM_MAX_TWIST.set(getMountAimMaxTwist());
-            MOUNT_TURN_SMOOTHING.set(getMountTurnSmoothing());
-            BOAT_HEAD_MAX_TWIST.set(getBoatHeadMaxTwist());
-            BOAT_BODY_MAX_TWIST.set(getBoatBodyMaxTwist());
-            TOP_DOWN_FOV.set(getTopDownFov());
-            LOCKED_TOP_DOWN.set(isLockedTopDown());
-            SCROLL_ONLY_ZOOM_ENABLED.set(isScrollOnlyZoomEnabled());
-            CAMERA_ZOOM_SMOOTHING_ENABLED.set(isCameraZoomSmoothingEnabled());
-            CAMERA_ZOOM_SMOOTHING.set(getCameraZoomSmoothing());
-            MOUSE_PAN_ENABLED.set(isMousePanEnabled());
-            MOUSE_PAN_MAX_DISTANCE.set(getMousePanMaxDistance());
-            MOUSE_PAN_SMOOTHING.set(getMousePanSmoothing());
-            TARGET_LOCK_ENABLED.set(isTargetLockEnabled());
-            TARGET_LOCK_DURATION.set(getTargetLockDuration());
-            TARGET_HITBOX_EXPANSION.set(getTargetHitboxExpansion());
-            SCREEN_REACH_ENABLED.set(isScreenReachEnabled());
-            REACH_DISTANCE.set(getReachDistance());
-            PLACEMENT_PREVIEW_ENABLED.set(isPlacementPreviewEnabled());
-            PLACEMENT_TRANSPARENCY.set(getPlacementTransparency());
-            CLICK_POSITION_PLACEMENT_ENABLED.set(isClickPositionPlacementEnabled());
-            STAIRCASE_EXCLUSION_ENABLED.set(isStaircaseExclusionEnabled());
-            STAIRCASE_EXCLUSION_HEIGHT.set(getStaircaseExclusionHeight());
-            STAIRCASE_OCCLUDE_ENABLED.set(isStaircaseOccludeEnabled());
-            STAIRCASE_OCCLUDE_ALPHA.set(getStaircaseOccludeAlpha());
-            LADDER_OCCLUDE_ENABLED.set(isLadderOccludeEnabled());
-            LADDER_OCCLUDE_ALPHA.set(getLadderOccludeAlpha());
-            TREE_OCCLUDE_ENABLED.set(isTreeOccludeEnabled());
-            TREE_OCCLUDE_ALPHA.set(getTreeOccludeAlpha());
-            IGNORE_LEAVES_IN_RAYCAST.set(isIgnoreLeavesInRaycast());
-            PROTECT_NATURAL_TREE_LOGS.set(isProtectNaturalTreeLogs());
-            TRANSLUCENT_FLUID.set(isTranslucentFluid());
-            FLUID_ALPHA.set(getFluidAlpha());
-            SIGN_HOVER_DISPLAY_MODE.set(getSignHoverDisplayMode());
-            SIGN_HOVER_SCALE.set(getSignHoverScale());
-            SHOW_INTERACTION_PROMPT.set(isShowInteractionPrompt());
-            INTERACTION_PROMPT_SCALE.set(getInteractionPromptScale());
-            INTERACTION_PROMPT_SHADOW.set(isInteractionPromptShadow());
-            SHOW_SPATIAL_PROMPT.set(isShowSpatialPrompt());
-            SPATIAL_PROMPT_RADIUS.set(getSpatialPromptRadius());
-            SPATIAL_PROMPT_ALL_BLOCKS.set(isSpatialPromptAllBlocks());
-            PERFORMANCE_MONITOR_ENABLED.set(isPerformanceMonitorEnabled());
+            BINDINGS.forEach(Binding::save);
             SPEC.save();
         } finally {
             isSaving = false;
@@ -815,118 +741,6 @@ public class Config {
     }
 
     public static void resetToDefaults() {
-        CULLING.setCylinderRadiusHorizontal(CYLINDER_RADIUS_HORIZONTAL.getDefault());
-        CULLING.setCylinderRadiusVertical(CYLINDER_RADIUS_VERTICAL.getDefault());
-        CULLING.setCylinderForwardShift(CYLINDER_FORWARD_SHIFT.getDefault());
-        CULLING.setMiningCylinderRadius(MINING_CYLINDER_RADIUS.getDefault());
-        CULLING.setMiningCylinderForwardShift(MINING_CYLINDER_FORWARD_SHIFT.getDefault());
-        CULLING.setUndergroundCullingEnabled(UNDERGROUND_CULLING_ENABLED.getDefault());
-        CULLING.setUndergroundCullingStartDistance(UNDERGROUND_CULLING_START_DISTANCE.getDefault());
-        CULLING.setUndergroundCullingKeepDepth(UNDERGROUND_CULLING_KEEP_DEPTH.getDefault());
-        INTERACTION.setMiningModeEnabled(MINING_MODE_ENABLED.getDefault());
-        INTERACTION.setClickToMoveEnabled(CLICK_TO_MOVE_ENABLED.getDefault());
-        INTEGRATIONS.setBaritoneRenderPath(BARITONE_RENDER_PATH.getDefault());
-        INTEGRATIONS.setBaritoneRenderGoal(BARITONE_RENDER_GOAL.getDefault());
-        INTERACTION.setArrivalThreshold(ARRIVAL_THRESHOLD.getDefault());
-        INTERACTION.setForceAutoJump(FORCE_AUTO_JUMP.getDefault());
-        INTERACTION.setSprintDistanceThreshold(SPRINT_DISTANCE_THRESHOLD.getDefault());
-        INTERACTION.setAutoAlignToMovementEnabled(AUTO_ALIGN_TO_MOVEMENT_ENABLED.getDefault());
-        INTERACTION.setAutoAlignAngleThreshold(AUTO_ALIGN_ANGLE_THRESHOLD.getDefault());
-        INTERACTION.setAutoAlignCooldownTicks(AUTO_ALIGN_COOLDOWN_TICKS.getDefault());
-        INTERACTION.setStableDirectionAngle(STABLE_DIRECTION_ANGLE.getDefault());
-        INTERACTION.setStableDirectionTicks(STABLE_DIRECTION_TICKS.getDefault());
-        INTERACTION.setAutoAlignAnimationSpeed(AUTO_ALIGN_ANIMATION_SPEED.getDefault());
-        INTERACTION.setAutoAlignAnimationAcceleration(AUTO_ALIGN_ANIMATION_ACCELERATION.getDefault());
-        CULLING.setMobCullingEnabled(MOB_CULLING_ENABLED.getDefault());
-        CULLING.setMobTranslucencyEnabled(MOB_TRANSLUCENCY_ENABLED.getDefault());
-        CULLING.setMobTranslucencyAlpha(MOB_TRANSLUCENCY_ALPHA.getDefault());
-        CULLING.setTrapdoorTranslucencyEnabled(TRAPDOOR_TRANSLUCENCY_ENABLED.getDefault());
-        CULLING.setTrapdoorTransparency(TRAPDOOR_TRANSPARENCY.getDefault());
-        CULLING.setFadeEnabled(FADE_ENABLED.getDefault());
-        CULLING.setFadeBlockHitThreshold(FADE_BLOCK_HIT_THRESHOLD.getDefault());
-        CULLING.setFadeStart(FADE_START.getDefault());
-        CULLING.setFadeNearAlpha(FADE_NEAR_ALPHA.getDefault());
-        CULLING.setFadeSmoothingHalfLife(FADE_SMOOTHING_HALF_LIFE.getDefault());
-        CULLING.setDisableFadeIndoors(DISABLE_FADE_INDOORS.getDefault());
-        INTERACTION.setRangeIndicatorEnabled(RANGE_INDICATOR_ENABLED.getDefault());
-        INTERACTION.setDestinationHighlightEnabled(DESTINATION_HIGHLIGHT_ENABLED.getDefault());
-        INTERACTION.setRangeEmptyHand(RANGE_EMPTY_HAND.getDefault());
-        INTERACTION.setRangeSword(RANGE_SWORD.getDefault());
-        INTERACTION.setRangeAxe(RANGE_AXE.getDefault());
-        INTERACTION.setRangePickaxe(RANGE_PICKAXE.getDefault());
-        INTERACTION.setRangeShovel(RANGE_SHOVEL.getDefault());
-        INTERACTION.setRangeOther(RANGE_OTHER.getDefault());
-        INTERACTION.setDefaultEnabled(DEFAULT_ENABLED.getDefault());
-        INTERACTION.setTargetGlowEnabled(TARGET_GLOW_ENABLED.getDefault());
-        CULLING.setMobConeCullingEnabled(MOB_CONE_CULLING_ENABLED.getDefault());
-        CULLING.setMobConeHalfAngle(MOB_CONE_HALF_ANGLE.getDefault());
-        CULLING.setMobConeFadeAngle(MOB_CONE_FADE_ANGLE.getDefault());
-        CULLING.setMobNearRadius(MOB_NEAR_RADIUS.getDefault());
-        CULLING.setMobFogEnd(MOB_FOG_END.getDefault());
-        CAMERA.setRotateAngleMode(ROTATE_ANGLE_MODE.getDefault());
-        CAMERA.setCameraSnapRotationSpeed(CAMERA_SNAP_ROTATION_SPEED.getDefault());
-        CAMERA.setCameraPitch(CAMERA_PITCH.getDefault());
-        CAMERA.setMiningModePitch(MINING_MODE_PITCH.getDefault());
-        CAMERA.setMaxCameraDistance(MAX_CAMERA_DISTANCE.getDefault());
-        CAMERA.setDefaultCameraDistance(DEFAULT_CAMERA_DISTANCE.getDefault());
-        CAMERA.setCameraYFollowDelayEnabled(CAMERA_Y_FOLLOW_DELAY_ENABLED.getDefault());
-        CAMERA.setCameraYFollowDelay(CAMERA_Y_FOLLOW_DELAY.getDefault());
-        CAMERA.setCameraXFollowDelayEnabled(CAMERA_X_FOLLOW_DELAY_ENABLED.getDefault());
-        CAMERA.setCameraXFollowDelay(CAMERA_X_FOLLOW_DELAY.getDefault());
-        CAMERA.setCameraZFollowDelayEnabled(CAMERA_Z_FOLLOW_DELAY_ENABLED.getDefault());
-        CAMERA.setCameraZFollowDelay(CAMERA_Z_FOLLOW_DELAY.getDefault());
-        CAMERA.setFollowDelayWhileMounted(FOLLOW_DELAY_WHILE_MOUNTED.getDefault());
-        CAMERA.setPlayerScreenOffset(PLAYER_SCREEN_OFFSET.getDefault());
-        CAMERA.setHeadBodyRotationEnabled(HEAD_BODY_ROTATION_ENABLED.getDefault());
-        CAMERA.setIndependentMountAim(INDEPENDENT_MOUNT_AIM.getDefault());
-        CAMERA.setMountAimMaxTwist(MOUNT_AIM_MAX_TWIST.getDefault());
-        CAMERA.setMountTurnSmoothing(MOUNT_TURN_SMOOTHING.getDefault());
-        CAMERA.setBoatHeadMaxTwist(BOAT_HEAD_MAX_TWIST.getDefault());
-        CAMERA.setBoatBodyMaxTwist(BOAT_BODY_MAX_TWIST.getDefault());
-        CAMERA.setTopDownFov(TOP_DOWN_FOV.getDefault());
-        CAMERA.setLockedTopDown(LOCKED_TOP_DOWN.getDefault());
-        CAMERA.setScrollOnlyZoomEnabled(SCROLL_ONLY_ZOOM_ENABLED.getDefault());
-        CAMERA.setCameraZoomSmoothingEnabled(CAMERA_ZOOM_SMOOTHING_ENABLED.getDefault());
-        CAMERA.setCameraZoomSmoothing(CAMERA_ZOOM_SMOOTHING.getDefault());
-        CAMERA.setMousePanEnabled(MOUSE_PAN_ENABLED.getDefault());
-        CAMERA.setMousePanMaxDistance(MOUSE_PAN_MAX_DISTANCE.getDefault());
-        CAMERA.setMousePanSmoothing(MOUSE_PAN_SMOOTHING.getDefault());
-        INTERACTION.setTargetLockEnabled(TARGET_LOCK_ENABLED.getDefault());
-        INTERACTION.setTargetLockDuration(TARGET_LOCK_DURATION.getDefault());
-        INTERACTION.setTargetHitboxExpansion(TARGET_HITBOX_EXPANSION.getDefault());
-        INTERACTION.setScreenReachEnabled(SCREEN_REACH_ENABLED.getDefault());
-        INTERACTION.setReachDistance(REACH_DISTANCE.getDefault());
-        PLACEMENT.setPlacementPreviewEnabled(PLACEMENT_PREVIEW_ENABLED.getDefault());
-        PLACEMENT.setPlacementTransparency(PLACEMENT_TRANSPARENCY.getDefault());
-        PLACEMENT.setClickPositionPlacementEnabled(CLICK_POSITION_PLACEMENT_ENABLED.getDefault());
-        CULLING.setStaircaseExclusionEnabled(STAIRCASE_EXCLUSION_ENABLED.getDefault());
-        CULLING.setStaircaseExclusionHeight(STAIRCASE_EXCLUSION_HEIGHT.getDefault());
-        CULLING.setStaircaseOccludeEnabled(STAIRCASE_OCCLUDE_ENABLED.getDefault());
-        CULLING.setStaircaseOccludeAlpha(STAIRCASE_OCCLUDE_ALPHA.getDefault());
-        CULLING.setLadderOccludeEnabled(LADDER_OCCLUDE_ENABLED.getDefault());
-        CULLING.setLadderOccludeAlpha(LADDER_OCCLUDE_ALPHA.getDefault());
-        CULLING.setTreeOccludeEnabled(TREE_OCCLUDE_ENABLED.getDefault());
-        CULLING.setTreeOccludeAlpha(TREE_OCCLUDE_ALPHA.getDefault());
-        CULLING.setIgnoreLeavesInRaycast(IGNORE_LEAVES_IN_RAYCAST.getDefault());
-        CULLING.setProtectNaturalTreeLogs(PROTECT_NATURAL_TREE_LOGS.getDefault());
-        CULLING.setTranslucentFluid(TRANSLUCENT_FLUID.getDefault());
-        CULLING.setFluidAlpha(FLUID_ALPHA.getDefault());
-        INTERACTION.setSignHoverDisplayMode(SIGN_HOVER_DISPLAY_MODE.getDefault());
-        INTERACTION.setSignHoverScale(SIGN_HOVER_SCALE.getDefault());
-        INTERACTION.setShowInteractionPrompt(SHOW_INTERACTION_PROMPT.getDefault());
-        INTERACTION.setInteractionPromptScale(INTERACTION_PROMPT_SCALE.getDefault());
-        INTERACTION.setInteractionPromptShadow(INTERACTION_PROMPT_SHADOW.getDefault());
-        INTERACTION.setShowSpatialPrompt(SHOW_SPATIAL_PROMPT.getDefault());
-        INTERACTION.setSpatialPromptRadius(SPATIAL_PROMPT_RADIUS.getDefault());
-        INTERACTION.setSpatialPromptAllBlocks(SPATIAL_PROMPT_ALL_BLOCKS.getDefault());
-        INTERACTION.setPerformanceMonitorEnabled(PERFORMANCE_MONITOR_ENABLED.getDefault());
-    }
-
-    public static ForgeConfigSpec.DoubleValue getMaxCameraDistanceSpec() {
-        return MAX_CAMERA_DISTANCE;
-    }
-
-    public static ForgeConfigSpec.DoubleValue getDefaultCameraDistanceSpec() {
-        return DEFAULT_CAMERA_DISTANCE;
+        BINDINGS.forEach(Binding::reset);
     }
 }

@@ -1,5 +1,7 @@
 package com.topdownview.config;
 
+import com.topdownview.util.MathUtil;
+
 /**
  * ブロック配置プレビューに関する設定項目を保持する構成クラス。
  */
@@ -13,12 +15,9 @@ public final class PlacementConfig {
     public void setPlacementPreviewEnabled(boolean value) { this.placementPreviewEnabled = value; }
 
     public double getPlacementTransparency() { return placementTransparency; }
-    public void setPlacementTransparency(double value) { this.placementTransparency = clamp(value, 0.1, 0.9); }
+    public void setPlacementTransparency(double value) { this.placementTransparency = MathUtil.clamp(value, 0.1, 0.9); }
 
     public boolean isClickPositionPlacementEnabled() { return clickPositionPlacementEnabled; }
     public void setClickPositionPlacementEnabled(boolean value) { this.clickPositionPlacementEnabled = value; }
 
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }
