@@ -6,6 +6,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Arrays;
 
@@ -25,7 +26,11 @@ public final class BlockMap {
 
     /** 固体 (衝突形状が非空、空気・葉を除く)。{@link WallAnalyzer#isSolid} と等価。 */
     private static final byte FLAG_SOLID = 1;
-    /** 覆い (固体かつ非液体)。{@code RoomFloodFill.isCovered} の覆い判定と等価。 */
+    /**
+     * 覆い (衝突形状の XZ 投影がセル全域の非液体ブロック)。
+     * フェンスなど細い縦構造は真下を遮らないため含めない。
+     * {@code RoomFloodFill.isCovered} の覆い判定と等価。
+     */
     private static final byte FLAG_COVER = 2;
     /** バニラ階段ブロック。 */
     private static final byte FLAG_STAIR = 4;
@@ -109,9 +114,12 @@ public final class BlockMap {
         BlockState state = level.getBlockState(mpos);
         byte f = 0;
         if (!state.isAir() && !state.is(BlockTags.LEAVES)) {
-            if (!state.getCollisionShape(level, mpos, CollisionContext.empty()).isEmpty()) {
+            VoxelShape shape = state.getCollisionShape(level, mpos, CollisionContext.empty());
+            if (!shape.isEmpty()) {
                 f |= FLAG_SOLID;
-                if (state.getFluidState().isEmpty()) {
+                // 装飾フェンスのアーチ下が「屋内」になり隣の建物と連結されるのを防ぐため、
+                // 覆いは XZ 全域に達する衝突形状の非液体ブロックに限る。
+                if (state.getFluidState().isEmpty() && WallAnalyzer.isCeilingLike(shape)) {
                     f |= FLAG_COVER;
                 }
             }

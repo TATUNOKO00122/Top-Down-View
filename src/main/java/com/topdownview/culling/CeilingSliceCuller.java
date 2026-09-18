@@ -2,6 +2,7 @@ package com.topdownview.culling;
 
 import com.mojang.logging.LogUtils;
 import com.topdownview.culling.geometry.BlockChangeBox;
+import com.topdownview.spatial.WallAnalyzer;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -279,7 +280,10 @@ public final class CeilingSliceCuller {
                     return NO_CEILING;
                 }
                 mutablePos.set(x, y, z);
-                if (!level.getBlockState(mutablePos).isAir()) {
+                BlockState state = level.getBlockState(mutablePos);
+                // フェンス・ランタン・チェーンなどの細い縦構造は天井として機能しないため
+                // 飛ばして、その列の本当の天井を探す。
+                if (!state.isAir() && WallAnalyzer.isCeilingLike(level, mutablePos, state)) {
                     counts.addTo(y, 1);
                     break;
                 }

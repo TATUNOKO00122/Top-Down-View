@@ -214,7 +214,7 @@ public final class CoverCullingHandler {
     }
 
     /**
-     * 立位列の最初の覆い(足元+2より上で最初の非空気ブロック)から、カメラYまたは地表までを
+     * 立位列の最初の覆い(足元+2より上で最初の天井形状ブロック)から、カメラYまたは地表までを
      * 収集する。覆いより下(壁・間仕切り・床)は残すため間取りは露出しない。
      *
      * <p>最初の覆いが固体(建物の屋根・天井)のときは {@code enclosed} のときだけ収集する。
@@ -235,6 +235,11 @@ public final class CoverCullingHandler {
             mutablePos.set(x, y, z);
             BlockState state = level.getBlockState(mutablePos);
             if (state.isAir() || !state.getFluidState().isEmpty()) {
+                continue;
+            }
+            // フェンス・ランタンなどの細い縦構造は上を遮らない。覆い候補から除外して
+            // その列の本当の天井・屋根を探す。
+            if (!WallAnalyzer.isCeilingLike(level, mutablePos, state)) {
                 continue;
             }
             if (!covered) {
