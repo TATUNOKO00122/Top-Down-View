@@ -127,4 +127,25 @@ public class LevelRendererMixin {
         }
         return camera.getPosition();
     }
+
+    /**
+     * トップダウンビューではカメラが最大50ブロック離れるため、バニラの
+     * addParticleInternal の距離判定（カメラから32ブロック超で生成を破棄、
+     * 1024.0 = 32^2）がプレイヤー周辺のパーティクル生成まで弾いてしまう。
+     * 判定基準をプレイヤー目線位置へ置き換え、視点を離してもパーティクルが出るようにする。
+     */
+    @Redirect(
+        method = "addParticleInternal(Lnet/minecraft/core/particles/ParticleOptions;ZZDDDDDD)Lnet/minecraft/client/particle/Particle;",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;distanceToSqr(DDD)D"),
+        require = 0
+    )
+    private double redirectParticleDistance(Vec3 cameraPos, double x, double y, double z) {
+        if (ModState.STATUS.isEnabled()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                return mc.player.getEyePosition().distanceToSqr(x, y, z);
+            }
+        }
+        return cameraPos.distanceToSqr(x, y, z);
+    }
 }
