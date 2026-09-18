@@ -13,6 +13,8 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public class ConfigScreen extends Screen {
     private static final double AUTO_ALIGN_SPEED_MIN = 0.01;
@@ -37,6 +39,25 @@ public class ConfigScreen extends Screen {
         this.lastScreen = lastScreen;
     }
 
+    private static final int LEFT_PANEL_X = 20;
+    private static final int LEFT_PANEL_W = 90;
+    private static final int PANEL_Y = 30;
+    private static final int PANEL_V_MARGIN = 40;
+    private static final int PANEL_GAP = 10;
+    private static final int PANEL_RIGHT_MARGIN = 20;
+
+    private int panelHeight() {
+        return this.height - PANEL_V_MARGIN;
+    }
+
+    private int rightPanelX() {
+        return LEFT_PANEL_X + LEFT_PANEL_W + PANEL_GAP;
+    }
+
+    private int rightPanelW() {
+        return this.width - rightPanelX() - PANEL_RIGHT_MARGIN;
+    }
+
     @Override
     protected void init() {
         leftWidgets.clear();
@@ -44,15 +65,15 @@ public class ConfigScreen extends Screen {
         sectionHeaders.clear();
         this.clearWidgets();
 
-        int leftPanelW = 90;
-        int leftPanelX = 20;
-        int leftPanelY = 30;
-        int leftPanelH = this.height - 40;
+        int leftPanelW = LEFT_PANEL_W;
+        int leftPanelX = LEFT_PANEL_X;
+        int leftPanelY = PANEL_Y;
+        int leftPanelH = panelHeight();
 
-        int rightPanelX = leftPanelX + leftPanelW + 10;
-        int rightPanelY = 30;
-        int rightPanelW = this.width - rightPanelX - 20;
-        int rightPanelH = this.height - 40;
+        int rightPanelX = rightPanelX();
+        int rightPanelY = PANEL_Y;
+        int rightPanelW = rightPanelW();
+        int rightPanelH = panelHeight();
 
         // --- タブの生成 (左パネル) ---
         int tabCount = 6;
@@ -119,6 +140,16 @@ public class ConfigScreen extends Screen {
         this.addWidget(widget); // onClickなどのイベント用（描画は手動で行うため renderables には入れない）
     }
 
+    /** オン/オフ切替ボタンを生成する。ラベル・ツールチップは {@code key} / {@code key + ".tooltip"}。 */
+    private void addToggle(int x, int y, int w, int h, String key, BooleanSupplier getter, Consumer<Boolean> setter) {
+        addRightWidget(Button.builder(getOnOffComponent(key, getter.getAsBoolean()), btn -> {
+            setter.accept(!getter.getAsBoolean());
+            btn.setMessage(getOnOffComponent(key, getter.getAsBoolean()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable(key + ".tooltip")))
+                .build());
+    }
+
     private void buildTabContent(int tab, int colX, int y, int colW, int btnH, int spacing, int titleX) {
         switch (tab) {
             case 0 -> buildGeneralTab(colX, y, colW, btnH, spacing, titleX);
@@ -143,78 +174,27 @@ public class ConfigScreen extends Screen {
 
     private void buildGeneralTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.basic", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.default_enabled", Config.isDefaultEnabled()), btn -> {
-                    Config.setDefaultEnabled(!Config.isDefaultEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.default_enabled", Config.isDefaultEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.default_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.default_enabled", Config::isDefaultEnabled, Config::setDefaultEnabled);
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.target_glow_enabled", Config.isTargetGlowEnabled()), btn -> {
-                    Config.setTargetGlowEnabled(!Config.isTargetGlowEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.target_glow_enabled", Config.isTargetGlowEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.target_glow_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.target_glow_enabled", Config::isTargetGlowEnabled, Config::setTargetGlowEnabled);
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.head_body_rotation_enabled", Config.isHeadBodyRotationEnabled()), btn -> {
-                    Config.setHeadBodyRotationEnabled(!Config.isHeadBodyRotationEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.head_body_rotation_enabled", Config.isHeadBodyRotationEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.head_body_rotation_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.head_body_rotation_enabled", Config::isHeadBodyRotationEnabled, Config::setHeadBodyRotationEnabled);
         y += sp;
 
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.ignore_leaves_in_raycast", Config.isIgnoreLeavesInRaycast()), btn -> {
-                    Config.setIgnoreLeavesInRaycast(!Config.isIgnoreLeavesInRaycast());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.ignore_leaves_in_raycast", Config.isIgnoreLeavesInRaycast()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.ignore_leaves_in_raycast.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.ignore_leaves_in_raycast", Config::isIgnoreLeavesInRaycast, Config::setIgnoreLeavesInRaycast);
         y += sp;
 
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.protect_natural_tree_logs", Config.isProtectNaturalTreeLogs()), btn -> {
-                    Config.setProtectNaturalTreeLogs(!Config.isProtectNaturalTreeLogs());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.protect_natural_tree_logs", Config.isProtectNaturalTreeLogs()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.protect_natural_tree_logs.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.protect_natural_tree_logs", Config::isProtectNaturalTreeLogs, Config::setProtectNaturalTreeLogs);
         y += sp;
 
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()), btn -> {
-                    Config.setScrollOnlyZoomEnabled(!Config.isScrollOnlyZoomEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.scroll_only_zoom_enabled", Config.isScrollOnlyZoomEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.scroll_only_zoom_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.scroll_only_zoom_enabled", Config::isScrollOnlyZoomEnabled, Config::setScrollOnlyZoomEnabled);
         y += sp;
 
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
-                        Config.isClickPositionPlacementEnabled()), btn -> {
-                    Config.setClickPositionPlacementEnabled(!Config.isClickPositionPlacementEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.click_position_placement_enabled",
-                            Config.isClickPositionPlacementEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable(
-                                "topdown_view.config.click_position_placement_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.click_position_placement_enabled", Config::isClickPositionPlacementEnabled, Config::setClickPositionPlacementEnabled);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.target_lock", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()), btn -> {
-                    Config.setTargetLockEnabled(!Config.isTargetLockEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.target_lock_enabled", Config.isTargetLockEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.target_lock_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.target_lock_enabled", Config::isTargetLockEnabled, Config::setTargetLockEnabled);
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.target_lock_duration",
                 Config.getTargetLockDuration(), 0, 600, val -> Config.setTargetLockDuration(val)));
@@ -224,15 +204,7 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.screen_reach", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.screen_reach_enabled", Config.isScreenReachEnabled()),
-                btn -> {
-                    Config.setScreenReachEnabled(!Config.isScreenReachEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.screen_reach_enabled",
-                            Config.isScreenReachEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.screen_reach_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.screen_reach_enabled", Config::isScreenReachEnabled, Config::setScreenReachEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.reach_distance",
                 Config.getReachDistance(), 1.0, 100.0, val -> Config.setReachDistance(val), 0));
@@ -252,13 +224,7 @@ public class ConfigScreen extends Screen {
         y += sp;
         boolean coverMode = Config.getCullingMode() != CullingConfig.CULLING_MODE_CYLINDER;
         if (coverMode) {
-            addRightWidget(
-                    Button.builder(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()), btn -> {
-                        Config.setCoverCullingViewshedEnabled(!Config.isCoverCullingViewshedEnabled());
-                        btn.setMessage(getOnOffComponent("topdown_view.config.cover_culling_viewshed_enabled", Config.isCoverCullingViewshedEnabled()));
-                    }).bounds(x, y, w, h)
-                            .tooltip(Tooltip.create(Component.translatable("topdown_view.config.cover_culling_viewshed_enabled.tooltip")))
-                            .build());
+            addToggle(x, y, w, h, "topdown_view.config.cover_culling_viewshed_enabled", Config::isCoverCullingViewshedEnabled, Config::setCoverCullingViewshedEnabled);
             y += sp;
             addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
                     24, val -> Config.setCoverCullingRadius(val)));
@@ -280,34 +246,13 @@ public class ConfigScreen extends Screen {
         }
 
         y = addSection(y, "topdown_view.config.section.indoor_culling", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled", Config.isIndoorCeilingCullingEnabled()),
-                btn -> {
-                    Config.setIndoorCeilingCullingEnabled(!Config.isIndoorCeilingCullingEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.indoor_ceiling_culling_enabled",
-                            Config.isIndoorCeilingCullingEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.indoor_ceiling_culling_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.indoor_ceiling_culling_enabled", Config::isIndoorCeilingCullingEnabled, Config::setIndoorCeilingCullingEnabled);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.fade", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.disable_fade_indoors", Config.isDisableFadeIndoors()), btn -> {
-                    Config.setDisableFadeIndoors(!Config.isDisableFadeIndoors());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.disable_fade_indoors", Config.isDisableFadeIndoors()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.disable_fade_indoors.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()), btn -> {
-                    Config.setFadeEnabled(!Config.isFadeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.fade_enabled", Config.isFadeEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.fade_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.fade_enabled", Config::isFadeEnabled, Config::setFadeEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_block_hit_threshold", Config.getFadeBlockHitThreshold(), 0.0,
                 1.0, val -> Config.setFadeBlockHitThreshold(val)));
@@ -321,13 +266,7 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
                 1.0, val -> Config.setFadeSmoothingHalfLife(val)));
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()), btn -> {
-                    Config.setPlayerNearTranslucencyEnabled(!Config.isPlayerNearTranslucencyEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_enabled", Config.isPlayerNearTranslucencyEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_enabled", Config::isPlayerNearTranslucencyEnabled, Config::setPlayerNearTranslucencyEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
                 1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
@@ -338,27 +277,11 @@ public class ConfigScreen extends Screen {
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
                 5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
         y += sp;
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.player_near_translucency_hittable", Config.isPlayerNearTranslucencyHittable()), btn -> {
-                    Config.setPlayerNearTranslucencyHittable(!Config.isPlayerNearTranslucencyHittable());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.player_near_translucency_hittable", Config.isPlayerNearTranslucencyHittable()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.player_near_translucency_hittable.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_hittable", Config::isPlayerNearTranslucencyHittable, Config::setPlayerNearTranslucencyHittable);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.fluid", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.translucent_fluid",
-                        Config.isTranslucentFluid()),
-                btn -> {
-                    Config.setTranslucentFluid(!Config.isTranslucentFluid());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.translucent_fluid",
-                            Config.isTranslucentFluid()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.translucent_fluid.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.translucent_fluid", Config::isTranslucentFluid, Config::setTranslucentFluid);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fluid_alpha",
                 Config.getFluidAlpha(), 0.05, 1.0,
@@ -366,29 +289,11 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.entity_culling", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.mob_culling_enabled", Config.isMobCullingEnabled()),
-                btn -> {
-                    Config.setMobCullingEnabled(!Config.isMobCullingEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.mob_culling_enabled",
-                            Config.isMobCullingEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mob_culling_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.mob_culling_enabled", Config::isMobCullingEnabled, Config::setMobCullingEnabled);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.staircase_occlude_enabled",
-                        Config.isStaircaseOccludeEnabled()),
-                btn -> {
-                    Config.setStaircaseOccludeEnabled(!Config.isStaircaseOccludeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.staircase_occlude_enabled",
-                            Config.isStaircaseOccludeEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.staircase_occlude_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.staircase_occlude_enabled", Config::isStaircaseOccludeEnabled, Config::setStaircaseOccludeEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.staircase_occlude_alpha",
                 Config.getStaircaseOccludeAlpha(), 0.0, 1.0,
@@ -398,33 +303,13 @@ public class ConfigScreen extends Screen {
                 Config.getStaircaseExclusionHeight(), 1, 10,
                 val -> Config.setStaircaseExclusionHeight(val)));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.ladder_occlude_enabled",
-                        Config.isLadderOccludeEnabled()),
-                btn -> {
-                    Config.setLadderOccludeEnabled(!Config.isLadderOccludeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.ladder_occlude_enabled",
-                            Config.isLadderOccludeEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.ladder_occlude_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.ladder_occlude_enabled", Config::isLadderOccludeEnabled, Config::setLadderOccludeEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.ladder_occlude_alpha",
                 Config.getLadderOccludeAlpha(), 0.0, 1.0,
                 val -> Config.setLadderOccludeAlpha(val)));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.tree_occlude_enabled",
-                        Config.isTreeOccludeEnabled()),
-                btn -> {
-                    Config.setTreeOccludeEnabled(!Config.isTreeOccludeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.tree_occlude_enabled",
-                            Config.isTreeOccludeEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.tree_occlude_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.tree_occlude_enabled", Config::isTreeOccludeEnabled, Config::setTreeOccludeEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.tree_occlude_alpha",
                 Config.getTreeOccludeAlpha(), 0.0, 1.0,
@@ -432,16 +317,7 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.underground_culling", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.underground_culling_enabled", Config.isUndergroundCullingEnabled()),
-                btn -> {
-                    Config.setUndergroundCullingEnabled(!Config.isUndergroundCullingEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.underground_culling_enabled",
-                            Config.isUndergroundCullingEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.underground_culling_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.underground_culling_enabled", Config::isUndergroundCullingEnabled, Config::setUndergroundCullingEnabled);
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.underground_culling_start_distance",
                 Config.getUndergroundCullingStartDistance(), 1, 16,
@@ -457,19 +333,9 @@ public class ConfigScreen extends Screen {
 
     private void buildMovementTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.click_to_move", tx);
-        addRightWidget(Button
-                .builder(getOnOffComponent("topdown_view.config.click_to_move", Config.isClickToMoveEnabled()), btn -> {
-                    Config.setClickToMoveEnabled(!Config.isClickToMoveEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.click_to_move", Config.isClickToMoveEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.click_to_move.tooltip"))).build());
+        addToggle(x, y, w, h, "topdown_view.config.click_to_move", Config::isClickToMoveEnabled, Config::setClickToMoveEnabled);
         y += sp;
-        addRightWidget(Button
-                .builder(getOnOffComponent("topdown_view.config.destination_highlight", Config.isDestinationHighlightEnabled()), btn -> {
-                    Config.setDestinationHighlightEnabled(!Config.isDestinationHighlightEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.destination_highlight", Config.isDestinationHighlightEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.destination_highlight.tooltip"))).build());
+        addToggle(x, y, w, h, "topdown_view.config.destination_highlight", Config::isDestinationHighlightEnabled, Config::setDestinationHighlightEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.arrival_threshold",
                 Config.getArrivalThreshold(), 0.5, 5.0, val -> Config.setArrivalThreshold(val)));
@@ -480,30 +346,14 @@ public class ConfigScreen extends Screen {
 
         if (BaritoneIntegration.isBaritoneAvailable()) {
             y = addSection(y, "topdown_view.config.section.baritone", tx);
-            addRightWidget(Button
-                    .builder(getOnOffComponent("topdown_view.config.baritone_render_path", Config.isBaritoneRenderPath()), btn -> {
-                        Config.setBaritoneRenderPath(!Config.isBaritoneRenderPath());
-                        btn.setMessage(getOnOffComponent("topdown_view.config.baritone_render_path", Config.isBaritoneRenderPath()));
-                    }).bounds(x, y, w, h)
-                    .tooltip(Tooltip.create(Component.translatable("topdown_view.config.baritone_render_path.tooltip"))).build());
+            addToggle(x, y, w, h, "topdown_view.config.baritone_render_path", Config::isBaritoneRenderPath, Config::setBaritoneRenderPath);
             y += sp;
-            addRightWidget(Button
-                    .builder(getOnOffComponent("topdown_view.config.baritone_render_goal", Config.isBaritoneRenderGoal()), btn -> {
-                        Config.setBaritoneRenderGoal(!Config.isBaritoneRenderGoal());
-                        btn.setMessage(getOnOffComponent("topdown_view.config.baritone_render_goal", Config.isBaritoneRenderGoal()));
-                    }).bounds(x, y, w, h)
-                    .tooltip(Tooltip.create(Component.translatable("topdown_view.config.baritone_render_goal.tooltip"))).build());
+            addToggle(x, y, w, h, "topdown_view.config.baritone_render_goal", Config::isBaritoneRenderGoal, Config::setBaritoneRenderGoal);
             y += sp;
         }
 
         y = addSection(y, "topdown_view.config.section.auto_jump", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()), btn -> {
-                    Config.setForceAutoJump(!Config.isForceAutoJump());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.force_auto_jump", Config.isForceAutoJump()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable("topdown_view.config.force_auto_jump.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.force_auto_jump", Config::isForceAutoJump, Config::setForceAutoJump);
         contentHeight = (y += sp) - (30 - (int) scrollOffset) + sp;
     }
 
@@ -547,15 +397,7 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.auto_align", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.auto_align_to_movement", Config.isAutoAlignToMovementEnabled()),
-                btn -> {
-                    Config.setAutoAlignToMovementEnabled(!Config.isAutoAlignToMovementEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.auto_align_to_movement",
-                            Config.isAutoAlignToMovementEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.auto_align_to_movement.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.auto_align_to_movement", Config::isAutoAlignToMovementEnabled, Config::setAutoAlignToMovementEnabled);
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.auto_align_angle_threshold",
                 Config.getAutoAlignAngleThreshold(), 0, 90, val -> Config.setAutoAlignAngleThreshold(val)));
@@ -577,80 +419,30 @@ public class ConfigScreen extends Screen {
                 val -> Config.setAutoAlignAnimationSpeed(
                         AUTO_ALIGN_SPEED_MIN + val * (AUTO_ALIGN_SPEED_MAX - AUTO_ALIGN_SPEED_MIN) / 100.0)));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.auto_align_animation_acceleration",
-                        Config.isAutoAlignAnimationAcceleration()),
-                btn -> {
-                    Config.setAutoAlignAnimationAcceleration(!Config.isAutoAlignAnimationAcceleration());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.auto_align_animation_acceleration",
-                            Config.isAutoAlignAnimationAcceleration()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable(
-                        "topdown_view.config.auto_align_animation_acceleration.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.auto_align_animation_acceleration", Config::isAutoAlignAnimationAcceleration, Config::setAutoAlignAnimationAcceleration);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.camera_follow_delay", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.follow_delay_while_mounted", Config.isFollowDelayWhileMounted()),
-                btn -> {
-                    Config.setFollowDelayWhileMounted(!Config.isFollowDelayWhileMounted());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.follow_delay_while_mounted",
-                            Config.isFollowDelayWhileMounted()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.follow_delay_while_mounted.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.follow_delay_while_mounted", Config::isFollowDelayWhileMounted, Config::setFollowDelayWhileMounted);
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled", Config.isCameraYFollowDelayEnabled()),
-                btn -> {
-                    Config.setCameraYFollowDelayEnabled(!Config.isCameraYFollowDelayEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.camera_y_follow_delay_enabled",
-                            Config.isCameraYFollowDelayEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_y_follow_delay_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.camera_y_follow_delay_enabled", Config::isCameraYFollowDelayEnabled, Config::setCameraYFollowDelayEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_y_follow_delay",
                 Config.getCameraYFollowDelay(), 0.0, 4.0, val -> Config.setCameraYFollowDelay(val)));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.camera_x_follow_delay_enabled", Config.isCameraXFollowDelayEnabled()),
-                btn -> {
-                    Config.setCameraXFollowDelayEnabled(!Config.isCameraXFollowDelayEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.camera_x_follow_delay_enabled",
-                            Config.isCameraXFollowDelayEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_x_follow_delay_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.camera_x_follow_delay_enabled", Config::isCameraXFollowDelayEnabled, Config::setCameraXFollowDelayEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_x_follow_delay",
                 Config.getCameraXFollowDelay(), 0.0, 4.0, val -> Config.setCameraXFollowDelay(val)));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.camera_z_follow_delay_enabled", Config.isCameraZFollowDelayEnabled()),
-                btn -> {
-                    Config.setCameraZFollowDelayEnabled(!Config.isCameraZFollowDelayEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.camera_z_follow_delay_enabled",
-                            Config.isCameraZFollowDelayEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_z_follow_delay_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.camera_z_follow_delay_enabled", Config::isCameraZFollowDelayEnabled, Config::setCameraZFollowDelayEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.camera_z_follow_delay",
                 Config.getCameraZFollowDelay(), 0.0, 4.0, val -> Config.setCameraZFollowDelay(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.mouse_pan", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.mouse_pan_enabled", Config.isMousePanEnabled()),
-                btn -> {
-                    Config.setMousePanEnabled(!Config.isMousePanEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.mouse_pan_enabled",
-                            Config.isMousePanEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mouse_pan_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.mouse_pan_enabled", Config::isMousePanEnabled, Config::setMousePanEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mouse_pan_max_distance",
                 Config.getMousePanMaxDistance(), 0.0, 20.0, val -> Config.setMousePanMaxDistance(val)));
@@ -671,15 +463,7 @@ public class ConfigScreen extends Screen {
 
         // マイニングモード設定
         y = addSection(y, "topdown_view.config.section.mining_mode", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.mining_mode_enabled", Config.isMiningModeEnabled()),
-                btn -> {
-                    Config.setMiningModeEnabled(!Config.isMiningModeEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.mining_mode_enabled",
-                            Config.isMiningModeEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.mining_mode_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.mining_mode_enabled", Config::isMiningModeEnabled, Config::setMiningModeEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.mining_mode_pitch", Config.getMiningModePitch(), 10.0, 90.0,
                 val -> Config.setMiningModePitch(val), 0));
@@ -694,68 +478,28 @@ public class ConfigScreen extends Screen {
 
         // 操作プロンプト設定
         y = addSection(y, "topdown_view.config.section.interaction_prompt", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.show_interaction_prompt", Config.isShowInteractionPrompt()),
-                btn -> {
-                    Config.setShowInteractionPrompt(!Config.isShowInteractionPrompt());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.show_interaction_prompt",
-                            Config.isShowInteractionPrompt()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_interaction_prompt.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.show_interaction_prompt", Config::isShowInteractionPrompt, Config::setShowInteractionPrompt);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.interaction_prompt_scale",
                 Config.getInteractionPromptScale(), 0.0, 1.0,
                 val -> Config.setInteractionPromptScale(val), 1));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.show_interaction_prompt_shadow", Config.isInteractionPromptShadow()),
-                btn -> {
-                    Config.setInteractionPromptShadow(!Config.isInteractionPromptShadow());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.show_interaction_prompt_shadow",
-                            Config.isInteractionPromptShadow()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_interaction_prompt_shadow.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.show_interaction_prompt_shadow", Config::isInteractionPromptShadow, Config::setInteractionPromptShadow);
         y += sp;
 
         // 空間プロンプト設定 (吹き出し表示)
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.show_spatial_prompt", Config.isShowSpatialPrompt()),
-                btn -> {
-                    Config.setShowSpatialPrompt(!Config.isShowSpatialPrompt());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.show_spatial_prompt",
-                            Config.isShowSpatialPrompt()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.show_spatial_prompt.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.show_spatial_prompt", Config::isShowSpatialPrompt, Config::setShowSpatialPrompt);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.spatial_prompt_radius",
                 Config.getSpatialPromptRadius(), 1.0, 16.0,
                 val -> Config.setSpatialPromptRadius(val), 1));
         y += sp;
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.spatial_prompt_all_blocks", Config.isSpatialPromptAllBlocks()),
-                btn -> {
-                    Config.setSpatialPromptAllBlocks(!Config.isSpatialPromptAllBlocks());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.spatial_prompt_all_blocks",
-                            Config.isSpatialPromptAllBlocks()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.spatial_prompt_all_blocks.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.spatial_prompt_all_blocks", Config::isSpatialPromptAllBlocks, Config::setSpatialPromptAllBlocks);
         y += sp;
 
         // パフォーマンス計測
         y = addSection(y, "topdown_view.config.section.performance_monitor", tx);
-        addRightWidget(Button.builder(
-                getOnOffComponent("topdown_view.config.performance_monitor_enabled", Config.isPerformanceMonitorEnabled()),
-                btn -> {
-                    Config.setPerformanceMonitorEnabled(!Config.isPerformanceMonitorEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.performance_monitor_enabled",
-                            Config.isPerformanceMonitorEnabled()));
-                }).bounds(x, y, w, h)
-                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.performance_monitor_enabled.tooltip")))
-                .build());
+        addToggle(x, y, w, h, "topdown_view.config.performance_monitor_enabled", Config::isPerformanceMonitorEnabled, Config::setPerformanceMonitorEnabled);
         y += sp;
 
         contentHeight = y - (30 - (int) scrollOffset) + sp;
@@ -763,16 +507,7 @@ public class ConfigScreen extends Screen {
 
     private void buildVisualTab(int x, int y, int w, int h, int sp, int tx) {
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);
-        addRightWidget(
-                Button.builder(getOnOffComponent("topdown_view.config.placement_preview_enabled",
-                        Config.isPlacementPreviewEnabled()), btn -> {
-                    Config.setPlacementPreviewEnabled(!Config.isPlacementPreviewEnabled());
-                    btn.setMessage(getOnOffComponent("topdown_view.config.placement_preview_enabled",
-                            Config.isPlacementPreviewEnabled()));
-                }).bounds(x, y, w, h)
-                        .tooltip(Tooltip.create(Component.translatable(
-                                "topdown_view.config.placement_preview_enabled.tooltip")))
-                        .build());
+        addToggle(x, y, w, h, "topdown_view.config.placement_preview_enabled", Config::isPlacementPreviewEnabled, Config::setPlacementPreviewEnabled);
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.placement_transparency",
                 Config.getPlacementTransparency(), 0.1, 0.9,
@@ -866,13 +601,11 @@ public class ConfigScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && maxScroll > 0) {
-            int leftPanelW = 90;
-            int rightPanelX = 20 + leftPanelW + 10;
-            int rightPanelW = this.width - rightPanelX - 20;
-            int rightPanelH = this.height - 40;
-            int scrollBarX = rightPanelX + rightPanelW - 6;
+            int rightPanelX = rightPanelX();
+            int scrollBarX = rightPanelX + rightPanelW() - 6;
+            int panelBottom = PANEL_Y + panelHeight();
 
-            if (mouseX >= scrollBarX - 4 && mouseX <= scrollBarX + 8 && mouseY >= 30 && mouseY <= 30 + rightPanelH) {
+            if (mouseX >= scrollBarX - 4 && mouseX <= scrollBarX + 8 && mouseY >= PANEL_Y && mouseY <= panelBottom) {
                 isDraggingScrollbar = true;
                 return true;
             }
@@ -892,8 +625,7 @@ public class ConfigScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (isDraggingScrollbar && maxScroll > 0) {
-            int rightPanelH = this.height - 40;
-            int visibleHeight = rightPanelH;
+            int visibleHeight = panelHeight();
             int scrollBarHeight = Math.max(20, (int) ((double) visibleHeight / (double) contentHeight * visibleHeight));
             double scrollFactor = (double) maxScroll / (visibleHeight - scrollBarHeight);
             scrollOffset += dragY * scrollFactor;
@@ -908,15 +640,15 @@ public class ConfigScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
 
-        int leftPanelW = 90;
-        int leftPanelX = 20;
-        int leftPanelY = 30;
-        int leftPanelH = this.height - 40;
+        int leftPanelX = LEFT_PANEL_X;
+        int leftPanelY = PANEL_Y;
+        int leftPanelW = LEFT_PANEL_W;
+        int leftPanelH = panelHeight();
 
-        int rightPanelX = leftPanelX + leftPanelW + 10;
-        int rightPanelY = 30;
-        int rightPanelW = this.width - rightPanelX - 20;
-        int rightPanelH = this.height - 40;
+        int rightPanelX = rightPanelX();
+        int rightPanelY = PANEL_Y;
+        int rightPanelW = rightPanelW();
+        int rightPanelH = panelHeight();
 
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
 
@@ -969,16 +701,16 @@ public class ConfigScreen extends Screen {
         private final String translationKey;
         private final double min;
         private final double max;
-        private final java.util.function.Consumer<Double> setter;
+        private final Consumer<Double> setter;
         private final int decimalPlaces;
 
         public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min,
-                double max, java.util.function.Consumer<Double> setter) {
+                double max, Consumer<Double> setter) {
             this(x, y, width, height, translationKey, current, min, max, setter, 1);
         }
 
         public ConfigSlider(int x, int y, int width, int height, String translationKey, double current, double min,
-                double max, java.util.function.Consumer<Double> setter, int decimalPlaces) {
+                double max, Consumer<Double> setter, int decimalPlaces) {
             super(x, y, width, height, Component.empty(), (current - min) / (max - min));
             this.translationKey = translationKey;
             this.min = min;
@@ -1009,10 +741,10 @@ public class ConfigScreen extends Screen {
         private final String translationKey;
         private final int min;
         private final int max;
-        private final java.util.function.Consumer<Integer> setter;
+        private final Consumer<Integer> setter;
 
         public IntConfigSlider(int x, int y, int width, int height, String translationKey, int current, int min,
-                int max, java.util.function.Consumer<Integer> setter) {
+                int max, Consumer<Integer> setter) {
             super(x, y, width, height, Component.empty(), (double) (current - min) / (max - min));
             this.translationKey = translationKey;
             this.min = min;

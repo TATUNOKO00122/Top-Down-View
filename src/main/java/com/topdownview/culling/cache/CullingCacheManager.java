@@ -5,55 +5,34 @@ import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 /**
  * カリング結果をキャッシュするマネージャ。
  * アロケーション削減のため、BlockPos の代わりに long (pos.asLong()) をキーとして使用します。
- * マルチスレッドでのロック競合を防ぐため、ThreadLocal とエポックベース無効化を使用します。
  */
-public final class CullingCacheManager {
+public final class CullingCacheManager extends EpochCache<Long2BooleanOpenHashMap> {
 
     private static final int MAX_CACHE_SIZE = 8000;
     private static final int INITIAL_CAPACITY = 1000;
 
-    // キャッシュ無効化用エポック（世代）
-    private volatile int currentEpoch = 0;
-
-    // スレッドごとのキャッシュ
-    private static class ThreadLocalCache {
-        final Long2BooleanOpenHashMap cache = new Long2BooleanOpenHashMap(INITIAL_CAPACITY);
-        int epoch = -1;
-    }
-
-    private final ThreadLocal<ThreadLocalCache> threadLocalCache = ThreadLocal.withInitial(ThreadLocalCache::new);
-
     public CullingCacheManager() {
-    }
-
-    private ThreadLocalCache getLocalCache() {
-        ThreadLocalCache local = threadLocalCache.get();
-        int globalEpoch = currentEpoch;
-        if (local.epoch != globalEpoch) {
-            local.cache.clear();
-            local.epoch = globalEpoch;
-        }
-        return local;
+        super(() -> new Long2BooleanOpenHashMap(INITIAL_CAPACITY));
     }
 
     public Boolean get(long posLong) {
-        ThreadLocalCache local = getLocalCache();
-        if (local.cache.containsKey(posLong)) {
-            return local.cache.get(posLong);
+        Long2BooleanOpenHashMap cache = map();
+        if (cache.containsKey(posLong)) {
+            return cache.get(posLong);
         }
         return null;
     }
 
     public void put(long posLong, boolean result) {
-        ThreadLocalCache local = getLocalCache();
-        if (local.cache.size() >= MAX_CACHE_SIZE) {
-            local.cache.clear();
+        Long2BooleanOpenHashMap cache = map();
+        if (cache.size() >= MAX_CACHE_SIZE) {
+            cache.clear();
         }
-        local.cache.put(posLong, result);
+        cache.put(posLong, result);
     }
 
-    public void clear() {
-        // エポックをインクリメントして全スレッドのキャッシュを無効化
-        currentEpoch++;
+    @Override
+    protected void clearMap(Long2BooleanOpenHashMap cache) {
+        cache.clear();
     }
 }

@@ -5,7 +5,6 @@ import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.OcclusionCalculator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -135,20 +134,11 @@ public final class TreeCullingHandler {
 
         for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
             long columnKey = BlockPos.asLong(trunk.x, 0, trunk.z);
-            if (!occludedTreeTrunkColumns.contains(columnKey)) continue;
-
-            for (int y = trunk.bottomY; y <= trunk.topY; y++) {
-                if (fadeCache.isFadeBlocksFull()) return;
-                
-                mutablePos.set(trunk.x, y, trunk.z);
-                long posLong = mutablePos.asLong();
-                if (!protectedTreeLogPositions.contains(posLong)) continue;
-                
-                BlockState state = level.getBlockState(mutablePos);
-                if (state.isAir()) continue;
-                
-                fadeCache.putFadeBlock(posLong, occludeAlpha);
+            if (!occludedTreeTrunkColumns.contains(columnKey)) {
+                continue;
             }
+            OcclusionFadeCollector.putColumn(level, fadeCache, trunk.x, trunk.z, trunk.bottomY, trunk.topY,
+                    mutablePos, protectedTreeLogPositions, false, occludeAlpha);
         }
     }
 }

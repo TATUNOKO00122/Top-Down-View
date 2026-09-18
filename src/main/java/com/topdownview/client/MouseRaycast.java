@@ -3,6 +3,7 @@ package com.topdownview.client;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
 import com.topdownview.state.TargetLockState;
+import com.topdownview.util.RayAabb;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,6 +48,9 @@ public final class MouseRaycast {
     private BlockHitResult lastBlockHit = null;
     private EntityHitResult lastEntityHit = null;
     private net.minecraft.world.phys.HitResult lastHitResult = null;
+
+    // レイ-AABB 交差計算の作業配列（レンダースレッド専用）。
+    private final double[] rayScratch = new double[2];
 
     private Vec3 cachedDirection = null;
     private double lastFov = -1;
@@ -159,29 +163,14 @@ public final class MouseRaycast {
     }
 
     private double rayAABBIntersection(Vec3 rayOrigin, Vec3 rayDir, AABB aabb) {
-        double tMin = 0.0;
-        double tMax = Double.MAX_VALUE;
+        double[] t = rayScratch;
+        t[0] = 0.0;
+        t[1] = Double.MAX_VALUE;
+        if (!RayAabb.clip(rayOrigin.x, rayDir.x, aabb.minX, aabb.maxX, t)) return -1;
+        if (!RayAabb.clip(rayOrigin.y, rayDir.y, aabb.minY, aabb.maxY, t)) return -1;
+        if (!RayAabb.clip(rayOrigin.z, rayDir.z, aabb.minZ, aabb.maxZ, t)) return -1;
 
-        for (int axis = 0; axis < 3; axis++) {
-            double origin = axis == 0 ? rayOrigin.x : (axis == 1 ? rayOrigin.y : rayOrigin.z);
-            double dir = axis == 0 ? rayDir.x : (axis == 1 ? rayDir.y : rayDir.z);
-            double min = axis == 0 ? aabb.minX : (axis == 1 ? aabb.minY : aabb.minZ);
-            double max = axis == 0 ? aabb.maxX : (axis == 1 ? aabb.maxY : aabb.maxZ);
-
-            if (Math.abs(dir) < 1e-8) {
-                if (origin < min || origin > max)
-                    return -1;
-            } else {
-                double t1 = (min - origin) / dir;
-                double t2 = (max - origin) / dir;
-                if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
-                tMin = Math.max(tMin, t1);
-                tMax = Math.min(tMax, t2);
-                if (tMin > tMax)
-                    return -1;
-            }
-        }
-        return tMin >= 0 ? tMin : tMax;
+        return t[0] >= 0 ? t[0] : t[1];
     }
 
     public boolean hasLineOfSight(Minecraft mc, Vec3 fromPos, Entity target) {

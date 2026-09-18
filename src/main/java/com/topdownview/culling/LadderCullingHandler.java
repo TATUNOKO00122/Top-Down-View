@@ -2,7 +2,6 @@ package com.topdownview.culling;
 
 import com.topdownview.Config;
 import com.topdownview.culling.cache.FadeCacheManager;
-import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.ladder.LadderHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -113,38 +112,18 @@ public final class LadderCullingHandler {
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (ProtectedLadderChain chain : protectedLadderChains) {
-            if (fadeCache.isFadeBlocksFull()) return;
-            boolean anyOccluding = false;
-            for (int y = chain.bottomY; y <= chain.topY; y++) {
-                mutablePos.set(chain.x, y, chain.z);
-                if (OcclusionCalculator.isOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
-                    anyOccluding = true;
-                    break;
-                }
+            if (fadeCache.isFadeBlocksFull()) {
+                return;
             }
-            if (!anyOccluding) {
-                for (int y = chain.bottomY; y <= chain.topY; y++) {
-                    mutablePos.set(chain.wallX, y, chain.wallZ);
-                    if (OcclusionCalculator.isOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
-                        anyOccluding = true;
-                        break;
-                    }
-                }
-            }
+            boolean anyOccluding = OcclusionFadeCollector.anyOccludingColumn(
+                    chain.x, chain.z, chain.bottomY, chain.topY, mutablePos, cX, cY, cZ, pX, pY, pZ)
+                    || OcclusionFadeCollector.anyOccludingColumn(
+                    chain.wallX, chain.wallZ, chain.bottomY, chain.topY, mutablePos, cX, cY, cZ, pX, pY, pZ);
             float alpha = anyOccluding ? occludeAlpha : 1.0f;
-            for (int y = chain.bottomY; y <= chain.topY; y++) {
-                if (fadeCache.isFadeBlocksFull()) return;
-                
-                mutablePos.set(chain.x, y, chain.z);
-                BlockState ladderState = level.getBlockState(mutablePos);
-                if (!ladderState.isAir()) fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
-                
-                mutablePos.set(chain.wallX, y, chain.wallZ);
-                BlockState wallState = level.getBlockState(mutablePos);
-                if (!wallState.isAir() && wallState.getFluidState().isEmpty()) {
-                    fadeCache.putFadeBlock(mutablePos.asLong(), alpha);
-                }
-            }
+            OcclusionFadeCollector.putColumn(level, fadeCache, chain.x, chain.z, chain.bottomY, chain.topY,
+                    mutablePos, null, false, alpha);
+            OcclusionFadeCollector.putColumn(level, fadeCache, chain.wallX, chain.wallZ, chain.bottomY, chain.topY,
+                    mutablePos, null, true, alpha);
         }
     }
 }

@@ -17,7 +17,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * チャンクビルドはSodiumのワーカースレッドから並列に呼ばれるため、
  * ThreadLocalでスレッドごとに保持しロック競合を避ける。
  */
-public final class SurfaceHeightCache {
+public final class SurfaceHeightCache extends EpochCache<Long2IntOpenHashMap> {
 
     /** 未ロード、またはHeightmap未生成の列。有効なY（-64以上）と重複しないセンチネル。 */
     public static final int UNKNOWN = Integer.MIN_VALUE;
@@ -30,37 +30,26 @@ public final class SurfaceHeightCache {
      */
     private static final int MAX_TERRAIN_SCAN = 48;
 
-    private volatile int epoch = 0;
-
-    private static final class LocalCache {
-        final Long2IntOpenHashMap heights = new Long2IntOpenHashMap(1024);
-        int epoch = -1;
+    public SurfaceHeightCache() {
+        super(() -> new Long2IntOpenHashMap(1024));
     }
-
-    private final ThreadLocal<LocalCache> threadLocalCache = ThreadLocal.withInitial(LocalCache::new);
 
     /**
      * 指定列の最上位ブロックYを返す。未ロード場合は {@link #UNKNOWN}。
      */
     public int getSurfaceY(int x, int z) {
-        LocalCache local = threadLocalCache.get();
-        int globalEpoch = epoch;
-        if (local.epoch != globalEpoch) {
-            local.heights.clear();
-            local.epoch = globalEpoch;
-        }
-
+        Long2IntOpenHashMap heights = map();
         long key = ((long) z << 32) | (x & 0xFFFFFFFFL);
-        if (local.heights.containsKey(key)) {
-            return local.heights.get(key);
+        if (heights.containsKey(key)) {
+            return heights.get(key);
         }
 
         int surfaceY = compute(x, z);
         if (surfaceY != UNKNOWN) {
-            if (local.heights.size() >= MAX_CACHE_SIZE) {
-                local.heights.clear();
+            if (heights.size() >= MAX_CACHE_SIZE) {
+                heights.clear();
             }
-            local.heights.put(key, surfaceY);
+            heights.put(key, surfaceY);
         }
         return surfaceY;
     }
@@ -107,8 +96,8 @@ public final class SurfaceHeightCache {
         return !state.getCollisionShape(level, pos).isEmpty();
     }
 
-    /** 既存キャッシュを無効化する（ディメンション変更・設定変更時）。 */
-    public void clear() {
-        epoch++;
+    @Override
+    protected void clearMap(Long2IntOpenHashMap heights) {
+        heights.clear();
     }
 }

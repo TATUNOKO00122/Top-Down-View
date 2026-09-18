@@ -1,5 +1,6 @@
 package com.topdownview.culling.geometry;
 
+import com.topdownview.util.RayAabb;
 import net.minecraft.core.BlockPos;
 
 /**
@@ -8,6 +9,9 @@ import net.minecraft.core.BlockPos;
 public final class OcclusionCalculator {
 
     private static final double MIN_HORIZONTAL_LENGTH_SQ = 1.0E-8;
+
+    // チャンク構築ワーカーからも呼ばれるため、スレッドごとに交差計算の作業配列を再利用する。
+    private static final ThreadLocal<double[]> RAY_SCRATCH = ThreadLocal.withInitial(() -> new double[2]);
 
     private OcclusionCalculator() {}
 
@@ -55,28 +59,13 @@ public final class OcclusionCalculator {
             return false;
         }
 
-        double[] t = {0.0, 1.0};
-        if (!slabIntersect(cX, dirX, minX, maxX, t)) return false;
-        if (!slabIntersect(cY, dirY, minY, maxY, t)) return false;
-        if (!slabIntersect(cZ, dirZ, minZ, maxZ, t)) return false;
+        double[] t = RAY_SCRATCH.get();
+        t[0] = 0.0;
+        t[1] = 1.0;
+        if (!RayAabb.clip(cX, dirX, minX, maxX, t)) return false;
+        if (!RayAabb.clip(cY, dirY, minY, maxY, t)) return false;
+        if (!RayAabb.clip(cZ, dirZ, minZ, maxZ, t)) return false;
 
         return t[1] < 0.999;
-    }
-
-    private static boolean slabIntersect(double origin, double dir, double min, double max, double[] t) {
-        if (Math.abs(dir) < 1.0E-9) {
-            return origin >= min && origin <= max;
-        }
-        double invDir = 1.0 / dir;
-        double t1 = (min - origin) * invDir;
-        double t2 = (max - origin) * invDir;
-        if (t1 > t2) {
-            double tmp = t1;
-            t1 = t2;
-            t2 = tmp;
-        }
-        t[0] = Math.max(t[0], t1);
-        t[1] = Math.min(t[1], t2);
-        return t[0] <= t[1];
     }
 }

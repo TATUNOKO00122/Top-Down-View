@@ -15,19 +15,14 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.lighting.LevelLightEngine;
-import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.model.data.ModelData;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * カリング境界フェード描画 & マイニングモード動的描画
@@ -88,7 +83,7 @@ public final class TranslucentBlockRenderer {
 
         // ラッパーオブジェクトを再利用してアロケーションを抑える
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
-        ReusableAlphaVertexConsumer alphaConsumer = new ReusableAlphaVertexConsumer(baseConsumer);
+        AlphaVertexConsumer alphaConsumer = new AlphaVertexConsumer(baseConsumer);
         FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -155,7 +150,7 @@ public final class TranslucentBlockRenderer {
             BlockPos pos,
             PoseStack poseStack,
             BlockRenderDispatcher blockRenderer,
-            ReusableAlphaVertexConsumer alphaConsumer,
+            AlphaVertexConsumer alphaConsumer,
             float alpha,
             Vec3 cameraPos) {
         BlockState state = level.getBlockState(pos);
@@ -204,74 +199,6 @@ public final class TranslucentBlockRenderer {
         poseStack.popPose();
     }
 
-    /**
-     * 頂点カラーのアルファ値を強制的に上書きするVertexConsumerラッパー。
-     * alpha値を更新して再利用できる。
-     */
-    private static class ReusableAlphaVertexConsumer implements VertexConsumer {
-        private final VertexConsumer delegate;
-        private float alpha;
-
-        ReusableAlphaVertexConsumer(VertexConsumer delegate) {
-            this.delegate = delegate;
-            this.alpha = 1.0f;
-        }
-
-        void setAlpha(float alpha) {
-            this.alpha = alpha;
-        }
-
-        @Override
-        public VertexConsumer vertex(double x, double y, double z) {
-            return delegate.vertex(x, y, z);
-        }
-
-        @Override
-        public VertexConsumer color(int r, int g, int b, int a) {
-            return delegate.color(r, g, b, (int) (this.alpha * 255));
-        }
-
-        @Override
-        public VertexConsumer color(float r, float g, float b, float a) {
-            return delegate.color(r, g, b, this.alpha);
-        }
-
-        @Override
-        public VertexConsumer uv(float u, float v) {
-            return delegate.uv(u, v);
-        }
-
-        @Override
-        public VertexConsumer overlayCoords(int u, int v) {
-            return delegate.overlayCoords(u, v);
-        }
-
-        @Override
-        public VertexConsumer uv2(int u, int v) {
-            return delegate.uv2(u, v);
-        }
-
-        @Override
-        public VertexConsumer normal(float x, float y, float z) {
-            return delegate.normal(x, y, z);
-        }
-
-        @Override
-        public void endVertex() {
-            delegate.endVertex();
-        }
-
-        @Override
-        public void defaultColor(int r, int g, int b, int a) {
-            delegate.defaultColor(r, g, b, a);
-        }
-
-        @Override
-        public void unsetDefaultColor() {
-            delegate.unsetDefaultColor();
-        }
-    }
-
     private static final BlockState AIR_STATE = Blocks.AIR.defaultBlockState();
 
     /**
@@ -280,34 +207,12 @@ public final class TranslucentBlockRenderer {
      * こうすることで、フェードブロックは不透明ブロックと接する面も描画され、Blockの形を保つ。
      * 判定は集合の所属のみで行うため、α値が変化しても面の描画は反転しない。
      */
-    private static class FadeBlockGetter implements BlockAndTintGetter {
-        private final BlockAndTintGetter delegate;
+    private static final class FadeBlockGetter extends DelegatingBlockGetter {
         private final Long2FloatMap fadeBlocks;
 
         FadeBlockGetter(BlockAndTintGetter delegate, Long2FloatMap fadeBlocks) {
-            this.delegate = delegate;
+            super(delegate);
             this.fadeBlocks = fadeBlocks;
-        }
-
-        @Override
-        public float getShade(Direction direction, boolean shade) {
-            return delegate.getShade(direction, shade);
-        }
-
-        @Override
-        public LevelLightEngine getLightEngine() {
-            return delegate.getLightEngine();
-        }
-
-        @Override
-        public int getBlockTint(BlockPos pos, ColorResolver resolver) {
-            return delegate.getBlockTint(pos, resolver);
-        }
-
-        @Nullable
-        @Override
-        public BlockEntity getBlockEntity(BlockPos pos) {
-            return delegate.getBlockEntity(pos);
         }
 
         @Override
@@ -316,21 +221,6 @@ public final class TranslucentBlockRenderer {
                 return delegate.getBlockState(pos);
             }
             return AIR_STATE;
-        }
-
-        @Override
-        public FluidState getFluidState(BlockPos pos) {
-            return delegate.getFluidState(pos);
-        }
-
-        @Override
-        public int getHeight() {
-            return delegate.getHeight();
-        }
-
-        @Override
-        public int getMinBuildHeight() {
-            return delegate.getMinBuildHeight();
         }
     }
 }

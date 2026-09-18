@@ -2,7 +2,6 @@ package com.topdownview.culling;
 
 import com.topdownview.Config;
 import com.topdownview.culling.cache.FadeCacheManager;
-import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.StairAnalyzer;
@@ -12,7 +11,6 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -107,23 +105,14 @@ public final class StairCullingHandler {
         float occludeAlpha = (float) Config.getStaircaseOccludeAlpha();
 
         for (Staircase stair : detectedStaircases) {
-            if (fadeCache.isFadeBlocksFull()) return;
-            boolean anyOccluding = false;
-            for (BlockPos step : stair.getSteps()) {
-                if (!excludedStairBlocks.contains(step)) continue;
-                if (OcclusionCalculator.isOccludingView(step, cX, cY, cZ, pX, pY, pZ)) {
-                    anyOccluding = true;
-                    break;
-                }
+            if (fadeCache.isFadeBlocksFull()) {
+                return;
             }
+            List<BlockPos> steps = stair.getSteps();
+            boolean anyOccluding = OcclusionFadeCollector.anyOccluding(steps, excludedStairBlocks,
+                    cX, cY, cZ, pX, pY, pZ);
             float alpha = anyOccluding ? occludeAlpha : 1.0f;
-            for (BlockPos step : stair.getSteps()) {
-                if (fadeCache.isFadeBlocksFull()) return;
-                if (!excludedStairBlocks.contains(step)) continue;
-                BlockState state = level.getBlockState(step);
-                if (state.isAir()) continue;
-                fadeCache.putFadeBlock(step.asLong(), alpha);
-            }
+            OcclusionFadeCollector.putBlocks(level, fadeCache, steps, excludedStairBlocks, alpha);
         }
     }
 }
