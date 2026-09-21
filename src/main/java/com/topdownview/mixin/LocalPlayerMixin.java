@@ -160,10 +160,10 @@ public abstract class LocalPlayerMixin {
             currentBoatBodyYaw = clampedBody;
         }
 
-        player.setYRot(currentBoatBodyYaw);
+        player.setYRot(currentBoatHeadYaw);
         player.yHeadRot = currentBoatHeadYaw;
         player.yBodyRot = currentBoatBodyYaw;
-        player.yRotO = prevBoatBodyYaw;
+        player.yRotO = prevBoatHeadYaw;
         player.yHeadRotO = prevBoatHeadYaw;
         player.setXRot(aimPitch);
     }

@@ -107,6 +107,14 @@ public final class PlayerRotationState {
         return currentHeadYaw;
     }
 
+    /**
+     * 照準（getYRot）に使うヨー。頭の見た目クランプを受けずカーソル方向へ即応する。
+     * 攻撃ロック中はロックした向きを返す。
+     */
+    public float getAimYaw() {
+        return attackRotationLocked ? lockedHeadYaw : targetHeadYaw;
+    }
+
     public float getCurrentBodyYaw() {
         return currentBodyYaw;
     }
@@ -121,6 +129,10 @@ public final class PlayerRotationState {
 
     public float getCurrentPitch() {
         return currentPitch;
+    }
+
+    public float getTargetPitch() {
+        return targetPitch;
     }
 
     public boolean isUsingItem() {
