@@ -526,7 +526,47 @@ public class ConfigScreen extends Screen {
                 1.0, val -> Config.setSignHoverScale(val), 1));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.item_label", tx);
+        addRightWidget(Button.builder(getItemLabelModeComponent(Config.getDroppedItemLabelMode()), btn -> {
+            Config.setDroppedItemLabelMode((Config.getDroppedItemLabelMode() + 1) % 3);
+            btn.setMessage(getItemLabelModeComponent(Config.getDroppedItemLabelMode()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.item_label_mode.tooltip")))
+                .build());
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.item_label_scale", Config.getDroppedItemLabelScale(), 0.5,
+                3.0, val -> Config.setDroppedItemLabelScale(val), 1));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.item_label_gap", Config.getDroppedItemLabelGap(), 0,
+                5, Config::setDroppedItemLabelGap));
+        y += sp;
+        addRightWidget(Button.builder(getItemLabelBackgroundComponent(Config.getDroppedItemLabelBackground()), btn -> {
+            Config.setDroppedItemLabelBackground((Config.getDroppedItemLabelBackground() + 1) % 2);
+            btn.setMessage(getItemLabelBackgroundComponent(Config.getDroppedItemLabelBackground()));
+        }).bounds(x, y, w, h)
+                .tooltip(Tooltip.create(Component.translatable("topdown_view.config.item_label_background.tooltip")))
+                .build());
+        y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.manual_item_pickup", Config::isManualItemPickup, Config::setManualItemPickup);
+        y += sp;
+
         contentHeight = y - (30 - (int) scrollOffset) + sp;
+    }
+
+    private Component getItemLabelBackgroundComponent(int mode) {
+        String modeKey = mode == 1 ? "mode_tooltip" : "mode_solid";
+        return Component.translatable("topdown_view.config.item_label_background",
+                Component.translatable("topdown_view.config.item_label_background." + modeKey).getString());
+    }
+
+    private Component getItemLabelModeComponent(int mode) {
+        String modeKey = switch (mode) {
+            case 1 -> "mode_hover";
+            case 2 -> "mode_always";
+            default -> "mode_none";
+        };
+        return Component.translatable("topdown_view.config.item_label_mode",
+                Component.translatable("topdown_view.config.item_label_mode." + modeKey).getString());
     }
 
     private Component getSignHoverModeComponent(int mode) {

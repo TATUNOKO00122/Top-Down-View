@@ -2,6 +2,7 @@ package com.topdownview.server;
 
 import com.topdownview.Config;
 import com.topdownview.network.PacketHandler;
+import com.topdownview.network.PickupDistanceSyncPacket;
 import com.topdownview.network.ReachSyncPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -132,5 +133,8 @@ public final class ServerReachHandler {
     private static void sendReachSync(ServerPlayer player) {
         PacketHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new ReachSyncPacket(Config.getServerReachDistance()));
+        // 手動取得距離もサーバー値を優先させるため同期する
+        PacketHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new PickupDistanceSyncPacket(Config.getManualPickupDistance()));
     }
 }

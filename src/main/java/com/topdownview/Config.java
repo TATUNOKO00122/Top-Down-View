@@ -268,6 +268,25 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue SIGN_HOVER_SCALE = BUILDER
             .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
 
+    private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_MODE = BUILDER
+            .comment("0 = off, 1 = on hover, 2 = always within range.")
+            .defineInRange("droppedItemLabelMode", 2, 0, 2);
+
+    private static final ForgeConfigSpec.DoubleValue DROPPED_ITEM_LABEL_SCALE = BUILDER
+            .defineInRange("droppedItemLabelScale", 1.0, 0.5, 3.0);
+
+    private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_BACKGROUND = BUILDER
+            .comment("0 = solid color, 1 = vanilla tooltip style.")
+            .defineInRange("droppedItemLabelBackground", 0, 0, 1);
+
+    private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_GAP = BUILDER
+            .comment("Gap in pixels between dropped item labels (horizontal and vertical).")
+            .defineInRange("droppedItemLabelGap", 1, 0, 5);
+
+    private static final ForgeConfigSpec.BooleanValue MANUAL_ITEM_PICKUP = BUILDER
+            .comment("Disable vanilla automatic item pickup and collect dropped items by left-clicking them.")
+            .define("manualItemPickup", false);
+
     private static final ForgeConfigSpec.BooleanValue SHOW_INTERACTION_PROMPT = BUILDER
             .define("showInteractionPrompt", false);
     private static final ForgeConfigSpec.DoubleValue INTERACTION_PROMPT_SCALE = BUILDER
@@ -300,6 +319,9 @@ public class Config {
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
     private static final ForgeConfigSpec.DoubleValue SERVER_REACH_DISTANCE = COMMON_BUILDER
             .defineInRange("serverReachDistance", 10.0, 1.0, 100.0);
+    private static final ForgeConfigSpec.DoubleValue MANUAL_PICKUP_DISTANCE = COMMON_BUILDER
+            .comment("Distance within which a left-clicked dropped item is collected. Server value takes priority.")
+            .defineInRange("manualPickupDistance", 4.0, 1.0, 10.0);
     public static final ForgeConfigSpec COMMON_SPEC = COMMON_BUILDER.build();
 
     // Delegation Getters / Setters for Backward Compatibility
@@ -396,6 +418,8 @@ public class Config {
     public static boolean isScreenReachEnabled() { return INTERACTION.isScreenReachEnabled(); }
     public static double getReachDistance() { return INTERACTION.getReachDistance(); }
     public static double getServerReachDistance() { return INTERACTION.getServerReachDistance(); }
+    public static double getManualPickupDistance() { return INTERACTION.getManualPickupDistance(); }
+    public static double getEffectiveManualPickupDistance() { return INTERACTION.getEffectiveManualPickupDistance(); }
     public static boolean isPlacementPreviewEnabled() { return PLACEMENT.isPlacementPreviewEnabled(); }
     public static double getPlacementTransparency() { return PLACEMENT.getPlacementTransparency(); }
     public static boolean isClickPositionPlacementEnabled() { return PLACEMENT.isClickPositionPlacementEnabled(); }
@@ -413,6 +437,11 @@ public class Config {
     public static double getFluidAlpha() { return CULLING.getFluidAlpha(); }
     public static int getSignHoverDisplayMode() { return INTERACTION.getSignHoverDisplayMode(); }
     public static double getSignHoverScale() { return INTERACTION.getSignHoverScale(); }
+    public static int getDroppedItemLabelMode() { return INTERACTION.getDroppedItemLabelMode(); }
+    public static double getDroppedItemLabelScale() { return INTERACTION.getDroppedItemLabelScale(); }
+    public static int getDroppedItemLabelBackground() { return INTERACTION.getDroppedItemLabelBackground(); }
+    public static int getDroppedItemLabelGap() { return INTERACTION.getDroppedItemLabelGap(); }
+    public static boolean isManualItemPickup() { return INTERACTION.isManualItemPickup(); }
     public static boolean isShowInteractionPrompt() { return INTERACTION.isShowInteractionPrompt(); }
     public static double getInteractionPromptScale() { return INTERACTION.getInteractionPromptScale(); }
     public static boolean isInteractionPromptShadow() { return INTERACTION.isInteractionPromptShadow(); }
@@ -425,6 +454,9 @@ public class Config {
     public static void setSyncedServerReach(double value) { INTERACTION.setSyncedServerReach(value); }
     public static void clearSyncedServerReach() { INTERACTION.clearSyncedServerReach(); }
     public static boolean hasSyncedServerReach() { return INTERACTION.hasSyncedServerReach(); }
+    public static void setSyncedManualPickupDistance(double value) { INTERACTION.setSyncedManualPickupDistance(value); }
+    public static void clearSyncedManualPickupDistance() { INTERACTION.clearSyncedManualPickupDistance(); }
+    public static boolean hasSyncedManualPickupDistance() { return INTERACTION.hasSyncedManualPickupDistance(); }
 
     public static void setCylinderRadiusHorizontal(int value) { CULLING.setCylinderRadiusHorizontal(value); }
     public static void setCylinderRadiusVertical(int value) { CULLING.setCylinderRadiusVertical(value); }
@@ -535,6 +567,11 @@ public class Config {
     public static void setFluidAlpha(double value) { CULLING.setFluidAlpha(value); }
     public static void setSignHoverDisplayMode(int value) { INTERACTION.setSignHoverDisplayMode(value); }
     public static void setSignHoverScale(double value) { INTERACTION.setSignHoverScale(value); }
+    public static void setDroppedItemLabelMode(int value) { INTERACTION.setDroppedItemLabelMode(value); }
+    public static void setDroppedItemLabelScale(double value) { INTERACTION.setDroppedItemLabelScale(value); }
+    public static void setDroppedItemLabelBackground(int value) { INTERACTION.setDroppedItemLabelBackground(value); }
+    public static void setDroppedItemLabelGap(int value) { INTERACTION.setDroppedItemLabelGap(value); }
+    public static void setManualItemPickup(boolean value) { INTERACTION.setManualItemPickup(value); }
     public static void setShowInteractionPrompt(boolean value) { INTERACTION.setShowInteractionPrompt(value); }
     public static void setInteractionPromptScale(double value) { INTERACTION.setInteractionPromptScale(value); }
     public static void setInteractionPromptShadow(boolean value) { INTERACTION.setInteractionPromptShadow(value); }
@@ -712,6 +749,11 @@ public class Config {
         addBinding(FLUID_ALPHA, CULLING::setFluidAlpha, Config::getFluidAlpha);
         addBinding(SIGN_HOVER_DISPLAY_MODE, INTERACTION::setSignHoverDisplayMode, Config::getSignHoverDisplayMode);
         addBinding(SIGN_HOVER_SCALE, INTERACTION::setSignHoverScale, Config::getSignHoverScale);
+        addBinding(DROPPED_ITEM_LABEL_MODE, INTERACTION::setDroppedItemLabelMode, Config::getDroppedItemLabelMode);
+        addBinding(DROPPED_ITEM_LABEL_SCALE, INTERACTION::setDroppedItemLabelScale, Config::getDroppedItemLabelScale);
+        addBinding(DROPPED_ITEM_LABEL_BACKGROUND, INTERACTION::setDroppedItemLabelBackground, Config::getDroppedItemLabelBackground);
+        addBinding(DROPPED_ITEM_LABEL_GAP, INTERACTION::setDroppedItemLabelGap, Config::getDroppedItemLabelGap);
+        addBinding(MANUAL_ITEM_PICKUP, INTERACTION::setManualItemPickup, Config::isManualItemPickup);
         addBinding(SHOW_INTERACTION_PROMPT, INTERACTION::setShowInteractionPrompt, Config::isShowInteractionPrompt);
         addBinding(INTERACTION_PROMPT_SCALE, INTERACTION::setInteractionPromptScale, Config::getInteractionPromptScale);
         addBinding(INTERACTION_PROMPT_SHADOW, INTERACTION::setInteractionPromptShadow, Config::isInteractionPromptShadow);
@@ -727,6 +769,7 @@ public class Config {
 
     private static void loadCommonConfig() {
         INTERACTION.setServerReachDistance(SERVER_REACH_DISTANCE.get());
+        INTERACTION.setManualPickupDistance(MANUAL_PICKUP_DISTANCE.get());
     }
 
     public static void save() {

@@ -287,21 +287,21 @@ public final class ClickToMoveController {
             }
         }
 
-        Vec3 destination = getEffectiveDestination(mc);
-        if (destination == null) return null;
+        return calculateMovementInputToward(mc, getEffectiveDestination(mc));
+    }
 
-        Vec3 playerPos = mc.player.position();
-        Vec3 direction = calculateDirection(playerPos, destination);
+    /** 指定座標へ向かう移動入力を、プレイヤー基準の前後/左右成分で返す。 */
+    public static float[] calculateMovementInputToward(Minecraft mc, Vec3 destination) {
+        if (mc.player == null || destination == null) return null;
 
+        Vec3 direction = calculateDirection(mc.player.position(), destination);
         if (direction == null) return null;
 
         double horizontalDist = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
         if (horizontalDist < STOP_THRESHOLD) return null;
 
         double moveAngle = Math.atan2(-direction.x, direction.z);
-        float playerYaw = mc.player.getYRot();
-        float relativeAngle = (float) Math.toDegrees(moveAngle) - playerYaw;
-        relativeAngle = CameraState.normalizeAngle(relativeAngle);
+        float relativeAngle = CameraState.normalizeAngle((float) Math.toDegrees(moveAngle) - mc.player.getYRot());
 
         float rad = (float) Math.toRadians(relativeAngle);
         float forward = Mth.cos(rad);

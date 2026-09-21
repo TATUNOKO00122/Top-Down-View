@@ -1,5 +1,6 @@
 package com.topdownview.mixin;
 
+import com.topdownview.client.PickupApproachController;
 import com.topdownview.state.ModState;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.OptionInstance;
@@ -20,7 +21,9 @@ public abstract class GameOptionsMixin {
 
     @Inject(method = "autoJump", at = @At("HEAD"), cancellable = true)
     public void topdownview$getAutoJump(CallbackInfoReturnable<OptionInstance<Boolean>> cir) {
-        if (ModState.STATUS.isEnabled() && com.topdownview.Config.isForceAutoJump() && ModState.CLICK_TO_MOVE.isMoving()) {
+        // クリック移動中に加え、アイテムへ近づく接近取得中も自動ジャンプを有効にして段差を越えられるようにする
+        if (ModState.STATUS.isEnabled() && com.topdownview.Config.isForceAutoJump()
+                && (ModState.CLICK_TO_MOVE.isMoving() || PickupApproachController.isActive())) {
             cir.setReturnValue(FORCE_AUTO_JUMP);
         }
     }

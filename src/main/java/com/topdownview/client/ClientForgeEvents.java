@@ -40,6 +40,7 @@ public final class ClientForgeEvents {
         ReachManager.onClientTick();
         PlacementPreviewManager.getInstance().onClientTick();
         OpenedContainerTracker.onTick();
+        PickupApproachController.tick(Minecraft.getInstance());
     }
 
     @SubscribeEvent
@@ -61,6 +62,8 @@ public final class ClientForgeEvents {
         ModState.resetAll();
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
         ReachManager.forceUpdate();
+        ClientPickupHandler.sendToggle();
+        PickupApproachController.cancel();
         OpenedContainerTracker.init();
         InteractionRegistry.reload();
         
@@ -77,6 +80,8 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
         Config.clearSyncedServerReach();
+        Config.clearSyncedManualPickupDistance();
+        PickupApproachController.cancel();
         PlacementPreviewManager.getInstance().reset();
         OpenedContainerTracker.saveCurrentDimension();
         OpenedContainerTracker.clearAll();

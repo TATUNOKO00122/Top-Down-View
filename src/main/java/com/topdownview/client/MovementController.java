@@ -69,6 +69,17 @@ public final class MovementController {
             }
         }
 
+        // 接近取得: クリック移動OFFでも対象アイテムへ自前で移動する
+        if (!Config.isClickToMoveEnabled() && !hasManualInput && PickupApproachController.isActive()) {
+            float[] moveInput = ClickToMoveController.calculateMovementInputToward(
+                    mc, PickupApproachController.getTargetPosition(mc));
+            if (moveInput != null) {
+                event.getInput().forwardImpulse = moveInput[0];
+                event.getInput().leftImpulse = moveInput[1];
+                return;
+            }
+        }
+
         if (mc.player.isSprinting() && !hasManualInput) {
             mc.player.setSprinting(false);
         }

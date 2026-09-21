@@ -36,8 +36,15 @@ public final class InteractionConfig {
     private double reachDistance = 10.0;
     private double serverReachDistance = 10.0;
     private double syncedServerReach = -1.0;
+    private double manualPickupDistance = 4.0;
+    private double syncedManualPickupDistance = -1.0;
     private int signHoverDisplayMode = 2;
     private double signHoverScale = 0.5;
+    private int droppedItemLabelMode = 2;
+    private double droppedItemLabelScale = 1.0;
+    private int droppedItemLabelBackground = 0;
+    private int droppedItemLabelGap = 1;
+    private boolean manualItemPickup = false;
     private boolean showInteractionPrompt = false;
     private double interactionPromptScale = 0.8;
     private boolean interactionPromptShadow = false;
@@ -137,11 +144,37 @@ public final class InteractionConfig {
     public void clearSyncedServerReach() { syncedServerReach = -1.0; }
     public boolean hasSyncedServerReach() { return syncedServerReach >= 0; }
 
+    public double getManualPickupDistance() { return manualPickupDistance; }
+    public void setManualPickupDistance(double value) { this.manualPickupDistance = MathUtil.clamp(value, 1.0, 10.0); }
+
+    /** 手動取得の有効距離。サーバー同期値があればそれを優先する。 */
+    public double getEffectiveManualPickupDistance() {
+        return syncedManualPickupDistance >= 0 ? syncedManualPickupDistance : manualPickupDistance;
+    }
+    public void setSyncedManualPickupDistance(double value) { syncedManualPickupDistance = value; }
+    public void clearSyncedManualPickupDistance() { syncedManualPickupDistance = -1.0; }
+    public boolean hasSyncedManualPickupDistance() { return syncedManualPickupDistance >= 0; }
+
     public int getSignHoverDisplayMode() { return signHoverDisplayMode; }
     public void setSignHoverDisplayMode(int value) { this.signHoverDisplayMode = MathUtil.clamp(value, 0, 2); }
 
     public double getSignHoverScale() { return signHoverScale; }
     public void setSignHoverScale(double value) { this.signHoverScale = MathUtil.clamp(value, 0.0, 1.0); }
+
+    public int getDroppedItemLabelMode() { return droppedItemLabelMode; }
+    public void setDroppedItemLabelMode(int value) { this.droppedItemLabelMode = MathUtil.clamp(value, 0, 2); }
+
+    public double getDroppedItemLabelScale() { return droppedItemLabelScale; }
+    public void setDroppedItemLabelScale(double value) { this.droppedItemLabelScale = MathUtil.clamp(value, 0.5, 3.0); }
+
+    public int getDroppedItemLabelBackground() { return droppedItemLabelBackground; }
+    public void setDroppedItemLabelBackground(int value) { this.droppedItemLabelBackground = MathUtil.clamp(value, 0, 1); }
+
+    public int getDroppedItemLabelGap() { return droppedItemLabelGap; }
+    public void setDroppedItemLabelGap(int value) { this.droppedItemLabelGap = MathUtil.clamp(value, 0, 5); }
+
+    public boolean isManualItemPickup() { return manualItemPickup; }
+    public void setManualItemPickup(boolean value) { this.manualItemPickup = value; }
 
     public boolean isShowInteractionPrompt() { return showInteractionPrompt; }
     public void setShowInteractionPrompt(boolean value) { this.showInteractionPrompt = value; }

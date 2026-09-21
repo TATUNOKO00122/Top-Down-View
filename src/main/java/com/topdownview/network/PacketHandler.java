@@ -33,5 +33,23 @@ public final class PacketHandler {
                 ReachSyncPacket::encode,
                 ReachSyncPacket::decode,
                 ReachSyncPacket::handle);
+
+        CHANNEL.registerMessage(nextId++,
+                ManualPickupTogglePacket.class,
+                ManualPickupTogglePacket::encode,
+                ManualPickupTogglePacket::decode,
+                ManualPickupTogglePacket::handle);
+
+        CHANNEL.registerMessage(nextId++,
+                PickupItemPacket.class,
+                PickupItemPacket::encode,
+                PickupItemPacket::decode,
+                PickupItemPacket::handle);
+
+        CHANNEL.registerMessage(nextId++,
+                PickupDistanceSyncPacket.class,
+                PickupDistanceSyncPacket::encode,
+                PickupDistanceSyncPacket::decode,
+                PickupDistanceSyncPacket::handle);
     }
 }

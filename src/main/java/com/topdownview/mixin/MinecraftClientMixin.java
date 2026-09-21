@@ -1,5 +1,7 @@
 package com.topdownview.mixin;
 
+import com.topdownview.Config;
+import com.topdownview.client.ClickActionHandler;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.HitResult;
@@ -24,9 +26,16 @@ public abstract class MinecraftClientMixin {
     private void onStartAttack(CallbackInfoReturnable<Boolean> cir) {
         if (!ModState.STATUS.isEnabled())
             return;
-        this.missTime = 0;
 
         Minecraft mc = (Minecraft) (Object) this;
+        // ラベル（ネームタグ）またはアイテム本体上でのクリックは取得操作として扱い、攻撃・破壊させない
+        if (Config.isManualItemPickup() && ClickActionHandler.findPickupTarget(mc) != null) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        this.missTime = 0;
+
         if (mc.player != null && this.hitResult != null) {
             Vec3 eyePos = mc.player.getEyePosition(1.0f);
             if (this.hitResult.getType() == HitResult.Type.BLOCK) {
@@ -51,6 +60,13 @@ public abstract class MinecraftClientMixin {
             return;
 
         Minecraft mc = (Minecraft) (Object) this;
+        // ラベル上で押し続けても破壊しない
+        if (leftClick && Config.isManualItemPickup()
+                && ClickActionHandler.findPickupTarget(mc) != null) {
+            ci.cancel();
+            return;
+        }
+
         if (leftClick && mc.player != null && this.hitResult != null) {
             Vec3 eyePos = mc.player.getEyePosition(1.0f);
             if (this.hitResult.getType() == HitResult.Type.BLOCK) {

@@ -28,7 +28,8 @@
     "LiquidBlockRendererMixin"
   ],
   "mixins": [
-    "BlockItemPlacementMixin"
+    "BlockItemPlacementMixin",
+    "ItemEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

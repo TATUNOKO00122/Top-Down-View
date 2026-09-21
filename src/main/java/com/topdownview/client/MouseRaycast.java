@@ -352,7 +352,7 @@ public final class MouseRaycast {
         return lastHitResult;
     }
 
-    private Vec3 getMouseRayDirection(Minecraft mc, float partialTick) {
+    public Vec3 getMouseRayDirection(Minecraft mc, float partialTick) {
         if (mc.mouseHandler == null || mc.options == null || mc.getWindow() == null)
             return null;
 

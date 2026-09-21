@@ -42,6 +42,7 @@ public final class RenderEventHandler {
             TargetHighlightRenderer.onRenderLevelStage(event);
             SignHoverRenderer.onRenderLevelStage(event);
             InteractionPromptRenderer.onRenderLevelStage(event);
+            DroppedItemLabelRenderer.onRenderLevelStage(event);
             PerfMonitor.OVERLAY_RENDER.add(System.nanoTime() - tRender);
         }
     }
@@ -51,6 +52,9 @@ public final class RenderEventHandler {
         if (ModState.SPACE_DEBUG.isEnabled()) {
             SpaceDebugRenderer.onRenderGui(event);
         }
+        if (ModState.STATUS.isEnabled()) {
+            DroppedItemLabelRenderer.onRenderGui(event);
+        }
         if (ModState.STATUS.isEnabled() && Config.isPerformanceMonitorEnabled()) {
             PerfOverlayRenderer.render(event.getGuiGraphics());
         }
@@ -59,5 +63,6 @@ public final class RenderEventHandler {
     @SubscribeEvent
     public static void onRenderGuiPost(RenderGuiEvent.Post event) {
         SignHoverRenderer.onRenderGuiPost(event);
+        HoveredItemTooltipRenderer.onRenderGuiPost(event);
     }
 }
