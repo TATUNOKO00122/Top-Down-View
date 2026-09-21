@@ -55,7 +55,7 @@ public class Config {
             .defineInRange("miningCylinderForwardShift", 0, 0, 10);
     private static final ForgeConfigSpec.BooleanValue UNDERGROUND_CULLING_ENABLED = BUILDER
             .comment("Cull blocks deep below the surface that are far from the player and invisible from above.")
-            .define("undergroundCullingEnabled", true);
+            .define("undergroundCullingEnabled", false);
     private static final ForgeConfigSpec.IntValue UNDERGROUND_CULLING_START_DISTANCE = BUILDER
             .defineInRange("undergroundCullingStartDistance", 4, 1, 16);
     private static final ForgeConfigSpec.IntValue UNDERGROUND_CULLING_KEEP_DEPTH = BUILDER

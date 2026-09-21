@@ -185,7 +185,7 @@ public final class CullingConfig {
     public double getFluidAlpha() { return fluidAlpha; }
     public void setFluidAlpha(double value) { this.fluidAlpha = MathUtil.clamp(value, 0.05, 1.0); }
 
-    private boolean undergroundCullingEnabled = true;
+    private boolean undergroundCullingEnabled = false;
     private int undergroundCullingStartDistance = 4;
     private int undergroundCullingKeepDepth = 16;
 

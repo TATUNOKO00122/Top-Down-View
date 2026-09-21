@@ -3,6 +3,7 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
+import com.topdownview.client.MouseRaycast;
 import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
@@ -123,7 +124,6 @@ public final class TopDownCuller {
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
-    private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
@@ -823,7 +823,7 @@ public final class TopDownCuller {
 
     private void updateEntityCulling(Minecraft mc) {
         if (!ModState.STATUS.isEnabled() || mc.level == null || mc.player == null || !contextValid) return;
-        int playerFeetBlockY = (int) Math.floor(mc.player.getY());
+        Vec3 eyePos = mc.player.getEyePosition();
         try {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof Player && entity == mc.player) continue;
@@ -832,7 +832,7 @@ public final class TopDownCuller {
                         cullable.topdownview_setCulled(false);
                         continue;
                     }
-                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, playerFeetBlockY) 
+                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, eyePos)
                         : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
                     cullable.topdownview_setCulled(shouldCull);
                 }
@@ -842,26 +842,16 @@ public final class TopDownCuller {
         }
     }
 
-    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY) {
-        int entityBlockY = entity.getBlockY();
-        if (entityBlockY <= playerFeetBlockY + 1 || mc.level == null) return false;
-        int ex = entity.getBlockX();
-        int ez = entity.getBlockZ();
-        boolean grounded = false;
-        for (int yOffset = 0; yOffset <= 2; yOffset++) {
-            entityGroundedPos.set(ex, entityBlockY - yOffset, ez);
-            if (!mc.level.getBlockState(entityGroundedPos).isAir()) {
-                grounded = true;
-                if (isBlockCulled(entityGroundedPos, mc.level)) return true;
-                break;
-            }
-        }
-        if (!grounded) return false;
-        for (int y = playerFeetBlockY + 1; y < entityBlockY; y++) {
-            entityGroundedPos.set(ex, y, ez);
-            if (isBlockCulled(entityGroundedPos, mc.level)) return true;
-        }
-        return false;
+    /**
+     * プレイヤー目線からモブが見えるかを判定し、固体ブロックに遮られていればカリングする。
+     * カメラ位置・向きに依存しないため、視点操作でモブが pop しない。
+     */
+    private boolean shouldCullMob(Entity entity, Minecraft mc, Vec3 eyePos) {
+        double dx = entity.getX() - eyePos.x;
+        double dy = entity.getY() - eyePos.y;
+        double dz = entity.getZ() - eyePos.z;
+        if (dx * dx + dy * dy + dz * dz <= ENTITY_PROTECTION_RADIUS_SQ) return false;
+        return !MouseRaycast.INSTANCE.hasLineOfSight(mc, eyePos, entity);
     }
 
     private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ, double cX, double cY, double cZ) {
@@ -1076,7 +1066,7 @@ public final class TopDownCuller {
         boolean fastGraphics = Minecraft.getInstance().options.graphicsMode().get()
                 == net.minecraft.client.GraphicsStatus.FAST;
 
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        MutableBlockPos mutablePos = new MutableBlockPos();
 
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
