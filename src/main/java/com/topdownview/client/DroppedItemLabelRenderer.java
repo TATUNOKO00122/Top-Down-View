@@ -1,13 +1,11 @@
 package com.topdownview.client;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
@@ -26,7 +24,7 @@ import java.util.List;
 /**
  * ドロップアイテムにハクスラ風のラベル（アイテム名＋スタック数）を表示する。
  * スクリーン空間に描画し、重なるラベルは下方向へ一定間隔で積み重ねて重なりを防ぐ。
- * 背景は実際に描画されるグリフ頂点から文字の描画範囲を計測し、その中心に合わせる。
+ * 背景はフォントの文字幅に余白を足して決める。
  * 0=非表示 / 1=カーソル時のみ / 2=範囲内は常時 の3モードを設定で切り替える。
  */
 public final class DroppedItemLabelRenderer {
@@ -42,14 +40,9 @@ public final class DroppedItemLabelRenderer {
     private static final int TOOLTIP_FILL = 0xF0100010;
     private static final int TOOLTIP_BORDER_TOP = 0x505000FF;
     private static final int TOOLTIP_BORDER_BOTTOM = 0x5028007F;
-    private static final int FULL_BRIGHT = 15728880;
 
     private static final Matrix4f PROJECTION_VIEW = new Matrix4f();
     private static final Vector4f PROJECTION_SCRATCH = new Vector4f();
-    private static final Matrix4f IDENTITY = new Matrix4f();
-    private static final float[] INK_BOUNDS = new float[4];
-    private static final InkCapture INK_CAPTURE = new InkCapture();
-    private static final MultiBufferSource INK_SOURCE = renderType -> INK_CAPTURE;
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
     private static int entryCount = 0;
@@ -86,33 +79,38 @@ public final class DroppedItemLabelRenderer {
             return;
         }
 
-        PROJECTION_VIEW.set(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose());
-        Vec3 cameraPos = event.getCamera().getPosition();
-        float partialTick = event.getPartialTick();
+        try {
+            PROJECTION_VIEW.set(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose());
+            Vec3 cameraPos = event.getCamera().getPosition();
+            float partialTick = event.getPartialTick();
 
-        if (mode == 1) {
-            ItemEntity hovered = ItemPickupHelper.findHoveredItem(mc, cameraPos);
-            if (hovered != null) {
-                addCandidate(mc, hovered, cameraPos, partialTick, guiWidth, guiHeight);
+            if (mode == 1) {
+                ItemEntity hovered = ItemPickupHelper.findHoveredItem(mc, cameraPos);
+                if (hovered != null) {
+                    addCandidate(mc, hovered, cameraPos, partialTick, guiWidth, guiHeight);
+                }
+            } else {
+                addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
             }
-        } else {
-            addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
+
+            if (entryCount > MAX_LABELS) {
+                sortByDistance();
+                entryCount = MAX_LABELS;
+            }
+            sortForLayout();
+            finalizeEntries(mc, guiWidth);
+
+            // ラベル矩形はカメラ確定直後（このイベント）で算出し、クリック判定が描画タイミングに依存しないようにする
+            float scale = labelScale();
+            float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
+            layout(labelHeight);
+            computeRects(scale, labelHeight);
+
+            computedThisFrame = entryCount > 0;
+        } catch (Throwable t) {
+            entryCount = 0;
+            computedThisFrame = false;
         }
-
-        if (entryCount > MAX_LABELS) {
-            sortByDistance();
-            entryCount = MAX_LABELS;
-        }
-        sortForLayout();
-        finalizeEntries(mc, guiWidth);
-
-        // ラベル矩形はカメラ確定直後（このイベント）で算出し、クリック判定が描画タイミングに依存しないようにする
-        float scale = labelScale();
-        float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
-        layout(labelHeight);
-        computeRects(scale, labelHeight);
-
-        computedThisFrame = entryCount > 0;
     }
 
     /** レイアウト済みのラベルを描画する。HUDより背面に表示するため Pre で行う。 */
@@ -131,31 +129,35 @@ public final class DroppedItemLabelRenderer {
             return;
         }
 
-        Font font = mc.font;
-        float scale = labelScale();
-        boolean tooltipBackground = Config.getDroppedItemLabelBackground() == 1;
-        float localHeight = font.lineHeight + 2 * backgroundMargin();
-        float labelHeight = localHeight * scale;
-        GuiGraphics guiGraphics = event.getGuiGraphics();
+        try {
+            Font font = mc.font;
+            float scale = labelScale();
+            boolean tooltipBackground = Config.getDroppedItemLabelBackground() == 1;
+            float localHeight = font.lineHeight + 2 * backgroundMargin();
+            float labelHeight = localHeight * scale;
+            GuiGraphics guiGraphics = event.getGuiGraphics();
 
-        for (int i = 0; i < entryCount; i++) {
-            Entry entry = ENTRIES.get(i);
-            float boxWidth = entry.localWidth * scale;
-            float backgroundLeft = entry.x - boxWidth / 2.0F;
-            float backgroundTop = entry.finalY - labelHeight / 2.0F;
+            for (int i = 0; i < entryCount; i++) {
+                Entry entry = ENTRIES.get(i);
+                float boxWidth = entry.localWidth * scale;
+                float backgroundLeft = entry.x - boxWidth / 2.0F;
+                float backgroundTop = entry.finalY - labelHeight / 2.0F;
 
-            var pose = guiGraphics.pose();
-            pose.pushPose();
-            // 端数を pose に載せ、GUIピクセル未満でも滑らかに追従させる
-            pose.translate(backgroundLeft, backgroundTop, 0.0F);
-            pose.scale(scale, scale, 1.0F);
+                var pose = guiGraphics.pose();
+                pose.pushPose();
+                // 端数を pose に載せ、GUIピクセル未満でも滑らかに追従させる
+                pose.translate(backgroundLeft, backgroundTop, 0.0F);
+                pose.scale(scale, scale, 1.0F);
 
-            drawBackground(guiGraphics, entry.localWidth, localHeight, tooltipBackground, entry);
+                drawBackground(guiGraphics, entry.localWidth, localHeight, tooltipBackground, entry);
 
-            // 計測した描画範囲の中心が背景中心に来る位置へ文字を置く
-            pose.translate(entry.textOffsetX, entry.textOffsetY, 0.0F);
-            guiGraphics.drawString(font, entry.label, 0, 0, TEXT_COLOR, false);
-            pose.popPose();
+                // 計測した描画範囲の中心が背景中心に来る位置へ文字を置く
+                pose.translate(entry.textOffsetX, entry.textOffsetY, 0.0F);
+                guiGraphics.drawString(font, entry.label, 0, 0, TEXT_COLOR, false);
+                pose.popPose();
+            }
+        } catch (Throwable t) {
+            entryCount = 0;
         }
     }
 
@@ -260,8 +262,9 @@ public final class DroppedItemLabelRenderer {
 
         float ndcX = PROJECTION_SCRATCH.x / w;
         float ndcY = PROJECTION_SCRATCH.y / w;
-        // 画面外（ラベル分の余白を含む）は除外する
-        if (ndcX < -1.2F || ndcX > 1.2F || ndcY < -1.2F || ndcY > 1.2F) {
+        // 画面外（ラベル分の余白を含む）や異常値は除外する
+        if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY)
+                || ndcX < -1.2F || ndcX > 1.2F || ndcY < -1.2F || ndcY > 1.2F) {
             return false;
         }
 
@@ -281,7 +284,7 @@ public final class DroppedItemLabelRenderer {
         return true;
     }
 
-    /** 最終的な表示対象についてラベルと、文字の描画範囲にもとづく背景サイズを求める。 */
+    /** 最終的な表示対象についてラベルと、文字幅にもとづく背景サイズを求める。 */
     private static void finalizeEntries(Minecraft mc, int guiWidth) {
         float scale = labelScale();
         Font font = mc.font;
@@ -290,16 +293,12 @@ public final class DroppedItemLabelRenderer {
             Component label = buildLabel(entry.item.getItem());
             entry.label = label;
 
-            measureInkBounds(font, label);
-            float inkMinX = INK_BOUNDS[0];
-            float inkMaxX = INK_BOUNDS[1];
-            float inkMinY = INK_BOUNDS[2];
-            float inkMaxY = INK_BOUNDS[3];
-
-            float localWidth = (inkMaxX - inkMinX) + 2 * backgroundMargin();
+            // フォントの描画パイプラインを呼ばずに幅を測る。ワールド描画中に drawInBatch を
+            // ダミーbufferで走らせると ImmediatelyFast / FancyMenu Smooth Font と衝突して固まる。
+            float localWidth = font.width(label) + 2 * backgroundMargin();
             entry.localWidth = localWidth;
-            entry.textOffsetX = localWidth / 2.0F - (inkMinX + inkMaxX) / 2.0F;
-            entry.textOffsetY = (font.lineHeight + 2 * backgroundMargin()) / 2.0F - (inkMinY + inkMaxY) / 2.0F;
+            entry.textOffsetX = backgroundMargin();
+            entry.textOffsetY = backgroundMargin();
             entry.width = localWidth * scale;
 
             // 枠・背景の色はツールチップ（LegendaryTooltips標準フレーム）に合わせる
@@ -314,40 +313,33 @@ public final class DroppedItemLabelRenderer {
         }
     }
 
-    /** 実際の描画パスで頂点を捕捉し、文字の描画範囲（左右上下）を {@link #INK_BOUNDS} に格納する。 */
-    private static void measureInkBounds(Font font, Component label) {
-        INK_CAPTURE.reset();
-        font.drawInBatch(label, 0.0F, 0.0F, TEXT_COLOR, false, IDENTITY, INK_SOURCE,
-                Font.DisplayMode.NORMAL, 0, FULL_BRIGHT);
-
-        if (INK_CAPTURE.hasVertex) {
-            INK_BOUNDS[0] = INK_CAPTURE.minX;
-            INK_BOUNDS[1] = INK_CAPTURE.maxX;
-            INK_BOUNDS[2] = INK_CAPTURE.minY;
-            INK_BOUNDS[3] = INK_CAPTURE.maxY;
-            return;
-        }
-        // 空白のみ等で頂点が無い場合のフォールバック
-        INK_BOUNDS[0] = 0.0F;
-        INK_BOUNDS[1] = font.width(label);
-        INK_BOUNDS[2] = 0.0F;
-        INK_BOUNDS[3] = font.lineHeight;
-    }
-
-    /** 重ならないよう、ワールド座標順（X→Z→ID）に下方向へ積み重ねて最終Yを決める。 */
+    /**
+     * 重ならないよう、ワールド座標順（X→Z→ID）に下方向へ積み重ねて最終Yを決める。
+     * 押し下げで新たに上の配置済みエントリと衝突し得るため、衝突が無くなるまで再走査する。
+     * 浮動小数点の丸め誤差による無限ループを防ぐため、判定閾値にイプシロンを設け反復上限を設定する。
+     */
     private static void layout(float labelHeight) {
         float scale = labelScale();
         float gap = Config.getDroppedItemLabelGap() * scale;
         float step = labelHeight + gap;
+        float threshold = step - 0.01F;
+        int maxPasses = entryCount + 4;
         for (int i = 0; i < entryCount; i++) {
             Entry entry = ENTRIES.get(i);
             float y = entry.y;
-            for (int j = 0; j < i; j++) {
-                Entry placed = ENTRIES.get(j);
-                boolean horizontalOverlap = Math.abs(entry.x - placed.x)
-                        < (entry.width + placed.width) / 2.0F + gap;
-                if (horizontalOverlap && Math.abs(y - placed.finalY) < step) {
-                    y = placed.finalY + step;
+            boolean moved = true;
+            int passes = 0;
+            while (moved && passes < maxPasses) {
+                passes++;
+                moved = false;
+                for (int j = 0; j < i; j++) {
+                    Entry placed = ENTRIES.get(j);
+                    boolean horizontalOverlap = Math.abs(entry.x - placed.x)
+                            < (entry.width + placed.width) / 2.0F + gap;
+                    if (horizontalOverlap && Math.abs(y - placed.finalY) < threshold) {
+                        y = placed.finalY + step;
+                        moved = true;
+                    }
                 }
             }
             entry.finalY = y;
@@ -422,7 +414,11 @@ public final class DroppedItemLabelRenderer {
 
     /** レアリティ色のアイテム名とスタック数（2以上の場合のみ）を組み立てる。 */
     private static Component buildLabel(ItemStack stack) {
-        MutableComponent label = Component.empty().append(stack.getHoverName()).withStyle(stack.getRarity().color);
+        MutableComponent label = Component.empty().append(stack.getHoverName());
+        var rarity = stack.getRarity();
+        if (rarity != null && rarity.color != null) {
+            label.withStyle(rarity.color);
+        }
         int count = stack.getCount();
         if (count > 1) {
             label.append(Component.literal(" x" + count).withStyle(ChatFormatting.GRAY));
@@ -451,79 +447,5 @@ public final class DroppedItemLabelRenderer {
         private int borderStart;
         private int borderEnd;
         private int backgroundStart;
-    }
-
-    /** 描画パスの頂点座標を捕捉して文字の実際の描画範囲を求めるためのダミー消費者。 */
-    private static final class InkCapture implements VertexConsumer {
-        private float minX;
-        private float maxX;
-        private float minY;
-        private float maxY;
-        private boolean hasVertex;
-
-        private void reset() {
-            minX = Float.MAX_VALUE;
-            maxX = -Float.MAX_VALUE;
-            minY = Float.MAX_VALUE;
-            maxY = -Float.MAX_VALUE;
-            hasVertex = false;
-        }
-
-        @Override
-        public VertexConsumer vertex(double x, double y, double z) {
-            float fx = (float) x;
-            float fy = (float) y;
-            if (fx < minX) {
-                minX = fx;
-            }
-            if (fx > maxX) {
-                maxX = fx;
-            }
-            if (fy < minY) {
-                minY = fy;
-            }
-            if (fy > maxY) {
-                maxY = fy;
-            }
-            hasVertex = true;
-            return this;
-        }
-
-        @Override
-        public VertexConsumer color(int red, int green, int blue, int alpha) {
-            return this;
-        }
-
-        @Override
-        public VertexConsumer uv(float u, float v) {
-            return this;
-        }
-
-        @Override
-        public VertexConsumer overlayCoords(int u, int v) {
-            return this;
-        }
-
-        @Override
-        public VertexConsumer uv2(int u, int v) {
-            return this;
-        }
-
-        @Override
-        public VertexConsumer normal(float x, float y, float z) {
-            return this;
-        }
-
-        @Override
-        public void endVertex() {
-        }
-
-        @Override
-        public void defaultColor(int red, int green, int blue, int alpha) {
-        }
-
-        @Override
-        public void unsetDefaultColor() {
-        }
     }
 }

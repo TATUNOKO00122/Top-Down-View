@@ -8,18 +8,18 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * BetterCombat の MinecraftClientInject に対する互換 Mixin。
+ * BetterCombat 互換 Mixin。
+ * BetterCombat は自身の Mixin で Minecraft に isTargetingMineableBlock を追加するが、
+ * Mixin クラス自体を注入対象にすると InvalidMixinException になるため、生成後の Minecraft 側メソッドへ注入する。
  * トップダウン視点時に地面・壁ブロックがカーソル下にあっても、攻撃可能領域内にエネミーがいる場合は
- * isTargetingMineableBlock を false に補正し、採掘ではなく武器攻撃を優先させます。
+ * isTargetingMineableBlock を false に補正し、採掘ではなく武器攻撃を優先させる。
  */
-@Pseudo
-@Mixin(targets = "net.bettercombat.mixin.client.MinecraftClientInject", remap = false)
+@Mixin(Minecraft.class)
 public abstract class BetterCombatClientInjectMixin {
 
     @Inject(method = "isTargetingMineableBlock", at = @At("RETURN"), cancellable = true, require = 0)

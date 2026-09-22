@@ -20,7 +20,12 @@ public final class TooltipRarityColors {
     public static Colors forStack(ItemStack stack) {
         // LegendaryTooltips と同様に、アイテム名の明示色を優先し、無ければレアリティ色を使う
         TextColor nameColor = stack.getHoverName().getStyle().getColor();
-        Integer rgb = nameColor != null ? nameColor.getValue() : stack.getRarity().color.getColor();
+        Integer rgb = null;
+        if (nameColor != null) {
+            rgb = nameColor.getValue();
+        } else if (stack.getRarity() != null && stack.getRarity().color != null) {
+            rgb = stack.getRarity().color.getColor();
+        }
         int base = rgb != null ? rgb : 0xFFFFFF;
 
         float[] hsv = rgbToHsv((base >> 16) & 0xFF, (base >> 8) & 0xFF, base & 0xFF);

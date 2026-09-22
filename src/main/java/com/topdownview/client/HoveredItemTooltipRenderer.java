@@ -42,6 +42,9 @@ public final class HoveredItemTooltipRenderer {
         double mouseY = mc.mouseHandler.ypos() * (double) mc.getWindow().getGuiScaledHeight()
                 / (double) mc.getWindow().getScreenHeight();
 
-        guiGraphics.renderTooltip(mc.font, stack, (int) mouseX, (int) mouseY);
+        try {
+            guiGraphics.renderTooltip(mc.font, stack, (int) mouseX, (int) mouseY);
+        } catch (Throwable ignored) {
+        }
     }
 }
