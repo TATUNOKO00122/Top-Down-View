@@ -83,6 +83,9 @@ public final class CullingManager {
             return;
         }
 
+        // ブロックを消して見通せるトップダウン中は、EntityCulling のカメラ基準カリングを止める
+        EntityCullingIntegration.setSuspended(ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled());
+
         int frequency = CULLER.getFrequency();
         if (mc.player.tickCount % frequency == 0) {
             long tUpdate = System.nanoTime();

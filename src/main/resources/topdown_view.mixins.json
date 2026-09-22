@@ -12,6 +12,7 @@
     "BlockEntityRenderDispatcherMixin",
     "LevelRendererMixin",
     "CullableMixin",
+    "EntityRenderDistanceMixin",
     "SoundSystemMixin",
     "ClientLevelSoundMixin",
     "MinecraftMixin",

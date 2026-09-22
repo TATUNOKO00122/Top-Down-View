@@ -10,6 +10,7 @@
         "DefaultMaterialsMixin",
         "BlockOcclusionCacheMixin",
         "RenderSectionManagerMixin",
+        "SodiumWorldRendererMixin",
         "compat.mobends.MoBendsModCompatManagerMixin"
     ],
     "mixins": [],

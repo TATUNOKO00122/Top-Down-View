@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.state.ModState;
 import com.topdownview.Config;
+import com.topdownview.culling.EntityCullingIntegration;
 import com.topdownview.client.gui.ConfigScreen;
 import com.topdownview.util.PerfMonitor;
 import net.minecraft.client.Minecraft;
@@ -79,6 +80,7 @@ public final class ClientForgeEvents {
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        EntityCullingIntegration.setSuspended(false);
         Config.clearSyncedServerReach();
         Config.clearSyncedManualPickupDistance();
         PickupApproachController.cancel();

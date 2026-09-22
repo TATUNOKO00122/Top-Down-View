@@ -4,14 +4,12 @@ import com.topdownview.state.ModState;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.culling.Cullable;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,10 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Camera;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 /**
  * LevelRenderer Mixin
@@ -35,40 +29,10 @@ import java.lang.invoke.MethodType;
 @Mixin(value = LevelRenderer.class, priority = 1000)
 public class LevelRendererMixin {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-
     @Shadow
     private RenderBuffers renderBuffers;
 
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
-
-    private static Class<?> entityCullingCullableClass = null;
-    private static MethodHandle entityCullingSetCulledHandle = null;
-    private static MethodHandle entityCullingSetOutOfCameraHandle = null;
-    private static boolean entityCullingLoaded = false;
-    private static boolean entityCullingReflectionInitialized = false;
-
-    static {
-        initEntityCullingReflection();
-    }
-
-    private static void initEntityCullingReflection() {
-        if (entityCullingReflectionInitialized) return;
-        entityCullingReflectionInitialized = true;
-
-        try {
-            entityCullingCullableClass = Class.forName("dev.tr7zw.entityculling.access.Cullable");
-            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            entityCullingSetCulledHandle = lookup.findVirtual(entityCullingCullableClass, "setCulled", MethodType.methodType(void.class, boolean.class));
-            entityCullingSetOutOfCameraHandle = lookup.findVirtual(entityCullingCullableClass, "setOutOfCamera", MethodType.methodType(void.class, boolean.class));
-            entityCullingLoaded = true;
-            LOGGER.debug("[TopDownView] Entity Culling MOD integration initialized");
-        } catch (ClassNotFoundException e) {
-            LOGGER.debug("[TopDownView] Entity Culling MOD not found, skipping integration");
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            LOGGER.warn("[TopDownView] Failed to initialize Entity Culling MOD integration: {}", e.getMessage());
-        }
-    }
 
     @Inject(method = "renderEntity", at = @At("HEAD"), cancellable = true)
     private void onRenderEntityHead(Entity entity, double camX, double camY, double camZ,
@@ -79,14 +43,6 @@ public class LevelRendererMixin {
         Minecraft mc = Minecraft.getInstance();
 
         if (entity instanceof Player && entity == mc.player) {
-            if (entityCullingLoaded && entityCullingCullableClass.isInstance(entity)) {
-                try {
-                    entityCullingSetCulledHandle.invoke(entity, false);
-                    entityCullingSetOutOfCameraHandle.invoke(entity, false);
-                } catch (Throwable e) {
-                    LOGGER.warn("[TopDownView] Entity Culling MOD reflection failed: {}", e.getMessage());
-                }
-            }
             return;
         }
 
