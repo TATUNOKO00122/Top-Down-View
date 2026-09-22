@@ -248,7 +248,7 @@ public final class DroppedItemLabelRenderer {
         // 実際に描画される補間位置に合わせる（停滞・カクつき防止）
         double itemY = Mth.lerp(partialTick, item.yo, item.getY());
         double relativeX = Mth.lerp(partialTick, item.xo, item.getX()) - cameraPos.x;
-        double relativeY = itemY + (item.getBoundingBox().maxY - item.getY()) + 0.5D - cameraPos.y;
+        double relativeY = itemY + (item.getBoundingBox().maxY - item.getY()) + 0.1D - cameraPos.y;
         double relativeZ = Mth.lerp(partialTick, item.zo, item.getZ()) - cameraPos.z;
 
         PROJECTION_SCRATCH.set((float) relativeX, (float) relativeY, (float) relativeZ, 1.0F);
