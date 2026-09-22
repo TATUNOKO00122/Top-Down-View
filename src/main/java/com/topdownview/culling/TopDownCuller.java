@@ -3,7 +3,6 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
-import com.topdownview.client.MouseRaycast;
 import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
@@ -124,6 +123,7 @@ public final class TopDownCuller {
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
+    private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
@@ -823,7 +823,7 @@ public final class TopDownCuller {
 
     private void updateEntityCulling(Minecraft mc) {
         if (!ModState.STATUS.isEnabled() || mc.level == null || mc.player == null || !contextValid) return;
-        Vec3 eyePos = mc.player.getEyePosition();
+        int playerFeetBlockY = (int) Math.floor(mc.player.getY());
         try {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof Player && entity == mc.player) continue;
@@ -832,7 +832,7 @@ public final class TopDownCuller {
                         cullable.topdownview_setCulled(false);
                         continue;
                     }
-                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, eyePos)
+                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, playerFeetBlockY)
                         : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
                     cullable.topdownview_setCulled(shouldCull);
                 }
@@ -843,15 +843,24 @@ public final class TopDownCuller {
     }
 
     /**
-     * プレイヤー目線からモブが見えるかを判定し、固体ブロックに遮られていればカリングする。
-     * カメラ位置・向きに依存しないため、視点操作でモブが pop しない。
+     * プレイヤーより上の階（2階など）にいるMobをカリングする。
+     *
+     * <p>足元の支え（接地している面）がカリング対象なら、その床が消されて見えてしまっている
+     * 上の階のMobとみなす。旧実装はプレイヤーとMobの間のブロックまで縦スキャンしていたため、
+     * 階段などで少し高い位置にいるMobまで消えていた。支えの1点だけを見ることで視認性を保つ。
      */
-    private boolean shouldCullMob(Entity entity, Minecraft mc, Vec3 eyePos) {
-        double dx = entity.getX() - eyePos.x;
-        double dy = entity.getY() - eyePos.y;
-        double dz = entity.getZ() - eyePos.z;
-        if (dx * dx + dy * dy + dz * dz <= ENTITY_PROTECTION_RADIUS_SQ) return false;
-        return !MouseRaycast.INSTANCE.hasLineOfSight(mc, eyePos, entity);
+    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY) {
+        if (mc.level == null) return false;
+        int entityBlockY = entity.getBlockY();
+        if (entityBlockY <= playerFeetBlockY + 1) return false;
+        int ex = entity.getBlockX();
+        int ez = entity.getBlockZ();
+        for (int yOffset = 0; yOffset <= 2; yOffset++) {
+            entityGroundedPos.set(ex, entityBlockY - yOffset, ez);
+            if (mc.level.getBlockState(entityGroundedPos).isAir()) continue;
+            return isBlockCulled(entityGroundedPos, mc.level);
+        }
+        return false;
     }
 
     private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ, double cX, double cY, double cZ) {
