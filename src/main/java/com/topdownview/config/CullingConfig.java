@@ -198,4 +198,13 @@ public final class CullingConfig {
     public int getUndergroundCullingKeepDepth() { return undergroundCullingKeepDepth; }
     public void setUndergroundCullingKeepDepth(int value) { this.undergroundCullingKeepDepth = MathUtil.clamp(value, 4, 64); }
 
+    private boolean dollhouseEnabled = false;
+    private double dollhouseExteriorBrightness = 0.0;
+
+    public boolean isDollhouseEnabled() { return dollhouseEnabled; }
+    public void setDollhouseEnabled(boolean value) { this.dollhouseEnabled = value; }
+
+    public double getDollhouseExteriorBrightness() { return dollhouseExteriorBrightness; }
+    public void setDollhouseExteriorBrightness(double value) { this.dollhouseExteriorBrightness = MathUtil.clamp(value, 0.0, 1.0); }
+
 }

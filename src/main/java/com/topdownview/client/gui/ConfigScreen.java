@@ -249,6 +249,14 @@ public class ConfigScreen extends Screen {
         addToggle(x, y, w, h, "topdown_view.config.indoor_ceiling_culling_enabled", Config::isIndoorCeilingCullingEnabled, Config::setIndoorCeilingCullingEnabled);
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.dollhouse", tx);
+        addToggle(x, y, w, h, "topdown_view.config.dollhouse_enabled", Config::isDollhouseEnabled, Config::setDollhouseEnabled);
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.dollhouse_exterior_brightness",
+                Config.getDollhouseExteriorBrightness(), 0.0, 1.0,
+                val -> Config.setDollhouseExteriorBrightness(val)));
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;

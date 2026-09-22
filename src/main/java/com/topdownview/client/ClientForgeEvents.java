@@ -42,6 +42,7 @@ public final class ClientForgeEvents {
         PlacementPreviewManager.getInstance().onClientTick();
         OpenedContainerTracker.onTick();
         PickupApproachController.tick(Minecraft.getInstance());
+        DollhouseController.onClientTick();
     }
 
     @SubscribeEvent

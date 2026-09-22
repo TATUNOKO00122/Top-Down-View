@@ -313,6 +313,12 @@ public class Config {
             .define("translucentFluid", true);
     private static final ForgeConfigSpec.DoubleValue FLUID_ALPHA = BUILDER
             .defineInRange("fluidAlpha", 0.35, 0.05, 1.0);
+    private static final ForgeConfigSpec.BooleanValue DOLLHOUSE_ENABLED = BUILDER
+            .comment("Darkens everything outside the player's room so the room appears to float in a black void.")
+            .define("dollhouseEnabled", false);
+    private static final ForgeConfigSpec.DoubleValue DOLLHOUSE_EXTERIOR_BRIGHTNESS = BUILDER
+            .comment("Brightness of the exterior while the dollhouse view is active: 0 = pure black, 1 = unchanged.")
+            .defineInRange("dollhouseExteriorBrightness", 0.0, 0.0, 1.0);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -435,6 +441,8 @@ public class Config {
     public static boolean isProtectNaturalTreeLogs() { return CULLING.isProtectNaturalTreeLogs(); }
     public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
     public static double getFluidAlpha() { return CULLING.getFluidAlpha(); }
+    public static boolean isDollhouseEnabled() { return CULLING.isDollhouseEnabled(); }
+    public static double getDollhouseExteriorBrightness() { return CULLING.getDollhouseExteriorBrightness(); }
     public static int getSignHoverDisplayMode() { return INTERACTION.getSignHoverDisplayMode(); }
     public static double getSignHoverScale() { return INTERACTION.getSignHoverScale(); }
     public static int getDroppedItemLabelMode() { return INTERACTION.getDroppedItemLabelMode(); }
@@ -565,6 +573,8 @@ public class Config {
     public static void setProtectNaturalTreeLogs(boolean value) { CULLING.setProtectNaturalTreeLogs(value); }
     public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
     public static void setFluidAlpha(double value) { CULLING.setFluidAlpha(value); }
+    public static void setDollhouseEnabled(boolean value) { CULLING.setDollhouseEnabled(value); }
+    public static void setDollhouseExteriorBrightness(double value) { CULLING.setDollhouseExteriorBrightness(value); }
     public static void setSignHoverDisplayMode(int value) { INTERACTION.setSignHoverDisplayMode(value); }
     public static void setSignHoverScale(double value) { INTERACTION.setSignHoverScale(value); }
     public static void setDroppedItemLabelMode(int value) { INTERACTION.setDroppedItemLabelMode(value); }
@@ -747,6 +757,8 @@ public class Config {
         addBinding(PROTECT_NATURAL_TREE_LOGS, CULLING::setProtectNaturalTreeLogs, Config::isProtectNaturalTreeLogs);
         addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);
         addBinding(FLUID_ALPHA, CULLING::setFluidAlpha, Config::getFluidAlpha);
+        addBinding(DOLLHOUSE_ENABLED, CULLING::setDollhouseEnabled, Config::isDollhouseEnabled);
+        addBinding(DOLLHOUSE_EXTERIOR_BRIGHTNESS, CULLING::setDollhouseExteriorBrightness, Config::getDollhouseExteriorBrightness);
         addBinding(SIGN_HOVER_DISPLAY_MODE, INTERACTION::setSignHoverDisplayMode, Config::getSignHoverDisplayMode);
         addBinding(SIGN_HOVER_SCALE, INTERACTION::setSignHoverScale, Config::getSignHoverScale);
         addBinding(DROPPED_ITEM_LABEL_MODE, INTERACTION::setDroppedItemLabelMode, Config::getDroppedItemLabelMode);

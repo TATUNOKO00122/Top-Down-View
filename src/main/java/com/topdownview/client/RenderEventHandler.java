@@ -25,6 +25,11 @@ public final class RenderEventHandler {
             SpaceDebugRenderer.onRenderLevelStage(event);
         }
 
+        // ドールハウス表示は無効化時にもチェーンを閉じる必要があるため、有効判定より前に呼ぶ
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
+            DollhouseRenderer.onRenderLevelStage(event);
+        }
+
         if (!ModState.STATUS.isEnabled()) {
             return;
         }

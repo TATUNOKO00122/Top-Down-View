@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -45,7 +46,7 @@ public final class DroppedItemLabelRenderer {
     private static final Vector4f PROJECTION_SCRATCH = new Vector4f();
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
-    private static int entryCount = 0;
+    private static final Int2ObjectOpenHashMap<Entry> ENTRIES_BY_ID = new Int2ObjectOpenHashMap<>();
     private static boolean computedThisFrame = false;
 
     private DroppedItemLabelRenderer() {
@@ -58,24 +59,27 @@ public final class DroppedItemLabelRenderer {
             return;
         }
         computedThisFrame = false;
-        // ラベルが無い間はクリック判定に使う矩形も無効化する
-        entryCount = 0;
 
+        // ラベルが無い間はクリック判定に使う矩形も無効化する
         if (!ModState.STATUS.isEnabled()) {
+            clearEntries();
             return;
         }
         int mode = Config.getDroppedItemLabelMode();
         if (mode == 0) {
+            clearEntries();
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
+            clearEntries();
             return;
         }
         int guiWidth = mc.getWindow().getGuiScaledWidth();
         int guiHeight = mc.getWindow().getGuiScaledHeight();
         if (guiWidth <= 0 || guiHeight <= 0) {
+            clearEntries();
             return;
         }
 
@@ -83,6 +87,11 @@ public final class DroppedItemLabelRenderer {
             PROJECTION_VIEW.set(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose());
             Vec3 cameraPos = event.getCamera().getPosition();
             float partialTick = event.getPartialTick();
+
+            // 前フレームの並び順を引き継ぎ、今回見えているアイテムだけを残す
+            for (int i = 0; i < ENTRIES.size(); i++) {
+                ENTRIES.get(i).present = false;
+            }
 
             if (mode == 1) {
                 ItemEntity hovered = ItemPickupHelper.findHoveredItem(mc, cameraPos);
@@ -93,11 +102,8 @@ public final class DroppedItemLabelRenderer {
                 addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
             }
 
-            if (entryCount > MAX_LABELS) {
-                sortByDistance();
-                entryCount = MAX_LABELS;
-            }
-            sortForLayout();
+            // 拾われた分を詰めて空席を作らない。残りは並び順も位置も維持される
+            compactEntries();
             finalizeEntries(mc, guiWidth);
 
             // ラベル矩形はカメラ確定直後（このイベント）で算出し、クリック判定が描画タイミングに依存しないようにする
@@ -106,10 +112,9 @@ public final class DroppedItemLabelRenderer {
             layout(labelHeight, guiWidth, guiHeight);
             computeRects(scale, labelHeight);
 
-            computedThisFrame = entryCount > 0;
+            computedThisFrame = !ENTRIES.isEmpty();
         } catch (Throwable t) {
-            entryCount = 0;
-            computedThisFrame = false;
+            clearEntries();
         }
     }
 
@@ -119,13 +124,13 @@ public final class DroppedItemLabelRenderer {
             return;
         }
         computedThisFrame = false;
-        if (entryCount == 0) {
+        if (ENTRIES.isEmpty()) {
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) {
-            entryCount = 0;
+            // 画面表示中は描かないが、閉じたときに並びが変わらないようエントリは保持する
             return;
         }
 
@@ -137,7 +142,7 @@ public final class DroppedItemLabelRenderer {
             float labelHeight = localHeight * scale;
             GuiGraphics guiGraphics = event.getGuiGraphics();
 
-            for (int i = 0; i < entryCount; i++) {
+            for (int i = 0; i < ENTRIES.size(); i++) {
                 Entry entry = ENTRIES.get(i);
                 float boxWidth = entry.localWidth * scale;
                 float backgroundLeft = entry.x - boxWidth / 2.0F;
@@ -157,13 +162,13 @@ public final class DroppedItemLabelRenderer {
                 pose.popPose();
             }
         } catch (Throwable t) {
-            entryCount = 0;
+            clearEntries();
         }
     }
 
     /** GUI座標がラベル矩形内にあるアイテムを返す（重なり時は後から描いたものを優先）。 */
     public static ItemEntity findLabelAt(double guiX, double guiY) {
-        for (int i = entryCount - 1; i >= 0; i--) {
+        for (int i = ENTRIES.size() - 1; i >= 0; i--) {
             Entry entry = ENTRIES.get(i);
             if (guiX >= entry.rectLeft && guiX <= entry.rectRight
                     && guiY >= entry.rectTop && guiY <= entry.rectBottom) {
@@ -230,6 +235,7 @@ public final class DroppedItemLabelRenderer {
     }
 
     private static void addAllCandidates(Minecraft mc, Vec3 cameraPos, float partialTick, int guiWidth, int guiHeight) {
+        int processed = 0;
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof ItemEntity item) || item.getItem().isEmpty()) {
                 continue;
@@ -237,9 +243,10 @@ public final class DroppedItemLabelRenderer {
             if (item.distanceToSqr(mc.player) > LABEL_RADIUS_SQR) {
                 continue;
             }
-            if (entryCount >= MAX_CANDIDATES) {
+            if (processed >= MAX_CANDIDATES) {
                 break;
             }
+            processed++;
             addCandidate(mc, item, cameraPos, partialTick, guiWidth, guiHeight);
         }
     }
@@ -271,24 +278,53 @@ public final class DroppedItemLabelRenderer {
         float scale = labelScale();
         float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
 
-        Entry entry = obtainEntry(entryCount);
+        int id = item.getId();
+        Entry entry = ENTRIES_BY_ID.get(id);
+        if (entry == null) {
+            if (ENTRIES.size() >= MAX_LABELS) {
+                return false;
+            }
+            entry = new Entry();
+            entry.id = id;
+            ENTRIES_BY_ID.put(id, entry);
+            ENTRIES.add(entry);
+        }
+
         entry.item = item;
-        entry.id = item.getId();
-        entry.distanceSqr = (float) item.distanceToSqr(mc.player);
-        entry.worldX = (float) item.getX();
-        entry.worldZ = (float) item.getZ();
+        entry.present = true;
         entry.x = (ndcX * 0.5F + 0.5F) * guiWidth;
         entry.y = (0.5F - ndcY * 0.5F) * guiHeight - labelHeight / 2.0F - ANCHOR_GAP * scale;
         entry.finalY = entry.y;
-        entryCount++;
         return true;
+    }
+
+    /** 今回見えなかったアイテムの席を詰める。残ったラベルは並び順を維持する。 */
+    private static void compactEntries() {
+        int write = 0;
+        for (int read = 0; read < ENTRIES.size(); read++) {
+            Entry entry = ENTRIES.get(read);
+            if (entry.present) {
+                ENTRIES.set(write++, entry);
+            } else {
+                ENTRIES_BY_ID.remove(entry.id);
+            }
+        }
+        for (int i = ENTRIES.size() - 1; i >= write; i--) {
+            ENTRIES.remove(i);
+        }
+    }
+
+    private static void clearEntries() {
+        ENTRIES.clear();
+        ENTRIES_BY_ID.clear();
+        computedThisFrame = false;
     }
 
     /** 最終的な表示対象についてラベルと、文字幅にもとづく背景サイズを求める。 */
     private static void finalizeEntries(Minecraft mc, int guiWidth) {
         float scale = labelScale();
         Font font = mc.font;
-        for (int i = 0; i < entryCount; i++) {
+        for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
             Component label = buildLabel(entry.item.getItem());
             entry.label = label;
@@ -324,7 +360,7 @@ public final class DroppedItemLabelRenderer {
         float threshold = step - 0.01F;
         float bottomMargin = labelHeight / 2.0F + 8.0F;
 
-        for (int i = 0; i < entryCount; i++) {
+        for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
             float currX = entry.x;
             boolean preferRight = currX < guiWidth / 2.0F;
@@ -342,7 +378,7 @@ public final class DroppedItemLabelRenderer {
                 float y = entry.y;
                 boolean moved = true;
                 int passes = 0;
-                while (moved && passes < entryCount + 4) {
+                while (moved && passes < ENTRIES.size() + 4) {
                     passes++;
                     moved = false;
                     for (int j = 0; j < i; j++) {
@@ -401,7 +437,7 @@ public final class DroppedItemLabelRenderer {
 
     /** クリック判定に使う最終的な画面矩形（GUI座標）を求める。 */
     private static void computeRects(float scale, float labelHeight) {
-        for (int i = 0; i < entryCount; i++) {
+        for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
             float boxWidth = entry.localWidth * scale;
             float left = entry.x - boxWidth / 2.0F;
@@ -411,58 +447,6 @@ public final class DroppedItemLabelRenderer {
             entry.rectRight = left + boxWidth;
             entry.rectBottom = top + labelHeight;
         }
-    }
-
-    private static void sortByDistance() {
-        for (int i = 1; i < entryCount; i++) {
-            Entry key = ENTRIES.get(i);
-            int j = i - 1;
-            while (j >= 0 && isCloser(key, ENTRIES.get(j))) {
-                ENTRIES.set(j + 1, ENTRIES.get(j));
-                j--;
-            }
-            ENTRIES.set(j + 1, key);
-        }
-    }
-
-    private static boolean isCloser(Entry a, Entry b) {
-        int compared = Float.compare(a.distanceSqr, b.distanceSqr);
-        return compared != 0 ? compared < 0 : a.id < b.id;
-    }
-
-    private static void sortForLayout() {
-        for (int i = 1; i < entryCount; i++) {
-            Entry key = ENTRIES.get(i);
-            int j = i - 1;
-            while (j >= 0 && compareLayout(key, ENTRIES.get(j)) < 0) {
-                ENTRIES.set(j + 1, ENTRIES.get(j));
-                j--;
-            }
-            ENTRIES.set(j + 1, key);
-        }
-    }
-
-    /**
-     * 並び順はワールド座標で固定する。スクリーン座標で並べるとカメラ移動のたびに
-     * 順序が入れ替わりラベル位置が頻繁に交換されるため、静止したアイテムでは不変な座標を使う。
-     */
-    private static int compareLayout(Entry a, Entry b) {
-        int comparedX = Float.compare(a.worldX, b.worldX);
-        if (comparedX != 0) {
-            return comparedX;
-        }
-        int comparedZ = Float.compare(a.worldZ, b.worldZ);
-        if (comparedZ != 0) {
-            return comparedZ;
-        }
-        return Integer.compare(a.id, b.id);
-    }
-
-    private static Entry obtainEntry(int index) {
-        while (ENTRIES.size() <= index) {
-            ENTRIES.add(new Entry());
-        }
-        return ENTRIES.get(index);
     }
 
     /** レアリティ色のアイテム名とスタック数（2以上の場合のみ）を組み立てる。 */
@@ -483,9 +467,7 @@ public final class DroppedItemLabelRenderer {
         private ItemEntity item;
         private Component label;
         private int id;
-        private float distanceSqr;
-        private float worldX;
-        private float worldZ;
+        private boolean present;
         private float x;
         private float y;
         private float finalY;

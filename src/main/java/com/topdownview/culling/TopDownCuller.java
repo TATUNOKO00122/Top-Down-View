@@ -82,6 +82,8 @@ public final class TopDownCuller {
 
     private boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
+    // ドールハウス表示用: 屋内ヒステリシスを通さない生の検出結果。カリングの遅延に追従させない。
+    private volatile SpaceProbe.Result rawSpaceResult = null;
     private RoomFloodFill.Scratch spaceScratch = new RoomFloodFill.Scratch();
     private BlockPos lastSpaceSeed = null;
     private ResourceKey<Level> lastSpaceDimension = null;
@@ -182,6 +184,7 @@ public final class TopDownCuller {
         cachedIndoorElementActive = false;
         cachedCoverCullingActive = false;
         currentSpaceResult = null;
+        rawSpaceResult = null;
         spaceScratch.clear();
         lastSpaceSeed = null;
         lastSpaceDimension = null;
@@ -443,8 +446,9 @@ public final class TopDownCuller {
     }
 
     public void update() {
-        // カリングが無効な間は空間判定(flood/segment)・階段/ハシゴ/樹木/覆いの探索も含めて全て止める。
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
+        // カリングが無効でも、ドールハウス表示が有効なら空間判定(flood/segment)だけは走らせる。
+        final boolean cullingEnabled = ModState.STATUS.isCullingEnabled();
+        if (!ModState.STATUS.isEnabled() || (!cullingEnabled && !Config.isDollhouseEnabled())) {
             if (!spaceClearedOnDisabled) {
                 clearCache();
                 spaceClearedOnDisabled = true;
@@ -569,6 +573,10 @@ public final class TopDownCuller {
         // 再構築後のメッシュが古い判定を拾わないようにする。
         if (getCullingGeneration() != genBefore) {
             cullingCache.clear();
+        }
+        if (!cullingEnabled) {
+            // ドールハウス表示専用: カリング固有の処理(フェード/エンティティカリング等)は走らせない。
+            return;
         }
         // 屋内判定が変わったらキャッシュを破棄して、フェード/近接半透明化の切替を即座に反映する
         boolean disableIndoorFade = Config.isDisableFadeIndoors() && currentSpaceEnclosed;
@@ -734,6 +742,8 @@ public final class TopDownCuller {
      * メインスレッドからのみ呼ぶこと ({@code mc} とハンドラ内部状態を更新する)。
      */
     private void applySpaceResult(Minecraft mc, Level level, BlockPos seed, SpaceProbe.Result probed) {
+        // ドールハウス表示は生の検出結果を即座に反映する（カリングのヒステリシスに追従させない）。
+        rawSpaceResult = probed;
         // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングがチカチカする。
         // 直前まで屋内だった座標の近くならそのブレとして無視し、屋内状態を維持する。
         if (!probed.isEnclosed() && lastEnclosedSeed != null
@@ -747,9 +757,11 @@ public final class TopDownCuller {
 
         // 屋内の天井スライスは通常カリングに追加する形で動かす。屋内外どちらでも通常カリング
         // (覆い/円柱/保護など) は適用し、天井スライスだけ保護の対象外。
-        boolean elementActive = currentSpaceEnclosed && cachedIndoorCeilingEnabled;
+        // カリング無効時はドールハウス表示用に空間判定だけを提供し、カリング固有の走査は一切走らせない。
+        final boolean cullingEnabled = ModState.STATUS.isCullingEnabled();
+        boolean elementActive = cullingEnabled && currentSpaceEnclosed && cachedIndoorCeilingEnabled;
         cachedIndoorElementActive = elementActive;
-        cachedCoverCullingActive = cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
+        cachedCoverCullingActive = cullingEnabled && cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
 
         RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
         RoomSegmentation.Room playerRoom = currentSpaceResult.getSegmentation().getPlayerRoom();
@@ -765,6 +777,10 @@ public final class TopDownCuller {
             ceilingSliceCuller.clearCache();
         }
         PerfMonitor.CEILING.add(System.nanoTime() - tCeiling);
+
+        if (!cullingEnabled) {
+            return;
+        }
 
         // 受理時点のプレイヤー位置で走査する (依頼時の座標は probe 遅延で既に古い可能性がある)。
         final int currentBlockX = (int) Math.floor(mc.player.getX());
@@ -920,6 +936,16 @@ public final class TopDownCuller {
      */
     public long getCullingGeneration() {
         return ceilingSliceCuller.getGeneration();
+    }
+
+    /**
+     * 直近の空間プローブ結果（部屋ドールハウス表示のマスク生成元）。未プローブなら null。
+     *
+     * <p>屋内ヒステリシスを通さない生の結果を返す。カリング用の {@code currentSpaceResult} は
+     * 段差でのブレを抑えるため数ブロック遅延するが、ドールハウス表示はそれに追従させない。
+     */
+    public SpaceProbe.Result getSpaceResult() {
+        return rawSpaceResult;
     }
 
     /** 天井スライスの差分範囲を返す。空なら差分追跡できている集合の変化は無い。 */
