@@ -103,7 +103,7 @@ public final class DroppedItemLabelRenderer {
             // ラベル矩形はカメラ確定直後（このイベント）で算出し、クリック判定が描画タイミングに依存しないようにする
             float scale = labelScale();
             float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
-            layout(labelHeight);
+            layout(labelHeight, guiWidth, guiHeight);
             computeRects(scale, labelHeight);
 
             computedThisFrame = entryCount > 0;
@@ -314,35 +314,88 @@ public final class DroppedItemLabelRenderer {
     }
 
     /**
-     * 重ならないよう、ワールド座標順（X→Z→ID）に下方向へ積み重ねて最終Yを決める。
-     * 押し下げで新たに上の配置済みエントリと衝突し得るため、衝突が無くなるまで再走査する。
-     * 浮動小数点の丸め誤差による無限ループを防ぐため、判定閾値にイプシロンを設け反復上限を設定する。
+     * 重ならないよう、画面下端に収まる限りは下方向へ積み重ね、
+     * 画面下端を超える場合は左右の空きスペースへ水平シフトして展開する。
      */
-    private static void layout(float labelHeight) {
+    private static void layout(float labelHeight, int guiWidth, int guiHeight) {
         float scale = labelScale();
         float gap = Config.getDroppedItemLabelGap() * scale;
         float step = labelHeight + gap;
         float threshold = step - 0.01F;
-        int maxPasses = entryCount + 4;
+        float bottomMargin = labelHeight / 2.0F + 8.0F;
+
         for (int i = 0; i < entryCount; i++) {
             Entry entry = ENTRIES.get(i);
-            float y = entry.y;
-            boolean moved = true;
-            int passes = 0;
-            while (moved && passes < maxPasses) {
-                passes++;
-                moved = false;
-                for (int j = 0; j < i; j++) {
-                    Entry placed = ENTRIES.get(j);
-                    boolean horizontalOverlap = Math.abs(entry.x - placed.x)
-                            < (entry.width + placed.width) / 2.0F + gap;
-                    if (horizontalOverlap && Math.abs(y - placed.finalY) < threshold) {
-                        y = placed.finalY + step;
-                        moved = true;
+            float currX = entry.x;
+            boolean preferRight = currX < guiWidth / 2.0F;
+
+            float bestX = currX;
+            float bestY = entry.y;
+
+            int attempts = 0;
+            while (attempts < 6) {
+                attempts++;
+                float halfW = entry.width / 2.0F;
+                currX = Math.max(halfW, Math.min(guiWidth - halfW, currX));
+
+                // 現在の列での縦押し下げ位置を計算
+                float y = entry.y;
+                boolean moved = true;
+                int passes = 0;
+                while (moved && passes < entryCount + 4) {
+                    passes++;
+                    moved = false;
+                    for (int j = 0; j < i; j++) {
+                        Entry placed = ENTRIES.get(j);
+                        boolean horizontalOverlap = Math.abs(currX - placed.x)
+                                < (entry.width + placed.width) / 2.0F + gap;
+                        if (horizontalOverlap && Math.abs(y - placed.finalY) < threshold) {
+                            y = placed.finalY + step;
+                            moved = true;
+                        }
                     }
                 }
+
+                bestX = currX;
+                bestY = y;
+
+                // 画面下端に収まるならこの位置で確定
+                if (y + bottomMargin <= guiHeight) {
+                    break;
+                }
+
+                // 画面下端に入り切らない場合、重なっている配置済みラベル群の外側へ水平シフト
+                float maxRight = currX;
+                float minLeft = currX;
+                for (int j = 0; j < i; j++) {
+                    Entry placed = ENTRIES.get(j);
+                    if (Math.abs(currX - placed.x) < (entry.width + placed.width) / 2.0F + gap) {
+                        maxRight = Math.max(maxRight, placed.x + placed.width / 2.0F);
+                        minLeft = Math.min(minLeft, placed.x - placed.width / 2.0F);
+                    }
+                }
+
+                float newX;
+                if (preferRight) {
+                    newX = maxRight + gap + halfW;
+                    if (newX + halfW > guiWidth) {
+                        newX = minLeft - gap - halfW;
+                    }
+                } else {
+                    newX = minLeft - gap - halfW;
+                    if (newX - halfW < 0.0F) {
+                        newX = maxRight + gap + halfW;
+                    }
+                }
+
+                if (Math.abs(newX - currX) < 1.0F) {
+                    break;
+                }
+                currX = newX;
             }
-            entry.finalY = y;
+
+            entry.x = bestX;
+            entry.finalY = bestY;
         }
     }
 
