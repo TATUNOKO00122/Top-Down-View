@@ -6,13 +6,15 @@ import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
 public final class DestinationHighlightRenderer {
 
-    private static final int CIRCLE_SEGMENTS = 48;
+    // ブロックテクスチャと同じ16x16のピクセル格子に合わせてドット調に描画する
+    private static final float PIXEL_SIZE = 1.0f / 16.0f;
     private static final float HEIGHT_OFFSET = 0.02f;
 
     private static final float CENTER_INITIAL_RADIUS = 0.18f;
@@ -60,9 +62,15 @@ public final class DestinationHighlightRenderer {
 
         if (progress >= 1.0f || alpha <= 0.0f) return;
 
-        double x = targetPos.x - cameraPos.x;
+        // ドットをブロックのピクセル格子に固定するため、ワールド整数基準の格子へ原点を合わせる
+        double snappedX = Math.floor(targetPos.x / PIXEL_SIZE) * PIXEL_SIZE;
+        double snappedZ = Math.floor(targetPos.z / PIXEL_SIZE) * PIXEL_SIZE;
+        float fracX = (float) (targetPos.x - snappedX);
+        float fracZ = (float) (targetPos.z - snappedZ);
+
+        double x = snappedX - cameraPos.x;
         double y = targetPos.y - cameraPos.y + HEIGHT_OFFSET;
-        double z = targetPos.z - cameraPos.z;
+        double z = snappedZ - cameraPos.z;
 
         poseStack.pushPose();
         poseStack.translate(x, y, z);
@@ -73,65 +81,51 @@ public final class DestinationHighlightRenderer {
         float centerProgress = Math.max(0.0f, (progress - CENTER_SHRINK_DELAY) / (1.0f - CENTER_SHRINK_DELAY));
         float centerRadius = CENTER_INITIAL_RADIUS * (1.0f - centerProgress);
         if (centerRadius > 0.005f) {
-            renderFilledCircle(buffer, matrix, centerRadius, alpha);
+            renderPixelCircle(buffer, matrix, centerRadius, 0.0f, fracX, fracZ,
+                    alpha, COLOR_R, COLOR_G, COLOR_B);
         }
 
         float outerRadius = OUTER_INITIAL_RADIUS + (OUTER_MAX_RADIUS - OUTER_INITIAL_RADIUS) * progress;
-        renderRing(buffer, matrix, outerRadius - RING_WIDTH, outerRadius, alpha * 0.9f, false);
-        renderRing(buffer, matrix, outerRadius, outerRadius + RING_WIDTH * 2, alpha * 0.3f, true);
+        renderPixelCircle(buffer, matrix, outerRadius, outerRadius - RING_WIDTH, fracX, fracZ,
+                alpha * 0.9f, COLOR_R, COLOR_G, COLOR_B);
+        renderPixelCircle(buffer, matrix, outerRadius + RING_WIDTH * 2, outerRadius, fracX, fracZ,
+                alpha * 0.3f, GLOW_R, GLOW_G, GLOW_B);
 
         poseStack.popPose();
 
         mc.renderBuffers().bufferSource().endBatch(RenderType.debugQuads());
     }
 
-    private static void renderFilledCircle(VertexConsumer buffer, Matrix4f matrix, float radius, float alpha) {
-        float a = alpha;
+    /**
+     * 半径 innerR..outerR の範囲を、ワールドの1/16格子に沿った四角ドットの集合で描画する。
+     * fracX/fracZ は中心の格子内オフセット（0..PIXEL_SIZE）。
+     */
+    private static void renderPixelCircle(VertexConsumer buffer, Matrix4f matrix,
+                                          float outerR, float innerR,
+                                          float fracX, float fracZ,
+                                          float alpha, float r, float g, float b) {
+        int cellCount = Mth.ceil(outerR / PIXEL_SIZE) + 1;
+        float outerSq = outerR * outerR;
+        float innerSq = innerR * innerR;
 
-        for (int i = 0; i < CIRCLE_SEGMENTS; i++) {
-            float angle1 = (float) (2 * Math.PI * i / CIRCLE_SEGMENTS);
-            float angle2 = (float) (2 * Math.PI * (i + 1) / CIRCLE_SEGMENTS);
+        for (int i = -cellCount; i <= cellCount; i++) {
+            float cellCenterX = (i + 0.5f) * PIXEL_SIZE - fracX;
+            float x0 = i * PIXEL_SIZE - fracX;
+            float x1 = x0 + PIXEL_SIZE;
 
-            float x1 = radius * (float) Math.cos(angle1);
-            float z1 = radius * (float) Math.sin(angle1);
-            float x2 = radius * (float) Math.cos(angle2);
-            float z2 = radius * (float) Math.sin(angle2);
+            for (int j = -cellCount; j <= cellCount; j++) {
+                float cellCenterZ = (j + 0.5f) * PIXEL_SIZE - fracZ;
+                float distSq = cellCenterX * cellCenterX + cellCenterZ * cellCenterZ;
+                if (distSq > outerSq || distSq < innerSq) continue;
 
-            buffer.vertex(matrix, 0, 0, 0).color(COLOR_R, COLOR_G, COLOR_B, a).endVertex();
-            buffer.vertex(matrix, x1, 0, z1).color(COLOR_R, COLOR_G, COLOR_B, a).endVertex();
-            buffer.vertex(matrix, x2, 0, z2).color(COLOR_R, COLOR_G, COLOR_B, a).endVertex();
-            buffer.vertex(matrix, 0, 0, 0).color(COLOR_R, COLOR_G, COLOR_B, a).endVertex();
-        }
-    }
+                float z0 = j * PIXEL_SIZE - fracZ;
+                float z1 = z0 + PIXEL_SIZE;
 
-    private static void renderRing(VertexConsumer buffer, Matrix4f matrix, float innerR, float outerR, float alpha, boolean isGlow) {
-        float r = isGlow ? GLOW_R : COLOR_R;
-        float g = isGlow ? GLOW_G : COLOR_G;
-        float b = isGlow ? GLOW_B : COLOR_B;
-
-        for (int i = 0; i < CIRCLE_SEGMENTS; i++) {
-            float angle1 = (float) (2 * Math.PI * i / CIRCLE_SEGMENTS);
-            float angle2 = (float) (2 * Math.PI * (i + 1) / CIRCLE_SEGMENTS);
-
-            float cos1 = (float) Math.cos(angle1);
-            float sin1 = (float) Math.sin(angle1);
-            float cos2 = (float) Math.cos(angle2);
-            float sin2 = (float) Math.sin(angle2);
-
-            float x1In = innerR * cos1;
-            float z1In = innerR * sin1;
-            float x2In = innerR * cos2;
-            float z2In = innerR * sin2;
-
-            float x1Out = outerR * cos1;
-            float z1Out = outerR * sin1;
-            float x2Out = outerR * cos2;
-            float z2Out = outerR * sin2;
-
-            buffer.vertex(matrix, x1In, 0, z1In).color(r, g, b, alpha).endVertex();
-            buffer.vertex(matrix, x1Out, 0, z1Out).color(r, g, b, alpha).endVertex();
-            buffer.vertex(matrix, x2Out, 0, z2Out).color(r, g, b, alpha).endVertex();
-            buffer.vertex(matrix, x2In, 0, z2In).color(r, g, b, alpha).endVertex();
+                buffer.vertex(matrix, x0, 0, z0).color(r, g, b, alpha).endVertex();
+                buffer.vertex(matrix, x0, 0, z1).color(r, g, b, alpha).endVertex();
+                buffer.vertex(matrix, x1, 0, z1).color(r, g, b, alpha).endVertex();
+                buffer.vertex(matrix, x1, 0, z0).color(r, g, b, alpha).endVertex();
+            }
         }
     }
 }
