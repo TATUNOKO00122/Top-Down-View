@@ -9,8 +9,7 @@ public final class InteractionConfig {
 
     private boolean miningModeEnabled = false;
     private boolean clickToMoveEnabled = false;
-    private double arrivalThreshold = 1.5;
-    private boolean forceAutoJump = true;
+    private boolean stepAssistEnabled = true;
     private double sprintDistanceThreshold = 5.0;
     private boolean autoAlignToMovementEnabled = false;
     private int autoAlignAngleThreshold = 45;
@@ -59,11 +58,8 @@ public final class InteractionConfig {
     public boolean isClickToMoveEnabled() { return clickToMoveEnabled; }
     public void setClickToMoveEnabled(boolean value) { this.clickToMoveEnabled = value; }
 
-    public double getArrivalThreshold() { return arrivalThreshold; }
-    public void setArrivalThreshold(double value) { this.arrivalThreshold = MathUtil.clamp(value, 0.5, 5.0); }
-
-    public boolean isForceAutoJump() { return forceAutoJump; }
-    public void setForceAutoJump(boolean value) { this.forceAutoJump = value; }
+    public boolean isStepAssistEnabled() { return stepAssistEnabled; }
+    public void setStepAssistEnabled(boolean value) { this.stepAssistEnabled = value; }
 
     public double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
     public void setSprintDistanceThreshold(double value) { this.sprintDistanceThreshold = MathUtil.clamp(value, 1.0, 50.0); }

@@ -1,9 +1,7 @@
 package com.topdownview.mixin;
 
-import com.topdownview.client.PickupApproachController;
 import com.topdownview.state.ModState;
 import net.minecraft.client.CameraType;
-import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,17 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class GameOptionsMixin {
 
     @Shadow public CameraType cameraType;
-
-    private static final OptionInstance<Boolean> FORCE_AUTO_JUMP = OptionInstance.createBoolean("options.autoJump", true);
-
-    @Inject(method = "autoJump", at = @At("HEAD"), cancellable = true)
-    public void topdownview$getAutoJump(CallbackInfoReturnable<OptionInstance<Boolean>> cir) {
-        // クリック移動中に加え、アイテムへ近づく接近取得中も自動ジャンプを有効にして段差を越えられるようにする
-        if (ModState.STATUS.isEnabled() && com.topdownview.Config.isForceAutoJump()
-                && (ModState.CLICK_TO_MOVE.isMoving() || PickupApproachController.isActive())) {
-            cir.setReturnValue(FORCE_AUTO_JUMP);
-        }
-    }
 
     @Inject(method = "setCameraType", at = @At("HEAD"), cancellable = true)
     private void topdownview$onSetCameraType(CameraType type, CallbackInfo ci) {

@@ -34,6 +34,9 @@ public final class ClickToMoveController {
 
     private static final double STOP_THRESHOLD = 0.5;
 
+    /** 目的地に到達したと判定する距離（ブロック数）。 */
+    private static final double ARRIVAL_DISTANCE = 0.5;
+
     public enum EntityAction {
         ATTACK,
         INTERACT,
@@ -330,7 +333,7 @@ public final class ClickToMoveController {
     private static void checkArrival(Minecraft mc) {
         if (mc.player == null) return;
 
-        double threshold = Config.getArrivalThreshold();
+        double threshold = ARRIVAL_DISTANCE;
         if (ModState.CLICK_TO_MOVE.hasArrived(mc.player.position(), threshold)) {
             stop();
         }

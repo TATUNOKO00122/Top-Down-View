@@ -336,13 +336,14 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildMovementTab(int x, int y, int w, int h, int sp, int tx) {
+        y = addSection(y, "topdown_view.config.section.step_assist", tx);
+        addToggle(x, y, w, h, "topdown_view.config.step_assist", Config::isStepAssistEnabled, Config::setStepAssistEnabled);
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.click_to_move", tx);
         addToggle(x, y, w, h, "topdown_view.config.click_to_move", Config::isClickToMoveEnabled, Config::setClickToMoveEnabled);
         y += sp;
         addToggle(x, y, w, h, "topdown_view.config.destination_highlight", Config::isDestinationHighlightEnabled, Config::setDestinationHighlightEnabled);
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.arrival_threshold",
-                Config.getArrivalThreshold(), 0.5, 5.0, val -> Config.setArrivalThreshold(val)));
         y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.sprint_distance_threshold",
                 Config.getSprintDistanceThreshold(), 1.0, 50.0, val -> Config.setSprintDistanceThreshold(val)));
@@ -356,9 +357,7 @@ public class ConfigScreen extends Screen {
             y += sp;
         }
 
-        y = addSection(y, "topdown_view.config.section.auto_jump", tx);
-        addToggle(x, y, w, h, "topdown_view.config.force_auto_jump", Config::isForceAutoJump, Config::setForceAutoJump);
-        contentHeight = (y += sp) - (30 - (int) scrollOffset) + sp;
+        contentHeight = y - (30 - (int) scrollOffset) + sp;
     }
 
     private void buildCameraTab(int x, int y, int w, int h, int sp, int tx) {

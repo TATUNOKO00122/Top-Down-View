@@ -68,10 +68,9 @@ public class Config {
             .define("baritoneRenderPath", true);
     private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_GOAL = BUILDER
             .define("baritoneRenderGoal", true);
-    private static final ForgeConfigSpec.DoubleValue ARRIVAL_THRESHOLD = BUILDER
-            .defineInRange("arrivalThreshold", 1.5, 0.5, 5.0);
-    private static final ForgeConfigSpec.BooleanValue FORCE_AUTO_JUMP = BUILDER
-            .define("forceAutoJump", true);
+    private static final ForgeConfigSpec.BooleanValue STEP_ASSIST_ENABLED = BUILDER
+            .comment("Raise the player's step height so full blocks can be walked up while top-down view is active.")
+            .define("stepAssistEnabled", true);
     private static final ForgeConfigSpec.DoubleValue SPRINT_DISTANCE_THRESHOLD = BUILDER
             .defineInRange("sprintDistanceThreshold", 5.0, 1.0, 50.0);
     private static final ForgeConfigSpec.BooleanValue AUTO_ALIGN_TO_MOVEMENT_ENABLED = BUILDER
@@ -348,8 +347,7 @@ public class Config {
     public static boolean isClickToMoveEnabled() { return INTERACTION.isClickToMoveEnabled(); }
     public static boolean isBaritoneRenderPath() { return INTEGRATIONS.isBaritoneRenderPath(); }
     public static boolean isBaritoneRenderGoal() { return INTEGRATIONS.isBaritoneRenderGoal(); }
-    public static double getArrivalThreshold() { return INTERACTION.getArrivalThreshold(); }
-    public static boolean isForceAutoJump() { return INTERACTION.isForceAutoJump(); }
+    public static boolean isStepAssistEnabled() { return INTERACTION.isStepAssistEnabled(); }
     public static double getSprintDistanceThreshold() { return INTERACTION.getSprintDistanceThreshold(); }
     public static boolean isAutoAlignToMovementEnabled() { return INTERACTION.isAutoAlignToMovementEnabled(); }
     public static int getAutoAlignAngleThreshold() { return INTERACTION.getAutoAlignAngleThreshold(); }
@@ -485,8 +483,7 @@ public class Config {
     public static void setClickToMoveEnabled(boolean value) { INTERACTION.setClickToMoveEnabled(value); }
     public static void setBaritoneRenderPath(boolean value) { INTEGRATIONS.setBaritoneRenderPath(value); }
     public static void setBaritoneRenderGoal(boolean value) { INTEGRATIONS.setBaritoneRenderGoal(value); }
-    public static void setArrivalThreshold(double value) { INTERACTION.setArrivalThreshold(value); }
-    public static void setForceAutoJump(boolean value) { INTERACTION.setForceAutoJump(value); }
+    public static void setStepAssistEnabled(boolean value) { INTERACTION.setStepAssistEnabled(value); }
     public static void setSprintDistanceThreshold(double value) { INTERACTION.setSprintDistanceThreshold(value); }
     public static void setAutoAlignToMovementEnabled(boolean value) { INTERACTION.setAutoAlignToMovementEnabled(value); }
     public static void setAutoAlignAngleThreshold(int value) { INTERACTION.setAutoAlignAngleThreshold(value); }
@@ -671,8 +668,7 @@ public class Config {
         addBinding(CLICK_TO_MOVE_ENABLED, INTERACTION::setClickToMoveEnabled, Config::isClickToMoveEnabled);
         addBinding(BARITONE_RENDER_PATH, INTEGRATIONS::setBaritoneRenderPath, Config::isBaritoneRenderPath);
         addBinding(BARITONE_RENDER_GOAL, INTEGRATIONS::setBaritoneRenderGoal, Config::isBaritoneRenderGoal);
-        addBinding(ARRIVAL_THRESHOLD, INTERACTION::setArrivalThreshold, Config::getArrivalThreshold);
-        addBinding(FORCE_AUTO_JUMP, INTERACTION::setForceAutoJump, Config::isForceAutoJump);
+        addBinding(STEP_ASSIST_ENABLED, INTERACTION::setStepAssistEnabled, Config::isStepAssistEnabled);
         addBinding(SPRINT_DISTANCE_THRESHOLD, INTERACTION::setSprintDistanceThreshold, Config::getSprintDistanceThreshold);
         addBinding(AUTO_ALIGN_TO_MOVEMENT_ENABLED, INTERACTION::setAutoAlignToMovementEnabled, Config::isAutoAlignToMovementEnabled);
         addBinding(AUTO_ALIGN_ANGLE_THRESHOLD, INTERACTION::setAutoAlignAngleThreshold, Config::getAutoAlignAngleThreshold);
