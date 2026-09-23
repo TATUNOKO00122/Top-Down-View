@@ -3,6 +3,7 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
+import com.topdownview.client.MouseRaycast;
 import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
 import com.topdownview.culling.cache.FadeCacheManager;
@@ -145,6 +146,7 @@ public final class TopDownCuller {
     private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
+    private boolean cachedDisableIndoorNear;
     private int cachedCullingMode;
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
@@ -181,6 +183,7 @@ public final class TopDownCuller {
         
         currentSpaceEnclosed = false;
         cachedDisableIndoorFade = false;
+        cachedDisableIndoorNear = false;
         cachedIndoorElementActive = false;
         cachedCoverCullingActive = false;
         currentSpaceResult = null;
@@ -580,11 +583,13 @@ public final class TopDownCuller {
         }
         // 屋内判定が変わったらキャッシュを破棄して、フェード/近接半透明化の切替を即座に反映する
         boolean disableIndoorFade = Config.isDisableFadeIndoors() && currentSpaceEnclosed;
-        if (disableIndoorFade != cachedDisableIndoorFade) {
+        boolean disableIndoorNear = Config.isDisableNearTranslucencyIndoors() && currentSpaceEnclosed;
+        if (disableIndoorFade != cachedDisableIndoorFade || disableIndoorNear != cachedDisableIndoorNear) {
             cullingCache.clear();
             fadeCache.clear();
         }
         cachedDisableIndoorFade = disableIndoorFade;
+        cachedDisableIndoorNear = disableIndoorNear;
         if (cachedCoverCullingActive && coverHandler.isReleasing()) {
             // 覆いのカリング開始時刻が時間で進むため、ワーカーの判定結果を毎tick作り直す。
             cullingCache.clear();
@@ -840,6 +845,7 @@ public final class TopDownCuller {
     private void updateEntityCulling(Minecraft mc) {
         if (!ModState.STATUS.isEnabled() || mc.level == null || mc.player == null || !contextValid) return;
         int playerFeetBlockY = (int) Math.floor(mc.player.getY());
+        Vec3 eyePos = mc.player.getEyePosition();
         try {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof Player && entity == mc.player) continue;
@@ -848,7 +854,7 @@ public final class TopDownCuller {
                         cullable.topdownview_setCulled(false);
                         continue;
                     }
-                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, playerFeetBlockY)
+                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, playerFeetBlockY, eyePos)
                         : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
                     cullable.topdownview_setCulled(shouldCull);
                 }
@@ -864,8 +870,11 @@ public final class TopDownCuller {
      * <p>足元の支え（接地している面）がカリング対象なら、その床が消されて見えてしまっている
      * 上の階のMobとみなす。旧実装はプレイヤーとMobの間のブロックまで縦スキャンしていたため、
      * 階段などで少し高い位置にいるMobまで消えていた。支えの1点だけを見ることで視認性を保つ。
+     *
+     * <p>支えがカリング対象でも、プレイヤー目線から遮蔽されていなければ残す。床だけが消えて
+     * Mob自体は見えている場合に、見えるMobまで消えるのを防ぐ。
      */
-    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY) {
+    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY, Vec3 eyePos) {
         if (mc.level == null) return false;
         int entityBlockY = entity.getBlockY();
         if (entityBlockY <= playerFeetBlockY + 1) return false;
@@ -874,7 +883,10 @@ public final class TopDownCuller {
         for (int yOffset = 0; yOffset <= 2; yOffset++) {
             entityGroundedPos.set(ex, entityBlockY - yOffset, ez);
             if (mc.level.getBlockState(entityGroundedPos).isAir()) continue;
-            return isBlockCulled(entityGroundedPos, mc.level);
+            if (!isBlockCulled(entityGroundedPos, mc.level)) {
+                return false;
+            }
+            return !MouseRaycast.INSTANCE.hasLineOfSight(mc, eyePos, entity);
         }
         return false;
     }
@@ -974,7 +986,7 @@ public final class TopDownCuller {
 
         // 近接半透明化はカリング済み(フェード対象)のブロックだけに適用する。カリングされて
         // いないブロックは不透明のまま残すため、プレイヤー周囲を箱状に消さない。
-        if (fadeAlpha < 1.0f && Config.isPlayerNearTranslucencyEnabled()
+        if (fadeAlpha < 1.0f && Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear
                 && isPlayerNearBlock(pos, playerX, playerY, playerZ)
                 && !isProtectedBlock(pos, state, playerY, level)
                 && !isFastGraphicsLeaves(state)) {
@@ -1016,7 +1028,7 @@ public final class TopDownCuller {
      * 同じ条件(カリング済み・プレイヤー近傍・保護対象外・FAST葉以外)を再評価する。
      */
     private boolean isPlayerNearTranslucencyBlock(BlockPos pos, BlockGetter level) {
-        if (!Config.isPlayerNearTranslucencyEnabled()) return false;
+        if (!Config.isPlayerNearTranslucencyEnabled() || cachedDisableIndoorNear) return false;
         if (!isPlayerNearBlock(pos, playerX, playerY, playerZ)) return false;
         BlockState state = level.getBlockState(pos);
         if (isProtectedBlock(pos, state, playerY, level)) return false;
@@ -1036,7 +1048,7 @@ public final class TopDownCuller {
         boolean stairOcclude = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();
-        boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled();
+        boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear;
 
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() ||
             (!fadeEnabled && !stairOcclude && !ladderOcclude && !treeOcclude && !playerNearTrans) || level == null || !contextValid) {
@@ -1093,7 +1105,7 @@ public final class TopDownCuller {
 
         // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
         boolean fadeEnabled = Config.isFadeEnabled() && !cachedDisableIndoorFade;
-        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled();
+        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear;
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean stairOcclude = Config.isStaircaseExclusionEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();

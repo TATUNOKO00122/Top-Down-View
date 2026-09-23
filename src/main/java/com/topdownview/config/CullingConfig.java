@@ -28,6 +28,7 @@ public final class CullingConfig {
     private double fadeNearAlpha = 0.0;
     private double fadeSmoothingHalfLife = 0.14;
     private boolean disableFadeIndoors = true;
+    private boolean disableNearTranslucencyIndoors = true;
     private boolean playerNearTranslucencyEnabled = true;
     private double playerNearTranslucencyAlpha = 0.6;
     private int playerNearTranslucencyRangeHorizontal = 2;
@@ -103,6 +104,9 @@ public final class CullingConfig {
 
     public boolean isDisableFadeIndoors() { return disableFadeIndoors; }
     public void setDisableFadeIndoors(boolean value) { this.disableFadeIndoors = value; }
+
+    public boolean isDisableNearTranslucencyIndoors() { return disableNearTranslucencyIndoors; }
+    public void setDisableNearTranslucencyIndoors(boolean value) { this.disableNearTranslucencyIndoors = value; }
 
     public boolean isPlayerNearTranslucencyEnabled() { return playerNearTranslucencyEnabled; }
     public void setPlayerNearTranslucencyEnabled(boolean value) { this.playerNearTranslucencyEnabled = value; }

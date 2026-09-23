@@ -268,6 +268,8 @@ public class ConfigScreen extends Screen {
         y += sp;
         addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_enabled", Config::isPlayerNearTranslucencyEnabled, Config::setPlayerNearTranslucencyEnabled);
         y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.disable_near_translucency_indoors", Config::isDisableNearTranslucencyIndoors, Config::setDisableNearTranslucencyIndoors);
+        y += sp;
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
                 1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
         y += sp;

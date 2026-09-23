@@ -134,8 +134,11 @@ public class Config {
             .comment("Whether proximity-displayed blocks can be hit by the mouse raycast.")
             .define("playerNearTranslucencyHittable", true);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
-            .comment("Disables boundary fade and player-near translucency while the player is indoors.")
+            .comment("Disables boundary fade rendering while the player is indoors.")
             .define("disableFadeIndoors", true);
+    private static final ForgeConfigSpec.BooleanValue DISABLE_NEAR_TRANSLUCENCY_INDOORS = BUILDER
+            .comment("Disables proximity translucency (near-block ghosts) while the player is indoors. Culling itself is unchanged.")
+            .define("disableNearTranslucencyIndoors", true);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -364,6 +367,7 @@ public class Config {
     public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
     public static double getFadeSmoothingHalfLife() { return CULLING.getFadeSmoothingHalfLife(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
+    public static boolean isDisableNearTranslucencyIndoors() { return CULLING.isDisableNearTranslucencyIndoors(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
@@ -499,6 +503,7 @@ public class Config {
     public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
     public static void setFadeSmoothingHalfLife(double value) { CULLING.setFadeSmoothingHalfLife(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
+    public static void setDisableNearTranslucencyIndoors(boolean value) { CULLING.setDisableNearTranslucencyIndoors(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
@@ -683,6 +688,7 @@ public class Config {
         addBinding(FADE_NEAR_ALPHA, CULLING::setFadeNearAlpha, Config::getFadeNearAlpha);
         addBinding(FADE_SMOOTHING_HALF_LIFE, CULLING::setFadeSmoothingHalfLife, Config::getFadeSmoothingHalfLife);
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
+        addBinding(DISABLE_NEAR_TRANSLUCENCY_INDOORS, CULLING::setDisableNearTranslucencyIndoors, Config::isDisableNearTranslucencyIndoors);
         addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
         addBinding(COVER_CULLING_RADIUS, CULLING::setCoverCullingRadius, Config::getCoverCullingRadius);
         addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
