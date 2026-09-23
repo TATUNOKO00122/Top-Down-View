@@ -293,6 +293,8 @@ public class ConfigScreen extends Screen {
         y = addSection(y, "topdown_view.config.section.entity_culling", tx);
         addToggle(x, y, w, h, "topdown_view.config.mob_culling_enabled", Config::isMobCullingEnabled, Config::setMobCullingEnabled);
         y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.item_culling_enabled", Config::isItemCullingEnabled, Config::setItemCullingEnabled);
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
         addToggle(x, y, w, h, "topdown_view.config.staircase_occlude_enabled", Config::isStaircaseOccludeEnabled, Config::setStaircaseOccludeEnabled);

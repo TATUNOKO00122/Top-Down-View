@@ -34,6 +34,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -854,7 +855,8 @@ public final class TopDownCuller {
                         cullable.topdownview_setCulled(false);
                         continue;
                     }
-                    boolean shouldCull = entity instanceof Mob ? shouldCullMob(entity, mc, playerFeetBlockY, eyePos)
+                    boolean shouldCull = (entity instanceof Mob || entity instanceof ItemEntity)
+                        ? shouldCullSupportedEntity(entity, mc, playerFeetBlockY, eyePos)
                         : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
                     cullable.topdownview_setCulled(shouldCull);
                 }
@@ -865,16 +867,17 @@ public final class TopDownCuller {
     }
 
     /**
-     * プレイヤーより上の階（2階など）にいるMobをカリングする。
+     * プレイヤーより上の階（2階など）にいるMobや、カリング対象のブロックの上に落ちている
+     * ドロップアイテムをカリングする。
      *
      * <p>足元の支え（接地している面）がカリング対象なら、その床が消されて見えてしまっている
-     * 上の階のMobとみなす。旧実装はプレイヤーとMobの間のブロックまで縦スキャンしていたため、
+     * 上の階のエンティティとみなす。旧実装はプレイヤーとMobの間のブロックまで縦スキャンしていたため、
      * 階段などで少し高い位置にいるMobまで消えていた。支えの1点だけを見ることで視認性を保つ。
      *
      * <p>支えがカリング対象でも、プレイヤー目線から遮蔽されていなければ残す。床だけが消えて
      * Mob自体は見えている場合に、見えるMobまで消えるのを防ぐ。
      */
-    private boolean shouldCullMob(Entity entity, Minecraft mc, int playerFeetBlockY, Vec3 eyePos) {
+    private boolean shouldCullSupportedEntity(Entity entity, Minecraft mc, int playerFeetBlockY, Vec3 eyePos) {
         if (mc.level == null) return false;
         int entityBlockY = entity.getBlockY();
         if (entityBlockY <= playerFeetBlockY + 1) return false;
@@ -904,6 +907,7 @@ public final class TopDownCuller {
 
     private boolean isCullableEntityType(Entity entity) {
         if (entity instanceof Mob) return Config.isMobCullingEnabled();
+        if (entity instanceof ItemEntity) return Config.isItemCullingEnabled();
         // HangingEntity を対象にすることで MOD 製の壁掛け装飾（キャンバス等）もカリングする。
         // リードの結び目は装飾ではないため除外。
         if (entity instanceof LeashFenceKnotEntity) return false;

@@ -1,6 +1,7 @@
 package com.topdownview.client;
 
 import com.topdownview.Config;
+import com.topdownview.culling.Cullable;
 import com.topdownview.state.ModState;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -230,6 +231,11 @@ public final class DroppedItemLabelRenderer {
         int processed = 0;
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof ItemEntity item) || item.getItem().isEmpty()) {
+                continue;
+            }
+            // カリングされたブロックの上に落ちているアイテムは本体ごと消えているため、ラベルも出さない
+            if (ModState.STATUS.isCullingEnabled() && item instanceof Cullable cullable
+                    && cullable.topdownview_isCulled()) {
                 continue;
             }
             if (item.distanceToSqr(mc.player) > LABEL_RADIUS_SQR) {

@@ -153,6 +153,8 @@
   "topdown_view.config.section.entity_culling": "エンティティカリング",
   "topdown_view.config.mob_culling_enabled": "Mobカリング: %s",
   "topdown_view.config.mob_culling_enabled.tooltip": "プレイヤーより上の階にいて、カリングされているブロックの上に乗っているMobを非表示にします。\n壁掛け装飾（額縁、絵画、MOD製キャンバスなど）とアーマースタンドは常にカリングされます。",
+  "topdown_view.config.item_culling_enabled": "ドロップアイテムカリング: %s",
+  "topdown_view.config.item_culling_enabled.tooltip": "カリングされているブロックの上に落ちているドロップアイテムを非表示にします。",
   "topdown_view.config.section.mining_cylinder": "マイニング円柱",
   "topdown_view.config.mining_mode_enabled": "マイニングモード: %s",
   "topdown_view.config.mining_mode_enabled.tooltip": "マイニングモード機能を有効にします。無効時はマイニングモードキーを押しても反応しません。",

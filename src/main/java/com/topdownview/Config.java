@@ -90,6 +90,8 @@ public class Config {
             .define("autoAlignAnimationAcceleration", false);
     private static final ForgeConfigSpec.BooleanValue MOB_CULLING_ENABLED = BUILDER
             .define("mobCullingEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue ITEM_CULLING_ENABLED = BUILDER
+            .define("itemCullingEnabled", true);
     private static final ForgeConfigSpec.BooleanValue MOB_TRANSLUCENCY_ENABLED = BUILDER
             .define("mobTranslucencyEnabled", false);
     private static final ForgeConfigSpec.DoubleValue MOB_TRANSLUCENCY_ALPHA = BUILDER
@@ -357,6 +359,7 @@ public class Config {
     public static double getAutoAlignAnimationSpeed() { return INTERACTION.getAutoAlignAnimationSpeed(); }
     public static boolean isAutoAlignAnimationAcceleration() { return INTERACTION.isAutoAlignAnimationAcceleration(); }
     public static boolean isMobCullingEnabled() { return CULLING.isMobCullingEnabled(); }
+    public static boolean isItemCullingEnabled() { return CULLING.isItemCullingEnabled(); }
     public static boolean isMobTranslucencyEnabled() { return CULLING.isMobTranslucencyEnabled(); }
     public static double getMobTranslucencyAlpha() { return CULLING.getMobTranslucencyAlpha(); }
     public static boolean isTrapdoorTranslucencyEnabled() { return CULLING.isTrapdoorTranslucencyEnabled(); }
@@ -493,6 +496,7 @@ public class Config {
     public static void setAutoAlignAnimationSpeed(double value) { INTERACTION.setAutoAlignAnimationSpeed(value); }
     public static void setAutoAlignAnimationAcceleration(boolean value) { INTERACTION.setAutoAlignAnimationAcceleration(value); }
     public static void setMobCullingEnabled(boolean value) { CULLING.setMobCullingEnabled(value); }
+    public static void setItemCullingEnabled(boolean value) { CULLING.setItemCullingEnabled(value); }
     public static void setMobTranslucencyEnabled(boolean value) { CULLING.setMobTranslucencyEnabled(value); }
     public static void setMobTranslucencyAlpha(double value) { CULLING.setMobTranslucencyAlpha(value); }
     public static void setTrapdoorTranslucencyEnabled(boolean value) { CULLING.setTrapdoorTranslucencyEnabled(value); }
@@ -678,6 +682,7 @@ public class Config {
         addBinding(AUTO_ALIGN_ANIMATION_SPEED, INTERACTION::setAutoAlignAnimationSpeed, Config::getAutoAlignAnimationSpeed);
         addBinding(AUTO_ALIGN_ANIMATION_ACCELERATION, INTERACTION::setAutoAlignAnimationAcceleration, Config::isAutoAlignAnimationAcceleration);
         addBinding(MOB_CULLING_ENABLED, CULLING::setMobCullingEnabled, Config::isMobCullingEnabled);
+        addBinding(ITEM_CULLING_ENABLED, CULLING::setItemCullingEnabled, Config::isItemCullingEnabled);
         addBinding(MOB_TRANSLUCENCY_ENABLED, CULLING::setMobTranslucencyEnabled, Config::isMobTranslucencyEnabled);
         addBinding(MOB_TRANSLUCENCY_ALPHA, CULLING::setMobTranslucencyAlpha, Config::getMobTranslucencyAlpha);
         addBinding(TRAPDOOR_TRANSLUCENCY_ENABLED, CULLING::setTrapdoorTranslucencyEnabled, Config::isTrapdoorTranslucencyEnabled);

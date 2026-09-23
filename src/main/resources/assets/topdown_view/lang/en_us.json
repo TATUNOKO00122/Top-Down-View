@@ -153,6 +153,8 @@
   "topdown_view.config.section.entity_culling": "Entity Culling",
   "topdown_view.config.mob_culling_enabled": "Mob Culling: %s",
   "topdown_view.config.mob_culling_enabled.tooltip": "Hide mobs on an upper floor that are standing on a block targeted by culling.\nHanging decorations (item frames, paintings, modded canvases) and armor stands are always culled.",
+  "topdown_view.config.item_culling_enabled": "Dropped Item Culling: %s",
+  "topdown_view.config.item_culling_enabled.tooltip": "Hide dropped items resting on a block targeted by culling.",
   "topdown_view.config.section.mining_mode": "Mining Mode",
   "topdown_view.config.mining_mode_enabled": "Mining Mode: %s",
   "topdown_view.config.mining_mode_enabled.tooltip": "Enable mining mode functionality. When disabled, the mining mode key will not respond.",

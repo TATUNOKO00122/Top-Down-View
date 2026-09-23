@@ -18,6 +18,7 @@ public final class CullingConfig {
     private int miningCylinderRadius = 5;
     private int miningCylinderForwardShift = 0;
     private boolean mobCullingEnabled = true;
+    private boolean itemCullingEnabled = true;
     private boolean mobTranslucencyEnabled = false;
     private double mobTranslucencyAlpha = 0.5;
     private boolean trapdoorTranslucencyEnabled = false;
@@ -74,6 +75,9 @@ public final class CullingConfig {
 
     public boolean isMobCullingEnabled() { return mobCullingEnabled; }
     public void setMobCullingEnabled(boolean value) { this.mobCullingEnabled = value; }
+
+    public boolean isItemCullingEnabled() { return itemCullingEnabled; }
+    public void setItemCullingEnabled(boolean value) { this.itemCullingEnabled = value; }
 
     public boolean isMobTranslucencyEnabled() { return mobTranslucencyEnabled; }
     public void setMobTranslucencyEnabled(boolean value) { this.mobTranslucencyEnabled = value; }
