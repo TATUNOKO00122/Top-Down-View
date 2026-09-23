@@ -269,11 +269,11 @@ public class Config {
             .defineInRange("signHoverScale", 0.5, 0.0, 1.0);
 
     private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_MODE = BUILDER
-            .comment("0 = off, 1 = on hover, 2 = always within range.")
-            .defineInRange("droppedItemLabelMode", 2, 0, 2);
+            .comment("0 = off, 1 = on.")
+            .defineInRange("droppedItemLabelMode", 1, 0, 1);
 
     private static final ForgeConfigSpec.DoubleValue DROPPED_ITEM_LABEL_SCALE = BUILDER
-            .defineInRange("droppedItemLabelScale", 1.0, 0.5, 3.0);
+            .defineInRange("droppedItemLabelScale", 1.0, 0.0, 1.0);
 
     private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_BACKGROUND = BUILDER
             .comment("0 = solid color, 1 = vanilla tooltip style.")

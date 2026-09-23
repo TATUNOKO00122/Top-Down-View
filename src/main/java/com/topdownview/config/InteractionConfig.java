@@ -40,7 +40,7 @@ public final class InteractionConfig {
     private double syncedManualPickupDistance = -1.0;
     private int signHoverDisplayMode = 2;
     private double signHoverScale = 0.5;
-    private int droppedItemLabelMode = 2;
+    private int droppedItemLabelMode = 1;
     private double droppedItemLabelScale = 1.0;
     private int droppedItemLabelBackground = 0;
     private int droppedItemLabelGap = 1;
@@ -162,10 +162,10 @@ public final class InteractionConfig {
     public void setSignHoverScale(double value) { this.signHoverScale = MathUtil.clamp(value, 0.0, 1.0); }
 
     public int getDroppedItemLabelMode() { return droppedItemLabelMode; }
-    public void setDroppedItemLabelMode(int value) { this.droppedItemLabelMode = MathUtil.clamp(value, 0, 2); }
+    public void setDroppedItemLabelMode(int value) { this.droppedItemLabelMode = MathUtil.clamp(value, 0, 1); }
 
     public double getDroppedItemLabelScale() { return droppedItemLabelScale; }
-    public void setDroppedItemLabelScale(double value) { this.droppedItemLabelScale = MathUtil.clamp(value, 0.5, 3.0); }
+    public void setDroppedItemLabelScale(double value) { this.droppedItemLabelScale = MathUtil.clamp(value, 0.0, 1.0); }
 
     public int getDroppedItemLabelBackground() { return droppedItemLabelBackground; }
     public void setDroppedItemLabelBackground(int value) { this.droppedItemLabelBackground = MathUtil.clamp(value, 0, 1); }

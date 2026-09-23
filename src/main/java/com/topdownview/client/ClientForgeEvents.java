@@ -42,7 +42,8 @@ public final class ClientForgeEvents {
         PlacementPreviewManager.getInstance().onClientTick();
         OpenedContainerTracker.onTick();
         PickupApproachController.tick(Minecraft.getInstance());
-        DollhouseController.onClientTick();
+        // ドールハウス表示は一旦停止。将来使う可能性があるためコードは残す。
+        // DollhouseController.onClientTick();
     }
 
     @SubscribeEvent

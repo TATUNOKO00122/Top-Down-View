@@ -249,14 +249,6 @@ public class ConfigScreen extends Screen {
         addToggle(x, y, w, h, "topdown_view.config.indoor_ceiling_culling_enabled", Config::isIndoorCeilingCullingEnabled, Config::setIndoorCeilingCullingEnabled);
         y += sp;
 
-        y = addSection(y, "topdown_view.config.section.dollhouse", tx);
-        addToggle(x, y, w, h, "topdown_view.config.dollhouse_enabled", Config::isDollhouseEnabled, Config::setDollhouseEnabled);
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.dollhouse_exterior_brightness",
-                Config.getDollhouseExteriorBrightness(), 0.0, 1.0,
-                val -> Config.setDollhouseExteriorBrightness(val)));
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;
@@ -536,14 +528,14 @@ public class ConfigScreen extends Screen {
 
         y = addSection(y, "topdown_view.config.section.item_label", tx);
         addRightWidget(Button.builder(getItemLabelModeComponent(Config.getDroppedItemLabelMode()), btn -> {
-            Config.setDroppedItemLabelMode((Config.getDroppedItemLabelMode() + 1) % 3);
+            Config.setDroppedItemLabelMode((Config.getDroppedItemLabelMode() + 1) % 2);
             btn.setMessage(getItemLabelModeComponent(Config.getDroppedItemLabelMode()));
         }).bounds(x, y, w, h)
                 .tooltip(Tooltip.create(Component.translatable("topdown_view.config.item_label_mode.tooltip")))
                 .build());
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.item_label_scale", Config.getDroppedItemLabelScale(), 0.5,
-                3.0, val -> Config.setDroppedItemLabelScale(val), 1));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.item_label_scale", Config.getDroppedItemLabelScale(), 0.0,
+                1.0, val -> Config.setDroppedItemLabelScale(val), 1));
         y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.item_label_gap", Config.getDroppedItemLabelGap(), 0,
                 5, Config::setDroppedItemLabelGap));
@@ -568,11 +560,7 @@ public class ConfigScreen extends Screen {
     }
 
     private Component getItemLabelModeComponent(int mode) {
-        String modeKey = switch (mode) {
-            case 1 -> "mode_hover";
-            case 2 -> "mode_always";
-            default -> "mode_none";
-        };
+        String modeKey = mode == 1 ? "mode_on" : "mode_off";
         return Component.translatable("topdown_view.config.item_label_mode",
                 Component.translatable("topdown_view.config.item_label_mode." + modeKey).getString());
     }

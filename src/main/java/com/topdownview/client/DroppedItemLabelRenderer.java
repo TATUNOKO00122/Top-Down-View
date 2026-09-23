@@ -23,10 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ドロップアイテムにハクスラ風のラベル（アイテム名＋スタック数）を表示する。
+ * ドロップアイテムにラベル（アイテム名＋スタック数）を表示する。
  * スクリーン空間に描画し、重なるラベルは下方向へ一定間隔で積み重ねて重なりを防ぐ。
  * 背景はフォントの文字幅に余白を足して決める。
- * 0=非表示 / 1=カーソル時のみ / 2=範囲内は常時 の3モードを設定で切り替える。
+ * 0=非表示 / 1=範囲内は常時 の2モードを設定で切り替える。
  */
 public final class DroppedItemLabelRenderer {
 
@@ -65,8 +65,7 @@ public final class DroppedItemLabelRenderer {
             clearEntries();
             return;
         }
-        int mode = Config.getDroppedItemLabelMode();
-        if (mode == 0) {
+        if (Config.getDroppedItemLabelMode() == 0) {
             clearEntries();
             return;
         }
@@ -93,14 +92,7 @@ public final class DroppedItemLabelRenderer {
                 ENTRIES.get(i).present = false;
             }
 
-            if (mode == 1) {
-                ItemEntity hovered = ItemPickupHelper.findHoveredItem(mc, cameraPos);
-                if (hovered != null) {
-                    addCandidate(mc, hovered, cameraPos, partialTick, guiWidth, guiHeight);
-                }
-            } else {
-                addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
-            }
+            addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
 
             // 拾われた分を詰めて空席を作らない。残りは並び順も位置も維持される
             compactEntries();
