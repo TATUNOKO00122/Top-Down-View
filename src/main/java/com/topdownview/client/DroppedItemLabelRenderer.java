@@ -285,7 +285,7 @@ public final class DroppedItemLabelRenderer {
             entry = new Entry();
             entry.id = id;
             ENTRIES_BY_ID.put(id, entry);
-            ENTRIES.add(entry);
+            insertSorted(entry);
         }
 
         entry.item = item;
@@ -294,6 +294,25 @@ public final class DroppedItemLabelRenderer {
         entry.y = (0.5F - ndcY * 0.5F) * guiHeight - labelHeight / 2.0F - ANCHOR_GAP * scale;
         entry.finalY = entry.y;
         return true;
+    }
+
+    /**
+     * 画面外へ出たアイテムは ENTRIES から外れるため、単純に末尾へ追加すると
+     * カメラパンで再入場した順に並びが変わり重なりラベルが入れ替わる。
+     * id の昇順で挿入し、出入りのタイミングに依存しない安定した並びを保つ。
+     */
+    private static void insertSorted(Entry entry) {
+        int lo = 0;
+        int hi = ENTRIES.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (ENTRIES.get(mid).id < entry.id) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        ENTRIES.add(lo, entry);
     }
 
     /** 今回見えなかったアイテムの席を詰める。残ったラベルは並び順を維持する。 */
