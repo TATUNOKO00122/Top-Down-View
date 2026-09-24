@@ -16,9 +16,14 @@ import org.jetbrains.annotations.Nullable;
  */
 public abstract class DelegatingBlockGetter implements BlockAndTintGetter {
 
-    protected final BlockAndTintGetter delegate;
+    protected BlockAndTintGetter delegate;
 
     protected DelegatingBlockGetter(BlockAndTintGetter delegate) {
+        this.delegate = delegate;
+    }
+
+    /** 委譲先を差し替える（プロキシの再利用）。 */
+    protected void setDelegate(BlockAndTintGetter delegate) {
         this.delegate = delegate;
     }
 

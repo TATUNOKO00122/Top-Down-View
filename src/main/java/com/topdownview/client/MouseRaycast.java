@@ -126,9 +126,12 @@ public final class MouseRaycast {
             return null;
 
         Vec3 direction = end.subtract(start).normalize();
-        double maxDistance = start.distanceTo(end);
+        // 探索範囲はブロックヒット地点までに限定する。レイ全体(512ブロック)を覆うAABBだと
+        // 大量のエンティティを走査してしまうため。
+        Vec3 searchEnd = blockHit.getType() != HitResult.Type.MISS ? blockHit.getLocation() : end;
+        double maxDistance = start.distanceTo(searchEnd);
 
-        AABB searchBox = new AABB(start, end).inflate(2.0);
+        AABB searchBox = new AABB(start, searchEnd).inflate(2.0);
 
         var entities = mc.level.getEntities(mc.player, searchBox,
                 (entity) -> entity != null && !entity.isSpectator() && entity.isPickable() && entity != mc.player);
@@ -136,6 +139,7 @@ public final class MouseRaycast {
         Entity closestEntity = null;
         double closestT = Double.MAX_VALUE;
         Vec3 closestHitPoint = null;
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
 
         for (Entity entity : entities) {
             AABB aabb = entity.getBoundingBox();
@@ -151,7 +155,7 @@ public final class MouseRaycast {
 
             Vec3 hitPoint = start.add(direction.scale(t));
             
-            if (!hasLineOfSight(mc, mc.player.getEyePosition(1.0f), entity))
+            if (!hasLineOfSight(mc, eyePos, entity))
                 continue;
 
             closestT = t;

@@ -66,6 +66,12 @@ public final class TopDownCuller {
     private double cameraZ;
     private boolean contextValid = false;
 
+    /** update() で確定したプレイヤーのブロック座標。ブロック毎の floor 再計算を避ける。 */
+    private int cachedPlayerBlockX = Integer.MIN_VALUE;
+    private int cachedPlayerBlockZ = Integer.MIN_VALUE;
+    private int cachedPlayerFloorY = Integer.MIN_VALUE;
+    private int cachedPlayerFeetY = Integer.MIN_VALUE;
+
     private int lastPlayerBlockX = Integer.MIN_VALUE;
     private int lastPlayerBlockY = Integer.MIN_VALUE;
     private int lastPlayerBlockZ = Integer.MIN_VALUE;
@@ -218,6 +224,10 @@ public final class TopDownCuller {
         lastPlayerBlockX = Integer.MIN_VALUE;
         lastPlayerBlockY = Integer.MIN_VALUE;
         lastPlayerBlockZ = Integer.MIN_VALUE;
+        cachedPlayerBlockX = Integer.MIN_VALUE;
+        cachedPlayerBlockZ = Integer.MIN_VALUE;
+        cachedPlayerFloorY = Integer.MIN_VALUE;
+        cachedPlayerFeetY = Integer.MIN_VALUE;
         lastCameraBlockX = Integer.MIN_VALUE;
         lastCameraBlockY = Integer.MIN_VALUE;
         lastCameraBlockZ = Integer.MIN_VALUE;
@@ -246,8 +256,8 @@ public final class TopDownCuller {
         PerfMonitor.IS_BLOCK_CULLED.increment();
 
         long posLong = pos.asLong();
-        Boolean cached = cullingCache.get(posLong);
-        if (cached != null) return cached;
+        byte cached = cullingCache.get(posLong);
+        if (cached != CullingCacheManager.UNKNOWN) return cached == 1;
 
         if (!contextValid) {
             cullingCache.put(posLong, false);
@@ -273,9 +283,9 @@ public final class TopDownCuller {
             return false;
         }
 
-        int playerBlockX = (int) Math.floor(pX);
-        int playerBlockZ = (int) Math.floor(pZ);
-        int playerFeetY = (int) Math.floor(pY) - 1;
+        int playerBlockX = cachedPlayerBlockX;
+        int playerBlockZ = cachedPlayerBlockZ;
+        int playerFeetY = cachedPlayerFeetY;
         if (pos.getX() == playerBlockX && pos.getZ() == playerBlockZ
                 && pos.getY() >= playerFeetY && pos.getY() <= playerFeetY + 1) {
             cullingCache.put(posLong, false);
@@ -325,10 +335,10 @@ public final class TopDownCuller {
         return isCulled;
     }
 
-    private boolean isPlayerNearBlock(BlockPos pos, double pX, double pY, double pZ) {
-        int pBX = (int) Math.floor(pX);
-        int pBY = (int) Math.floor(pY);
-        int pBZ = (int) Math.floor(pZ);
+    private boolean isPlayerNearBlock(BlockPos pos) {
+        int pBX = cachedPlayerBlockX;
+        int pBY = cachedPlayerFloorY;
+        int pBZ = cachedPlayerBlockZ;
         int rangeH = Config.getPlayerNearTranslucencyRangeHorizontal();
         int rangeV = Config.getPlayerNearTranslucencyRangeVertical();
         return pos.getX() >= pBX - rangeH && pos.getX() <= pBX + rangeH
@@ -361,7 +371,7 @@ public final class TopDownCuller {
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                pX, pY, pZ, cX, cY, cZ);
+                cX, cY, cZ);
 
         // 円柱内でも、プレイヤーより奥や真横のブロックは保護する。
         // カメラ側(手前)の視界コーン内だけをカリングし、手前の壁を通り抜けて見えるようにする。
@@ -399,7 +409,7 @@ public final class TopDownCuller {
             return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         }
 
-        int playerFeetY = (int) Math.floor(pY) - 1;
+        int playerFeetY = cachedPlayerFeetY;
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
 
         if (!ladderOcclude && state.getBlock() instanceof LadderBlock) {
@@ -471,23 +481,35 @@ public final class TopDownCuller {
         double eyeY = mc.player.getEyeY();
         double eyeZ = mc.player.getZ();
 
+        int currentBlockX = (int) Math.floor(eyeX);
+        int currentBlockY = (int) Math.floor(eyeY);
+        int currentBlockZ = (int) Math.floor(eyeZ);
+
+        // プレイヤーのブロック座標は update() で1度だけ floor し、ブロック毎の再計算を避ける。
+        // playerX/Y/Z は floor+0.5 で表すため、floor(playerX)=currentBlockX が成り立つ。
+        cachedPlayerBlockX = currentBlockX;
+        cachedPlayerBlockZ = currentBlockZ;
+        cachedPlayerFloorY = currentBlockY;
+        cachedPlayerFeetY = currentBlockY - 1;
+
         if (!com.topdownview.state.CameraState.isPositionValid(ModState.CAMERA.getCameraPosition())) {
-            playerX = Math.floor(eyeX) + 0.5;
-            playerY = Math.floor(eyeY) + 0.5;
-            playerZ = Math.floor(eyeZ) + 0.5;
+            playerX = currentBlockX + 0.5;
+            playerY = currentBlockY + 0.5;
+            playerZ = currentBlockZ + 0.5;
             contextValid = false;
             return;
         }
 
-        playerX = Math.floor(eyeX) + 0.5;
-        playerY = Math.floor(eyeY) + 0.5;
-        playerZ = Math.floor(eyeZ) + 0.5;
+        playerX = currentBlockX + 0.5;
+        playerY = currentBlockY + 0.5;
+        playerZ = currentBlockZ + 0.5;
         cameraX = Math.floor(ModState.CAMERA.getCameraX()) + 0.5;
         cameraY = Math.floor(ModState.CAMERA.getCameraY()) + 0.5;
         cameraZ = Math.floor(ModState.CAMERA.getCameraZ()) + 0.5;
         contextValid = true;
 
-        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift());
+        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift(),
+                playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
 
         cachedFadeStart = Config.getFadeStart();
         cachedFadeNearAlpha = Config.getFadeNearAlpha();
@@ -526,9 +548,6 @@ public final class TopDownCuller {
             }
         }
 
-        int currentBlockX = (int) Math.floor(eyeX);
-        int currentBlockY = (int) Math.floor(eyeY);
-        int currentBlockZ = (int) Math.floor(eyeZ);
         int currentCamBlockX = (int) Math.floor(ModState.CAMERA.getCameraX());
         int currentCamBlockY = (int) Math.floor(ModState.CAMERA.getCameraY());
         int currentCamBlockZ = (int) Math.floor(ModState.CAMERA.getCameraZ());
@@ -900,7 +919,7 @@ public final class TopDownCuller {
         double dy = pos.y - pY;
         double dz = pos.z - pZ;
         if (dx * dx + dy * dy + dz * dz <= ENTITY_PROTECTION_RADIUS_SQ) return false;
-        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos.x, pos.y, pos.z, pX, pY, pZ, cX, cY, cZ);
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos.x, pos.y, pos.z, cX, cY, cZ);
         if (normalizedDistSq < 0) return false;
         return normalizedDistSq <= 1.0;
     }
@@ -982,8 +1001,8 @@ public final class TopDownCuller {
         // 天井スライスのブロックは透明(0)。それ以外は通常のフェード/半透明をそのまま適用する。
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
         if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) return 0.0f;
-        Float cached = fadeCache.getFadeAlpha(posLong);
-        if (cached != null) return cached;
+        float cached = fadeCache.getFadeAlpha(posLong);
+        if (cached >= 0.0f) return cached;
 
         BlockState state = level.getBlockState(pos);
         float fadeAlpha = calculateFadeAlpha(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
@@ -991,7 +1010,7 @@ public final class TopDownCuller {
         // 近接半透明化はカリング済み(フェード対象)のブロックだけに適用する。カリングされて
         // いないブロックは不透明のまま残すため、プレイヤー周囲を箱状に消さない。
         if (fadeAlpha < 1.0f && Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear
-                && isPlayerNearBlock(pos, playerX, playerY, playerZ)
+                && isPlayerNearBlock(pos)
                 && !isProtectedBlock(pos, state, playerY, level)
                 && !isFastGraphicsLeaves(state)) {
             float nearAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
@@ -1033,7 +1052,7 @@ public final class TopDownCuller {
      */
     private boolean isPlayerNearTranslucencyBlock(BlockPos pos, BlockGetter level) {
         if (!Config.isPlayerNearTranslucencyEnabled() || cachedDisableIndoorNear) return false;
-        if (!isPlayerNearBlock(pos, playerX, playerY, playerZ)) return false;
+        if (!isPlayerNearBlock(pos)) return false;
         BlockState state = level.getBlockState(pos);
         if (isProtectedBlock(pos, state, playerY, level)) return false;
         if (isFastGraphicsLeaves(state)) return false;
@@ -1062,9 +1081,9 @@ public final class TopDownCuller {
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
-            int pBX = (int) Math.floor(playerX);
-            int pBY = (int) Math.floor(playerY);
-            int pBZ = (int) Math.floor(playerZ);
+            int pBX = cachedPlayerBlockX;
+            int pBY = cachedPlayerFloorY;
+            int pBZ = cachedPlayerBlockZ;
             int cBX = (int) Math.floor(cameraX);
             int cBY = (int) Math.floor(cameraY);
             int cBZ = (int) Math.floor(cameraZ);
@@ -1123,9 +1142,9 @@ public final class TopDownCuller {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
-                    boolean isNearTarget = nearTranslucencyEnabled && isPlayerNearBlock(mutablePos, pX, pY, pZ);
+                    boolean isNearTarget = nearTranslucencyEnabled && isPlayerNearBlock(mutablePos);
 
-                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(x + 0.5, y + 0.5, z + 0.5, pX, pY, pZ, cX, cY, cZ);
+                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(x + 0.5, y + 0.5, z + 0.5, cX, cY, cZ);
                     double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(mutablePos, pX, pY, pZ, cX, cZ);
 
                     float cylinderAlpha;

@@ -38,9 +38,12 @@ public final class OcclusionCalculator {
         if (lenSq < MIN_HORIZONTAL_LENGTH_SQ) {
             return true;
         }
-        double invLen = 1.0 / Math.sqrt(lenSq);
-        double cos = (toBX * dirX + toBZ * dirZ) * invLen;
-        return cos <= -cosHalfAngle;
+        // cos <= -cosHalfAngle を sqrt 無しで判定する。cosHalfAngle >= 0 なので dot>0 は常に外側。
+        double dot = toBX * dirX + toBZ * dirZ;
+        if (dot > 0.0) {
+            return false;
+        }
+        return dot * dot >= cosHalfAngle * cosHalfAngle * lenSq;
     }
 
     public static boolean isOccludingView(BlockPos pos, double cX, double cY, double cZ, double pX, double pY, double pZ) {

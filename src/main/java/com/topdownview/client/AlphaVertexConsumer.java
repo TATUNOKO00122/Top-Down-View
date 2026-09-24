@@ -8,10 +8,18 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
  */
 public final class AlphaVertexConsumer implements VertexConsumer {
 
-    private final VertexConsumer delegate;
+    private VertexConsumer delegate;
     private float alpha = 1.0f;
 
+    public AlphaVertexConsumer() {
+    }
+
     public AlphaVertexConsumer(VertexConsumer delegate) {
+        this.delegate = delegate;
+    }
+
+    /** 委譲先を差し替える（フレーム毎の再生成を避けるための再利用）。 */
+    public void setDelegate(VertexConsumer delegate) {
         this.delegate = delegate;
     }
 

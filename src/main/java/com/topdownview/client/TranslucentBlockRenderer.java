@@ -39,6 +39,11 @@ public final class TranslucentBlockRenderer {
     private static final Long2FloatOpenHashMap SMOOTHED_ALPHAS = new Long2FloatOpenHashMap();
     private static long lastFrameNanos;
 
+    // 描画スレッド専用。ラッパーをフレーム毎に生成しないよう再利用する。
+    private static final AlphaVertexConsumer ALPHA_CONSUMER = new AlphaVertexConsumer();
+    private static final FadeBlockGetter FADE_LEVEL = new FadeBlockGetter();
+    private static final BlockPos.MutableBlockPos FADE_POS = new BlockPos.MutableBlockPos();
+
     private TranslucentBlockRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -83,9 +88,8 @@ public final class TranslucentBlockRenderer {
 
         // ラッパーオブジェクトを再利用してアロケーションを抑える
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
-        AlphaVertexConsumer alphaConsumer = new AlphaVertexConsumer(baseConsumer);
-        FadeBlockGetter fadeLevel = new FadeBlockGetter(mc.level, fadeBlocks);
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        ALPHA_CONSUMER.setDelegate(baseConsumer);
+        FADE_LEVEL.set(mc.level, fadeBlocks);
 
         for (Long2FloatMap.Entry entry : fadeBlocks.long2FloatEntrySet()) {
             long posLong = entry.getLongKey();
@@ -108,8 +112,8 @@ public final class TranslucentBlockRenderer {
             float alpha = target < previous ? target : expDecay(previous, target, halfLife, dt);
             SMOOTHED_ALPHAS.put(posLong, alpha);
 
-            mutablePos.set(bx, by, bz);
-            renderFadeBlock(mc.level, fadeLevel, mutablePos, poseStack, blockRenderer, alphaConsumer, alpha, cameraPos);
+            FADE_POS.set(bx, by, bz);
+            renderFadeBlock(mc.level, FADE_LEVEL, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
         }
 
         // フェード集合から外れたブロックの平滑化状態を破棄(無制限な増加を防ぐ)
@@ -208,10 +212,14 @@ public final class TranslucentBlockRenderer {
      * 判定は集合の所属のみで行うため、α値が変化しても面の描画は反転しない。
      */
     private static final class FadeBlockGetter extends DelegatingBlockGetter {
-        private final Long2FloatMap fadeBlocks;
+        private Long2FloatMap fadeBlocks;
 
-        FadeBlockGetter(BlockAndTintGetter delegate, Long2FloatMap fadeBlocks) {
-            super(delegate);
+        FadeBlockGetter() {
+            super(null);
+        }
+
+        void set(BlockAndTintGetter delegate, Long2FloatMap fadeBlocks) {
+            this.delegate = delegate;
             this.fadeBlocks = fadeBlocks;
         }
 

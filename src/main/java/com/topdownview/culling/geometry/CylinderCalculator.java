@@ -1,7 +1,6 @@
 package com.topdownview.culling.geometry;
 
 import com.topdownview.Config;
-import com.topdownview.state.ModState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -14,96 +13,84 @@ public final class CylinderCalculator {
     private static final double MIN_SEGMENT_LENGTH_SQ = 1.0E-8;
     private static final double EXTENSION_BLOCKS = 3.0;
 
-    // フレーム毎にキャッシュされる値（アロケーション・重複計算削減用）
-    private static double cachedShiftedXOffset = 0.0;
-    private static double cachedShiftedZOffset = 0.0;
+    /**
+     * フレーム毎に不変なシリンダー軸(カメラ→シフト後プレイヤー)の情報。
+     * {@link #updateCache} が1度だけ構築し volatile で公開するため、チャンク構築ワーカーからも
+     * 一貫したスナップショットを読める。ブロック毎の計算から sqrt と軸の再導出を排除する。
+     */
+    private static volatile Axis axis = Axis.INVALID;
+
+    private record Axis(double segX, double segY, double segZ, double segLengthSq,
+                        double invSegLength, double extensionT) {
+        static final Axis INVALID = new Axis(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    }
 
     private CylinderCalculator() {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
     /**
-     * フレーム毎のシリンダー計算用の事前パラメータを更新します。
+     * フレーム毎のシリンダー軸を事前計算します。
+     * プレイヤー/カメラ座標は {@code TopDownCuller.update()} で確定した値と一致させること。
      */
-    public static void updateCache(double yaw, double forwardShift) {
+    public static void updateCache(double yaw, double forwardShift,
+            double playerX, double playerY, double playerZ,
+            double cameraX, double cameraY, double cameraZ) {
         double yawRad = Math.toRadians(yaw);
-        cachedShiftedXOffset = forwardShift * (-Math.sin(yawRad));
-        cachedShiftedZOffset = forwardShift * Math.cos(yawRad);
+        double shiftedPlayerX = playerX + forwardShift * (-Math.sin(yawRad));
+        double shiftedPlayerZ = playerZ + forwardShift * Math.cos(yawRad);
+        double segX = shiftedPlayerX - cameraX;
+        double segY = playerY - cameraY;
+        double segZ = shiftedPlayerZ - cameraZ;
+        double segLengthSq = segX * segX + segY * segY + segZ * segZ;
+        if (segLengthSq < MIN_SEGMENT_LENGTH_SQ) {
+            axis = Axis.INVALID;
+            return;
+        }
+        double segLength = Math.sqrt(segLengthSq);
+        axis = new Axis(segX, segY, segZ, segLengthSq, 1.0 / segLength, EXTENSION_BLOCKS / segLength);
     }
 
     /**
      * ブロック位置のシリンダー内正規化距離の二乗を計算する。
-     * 
+     * 軸は {@link #updateCache} の値を用いるため、プレイヤー座標は受け取らない。
+     *
      * @param blockX ブロック中心X座標
      * @param blockY ブロック中心Y座標
      * @param blockZ ブロック中心Z座標
-     * @param playerX プレイヤーX座標
-     * @param playerY プレイヤーY座標
-     * @param playerZ プレイヤーZ座標
-     * @param cameraX カメラX座標
+     * @param cameraX カメラX座標(updateCache と同一値)
      * @param cameraY カメラY座標
      * @param cameraZ カメラZ座標
      * @return 正規化距離の二乗 (1.0以下=シリンダー内, 負値=無効)
      */
     public static double getNormalizedDistanceSq(
             double blockX, double blockY, double blockZ,
-            double playerX, double playerY, double playerZ,
             double cameraX, double cameraY, double cameraZ) {
-        double yaw = ModState.CAMERA.getYaw();
-        return computeNormalizedDistSq(blockX, blockY, blockZ,
-                playerX, playerY, playerZ,
-                cameraX, cameraY, cameraZ,
-                true, yaw);
+        Axis a = axis;
+        if (a.segLengthSq() < MIN_SEGMENT_LENGTH_SQ) {
+            return -1.0;
+        }
+        return cylinderValue(blockX, blockY, blockZ, cameraX, cameraY, cameraZ,
+                a.segX(), a.segY(), a.segZ(), a.segLengthSq(), a.invSegLength(), a.extensionT());
     }
 
     /**
-     * BlockPos版オーバーロード。
+     * シリンダー内正規化距離の二乗を計算する共通実装。軸情報を明示的に受け取る。
+     * 事前正規化済みの {@code invSegLength}/{@code extensionT} を受け取ることで sqrt を排除する。
      */
-    public static double getNormalizedDistanceSq(BlockPos pos, Vec3 playerPos, Vec3 cameraPos) {
-        double yaw = ModState.CAMERA.getYaw();
-        return computeNormalizedDistSq(
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                playerPos.x, playerPos.y, playerPos.z,
-                cameraPos.x, cameraPos.y, cameraPos.z,
-                true, yaw);
-    }
-
-    private static double computeNormalizedDistSq(
+    private static double cylinderValue(
             double blockX, double blockY, double blockZ,
-            double playerX, double playerY, double playerZ,
             double cameraX, double cameraY, double cameraZ,
-            boolean useShift, double explicitYaw) {
-
-        double shiftedPlayerX = playerX;
-        double shiftedPlayerZ = playerZ;
-
-        if (useShift) {
-            // updateCache() で事前計算されたオフセット値を使用
-            shiftedPlayerX = playerX + cachedShiftedXOffset;
-            shiftedPlayerZ = playerZ + cachedShiftedZOffset;
-        }
-
-        double segX = shiftedPlayerX - cameraX;
-        double segY = playerY - cameraY;
-        double segZ = shiftedPlayerZ - cameraZ;
-        double segLengthSq = segX * segX + segY * segY + segZ * segZ;
-
-        if (segLengthSq < MIN_SEGMENT_LENGTH_SQ) {
-            return -1.0;
-        }
-
+            double segX, double segY, double segZ, double segLengthSq,
+            double invSegLength, double extensionT) {
         double toBlockX = blockX - cameraX;
         double toBlockY = blockY - cameraY;
         double toBlockZ = blockZ - cameraZ;
 
         double t = (toBlockX * segX + toBlockY * segY + toBlockZ * segZ) / segLengthSq;
-
-        double segLength = Math.sqrt(segLengthSq);
-        double extensionT = EXTENSION_BLOCKS / segLength;
         if (t < -extensionT || t > 1.0 + extensionT) {
             return -1.0;
         }
-
         t = Math.max(-extensionT, Math.min(t, 1.0));
 
         double closestX = cameraX + segX * t;
@@ -114,7 +101,6 @@ public final class CylinderCalculator {
         double relY = blockY - closestY;
         double relZ = blockZ - closestZ;
 
-        double invSegLength = 1.0 / segLength;
         double normDirX = segX * invSegLength;
         double normDirY = segY * invSegLength;
         double normDirZ = segZ * invSegLength;
@@ -142,11 +128,19 @@ public final class CylinderCalculator {
     public static boolean isInCylinderForTrapdoor(BlockPos pos,
             double playerX, double playerY, double playerZ,
             double cameraX, double cameraY, double cameraZ) {
-        double normalizedDistSq = computeNormalizedDistSq(
+        // トラップドアはシフト無しの軸で判定するため、フレームキャッシュを使わずここで軸を求める。
+        double segX = playerX - cameraX;
+        double segY = playerY - cameraY;
+        double segZ = playerZ - cameraZ;
+        double segLengthSq = segX * segX + segY * segY + segZ * segZ;
+        if (segLengthSq < MIN_SEGMENT_LENGTH_SQ) {
+            return false;
+        }
+        double segLength = Math.sqrt(segLengthSq);
+        double normalizedDistSq = cylinderValue(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                playerX, playerY, playerZ,
                 cameraX, cameraY, cameraZ,
-                false, 0.0);
+                segX, segY, segZ, segLengthSq, 1.0 / segLength, EXTENSION_BLOCKS / segLength);
         return normalizedDistSq >= 0 && normalizedDistSq <= 1.0;
     }
 

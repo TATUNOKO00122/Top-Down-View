@@ -16,16 +16,17 @@ public final class FadeCacheManager extends EpochCache<Long2FloatOpenHashMap> {
     private final Long2FloatOpenHashMap fadeBlocksCache = new Long2FloatOpenHashMap(500);
 
     public FadeCacheManager() {
-        super(() -> new Long2FloatOpenHashMap(500));
+        super(() -> {
+            Long2FloatOpenHashMap map = new Long2FloatOpenHashMap(500);
+            map.defaultReturnValue(-1.0f);
+            return map;
+        });
         fadeBlocksCache.defaultReturnValue(-1.0f);
     }
 
-    public Float getFadeAlpha(long posLong) {
-        Long2FloatOpenHashMap cache = map();
-        if (cache.containsKey(posLong)) {
-            return cache.get(posLong);
-        }
-        return null;
+    /** フェードα(有効値は 0..1)。キャッシュ未登録は負値。 */
+    public float getFadeAlpha(long posLong) {
+        return map().get(posLong);
     }
 
     public void putFadeAlpha(long posLong, float alpha) {

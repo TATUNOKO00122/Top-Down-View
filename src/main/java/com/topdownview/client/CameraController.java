@@ -320,16 +320,17 @@ public final class CameraController {
      * プレイヤーの回転をマウス位置に合わせて更新
      */
     public static void updatePlayerRotationToMouse(Minecraft mc) {
-        MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
-        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
-
         if (mc.player == null) {
             return;
         }
 
+        // 乗騎・滑空中は回転をマウント制御側が行うため、レイキャスト前に抜ける。
         if (mc.player.isPassenger() || mc.player.isFallFlying()) {
             return;
         }
+
+        MouseRaycast.INSTANCE.update(mc, mc.getFrameTime(), MouseRaycast.getCustomReachDistance());
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
         net.minecraft.core.Direction climbDir = ClimbableHelper.getClimbingDirection();
         if (climbDir != null) {
