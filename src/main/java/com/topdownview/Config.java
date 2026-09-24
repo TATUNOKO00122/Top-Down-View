@@ -69,7 +69,7 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue BARITONE_RENDER_GOAL = BUILDER
             .define("baritoneRenderGoal", true);
     private static final ForgeConfigSpec.BooleanValue STEP_ASSIST_ENABLED = BUILDER
-            .comment("Raise the player's step height so full blocks can be walked up while top-down view is active.")
+            .comment("Raise the player's step height up to jump height while top-down view is active.")
             .define("stepAssistEnabled", true);
     private static final ForgeConfigSpec.DoubleValue SPRINT_DISTANCE_THRESHOLD = BUILDER
             .defineInRange("sprintDistanceThreshold", 5.0, 1.0, 50.0);
@@ -274,10 +274,10 @@ public class Config {
 
     private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_MODE = BUILDER
             .comment("0 = off, 1 = on.")
-            .defineInRange("droppedItemLabelMode", 1, 0, 1);
+            .defineInRange("droppedItemLabelMode", 0, 0, 1);
 
     private static final ForgeConfigSpec.DoubleValue DROPPED_ITEM_LABEL_SCALE = BUILDER
-            .defineInRange("droppedItemLabelScale", 1.0, 0.0, 1.0);
+            .defineInRange("droppedItemLabelScale", 0.5, 0.0, 1.0);
 
     private static final ForgeConfigSpec.IntValue DROPPED_ITEM_LABEL_BACKGROUND = BUILDER
             .comment("0 = solid color, 1 = vanilla tooltip style.")

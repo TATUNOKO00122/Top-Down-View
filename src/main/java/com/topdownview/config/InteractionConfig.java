@@ -39,8 +39,8 @@ public final class InteractionConfig {
     private double syncedManualPickupDistance = -1.0;
     private int signHoverDisplayMode = 2;
     private double signHoverScale = 0.5;
-    private int droppedItemLabelMode = 1;
-    private double droppedItemLabelScale = 1.0;
+    private int droppedItemLabelMode = 0;
+    private double droppedItemLabelScale = 0.5;
     private int droppedItemLabelBackground = 0;
     private int droppedItemLabelGap = 1;
     private boolean manualItemPickup = false;
