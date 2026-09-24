@@ -11,7 +11,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.vehicle.Boat;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -101,16 +100,8 @@ public abstract class LocalPlayerMixin {
         float aimYaw;
         float aimPitch;
 
-        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
-            Vec3 targetPos = hitResult.getLocation();
-
-            if (hitResult instanceof EntityHitResult entityHit) {
-                Entity hitEntity = entityHit.getEntity();
-                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
-                    targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
-                }
-            }
-
+        Vec3 targetPos = MouseRaycast.INSTANCE.getAimTarget(mc, mc.getFrameTime(), hitResult);
+        if (targetPos != null) {
             Vec3 playerEyePos = player.getEyePosition(mc.getFrameTime());
 
             double dx = targetPos.x - playerEyePos.x;

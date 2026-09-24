@@ -9,9 +9,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -77,16 +74,8 @@ public final class MountSteeringController {
     private static float[] computeAimFromPlayerEye(Minecraft mc, LocalPlayer player) {
         HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
 
-        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
-            Vec3 targetPos = hitResult.getLocation();
-
-            if (hitResult instanceof EntityHitResult entityHit) {
-                Entity hitEntity = entityHit.getEntity();
-                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
-                    targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
-                }
-            }
-
+        Vec3 targetPos = MouseRaycast.INSTANCE.getAimTarget(mc, mc.getFrameTime(), hitResult);
+        if (targetPos != null) {
             Vec3 playerEyePos = player.getEyePosition(mc.getFrameTime());
 
             double dx = targetPos.x - playerEyePos.x;
@@ -96,7 +85,7 @@ public final class MountSteeringController {
 
             float aimYaw = (float) (Math.atan2(dz, dx) * MathConstants.RADIANS_TO_DEGREES) - 90.0f;
 
-            Float trajectoryPitch = calculatePitch(mc, player, horizontalDist, dy);
+            Float trajectoryPitch = calculatePitch(player, horizontalDist, dy);
             float aimPitch;
             if (trajectoryPitch != null) {
                 aimPitch = trajectoryPitch;
@@ -163,44 +152,24 @@ public final class MountSteeringController {
         player.setXRot(aimPitch);
     }
 
-    private static final double MIN_PULL_FACTOR = 0.65;
-
-    private static Float calculatePitch(Minecraft mc, LocalPlayer player, double horizontalDist, double verticalDist) {
-        ItemStack useItem = player.getUseItem();
-        Item item = useItem.getItem();
-        ProjectilePhysics physics = ProjectilePhysics.fromItem(item);
-
-        if (physics != null && player.isUsingItem()) {
-            int useTicks = player.getTicksUsingItem();
-            double pullFactor = TrajectoryCalculator.calculatePullFactor(item, useTicks);
-            if (pullFactor >= MIN_PULL_FACTOR) {
-                return TrajectoryCalculator.calculatePitch(physics, horizontalDist, verticalDist, pullFactor);
-            }
-        }
-        return null;
+    private static Float calculatePitch(LocalPlayer player, double horizontalDist, double verticalDist) {
+        return TrajectoryCalculator.calculateTrajectoryPitch(player, horizontalDist, verticalDist);
     }
 
     private static Float calculatePitchFromRaycast(Minecraft mc, LocalPlayer player) {
-        ItemStack useItem = player.getUseItem();
-        Item item = useItem.getItem();
-        ProjectilePhysics physics = ProjectilePhysics.fromItem(item);
-
-        if (physics != null && player.isUsingItem()) {
-            int useTicks = player.getTicksUsingItem();
-            double pullFactor = TrajectoryCalculator.calculatePullFactor(item, useTicks);
-            if (pullFactor >= MIN_PULL_FACTOR) {
-                var hitResult = MouseRaycast.INSTANCE.getLastHitResult();
-                if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
-                    var targetPos = hitResult.getLocation();
-                    var playerEyePos = player.getEyePosition(mc.getFrameTime());
-                    double dx = targetPos.x - playerEyePos.x;
-                    double dy = targetPos.y - playerEyePos.y;
-                    double dz = targetPos.z - playerEyePos.z;
-                    double horizontalDist = Math.sqrt(dx * dx + dz * dz);
-                    return TrajectoryCalculator.calculatePitch(physics, horizontalDist, dy, pullFactor);
-                }
-            }
+        HitResult hitResult = MouseRaycast.INSTANCE.getLastHitResult();
+        if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
+            return null;
         }
-        return null;
+        Vec3 targetPos = MouseRaycast.INSTANCE.getAimTarget(mc, mc.getFrameTime(), hitResult);
+        if (targetPos == null) {
+            return null;
+        }
+        Vec3 playerEyePos = player.getEyePosition(mc.getFrameTime());
+        double dx = targetPos.x - playerEyePos.x;
+        double dy = targetPos.y - playerEyePos.y;
+        double dz = targetPos.z - playerEyePos.z;
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        return TrajectoryCalculator.calculateTrajectoryPitch(player, horizontalDist, dy);
     }
 }

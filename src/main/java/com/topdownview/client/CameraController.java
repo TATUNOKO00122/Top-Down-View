@@ -7,10 +7,6 @@ import com.topdownview.culling.CullingManager;
 import com.topdownview.util.MathConstants;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -342,17 +338,8 @@ public final class CameraController {
             return;
         }
 
-        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
-            Vec3 targetPos = hitResult.getLocation();
-
-            // ターゲットロック中：拡大ヒットボックスによるYずれを補正
-            if (hitResult instanceof EntityHitResult entityHit) {
-                Entity hitEntity = entityHit.getEntity();
-                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
-                    targetPos = hitEntity.getPosition(1.0f).add(0, hitEntity.getEyeHeight() * 0.8, 0);
-                }
-            }
-
+        Vec3 targetPos = MouseRaycast.INSTANCE.getAimTarget(mc, mc.getFrameTime(), hitResult);
+        if (targetPos != null) {
             Vec3 playerEyePos = mc.player.getEyePosition(mc.getFrameTime());
 
             double dx = targetPos.x - playerEyePos.x;
@@ -383,20 +370,10 @@ public final class CameraController {
         }
     }
 
-    private static final double MIN_PULL_FACTOR = 0.65;
-
     private static Float calculatePitch(Minecraft mc, double horizontalDist, double verticalDist) {
-        ItemStack useItem = mc.player.getUseItem();
-        Item item = useItem.getItem();
-        ProjectilePhysics physics = ProjectilePhysics.fromItem(item);
-        
-        if (physics != null && mc.player.isUsingItem()) {
-            int useTicks = mc.player.getTicksUsingItem();
-            double pullFactor = TrajectoryCalculator.calculatePullFactor(item, useTicks);
-            if (pullFactor >= MIN_PULL_FACTOR) {
-                return TrajectoryCalculator.calculatePitch(physics, horizontalDist, verticalDist, pullFactor);
-            }
-            return null;
+        Float trajectoryPitch = TrajectoryCalculator.calculateTrajectoryPitch(mc.player, horizontalDist, verticalDist);
+        if (trajectoryPitch != null) {
+            return trajectoryPitch;
         }
         return (float) -(Math.atan2(verticalDist, horizontalDist) * MathConstants.RADIANS_TO_DEGREES);
     }

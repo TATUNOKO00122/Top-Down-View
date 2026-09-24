@@ -7,9 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -131,16 +129,9 @@ public final class PlayerRotationController {
         float targetYaw;
         float targetPitch;
 
-        if (hitResult != null && hitResult.getType() != HitResult.Type.MISS) {
+        Vec3 targetPos = MouseRaycast.INSTANCE.getAimTarget(mc, partialTick, hitResult);
+        if (targetPos != null) {
             Vec3 playerEyePos = mc.player.getEyePosition(partialTick);
-            Vec3 targetPos = hitResult.getLocation();
-
-            if (hitResult instanceof EntityHitResult entityHit) {
-                Entity hitEntity = entityHit.getEntity();
-                if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
-                    targetPos = hitEntity.getPosition(partialTick).add(0, hitEntity.getEyeHeight() * 0.8, 0);
-                }
-            }
 
             double dx = targetPos.x - playerEyePos.x;
             double dy = targetPos.y - playerEyePos.y;
@@ -153,6 +144,12 @@ public final class PlayerRotationController {
 
             targetYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
             targetPitch = Mth.clamp((float) -(Math.atan2(dy, horizontalDist) * (180.0 / Math.PI)), -90.0f, 90.0f);
+
+            // 投射武器は重力補正した発射角を使う
+            Float trajectoryPitch = TrajectoryCalculator.calculateTrajectoryPitch(mc.player, horizontalDist, dy);
+            if (trajectoryPitch != null) {
+                targetPitch = trajectoryPitch;
+            }
         } else {
             float[] yawPitch = MouseRaycast.INSTANCE.getMouseTargetYawPitch(mc, partialTick);
             if (yawPitch == null) return false;

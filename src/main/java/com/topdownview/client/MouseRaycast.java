@@ -7,6 +7,7 @@ import com.topdownview.util.RayAabb;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.HoeItem;
@@ -354,6 +355,48 @@ public final class MouseRaycast {
 
     public HitResult getLastHitResult() {
         return lastHitResult;
+    }
+
+    /**
+     * 照準計算に使う対象点を返す。ヒットなし（MISS）の場合は null。
+     * ターゲットロック中のエンティティにヒットしている場合は、拡大ヒットボックス上の点ではなく
+     * カーソルレイと実ヒットボックスの交点を返す。これにより照準はカーソルに追従し、
+     * 当たり判定拡大による照準の吸い寄せを防ぐ。
+     */
+    public Vec3 getAimTarget(Minecraft mc, float partialTick, HitResult hitResult) {
+        if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
+            return null;
+        }
+        Vec3 targetPos = hitResult.getLocation();
+        if (hitResult instanceof EntityHitResult entityHit) {
+            Entity hitEntity = entityHit.getEntity();
+            if (ModState.TARGET_LOCK.isLockedTo(hitEntity)) {
+                targetPos = resolveLockedAimPoint(mc, partialTick, targetPos, hitEntity);
+            }
+        }
+        return targetPos;
+    }
+
+    /**
+     * 拡大ヒットボックスにヒットしたときの照準点を補正する。
+     * カーソルレイが実ヒットボックスに当たる場合はその交点を返し、当たらない場合は
+     * 実ヒットボックス上の最近点へクランプして、照準が対象から外れないようにする。
+     */
+    private Vec3 resolveLockedAimPoint(Minecraft mc, float partialTick, Vec3 hitPoint, Entity entity) {
+        Vec3 direction = getMouseRayDirection(mc, partialTick);
+        if (direction == null) {
+            return hitPoint;
+        }
+        AABB box = entity.getBoundingBox();
+        Vec3 start = mc.gameRenderer.getMainCamera().getPosition();
+        double t = rayAABBIntersection(start, direction, box);
+        if (t >= 0 && Double.isFinite(t)) {
+            return start.add(direction.scale(t));
+        }
+        return new Vec3(
+                Mth.clamp(hitPoint.x, box.minX, box.maxX),
+                Mth.clamp(hitPoint.y, box.minY, box.maxY),
+                Mth.clamp(hitPoint.z, box.minZ, box.maxZ));
     }
 
     public Vec3 getMouseRayDirection(Minecraft mc, float partialTick) {
