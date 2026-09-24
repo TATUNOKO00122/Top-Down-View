@@ -64,6 +64,7 @@ public final class ClientForgeEvents {
     public static void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
         LOGGER.info("[TopDownView] Player joined world, resetting state");
         ModState.resetAll();
+        ClickActionHandler.resetInput();
         ModState.STATUS.setEnabled(Config.isDefaultEnabled());
         ReachManager.forceUpdate();
         ClientPickupHandler.sendToggle();
@@ -84,6 +85,7 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
         EntityCullingIntegration.setSuspended(false);
+        ClickActionHandler.resetInput();
         Config.clearSyncedServerReach();
         Config.clearSyncedManualPickupDistance();
         PickupApproachController.cancel();

@@ -85,6 +85,9 @@ public final class ClickToMoveController {
         }
 
         if (!Config.isClickToMoveEnabled()) return;
+
+        updateHoldFollow(mc);
+
         if (!ModState.CLICK_TO_MOVE.isMoving()) return;
 
         ModState.CLICK_TO_MOVE.updateEntityTargetPosition();
@@ -103,6 +106,37 @@ public final class ClickToMoveController {
         } else {
             checkArrival(mc);
         }
+    }
+
+    /**
+     * 左ボタン長押し中のカーソル追従移動。押下時に通常ブロックへの移動を開始した場合のみ有効。
+     * カーソル位置を毎tick目的地へ反映し、離すと停止する（タップは従来通り到着まで継続）。
+     */
+    private static void updateHoldFollow(Minecraft mc) {
+        if (!ClickActionHandler.isHoldMoveEngaged()) return;
+        if (mc.player == null || mc.level == null || mc.player.isPassenger()) return;
+
+        // GUIを開いたら長押しセッションを終了して停止する
+        if (mc.screen != null) {
+            ClickActionHandler.cancelHoldSession();
+            stop();
+            return;
+        }
+
+        // Baritone利用中は経路の連続再設定が高コストなため追従しない（離しても継続）
+        if (ModState.CLICK_TO_MOVE.useBaritone()) return;
+        if (ModState.CLICK_TO_MOVE.isAttacking() || ModState.CLICK_TO_MOVE.isDestroying()
+                || ModState.CLICK_TO_MOVE.isInteracting()
+                || ModState.CLICK_TO_MOVE.getTargetEntity() != null) return;
+        if (ModState.CAMERA.isFreeCameraMode() || ModState.CAMERA.isDragging()) return;
+
+        Vec3 groundPoint = MouseRaycast.INSTANCE.getMouseHorizontalIntersection(mc, 1.0f, mc.player.getY());
+        if (groundPoint == null) return;
+
+        // 到達距離内なら再設定不要（チャタリング防止）
+        if (mc.player.position().distanceToSqr(groundPoint) <= STOP_THRESHOLD * STOP_THRESHOLD) return;
+
+        ModState.CLICK_TO_MOVE.startMoveTo(groundPoint, mc.player.position());
     }
 
     private static void checkBaritoneArrival(Minecraft mc) {
@@ -254,6 +288,7 @@ public final class ClickToMoveController {
     }
 
     public static void reset() {
+        ClickActionHandler.cancelHoldSession();
         BaritoneIntegration.stop();
         ModState.CLICK_TO_MOVE.reset();
     }

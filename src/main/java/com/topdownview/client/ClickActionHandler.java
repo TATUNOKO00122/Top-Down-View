@@ -2,6 +2,7 @@ package com.topdownview.client;
 
 import com.topdownview.Config;
 import com.topdownview.state.ModState;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,7 +15,12 @@ import net.minecraft.world.phys.Vec3;
 
 public final class ClickActionHandler {
 
+    /** タップと長押しを区別する閾値(ms)。これ未満は従来の1クリック移動。 */
+    private static final long HOLD_THRESHOLD_MS = 200;
+
     private static boolean isLeftClickDown = false;
+    private static boolean holdEligible = false;
+    private static long holdStartMs = 0;
 
     private static void lockTarget(Entity entity) {
         if (!Config.isTargetLockEnabled()) return;
@@ -37,27 +43,60 @@ public final class ClickActionHandler {
 
     public static void onInput(int button, int action, Minecraft mc) {
         int attackButton = mc.options.keyAttack.getKey().getValue();
+        if (button != attackButton) return;
 
-        if (button == attackButton) {
-            boolean wasDown = isLeftClickDown;
-            isLeftClickDown = (action != 0);
+        boolean wasDown = isLeftClickDown;
+        boolean isDown = action != 0;
 
-            if (ModState.STATUS.isEnabled() && action != 0) {
-                // ラベル上のクリックは押下状態に関係なく取得を試みる（1回目が無反応になるのを防ぐ）
-                if (Config.isManualItemPickup() && tryPickupItem(mc)) {
-                    return;
-                }
-                // 別の操作を始めたら接近取得は中断する
-                PickupApproachController.cancel();
-                if (!wasDown) {
-                    if (Config.isClickToMoveEnabled()) {
-                        handleLeftClickPress(mc);
-                    } else {
-                        handleTargetLockOnly(mc);
-                    }
-                }
+        if (!isDown) {
+            // 長押し追従中に離したらその場で停止する（タップは従来通り到着まで継続）
+            if (wasDown && isHoldMoveEngaged() && !ModState.CLICK_TO_MOVE.useBaritone()) {
+                ClickToMoveController.stop();
             }
+            isLeftClickDown = false;
+            holdEligible = false;
+            return;
         }
+
+        isLeftClickDown = true;
+        // 押しっぱなし継続中はエッジ処理しない
+        if (wasDown) return;
+
+        holdEligible = false;
+        holdStartMs = Util.getMillis();
+
+        // GUI表示中はクリック移動を開始しない（ボタン状態の追跡のみ行う）
+        if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
+
+        // ラベル上のクリックは押下状態に関係なく取得を試みる（1回目が無反応になるのを防ぐ）
+        if (Config.isManualItemPickup() && tryPickupItem(mc)) {
+            return;
+        }
+        // 別の操作を始めたら接近取得は中断する
+        PickupApproachController.cancel();
+        if (Config.isClickToMoveEnabled()) {
+            handleLeftClickPress(mc);
+        } else {
+            handleTargetLockOnly(mc);
+        }
+    }
+
+    /** 長押しによるカーソル追従移動が有効か。対象ブロックへの移動を開始した押下のみ対象。 */
+    public static boolean isHoldMoveEngaged() {
+        return isLeftClickDown && holdEligible
+                && Util.getMillis() - holdStartMs >= HOLD_THRESHOLD_MS;
+    }
+
+    /** 長押しセッションを打ち切る（手動移動・ジャンプ・GUI表示など）。 */
+    public static void cancelHoldSession() {
+        holdEligible = false;
+        holdStartMs = 0;
+    }
+
+    /** 入力セッションのリセット（ワールド出入り時）。 */
+    public static void resetInput() {
+        isLeftClickDown = false;
+        cancelHoldSession();
     }
 
     /**
@@ -160,6 +199,7 @@ public final class ClickActionHandler {
 
             Vec3 destination = blockHit.getLocation();
             ClickToMoveController.setDestination(destination);
+            holdEligible = true;
             if (Config.isDestinationHighlightEnabled()) {
                 ModState.DESTINATION_HIGHLIGHT.startAnimation();
             }

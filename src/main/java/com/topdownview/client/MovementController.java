@@ -56,6 +56,7 @@ public final class MovementController {
 
         if (Config.isClickToMoveEnabled() && ModState.CLICK_TO_MOVE.isMoving()) {
             if (hasManualInput) {
+                ClickActionHandler.cancelHoldSession();
                 ClickToMoveController.stop();
                 mc.player.setSprinting(false);
             } else {

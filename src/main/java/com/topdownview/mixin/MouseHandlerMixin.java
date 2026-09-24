@@ -29,7 +29,6 @@ public abstract class MouseHandlerMixin {
     @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void onMousePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
 
         // 右クリック(useButton)は一切介入せずバニラへ素通し。
         // 理由: 弓・クロスボウ・盾・食べ物等の「長押しチャージ」はバニラが keyUse.isDown() を
@@ -38,8 +37,10 @@ public abstract class MouseHandlerMixin {
         int attackButton = mc.options.keyAttack.getKey().getValue();
         if (button != attackButton) return;
 
+        // GUI表示中でもボタン状態は追跡する（離した瞬間を取りこぼして長押し判定が残るのを防ぐ）
         ClickActionHandler.onInput(button, action, mc);
 
+        if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
         if (!Config.isClickToMoveEnabled()) return;
 
         ci.cancel();
