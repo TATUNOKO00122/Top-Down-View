@@ -42,6 +42,7 @@ import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
 
@@ -134,6 +135,9 @@ public final class TopDownCuller {
     private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
+    /** 下支え判定用。isBlockCulled はワーカースレッドからも呼ばれるため ThreadLocal で共有回避。 */
+    private static final ThreadLocal<MutableBlockPos> SUPPORT_CHECK_POS =
+            ThreadLocal.withInitial(MutableBlockPos::new);
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
     private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
@@ -313,6 +317,13 @@ public final class TopDownCuller {
             return true;
         }
 
+        // 雪の層・カーペット・植物など、下の支えが消えると宙に浮く薄い面ブロックは
+        // 支え側のカリングに追従させて消す。保護より先に判定して、装飾の保護で残らないようにする。
+        if (isRestingOnCulledBlock(pos, state, level)) {
+            cullingCache.put(posLong, true);
+            return true;
+        }
+
         if (isProtectedBlock(pos, state, pY, level)) {
             cullingCache.put(posLong, false);
             return false;
@@ -457,6 +468,26 @@ public final class TopDownCuller {
             }
         }
         return false;
+    }
+
+    /**
+     * 薄い面ブロック（雪の層・カーペット・植物・松明など）の下の支えがカリング済みかを判定する。
+     *
+     * <p>支えが消えると宙に浮いて見えるため、支え側と同じタイミングで消す。フルブロックは
+     * 上方へ連鎖させる（建物ごと消す）と過剰カリングになるため対象外。トラップドアは
+     * 専用ハンドラの歩行判定を優先して除外する。
+     */
+    private boolean isRestingOnCulledBlock(BlockPos pos, BlockState state, BlockGetter level) {
+        if (!state.getFluidState().isEmpty() || state.getBlock() instanceof TrapDoorBlock) {
+            return false;
+        }
+        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());
+        if (!shape.isEmpty() && shape.max(Direction.Axis.Y) >= 1.0) {
+            return false;
+        }
+        MutableBlockPos below = SUPPORT_CHECK_POS.get();
+        below.set(pos.getX(), pos.getY() - 1, pos.getZ());
+        return isBlockCulled(below, level);
     }
 
     public void update() {
