@@ -1,6 +1,7 @@
 package com.topdownview.spatial;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
@@ -21,9 +22,9 @@ import java.util.Objects;
  * 空(Heightmap)に依存しないため、複雑な形の家・中庭・洞窟も扱えます。
  *
  * <p>さらに「屋外で頭上に覆いがあるだけ」の空間 (オーバーハング・木陰・屋根付き広場) を
- * 屋内と誤認しないよう、横方向の境界が壁(固体)で構成されていることを屋内の条件にします
- * ({@code lateralSolid > 0 && lateralOpen <= lateralSolid})。覆いだけでは壁にならず開口が残るため、
- * 屋外の覆い空間は除外されます。
+ * 屋内と誤認しないよう、覆いの無い横方向の空気に直接面するセル (露出セル) を領域から除外した上で、
+ * 残った領域の水平境界に占める開放面の割合が {@link #MAX_OPEN_FACE_PERCENT}% を超えないことを
+ * 屋内の条件にします。2方向以上が大きく開いた屋根付き構造は開放面が壁面を上回るため除外されます。
  *
  * <p>覆い判定は「直上から最初の固体に当たるまで」だけ縦走査します (天井が低いほど安価)。
  * 覆いが見つからなかったセルは {@link Scratch} に記録して再走査を避けます。
@@ -46,6 +47,9 @@ public final class RoomFloodFill {
     /** 各セルで直上に覆い(固体天井)を探す走査距離 */
     public static final int CEILING_SCAN_HEIGHT = 24;
 
+    /** 水平境界のうち開放面が占めてよい割合 (壁面に対する%)。超過した場合は屋外とみなす */
+    public static final int MAX_OPEN_FACE_PERCENT = 40;
+
     /** 探索を行う6方向 */
     private static final Direction[] DIRECTIONS = Direction.values();
 
@@ -59,6 +63,8 @@ public final class RoomFloodFill {
         private final LongOpenHashSet visitedAir = new LongOpenHashSet();
         private final LongOpenHashSet visitedShell = new LongOpenHashSet();
         private final LongOpenHashSet noCover = new LongOpenHashSet();
+        /** 開口 (覆いの無い横方向の空気) に直接面した非連結エアセル。後段で領域から除外する */
+        private final LongOpenHashSet exposedAir = new LongOpenHashSet();
         private final LongArrayList queue = new LongArrayList();
         private final BlockMap blockMap = new BlockMap();
 
@@ -66,6 +72,7 @@ public final class RoomFloodFill {
             visitedAir.clear();
             visitedShell.clear();
             noCover.clear();
+            exposedAir.clear();
             queue.clear();
         }
 
@@ -133,11 +140,6 @@ public final class RoomFloodFill {
         int maxY = seedY;
         int maxZ = seedZ;
 
-        // 横方向の境界の内訳。屋内なら壁(固体)で閉じ、屋外のオーバーハングなら
-        // 「覆いの無い空気」へ開く。これが屋内/屋外を見分ける決定的な違いになる。
-        int lateralSolid = 0;
-        int lateralOpen = 0;
-
         int head = 0;
 
         while (head < queue.size() && visitedAir.size() < MAX_FLOOD_CELLS) {
@@ -185,24 +187,55 @@ public final class RoomFloodFill {
                         queue.add(nlong);
                     } else {
                         visitedShell.add(nlong);
-                        if (horizontal) lateralSolid++;
                     }
                 } else if (isCovered(s, nx, ny, nz)) {
                     // 直上に固体の覆いがある空気セル → 屋内/洞窟内部として探索継続
                     visitedAir.add(nlong);
                     queue.add(nlong);
                 } else if (horizontal) {
-                    // 横方向に覆いの無い空気 = 屋外への開口
-                    lateralOpen++;
+                    // 横方向に覆いの無い空気に面する非連結セルは「露出セル」。
+                    // 屋外へ開いた軒先・庇の外殻であり、後段の境界再計算で領域から除外する。
+                    // 連結部 (扉) は除外せず、開口を挟んだ部屋間の連結を維持する
+                    if (!s.blockMap.isConnector(cx, cy, cz)) {
+                        s.exposedAir.add(currentLong);
+                    }
                 }
                 // 覆いの無いセルは屋外へ漏れるためキューに入れず打ち切る
             }
         }
 
-        // 屋内 = 横方向の境界が壁で構成されている (開口より壁が多い) こと。
-        // 頭上に覆いがあるだけの屋外空間 (オーバーハング・木陰・屋根付き広場) は
-        // 横方向が開いているため屋内と判定しない。
-        boolean enclosed = !visitedAir.isEmpty() && lateralSolid > 0 && lateralOpen <= lateralSolid;
+        // 開口に面した露出セルを領域から除外してから水平境界を数え直す。これにより
+        // 窓・開口の外側にある軒下空間への「漏れ」が切り離され、その外周が壁面として
+        // 誤カウントされない。除外済みセルに面する境界は開放面として数える。
+        visitedAir.removeAll(s.exposedAir);
+
+        int wallFaces = 0;
+        int openFaces = 0;
+        for (LongIterator airIt = visitedAir.iterator(); airIt.hasNext(); ) {
+            long airLong = airIt.nextLong();
+            int ax = BlockPos.getX(airLong);
+            int ay = BlockPos.getY(airLong);
+            int az = BlockPos.getZ(airLong);
+            for (Direction dir : DIRECTIONS) {
+                if (dir.getStepY() != 0) {
+                    continue;
+                }
+                int nx = ax + dir.getStepX();
+                int nz = az + dir.getStepZ();
+                if (s.blockMap.isSolid(nx, ay, nz)) {
+                    wallFaces++;
+                } else if (!visitedAir.contains(BlockPos.asLong(nx, ay, nz))) {
+                    openFaces++;
+                }
+            }
+        }
+
+        // 屋内 = 水平境界が壁面 (固体) で支配的であること (開放面が壁面の
+        // MAX_OPEN_FACE_PERCENT% を超えない)。頭上に覆いがあるだけの屋外空間
+        // (オーバーハング・木陰・屋根付き広場・開放型の屋根付き構造) は
+        // 開放面が多いため屋内と判定しない。
+        boolean enclosed = !visitedAir.isEmpty() && wallFaces > 0
+                && openFaces * 100 <= wallFaces * MAX_OPEN_FACE_PERCENT;
         BlockPos min = new BlockPos(minX, minY, minZ);
         BlockPos max = new BlockPos(maxX, maxY, maxZ);
 
