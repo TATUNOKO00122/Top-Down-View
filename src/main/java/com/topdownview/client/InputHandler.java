@@ -258,6 +258,8 @@ public final class InputHandler {
         boolean newState = !ModState.STATUS.isEnabled();
         ModState.STATUS.setEnabled(newState);
         ReachManager.forceUpdate();
+        // 手動取得はトップダウン中のみ有効。視点OFF時はサーバーの自動取得停止を解除する
+        ClientPickupHandler.sendToggle();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null)
             return;
@@ -265,6 +267,7 @@ public final class InputHandler {
         if (newState) {
             CameraController.initializeTopDownView(mc);
         } else {
+            PickupApproachController.cancel();
             CameraController.disableTopDownView(mc);
         }
     }

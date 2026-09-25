@@ -4,6 +4,7 @@ import com.topdownview.Config;
 import com.topdownview.network.ManualPickupTogglePacket;
 import com.topdownview.network.PacketHandler;
 import com.topdownview.network.PickupItemPacket;
+import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.Connection;
 
@@ -26,13 +27,17 @@ public final class ClientPickupHandler {
         return connection != null && PacketHandler.CHANNEL.isRemotePresent(connection);
     }
 
-    /** 現在の設定値をサーバーへ同期する。 */
+    /**
+     * 手動取得の有効状態をサーバーへ同期する。
+     * クリック取得はトップダウン中しか動かないため、視点OFF中は自動取得停止も解除する。
+     */
     public static void sendToggle() {
         Minecraft mc = Minecraft.getInstance();
         if (!serverSupportsManualPickup(mc)) {
             return;
         }
-        PacketHandler.CHANNEL.sendToServer(new ManualPickupTogglePacket(Config.isManualItemPickup()));
+        boolean active = Config.isManualItemPickup() && ModState.STATUS.isEnabled();
+        PacketHandler.CHANNEL.sendToServer(new ManualPickupTogglePacket(active));
     }
 
     /** 指定アイテムの取得をサーバーへ要求する。 */
