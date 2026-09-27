@@ -25,9 +25,12 @@ import java.util.List;
 
 /**
  * ドロップアイテムにラベル（アイテム名＋スタック数）を表示する。
- * スクリーン空間に描画し、重なるラベルは下方向へ一定間隔で積み重ねて重なりを防ぐ。
- * 背景はフォントの文字幅に余白を足して決める。
- * 0=非表示 / 1=範囲内は常時 の2モードを設定で切り替える。
+ * 各ラベルは初回配置で確定したオフセットを基準位置へ足した位置へ追従し、以後は配置を選び直さない
+ * ため、カメラ移動・アイテム移動・拾得で位置が入れ替わらない。落下・投擲・バウンド中はラベルを
+ * 表示しない（設置面に接地して静止してから表示・配置する）が、一度表示したラベルは多少動いても
+ * 消さない（点滅させない）。点滅するとその間だけ障害物でなくなり、他ラベルが席を奪って重なる。
+ * 生存中の画面外エントリも席を予約して新規配置を妨げるので再入場しても重ならず、拾われたエントリは
+ * 削除されてその席は新規に使える。重なった場合は最小移動で押し離す。画面内へ収める処理は行わない。
  */
 public final class DroppedItemLabelRenderer {
 
@@ -38,6 +41,9 @@ public final class DroppedItemLabelRenderer {
     private static final int ANCHOR_GAP = 4;
     private static final int MAX_LABELS = 64;
     private static final int MAX_CANDIDATES = 256;
+    private static final int MAX_TRACKED = 256;
+    private static final int RESOLVE_PASSES = 8;
+    private static final double MOVING_DISTANCE_SQR = 1.0E-6D;
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int TOOLTIP_FILL = 0xF0100010;
     private static final int TOOLTIP_BORDER_TOP = 0x505000FF;
@@ -48,7 +54,13 @@ public final class DroppedItemLabelRenderer {
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
     private static final Int2ObjectOpenHashMap<Entry> ENTRIES_BY_ID = new Int2ObjectOpenHashMap<>();
+    private static final float[] BLOCK_START = new float[MAX_TRACKED + MAX_LABELS];
+    private static final float[] BLOCK_END = new float[MAX_TRACKED + MAX_LABELS];
     private static boolean computedThisFrame = false;
+    private static int presentCount = 0;
+    private static float candidateBestX;
+    private static float candidateBestY;
+    private static float candidateBestDist;
 
     private DroppedItemLabelRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -88,24 +100,21 @@ public final class DroppedItemLabelRenderer {
             Vec3 cameraPos = event.getCamera().getPosition();
             float partialTick = event.getPartialTick();
 
-            // 前フレームの並び順を引き継ぎ、今回見えているアイテムだけを残す
             for (int i = 0; i < ENTRIES.size(); i++) {
-                ENTRIES.get(i).present = false;
+                Entry entry = ENTRIES.get(i);
+                entry.present = false;
+                entry.inLayout = false;
             }
+            presentCount = 0;
 
             addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
+            pruneMissingEntries(mc);
+            projectReservedSlots(mc, cameraPos, guiWidth, guiHeight);
+            finalizeLabels(mc);
+            resolveLayout(mc);
+            computeRects(mc);
 
-            // 拾われた分を詰めて空席を作らない。残りは並び順も位置も維持される
-            compactEntries();
-            finalizeEntries(mc, guiWidth);
-
-            // ラベル矩形はカメラ確定直後（このイベント）で算出し、クリック判定が描画タイミングに依存しないようにする
-            float scale = labelScale();
-            float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
-            layout(labelHeight, guiWidth, guiHeight);
-            computeRects(scale, labelHeight);
-
-            computedThisFrame = !ENTRIES.isEmpty();
+            computedThisFrame = presentCount > 0;
         } catch (Throwable t) {
             clearEntries();
         }
@@ -137,8 +146,11 @@ public final class DroppedItemLabelRenderer {
 
             for (int i = 0; i < ENTRIES.size(); i++) {
                 Entry entry = ENTRIES.get(i);
+                if (!entry.present) {
+                    continue;
+                }
                 float boxWidth = entry.localWidth * scale;
-                float backgroundLeft = entry.x - boxWidth / 2.0F;
+                float backgroundLeft = entry.finalX - boxWidth / 2.0F;
                 float backgroundTop = entry.finalY - labelHeight / 2.0F;
 
                 var pose = guiGraphics.pose();
@@ -163,6 +175,9 @@ public final class DroppedItemLabelRenderer {
     public static ItemEntity findLabelAt(double guiX, double guiY) {
         for (int i = ENTRIES.size() - 1; i >= 0; i--) {
             Entry entry = ENTRIES.get(i);
+            if (!entry.present) {
+                continue;
+            }
             if (guiX >= entry.rectLeft && guiX <= entry.rectRight
                     && guiY >= entry.rectTop && guiY <= entry.rectBottom) {
                 return entry.item;
@@ -227,6 +242,10 @@ public final class DroppedItemLabelRenderer {
         return PADDING + (Config.getDroppedItemLabelBackground() == 1 ? 1.0F : 2.0F);
     }
 
+    private static float labelHeight(Minecraft mc) {
+        return (mc.font.lineHeight + 2 * backgroundMargin()) * labelScale();
+    }
+
     private static void addAllCandidates(Minecraft mc, Vec3 cameraPos, float partialTick, int guiWidth, int guiHeight) {
         int processed = 0;
         for (Entity entity : mc.level.entitiesForRendering()) {
@@ -250,8 +269,22 @@ public final class DroppedItemLabelRenderer {
     }
 
     /** アイテム上部をスクリーンへ投影し、画面内なら候補として追加する。 */
-    private static boolean addCandidate(Minecraft mc, ItemEntity item, Vec3 cameraPos, float partialTick,
-                                        int guiWidth, int guiHeight) {
+    private static void addCandidate(Minecraft mc, ItemEntity item, Vec3 cameraPos, float partialTick,
+                                     int guiWidth, int guiHeight) {
+        int id = item.getId();
+        Entry entry = ENTRIES_BY_ID.get(id);
+
+        // 落下・投擲・バウンド中は表示しない。ただし一度表示した（placed）ラベルは多少動いても消さない。
+        // 消すと点滅し、その間だけ障害物でなくなって他ラベルが席を奪い、再表示時に重なる。
+        double movedX = item.getX() - item.xo;
+        double movedY = item.getY() - item.yo;
+        double movedZ = item.getZ() - item.zo;
+        boolean settled = item.onGround()
+                && movedX * movedX + movedY * movedY + movedZ * movedZ <= MOVING_DISTANCE_SQR;
+        if (!settled && (entry == null || !entry.placed)) {
+            return;
+        }
+
         // 実際に描画される補間位置に合わせる（停滞・カクつき防止）
         double itemY = Mth.lerp(partialTick, item.yo, item.getY());
         double relativeX = Mth.lerp(partialTick, item.xo, item.getX()) - cameraPos.x;
@@ -262,7 +295,7 @@ public final class DroppedItemLabelRenderer {
         PROJECTION_SCRATCH.mul(PROJECTION_VIEW);
         float w = PROJECTION_SCRATCH.w;
         if (w <= 0.0F) {
-            return false;
+            return;
         }
 
         float ndcX = PROJECTION_SCRATCH.x / w;
@@ -270,30 +303,83 @@ public final class DroppedItemLabelRenderer {
         // 画面外（ラベル分の余白を含む）や異常値は除外する
         if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY)
                 || ndcX < -1.2F || ndcX > 1.2F || ndcY < -1.2F || ndcY > 1.2F) {
-            return false;
+            return;
         }
 
-        float scale = labelScale();
-        float labelHeight = (mc.font.lineHeight + 2 * backgroundMargin()) * scale;
-
-        int id = item.getId();
-        Entry entry = ENTRIES_BY_ID.get(id);
+        float height = labelHeight(mc);
         if (entry == null) {
-            if (ENTRIES.size() >= MAX_LABELS) {
-                return false;
+            if (presentCount >= MAX_LABELS) {
+                return;
             }
             entry = new Entry();
             entry.id = id;
             ENTRIES_BY_ID.put(id, entry);
             insertSorted(entry);
         }
+        if (!entry.present) {
+            presentCount++;
+        }
 
         entry.item = item;
         entry.present = true;
+        entry.inLayout = true;
+        // 画面外でも席を予約できるよう、基準位置をワールド座標でも覚えておく
+        entry.anchorWorldX = Mth.lerp(partialTick, item.xo, item.getX());
+        entry.anchorWorldY = itemY + (item.getBoundingBox().maxY - item.getY()) + 0.1D;
+        entry.anchorWorldZ = Mth.lerp(partialTick, item.zo, item.getZ());
         entry.x = (ndcX * 0.5F + 0.5F) * guiWidth;
-        entry.y = (0.5F - ndcY * 0.5F) * guiHeight - labelHeight / 2.0F - ANCHOR_GAP * scale;
-        entry.finalY = entry.y;
-        return true;
+        entry.y = (0.5F - ndcY * 0.5F) * guiHeight - height / 2.0F - ANCHOR_GAP * labelScale();
+    }
+
+    /**
+     * 画面外（生存中）のエントリの席をワールド基準位置から画面へ投影する。ラベル表示対象のものだけを
+     * 障害物として席を予約し、新規ラベルがその場所を奪わないようにして再入場時の重なりを防ぐ。
+     */
+    private static void projectReservedSlots(Minecraft mc, Vec3 cameraPos, int guiWidth, int guiHeight) {
+        float height = labelHeight(mc);
+        for (int i = 0; i < ENTRIES.size(); i++) {
+            Entry entry = ENTRIES.get(i);
+            if (entry.present) {
+                continue;
+            }
+            // カリングされたブロック上のアイテムや、表示範囲外の遠いアイテムは席を予約しない
+            ItemEntity item = entry.item;
+            if (item == null || item.distanceToSqr(mc.player) > LABEL_RADIUS_SQR) {
+                continue;
+            }
+            double movedX = item.getX() - item.xo;
+            double movedY = item.getY() - item.yo;
+            double movedZ = item.getZ() - item.zo;
+            if (!item.onGround()
+                    || movedX * movedX + movedY * movedY + movedZ * movedZ > MOVING_DISTANCE_SQR) {
+                continue;
+            }
+            if (ModState.STATUS.isCullingEnabled() && item instanceof Cullable cullable
+                    && cullable.topdownview_isCulled()) {
+                continue;
+            }
+            float relativeX = (float) (entry.anchorWorldX - cameraPos.x);
+            float relativeY = (float) (entry.anchorWorldY - cameraPos.y);
+            float relativeZ = (float) (entry.anchorWorldZ - cameraPos.z);
+
+            PROJECTION_SCRATCH.set(relativeX, relativeY, relativeZ, 1.0F);
+            PROJECTION_SCRATCH.mul(PROJECTION_VIEW);
+            float w = PROJECTION_SCRATCH.w;
+            if (w <= 0.0F) {
+                continue;
+            }
+            float ndcX = PROJECTION_SCRATCH.x / w;
+            float ndcY = PROJECTION_SCRATCH.y / w;
+            if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY)) {
+                continue;
+            }
+
+            entry.inLayout = true;
+            entry.x = (ndcX * 0.5F + 0.5F) * guiWidth;
+            entry.y = (0.5F - ndcY * 0.5F) * guiHeight - height / 2.0F - ANCHOR_GAP * labelScale();
+            entry.finalX = entry.x + entry.offX;
+            entry.finalY = entry.y + entry.offY;
+        }
     }
 
     /**
@@ -315,34 +401,59 @@ public final class DroppedItemLabelRenderer {
         ENTRIES.add(lo, entry);
     }
 
-    /** 今回見えなかったアイテムの席を詰める。残ったラベルは並び順を維持する。 */
-    private static void compactEntries() {
-        int write = 0;
-        for (int read = 0; read < ENTRIES.size(); read++) {
-            Entry entry = ENTRIES.get(read);
+    /**
+     * 拾われて消えたアイテムをゴースト化して席を保持する。範囲外・画面外で一時的に見えないだけの
+     * エントリはそのまま残し、戻ってきたときに同じ位置へ描く。
+     */
+    /**
+     * 拾われて消えたアイテムのエントリを破棄して席を解放する。範囲外・画面外で一時的に見えない
+     * だけのエントリは席を予約したまま残し、戻ってきたときに同じ位置へ描く。
+     */
+    private static void pruneMissingEntries(Minecraft mc) {
+        for (int i = ENTRIES.size() - 1; i >= 0; i--) {
+            Entry entry = ENTRIES.get(i);
             if (entry.present) {
-                ENTRIES.set(write++, entry);
-            } else {
-                ENTRIES_BY_ID.remove(entry.id);
+                continue;
+            }
+            Entity entity = mc.level.getEntity(entry.id);
+            if (!(entity instanceof ItemEntity item) || item.isRemoved() || item.getItem().isEmpty()) {
+                removeEntryAt(i);
             }
         }
-        for (int i = ENTRIES.size() - 1; i >= write; i--) {
-            ENTRIES.remove(i);
+
+        // 遠方で残り続けるエントリが増えすぎないよう、見えていない古いものから間引く
+        int excess = ENTRIES.size() - MAX_TRACKED;
+        for (int i = 0; i < ENTRIES.size() && excess > 0; ) {
+            if (!ENTRIES.get(i).present) {
+                removeEntryAt(i);
+                excess--;
+            } else {
+                i++;
+            }
         }
+    }
+
+    private static void removeEntryAt(int index) {
+        Entry removed = ENTRIES.remove(index);
+        ENTRIES_BY_ID.remove(removed.id);
     }
 
     private static void clearEntries() {
         ENTRIES.clear();
         ENTRIES_BY_ID.clear();
+        presentCount = 0;
         computedThisFrame = false;
     }
 
-    /** 最終的な表示対象についてラベルと、文字幅にもとづく背景サイズを求める。 */
-    private static void finalizeEntries(Minecraft mc, int guiWidth) {
+    /** ラベル文字列と、文字幅にもとづく背景サイズ・色を求める。 */
+    private static void finalizeLabels(Minecraft mc) {
         float scale = labelScale();
         Font font = mc.font;
         for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
+            if (!entry.present) {
+                continue;
+            }
             Component label = buildLabel(entry.item.getItem());
             entry.label = label;
 
@@ -359,110 +470,213 @@ public final class DroppedItemLabelRenderer {
             entry.borderStart = colors.borderStart();
             entry.borderEnd = colors.borderEnd();
             entry.backgroundStart = colors.backgroundStart();
-
-            float anchorX = entry.x;
-            float halfWidth = entry.width / 2.0F;
-            entry.x = Math.max(halfWidth, Math.min(guiWidth - halfWidth, anchorX));
         }
     }
 
     /**
-     * 重ならないよう、画面下端に収まる限りは下方向へ積み重ね、
-     * 画面下端を超える場合は左右の空きスペースへ水平シフトして展開する。
+     * 確定済みオフセットを基準位置へ適用し、未配置のラベルだけ新規に空き位置へ確定する。
+     * 毎フレーム配置を選び直さないため、カメラ移動・アイテム移動・拾得で位置が入れ替わらない。
+     * 生存中の画面外エントリは席を予約しているので、再入場しても重ならない。
      */
-    private static void layout(float labelHeight, int guiWidth, int guiHeight) {
-        float scale = labelScale();
-        float gap = Config.getDroppedItemLabelGap() * scale;
-        float step = labelHeight + gap;
-        float threshold = step - 0.01F;
-        float bottomMargin = labelHeight / 2.0F + 8.0F;
+    private static void resolveLayout(Minecraft mc) {
+        float height = labelHeight(mc);
+        float gap = Config.getDroppedItemLabelGap() * labelScale();
+        float step = height + gap;
 
-        for (int i = 0; i < ENTRIES.size(); i++) {
+        int n = ENTRIES.size();
+        for (int i = 0; i < n; i++) {
             Entry entry = ENTRIES.get(i);
-            float currX = entry.x;
-            boolean preferRight = currX < guiWidth / 2.0F;
-
-            float bestX = currX;
-            float bestY = entry.y;
-
-            int attempts = 0;
-            while (attempts < 6) {
-                attempts++;
-                float halfW = entry.width / 2.0F;
-                currX = Math.max(halfW, Math.min(guiWidth - halfW, currX));
-
-                // 現在の列での縦押し下げ位置を計算
-                float y = entry.y;
-                boolean moved = true;
-                int passes = 0;
-                while (moved && passes < ENTRIES.size() + 4) {
-                    passes++;
-                    moved = false;
-                    for (int j = 0; j < i; j++) {
-                        Entry placed = ENTRIES.get(j);
-                        boolean horizontalOverlap = Math.abs(currX - placed.x)
-                                < (entry.width + placed.width) / 2.0F + gap;
-                        if (horizontalOverlap && Math.abs(y - placed.finalY) < threshold) {
-                            y = placed.finalY + step;
-                            moved = true;
-                        }
-                    }
-                }
-
-                bestX = currX;
-                bestY = y;
-
-                // 画面下端に収まるならこの位置で確定
-                if (y + bottomMargin <= guiHeight) {
-                    break;
-                }
-
-                // 画面下端に入り切らない場合、重なっている配置済みラベル群の外側へ水平シフト
-                float maxRight = currX;
-                float minLeft = currX;
-                for (int j = 0; j < i; j++) {
-                    Entry placed = ENTRIES.get(j);
-                    if (Math.abs(currX - placed.x) < (entry.width + placed.width) / 2.0F + gap) {
-                        maxRight = Math.max(maxRight, placed.x + placed.width / 2.0F);
-                        minLeft = Math.min(minLeft, placed.x - placed.width / 2.0F);
-                    }
-                }
-
-                float newX;
-                if (preferRight) {
-                    newX = maxRight + gap + halfW;
-                    if (newX + halfW > guiWidth) {
-                        newX = minLeft - gap - halfW;
-                    }
-                } else {
-                    newX = minLeft - gap - halfW;
-                    if (newX - halfW < 0.0F) {
-                        newX = maxRight + gap + halfW;
-                    }
-                }
-
-                if (Math.abs(newX - currX) < 1.0F) {
-                    break;
-                }
-                currX = newX;
+            if (!entry.present) {
+                continue;
             }
+            if (entry.placed) {
+                entry.finalX = entry.x + entry.offX;
+                entry.finalY = entry.y + entry.offY;
+            } else if (entry.inLayout) {
+                layOutEntry(entry, step, gap);
+                entry.placed = true;
+            }
+        }
 
-            entry.x = bestX;
-            entry.finalY = bestY;
+        // 万一重なった場合の安全網。最小移動で押し離すだけで、配置は選び直さない。
+        resolveOverlaps(step, gap);
+
+        // 押し離した結果をオフセットとして保存し、次フレームで元に戻らないようにする
+        for (int i = 0; i < n; i++) {
+            Entry entry = ENTRIES.get(i);
+            if (entry.present && entry.placed) {
+                entry.offX = entry.finalX - entry.x;
+                entry.offY = entry.finalY - entry.y;
+            }
         }
     }
 
-    /** クリック判定に使う最終的な画面矩形（GUI座標）を求める。 */
-    private static void computeRects(float scale, float labelHeight) {
+    /**
+     * 重なっているラベルを低 ID（先着）優先で最小移動だけ押し離す。画面外の予約席（非表示エントリ）は
+     * 動かさず障害物として扱う。ID 順に押すため相対順序は入れ替わらない。
+     */
+    private static void resolveOverlaps(float step, float gap) {
+        int n = ENTRIES.size();
+        for (int pass = 0; pass < RESOLVE_PASSES; pass++) {
+            boolean changed = false;
+            for (int i = 0; i < n; i++) {
+                Entry a = ENTRIES.get(i);
+                if (!a.present || !a.inLayout || !a.placed) {
+                    continue;
+                }
+                for (int j = 0; j < n; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    Entry b = ENTRIES.get(j);
+                    if (!b.inLayout) {
+                        continue;
+                    }
+                    // 通常ラベル同士は高 ID 側からのみ押す。画面外の予約席（非表示）は常に障害物。
+                    if (b.present && j > i) {
+                        continue;
+                    }
+                    float overlapX = (a.width + b.width) / 2.0F + gap - Math.abs(a.finalX - b.finalX);
+                    if (overlapX <= 0.0F) {
+                        continue;
+                    }
+                    float overlapY = step - Math.abs(a.finalY - b.finalY);
+                    if (overlapY <= 0.0F) {
+                        continue;
+                    }
+                    if (overlapY <= overlapX) {
+                        a.finalY += (a.finalY >= b.finalY ? 1.0F : -1.0F) * overlapY;
+                    } else {
+                        a.finalX += (a.finalX >= b.finalX ? 1.0F : -1.0F) * overlapX;
+                    }
+                    changed = true;
+                }
+            }
+            if (!changed) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * 基準位置の段、または障害物の段・上下1段を候補とし、各段で障害物の端に密着する最も近い
+     * 空き位置を求めて、基準位置に最も近い候補へ置く。新規ラベルの初期配置にのみ使う。
+     */
+    private static void layOutEntry(Entry entry, float step, float gap) {
+        float anchorX = entry.x;
+        float anchorY = entry.y;
+        float width = entry.width;
+
+        candidateBestDist = Float.MAX_VALUE;
+        candidateBestX = anchorX;
+        candidateBestY = anchorY;
+
+        considerCandidate(entry, anchorX, anchorY, anchorY, width, gap, step);
+        for (int j = 0; j < ENTRIES.size(); j++) {
+            Entry obstacle = ENTRIES.get(j);
+            if (!isObstacle(entry, obstacle)) {
+                continue;
+            }
+            considerCandidate(entry, anchorX, anchorY, obstacle.finalY, width, gap, step);
+            considerCandidate(entry, anchorX, anchorY, obstacle.finalY + step, width, gap, step);
+            considerCandidate(entry, anchorX, anchorY, obstacle.finalY - step, width, gap, step);
+        }
+
+        entry.finalX = candidateBestX;
+        entry.finalY = candidateBestY;
+        entry.offX = candidateBestX - anchorX;
+        entry.offY = candidateBestY - anchorY;
+    }
+
+    /** 配置の障害物か。生存中で席を予約しているラベル（画面内の通常ラベル、画面外の生存エントリ）。 */
+    private static boolean isObstacle(Entry entry, Entry obstacle) {
+        return obstacle != entry && obstacle.inLayout;
+    }
+
+    /** 指定した段 y での最良位置を求め、基準位置に最も近ければ候補を更新する。 */
+    private static void considerCandidate(Entry entry, float anchorX, float anchorY, float y,
+                                          float width, float gap, float step) {
+        float x = resolveX(entry, anchorX, y, width, gap, step);
+        float dx = x - anchorX;
+        float dy = y - anchorY;
+        float dist = dx * dx + dy * dy;
+        if (dist < candidateBestDist) {
+            candidateBestDist = dist;
+            candidateBestX = x;
+            candidateBestY = y;
+        }
+    }
+
+    /**
+     * 与えられた段 y に障害物と重ならないよう、基準Xに最も近いXを返す。
+     * 障害物を区間として扱い、その端の外側で最も近い空き位置を選ぶ。
+     */
+    private static float resolveX(Entry entry, float anchorX, float y, float width, float gap, float step) {
+        int n = 0;
+        for (int j = 0; j < ENTRIES.size(); j++) {
+            Entry obstacle = ENTRIES.get(j);
+            if (!isObstacle(entry, obstacle) || Math.abs(obstacle.finalY - y) >= step) {
+                continue;
+            }
+            BLOCK_START[n] = obstacle.finalX - obstacle.width / 2.0F - gap;
+            BLOCK_END[n] = obstacle.finalX + obstacle.width / 2.0F + gap;
+            n++;
+        }
+        if (n == 0) {
+            return anchorX;
+        }
+
+        float half = width / 2.0F;
+        float best = anchorX;
+        float bestDist = Float.MAX_VALUE;
+        if (fits(anchorX, half, n)) {
+            return anchorX;
+        }
+        for (int i = 0; i < n; i++) {
+            float left = BLOCK_START[i] - half;
+            if (fits(left, half, n)) {
+                float dist = Math.abs(left - anchorX);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = left;
+                }
+            }
+            float right = BLOCK_END[i] + half;
+            if (fits(right, half, n)) {
+                float dist = Math.abs(right - anchorX);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = right;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** 幅 half*2 のラベルを中心 x に置いたとき、障害区間のいずれとも重ならないか。 */
+    private static boolean fits(float x, float half, int count) {
+        for (int i = 0; i < count; i++) {
+            if (x + half > BLOCK_START[i] && x - half < BLOCK_END[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 最終描画位置からクリック判定用の画面矩形（GUI座標）を求める。 */
+    private static void computeRects(Minecraft mc) {
+        float height = labelHeight(mc);
         for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
-            float boxWidth = entry.localWidth * scale;
-            float left = entry.x - boxWidth / 2.0F;
-            float top = entry.finalY - labelHeight / 2.0F;
+            if (!entry.present) {
+                continue;
+            }
+            float left = entry.finalX - entry.width / 2.0F;
+            float top = entry.finalY - height / 2.0F;
             entry.rectLeft = left;
             entry.rectTop = top;
-            entry.rectRight = left + boxWidth;
-            entry.rectBottom = top + labelHeight;
+            entry.rectRight = left + entry.width;
+            entry.rectBottom = top + height;
         }
     }
 
@@ -485,8 +699,16 @@ public final class DroppedItemLabelRenderer {
         private Component label;
         private int id;
         private boolean present;
+        private boolean inLayout;
+        private boolean placed;
+        private float offX;
+        private float offY;
+        private double anchorWorldX;
+        private double anchorWorldY;
+        private double anchorWorldZ;
         private float x;
         private float y;
+        private float finalX;
         private float finalY;
         private float width;
         private float localWidth;

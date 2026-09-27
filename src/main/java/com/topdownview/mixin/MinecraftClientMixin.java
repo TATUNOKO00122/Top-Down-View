@@ -33,6 +33,11 @@ public abstract class MinecraftClientMixin {
             cir.setReturnValue(false);
             return;
         }
+        // 拾得クリックの押下中は、ラベルが消えた後も同じクリックで地面を掘らないよう抑止する
+        if (ClickActionHandler.isAttackSuppressed()) {
+            cir.setReturnValue(false);
+            return;
+        }
 
         this.missTime = 0;
 
@@ -63,6 +68,11 @@ public abstract class MinecraftClientMixin {
         // ラベル上で押し続けても破壊しない
         if (leftClick && Config.isManualItemPickup()
                 && ClickActionHandler.findPickupTarget(mc) != null) {
+            ci.cancel();
+            return;
+        }
+        // 拾得クリックの押下中は、ラベルが消えた後も同じクリックで地面を掘らないよう抑止する
+        if (leftClick && ClickActionHandler.isAttackSuppressed()) {
             ci.cancel();
             return;
         }

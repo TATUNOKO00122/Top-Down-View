@@ -21,6 +21,8 @@ public final class ClickActionHandler {
     private static boolean isLeftClickDown = false;
     private static boolean holdEligible = false;
     private static long holdStartMs = 0;
+    // 拾得クリックの押下中は攻撃（ブロック破壊）を抑止する。ラベルが消えた後も同クリックで地面を掘らないため。
+    private static boolean suppressAttack = false;
 
     private static void lockTarget(Entity entity) {
         if (!Config.isTargetLockEnabled()) return;
@@ -55,6 +57,7 @@ public final class ClickActionHandler {
             }
             isLeftClickDown = false;
             holdEligible = false;
+            suppressAttack = false;
             return;
         }
 
@@ -64,12 +67,14 @@ public final class ClickActionHandler {
 
         holdEligible = false;
         holdStartMs = Util.getMillis();
+        suppressAttack = false;
 
         // GUI表示中はクリック移動を開始しない（ボタン状態の追跡のみ行う）
         if (mc.screen != null || !ModState.STATUS.isEnabled()) return;
 
         // ラベル上のクリックは押下状態に関係なく取得を試みる（1回目が無反応になるのを防ぐ）
         if (Config.isManualItemPickup() && tryPickupItem(mc)) {
+            suppressAttack = true;
             return;
         }
         // 別の操作を始めたら接近取得は中断する
@@ -97,6 +102,12 @@ public final class ClickActionHandler {
     public static void resetInput() {
         isLeftClickDown = false;
         cancelHoldSession();
+        suppressAttack = false;
+    }
+
+    /** 拾得クリックの押下中か（この間はバニラの攻撃・ブロック破壊を抑止する）。 */
+    public static boolean isAttackSuppressed() {
+        return suppressAttack;
     }
 
     /**
