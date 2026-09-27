@@ -8,6 +8,7 @@
   "key.topdown_view.destroy": "Mining Action (Click-to-Move)",
   "key.topdown_view.free_camera": "Free Camera Rotation",
   "key.topdown_view.toggle_culling": "Toggle Culling",
+  "key.topdown_view.regenerate_labels": "Regenerate Dropped Item Labels",
   "key.categories.topdown_view": "Top-Down View",
   "topdown_view.config.title": "Top-Down View Settings",
   "topdown_view.config.tab.culling": "Culling",

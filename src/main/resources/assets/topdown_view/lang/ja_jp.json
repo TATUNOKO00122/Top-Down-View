@@ -8,6 +8,7 @@
   "key.topdown_view.destroy": "採掘アクション（クリック移動用）",
   "key.topdown_view.free_camera": "フリーカメラ回転",
   "key.topdown_view.toggle_culling": "カリング切替",
+  "key.topdown_view.regenerate_labels": "ドロップアイテムのラベル再生成",
   "key.categories.topdown_view": "トップダウンビュー",
   "topdown_view.config.title": "トップダウンビュー設定",
   "topdown_view.config.tab.culling": "カリング",

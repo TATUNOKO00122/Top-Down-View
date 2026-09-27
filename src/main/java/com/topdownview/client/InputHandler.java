@@ -232,6 +232,8 @@ public final class InputHandler {
             toggleSpaceDebug();
         } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.TOGGLE_CULLING_KEY, keyCode, inputType)) {
             toggleCulling();
+        } else if (ModState.STATUS.isEnabled() && matchesKeyBinding(ClientModBusEvents.REGENERATE_LABELS_KEY, keyCode, inputType)) {
+            DroppedItemLabelRenderer.regenerate();
         }
     }
 

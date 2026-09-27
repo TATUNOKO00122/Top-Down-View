@@ -25,12 +25,12 @@ import java.util.List;
 
 /**
  * ドロップアイテムにラベル（アイテム名＋スタック数）を表示する。
- * 各ラベルは初回配置で確定したオフセットを基準位置へ足した位置へ追従し、以後は配置を選び直さない
- * ため、カメラ移動・アイテム移動・拾得で位置が入れ替わらない。落下・投擲・バウンド中はラベルを
- * 表示しない（設置面に接地して静止してから表示・配置する）が、一度表示したラベルは多少動いても
- * 消さない（点滅させない）。点滅するとその間だけ障害物でなくなり、他ラベルが席を奪って重なる。
- * 生存中の画面外エントリも席を予約して新規配置を妨げるので再入場しても重ならず、拾われたエントリは
- * 削除されてその席は新規に使える。重なった場合は最小移動で押し離す。画面内へ収める処理は行わない。
+ * 各ラベルは、接した相手と1グループにまとめ、グループの基準アイテムの画面上位置へ確定した
+ * オフセットを足した位置へ置く。グループ内の相対配置は固定なので、カメラ移動や視点変化でも
+ * 崩れず入れ替わらない。別グループが触れ合った場合も統合し（位置は維持）、1つの塊として扱う。
+ * 落下・投擲・バウンド中は表示せず（接地して静止してから表示・配置）、一度表示したラベルは多少
+ * 動いても消さない（点滅させない）。生存中の画面外エントリは席を予約して新規配置を妨げ、拾われた
+ * エントリは削除されてその席は新規に使える。グループ間の重なりは最小移動で押し離すが保存しない。
  */
 public final class DroppedItemLabelRenderer {
 
@@ -43,6 +43,8 @@ public final class DroppedItemLabelRenderer {
     private static final int MAX_CANDIDATES = 256;
     private static final int MAX_TRACKED = 256;
     private static final int RESOLVE_PASSES = 8;
+    private static final int ROW_ALIGN_RANGE = 3;
+    private static final float GROUP_JOIN_EPS = 1.0F;
     private static final double MOVING_DISTANCE_SQR = 1.0E-6D;
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int TOOLTIP_FILL = 0xF0100010;
@@ -377,8 +379,6 @@ public final class DroppedItemLabelRenderer {
             entry.inLayout = true;
             entry.x = (ndcX * 0.5F + 0.5F) * guiWidth;
             entry.y = (0.5F - ndcY * 0.5F) * guiHeight - height / 2.0F - ANCHOR_GAP * labelScale();
-            entry.finalX = entry.x + entry.offX;
-            entry.finalY = entry.y + entry.offY;
         }
     }
 
@@ -436,6 +436,38 @@ public final class DroppedItemLabelRenderer {
     private static void removeEntryAt(int index) {
         Entry removed = ENTRIES.remove(index);
         ENTRIES_BY_ID.remove(removed.id);
+        reassignGroup(removed);
+    }
+
+    /**
+     * グループの基準が消えたとき、残りのうち（表示中を優先して）最小 ID を新しい基準にし、
+     * 各オフセットを補正する。補正により各ラベルの絶対位置は変わらない。
+     */
+    private static void reassignGroup(Entry removed) {
+        Entry newBase = null;
+        for (int i = 0; i < ENTRIES.size(); i++) {
+            Entry entry = ENTRIES.get(i);
+            if (entry.groupId != removed.id) {
+                continue;
+            }
+            if (newBase == null || (entry.present && !newBase.present)
+                    || (entry.present == newBase.present && entry.id < newBase.id)) {
+                newBase = entry;
+            }
+        }
+        if (newBase == null) {
+            return;
+        }
+        float shiftX = removed.x - newBase.x;
+        float shiftY = removed.y - newBase.y;
+        for (int i = 0; i < ENTRIES.size(); i++) {
+            Entry entry = ENTRIES.get(i);
+            if (entry.groupId == removed.id) {
+                entry.groupId = newBase.id;
+                entry.offX += shiftX;
+                entry.offY += shiftY;
+            }
+        }
     }
 
     private static void clearEntries() {
@@ -443,6 +475,11 @@ public final class DroppedItemLabelRenderer {
         ENTRIES_BY_ID.clear();
         presentCount = 0;
         computedThisFrame = false;
+    }
+
+    /** 全ラベルを破棄して次フレームで再配置させる（再生成キー用）。 */
+    public static void regenerate() {
+        clearEntries();
     }
 
     /** ラベル文字列と、文字幅にもとづく背景サイズ・色を求める。 */
@@ -474,9 +511,9 @@ public final class DroppedItemLabelRenderer {
     }
 
     /**
-     * 確定済みオフセットを基準位置へ適用し、未配置のラベルだけ新規に空き位置へ確定する。
-     * 毎フレーム配置を選び直さないため、カメラ移動・アイテム移動・拾得で位置が入れ替わらない。
-     * 生存中の画面外エントリは席を予約しているので、再入場しても重ならない。
+     * 各ラベルは、接した相手と1グループにまとめ、グループの基準アイテムの画面上位置へ確定した
+     * オフセットを足した位置へ置く。グループ内の相対配置は固定なので、どの視点から見ても崩れない。
+     * 未配置のラベルだけ新規に空き位置へ確定する。
      */
     private static void resolveLayout(Minecraft mc) {
         float height = labelHeight(mc);
@@ -484,31 +521,114 @@ public final class DroppedItemLabelRenderer {
         float step = height + gap;
 
         int n = ENTRIES.size();
+
+        // 1) 配置済みはグループ基準＋オフセット。未配置は自分の位置を暫定にする
         for (int i = 0; i < n; i++) {
             Entry entry = ENTRIES.get(i);
-            if (!entry.present) {
+            if (!entry.inLayout) {
                 continue;
             }
             if (entry.placed) {
-                entry.finalX = entry.x + entry.offX;
-                entry.finalY = entry.y + entry.offY;
-            } else if (entry.inLayout) {
-                layOutEntry(entry, step, gap);
-                entry.placed = true;
+                entry.finalX = baseAnchorX(entry) + entry.offX;
+                entry.finalY = baseAnchorY(entry) + entry.offY;
+            } else {
+                entry.finalX = entry.x;
+                entry.finalY = entry.y;
             }
         }
 
-        // 万一重なった場合の安全網。最小移動で押し離すだけで、配置は選び直さない。
-        resolveOverlaps(step, gap);
-
-        // 押し離した結果をオフセットとして保存し、次フレームで元に戻らないようにする
+        // 2) 未配置のラベルを空き位置へ置き、接した相手のグループへ参加させる
         for (int i = 0; i < n; i++) {
             Entry entry = ENTRIES.get(i);
-            if (entry.present && entry.placed) {
-                entry.offX = entry.finalX - entry.x;
-                entry.offY = entry.finalY - entry.y;
+            if (!entry.present || entry.placed || !entry.inLayout) {
+                continue;
+            }
+            layOutEntry(entry, step, gap);
+            entry.placed = true;
+        }
+
+        // 3) 別グループが触れ合ったら1つにまとめる（位置は維持し、入れ替えはしない）
+        mergeTouchingGroups(step, gap);
+
+        // 4) グループ間で重なった場合の一時的な押し離し（保存せず毎フレーム計算）
+        resolveOverlaps(step, gap);
+    }
+
+    /**
+     * 触れ合っている別グループを1つに統合する。オフセットを基準アイテムの差で補正するため、
+     * 各ラベルの絶対位置は変わらない（＝入れ替えは起きない）。
+     */
+    private static void mergeTouchingGroups(float step, float gap) {
+        int n = ENTRIES.size();
+        for (int guard = 0; guard < n; guard++) {
+            boolean merged = false;
+            for (int i = 0; i < n && !merged; i++) {
+                Entry a = ENTRIES.get(i);
+                if (!a.inLayout || !a.placed) {
+                    continue;
+                }
+                for (int j = i + 1; j < n; j++) {
+                    Entry b = ENTRIES.get(j);
+                    if (!b.inLayout || !b.placed || a.groupId == b.groupId) {
+                        continue;
+                    }
+                    if (!rectsTouch(a, b, step, gap)) {
+                        continue;
+                    }
+                    Entry baseA = ENTRIES_BY_ID.get(a.groupId);
+                    Entry baseB = ENTRIES_BY_ID.get(b.groupId);
+                    if (baseA == null || baseB == null) {
+                        continue;
+                    }
+                    if (baseA.id <= baseB.id) {
+                        mergeGroups(baseA, baseB);
+                    } else {
+                        mergeGroups(baseB, baseA);
+                    }
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged) {
+                break;
             }
         }
+    }
+
+    /** dropBase のグループを keepBase のグループへ統合する。絶対位置が変わらないようオフセットを補正。 */
+    private static void mergeGroups(Entry keepBase, Entry dropBase) {
+        float dx = dropBase.x - keepBase.x;
+        float dy = dropBase.y - keepBase.y;
+        for (int i = 0; i < ENTRIES.size(); i++) {
+            Entry entry = ENTRIES.get(i);
+            if (entry.groupId == dropBase.id) {
+                entry.groupId = keepBase.id;
+                entry.offX += dx;
+                entry.offY += dy;
+                entry.finalX = keepBase.x + entry.offX;
+                entry.finalY = keepBase.y + entry.offY;
+            }
+        }
+    }
+
+    /** 2つのラベル矩形が触れ合っている（端の隙間が gap 以内）か。 */
+    private static boolean rectsTouch(Entry a, Entry b, float step, float gap) {
+        float height = step - gap;
+        float hGap = Math.abs(a.finalX - b.finalX) - (a.width + b.width) / 2.0F;
+        float vGap = Math.abs(a.finalY - b.finalY) - height;
+        return Math.max(hGap, vGap) <= gap + GROUP_JOIN_EPS;
+    }
+
+    /** グループの基準アイテムの画面上位置X。基準が無ければ自分の位置。 */
+    private static float baseAnchorX(Entry entry) {
+        Entry base = ENTRIES_BY_ID.get(entry.groupId);
+        return (base != null && base.inLayout) ? base.x : entry.x;
+    }
+
+    /** グループの基準アイテムの画面上位置Y。基準が無ければ自分の位置。 */
+    private static float baseAnchorY(Entry entry) {
+        Entry base = ENTRIES_BY_ID.get(entry.groupId);
+        return (base != null && base.inLayout) ? base.y : entry.y;
     }
 
     /**
@@ -559,8 +679,9 @@ public final class DroppedItemLabelRenderer {
     }
 
     /**
-     * 基準位置の段、または障害物の段・上下1段を候補とし、各段で障害物の端に密着する最も近い
-     * 空き位置を求めて、基準位置に最も近い候補へ置く。新規ラベルの初期配置にのみ使う。
+     * 基準位置の段、または障害物の段（±複数段）を候補とし、各段で障害物の端に密着する最も近い
+     * 空き位置を求めて、基準位置に最も近い候補へ置く。接した相手がいればそのグループへ参加し、
+     * 位置はグループ基準からのオフセットとして保存する。新規ラベルの初期配置にのみ使う。
      */
     private static void layOutEntry(Entry entry, float step, float gap) {
         float anchorX = entry.x;
@@ -577,20 +698,51 @@ public final class DroppedItemLabelRenderer {
             if (!isObstacle(entry, obstacle)) {
                 continue;
             }
-            considerCandidate(entry, anchorX, anchorY, obstacle.finalY, width, gap, step);
-            considerCandidate(entry, anchorX, anchorY, obstacle.finalY + step, width, gap, step);
-            considerCandidate(entry, anchorX, anchorY, obstacle.finalY - step, width, gap, step);
+            for (int k = -ROW_ALIGN_RANGE; k <= ROW_ALIGN_RANGE; k++) {
+                considerCandidate(entry, anchorX, anchorY, obstacle.finalY + k * step, width, gap, step);
+            }
         }
 
-        entry.finalX = candidateBestX;
-        entry.finalY = candidateBestY;
-        entry.offX = candidateBestX - anchorX;
-        entry.offY = candidateBestY - anchorY;
+        float placedX = candidateBestX;
+        float placedY = candidateBestY;
+
+        // 密着した相手がいればそのグループへ参加する（＝くっついた分を1つの塊として固定）
+        Entry neighbor = findTouchingNeighbor(entry, placedX, placedY, step, gap);
+        entry.groupId = neighbor != null ? neighbor.groupId : entry.id;
+
+        Entry base = ENTRIES_BY_ID.get(entry.groupId);
+        float baseX = (base != null && base.inLayout) ? base.x : anchorX;
+        float baseY = (base != null && base.inLayout) ? base.y : anchorY;
+        entry.offX = placedX - baseX;
+        entry.offY = placedY - baseY;
+        entry.finalX = placedX;
+        entry.finalY = placedY;
     }
 
-    /** 配置の障害物か。生存中で席を予約しているラベル（画面内の通常ラベル、画面外の生存エントリ）。 */
+    /** 配置したラベルに密着している（端の隙間が gap 以内の）障害物を返す。無ければ null。 */
+    private static Entry findTouchingNeighbor(Entry entry, float x, float y, float step, float gap) {
+        float height = step - gap;
+        Entry best = null;
+        float bestSep = gap + GROUP_JOIN_EPS;
+        for (int j = 0; j < ENTRIES.size(); j++) {
+            Entry obstacle = ENTRIES.get(j);
+            if (!isObstacle(entry, obstacle)) {
+                continue;
+            }
+            float hGap = Math.abs(x - obstacle.finalX) - (entry.width + obstacle.width) / 2.0F;
+            float vGap = Math.abs(y - obstacle.finalY) - height;
+            float sep = Math.max(Math.max(hGap, vGap), 0.0F);
+            if (sep < bestSep) {
+                bestSep = sep;
+                best = obstacle;
+            }
+        }
+        return best;
+    }
+
+    /** 配置の障害物か。生存中で席を予約している配置済みラベル。 */
     private static boolean isObstacle(Entry entry, Entry obstacle) {
-        return obstacle != entry && obstacle.inLayout;
+        return obstacle != entry && obstacle.inLayout && obstacle.placed;
     }
 
     /** 指定した段 y での最良位置を求め、基準位置に最も近ければ候補を更新する。 */
@@ -701,6 +853,7 @@ public final class DroppedItemLabelRenderer {
         private boolean present;
         private boolean inLayout;
         private boolean placed;
+        private int groupId;
         private float offX;
         private float offY;
         private double anchorWorldX;

@@ -64,6 +64,12 @@ public class ClientModBusEvents {
             GLFW.GLFW_KEY_UNKNOWN,
             "key.categories.topdown_view");
 
+    // ドロップアイテムのラベルを再生成（盤面を作り直す）
+    public static final KeyMapping REGENERATE_LABELS_KEY = new KeyMapping(
+            "key.topdown_view.regenerate_labels",
+            GLFW.GLFW_KEY_F7,
+            "key.categories.topdown_view");
+
     @SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_VIEW_KEY);
@@ -76,6 +82,7 @@ public class ClientModBusEvents {
         event.register(FREE_CAMERA_KEY);
         event.register(SPACE_DEBUG_KEY);
         event.register(TOGGLE_CULLING_KEY);
+        event.register(REGENERATE_LABELS_KEY);
     }
 
 
