@@ -59,6 +59,7 @@ public final class DroppedItemLabelRenderer {
     private static final float[] BLOCK_START = new float[MAX_TRACKED + MAX_LABELS];
     private static final float[] BLOCK_END = new float[MAX_TRACKED + MAX_LABELS];
     private static boolean computedThisFrame = false;
+    private static boolean replanRequested = false;
     private static int presentCount = 0;
     private static float candidateBestX;
     private static float candidateBestY;
@@ -112,6 +113,12 @@ public final class DroppedItemLabelRenderer {
             addAllCandidates(mc, cameraPos, partialTick, guiWidth, guiHeight);
             pruneMissingEntries(mc);
             projectReservedSlots(mc, cameraPos, guiWidth, guiHeight);
+            if (replanRequested || ModState.CAMERA.isAnimating() || ModState.CAMERA.isDragging()
+                    || ModState.CAMERA.isFreeCameraMode()) {
+                // カメラ回転中は毎フレーム配置を解き直す（エントリは保持するので消えない）
+                resetLayoutForReplan();
+                replanRequested = false;
+            }
             finalizeLabels(mc);
             resolveLayout(mc);
             computeRects(mc);
@@ -334,30 +341,15 @@ public final class DroppedItemLabelRenderer {
     }
 
     /**
-     * 画面外（生存中）のエントリの席をワールド基準位置から画面へ投影する。ラベル表示対象のものだけを
-     * 障害物として席を予約し、新規ラベルがその場所を奪わないようにして再入場時の重なりを防ぐ。
+     * 画面外（生存中）のエントリの基準位置をワールド座標から画面へ投影する。基準位置は常に更新する
+     * ため、グループの基準が画面外でもグループの相対配置は崩れない。表示対象のものだけ席を予約し、
+     * 新規ラベルがその場所を奪わないようにして再入場時の重なりを防ぐ。
      */
     private static void projectReservedSlots(Minecraft mc, Vec3 cameraPos, int guiWidth, int guiHeight) {
         float height = labelHeight(mc);
         for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
             if (entry.present) {
-                continue;
-            }
-            // カリングされたブロック上のアイテムや、表示範囲外の遠いアイテムは席を予約しない
-            ItemEntity item = entry.item;
-            if (item == null || item.distanceToSqr(mc.player) > LABEL_RADIUS_SQR) {
-                continue;
-            }
-            double movedX = item.getX() - item.xo;
-            double movedY = item.getY() - item.yo;
-            double movedZ = item.getZ() - item.zo;
-            if (!item.onGround()
-                    || movedX * movedX + movedY * movedY + movedZ * movedZ > MOVING_DISTANCE_SQR) {
-                continue;
-            }
-            if (ModState.STATUS.isCullingEnabled() && item instanceof Cullable cullable
-                    && cullable.topdownview_isCulled()) {
                 continue;
             }
             float relativeX = (float) (entry.anchorWorldX - cameraPos.x);
@@ -376,9 +368,27 @@ public final class DroppedItemLabelRenderer {
                 continue;
             }
 
-            entry.inLayout = true;
+            // 基準位置はグループの基準として常に更新する
             entry.x = (ndcX * 0.5F + 0.5F) * guiWidth;
             entry.y = (0.5F - ndcY * 0.5F) * guiHeight - height / 2.0F - ANCHOR_GAP * labelScale();
+
+            // 席の予約（障害物扱い）は、カリングされておらず範囲内で静止しているアイテムのみ
+            ItemEntity item = entry.item;
+            if (item == null || item.distanceToSqr(mc.player) > LABEL_RADIUS_SQR) {
+                continue;
+            }
+            double movedX = item.getX() - item.xo;
+            double movedY = item.getY() - item.yo;
+            double movedZ = item.getZ() - item.zo;
+            if (!item.onGround()
+                    || movedX * movedX + movedY * movedY + movedZ * movedZ > MOVING_DISTANCE_SQR) {
+                continue;
+            }
+            if (ModState.STATUS.isCullingEnabled() && item instanceof Cullable cullable
+                    && cullable.topdownview_isCulled()) {
+                continue;
+            }
+            entry.inLayout = true;
         }
     }
 
@@ -480,6 +490,25 @@ public final class DroppedItemLabelRenderer {
     /** 全ラベルを破棄して次フレームで再配置させる（再生成キー用）。 */
     public static void regenerate() {
         clearEntries();
+    }
+
+    /** 次の描画で配置を解き直させる（回転の即時整列など、アニメーションを伴わない回転用）。 */
+    public static void requestReplan() {
+        replanRequested = true;
+    }
+
+    /** エントリは保持したまま、配置だけを未確定に戻して解き直させる。 */
+    private static void resetLayoutForReplan() {
+        for (int i = 0; i < ENTRIES.size(); i++) {
+            Entry entry = ENTRIES.get(i);
+            if (!entry.present) {
+                continue;
+            }
+            entry.placed = false;
+            entry.groupId = 0;
+            entry.offX = 0.0F;
+            entry.offY = 0.0F;
+        }
     }
 
     /** ラベル文字列と、文字幅にもとづく背景サイズ・色を求める。 */
@@ -622,13 +651,13 @@ public final class DroppedItemLabelRenderer {
     /** グループの基準アイテムの画面上位置X。基準が無ければ自分の位置。 */
     private static float baseAnchorX(Entry entry) {
         Entry base = ENTRIES_BY_ID.get(entry.groupId);
-        return (base != null && base.inLayout) ? base.x : entry.x;
+        return base != null ? base.x : entry.x;
     }
 
     /** グループの基準アイテムの画面上位置Y。基準が無ければ自分の位置。 */
     private static float baseAnchorY(Entry entry) {
         Entry base = ENTRIES_BY_ID.get(entry.groupId);
-        return (base != null && base.inLayout) ? base.y : entry.y;
+        return base != null ? base.y : entry.y;
     }
 
     /**
@@ -692,14 +721,19 @@ public final class DroppedItemLabelRenderer {
         candidateBestX = anchorX;
         candidateBestY = anchorY;
 
-        considerCandidate(entry, anchorX, anchorY, anchorY, width, gap, step);
+        considerCandidate(entry, anchorX, anchorX, anchorY, anchorY, width, gap, step);
         for (int j = 0; j < ENTRIES.size(); j++) {
             Entry obstacle = ENTRIES.get(j);
             if (!isObstacle(entry, obstacle)) {
                 continue;
             }
             for (int k = -ROW_ALIGN_RANGE; k <= ROW_ALIGN_RANGE; k++) {
-                considerCandidate(entry, anchorX, anchorY, obstacle.finalY + k * step, width, gap, step);
+                // 障害物のXに揃えて密着配置する候補（列が揃い隙間が出にくい）
+                considerCandidate(entry, obstacle.finalX, anchorX, anchorY,
+                        obstacle.finalY + k * step, width, gap, step);
+                // 自分のXでその段に置く候補
+                considerCandidate(entry, anchorX, anchorX, anchorY,
+                        obstacle.finalY + k * step, width, gap, step);
             }
         }
 
@@ -745,10 +779,13 @@ public final class DroppedItemLabelRenderer {
         return obstacle != entry && obstacle.inLayout && obstacle.placed;
     }
 
-    /** 指定した段 y での最良位置を求め、基準位置に最も近ければ候補を更新する。 */
-    private static void considerCandidate(Entry entry, float anchorX, float anchorY, float y,
+    /**
+     * 指定した段 y での最良位置を求める。配置は基準X(refX)に最も近い空き位置とし、良し悪しは
+     * 自分の基準位置(anchorX, anchorY)からの距離で評価する。障害物のXを refX にすると列が揃う。
+     */
+    private static void considerCandidate(Entry entry, float refX, float anchorX, float anchorY, float y,
                                           float width, float gap, float step) {
-        float x = resolveX(entry, anchorX, y, width, gap, step);
+        float x = resolveX(entry, refX, y, width, gap, step);
         float dx = x - anchorX;
         float dy = y - anchorY;
         float dist = dx * dx + dy * dy;

@@ -252,6 +252,8 @@ public final class CameraController {
         
         if (Math.abs(angleDiff) < 5.0f) {
             ModState.CAMERA.setYaw(targetYaw);
+            // 即時回転（アニメーションなし）は次の描画で配置を解き直す
+            DroppedItemLabelRenderer.requestReplan();
         } else {
             ModState.CAMERA.setTargetYaw(targetYaw);
             ModState.CAMERA.setAutoAlignAnimation(true);
