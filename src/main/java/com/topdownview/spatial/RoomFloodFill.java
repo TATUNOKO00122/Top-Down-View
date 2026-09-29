@@ -50,6 +50,39 @@ public final class RoomFloodFill {
     /** 水平境界のうち開放面が占めてよい割合 (壁面に対する%)。超過した場合は屋外とみなす */
     public static final int MAX_OPEN_FACE_PERCENT = 40;
 
+    /**
+     * 「外気に開いた細長い連結路」を切り離す対象とする最小チェーン長さ
+     * (チェーンのバウンディングボックスの最大辺)。これ未満のチェーン (扉・短い通路・
+     * 2x2の小部屋) は切り離さない。
+     */
+    public static final int THIN_SEVER_MIN_EXTENT = 4;
+
+    /**
+     * チェーン切断の深さ。外気に面したセル (距離0) とそのチェーン内隣接セル (距離1) までを
+     * 切り離し、それ奥の室内側セル (2幅の部屋・階段・廊下) は領域に残す。
+     * 深さ1で軒2〜3段のストリップを完全に切断できる。
+     */
+    public static final int SEVER_CUT_DEPTH = 1;
+
+    /**
+     * 足元の高さの局所断面テストのパラメータ。
+     *
+     * <p>全域の開放率判定は領域内の壁面総数で希釈される。特に軒下リング (建物外壁に沿って
+     * 覆いが連なり、その下を外周が通る空間) では家の内壁面が開放面を上回り、屋外に立って
+     * いても屋内判定になる。そこで種の足元Y帯に限定した2つの直検を併用する:
+     * 断面BFS (扉を壁扱いして辿った範囲の開放面の割合) と、巨大天蓋サンプル (覆いまでの
+     * 垂直距離が人間スケールを超えるセルの割合)。
+     */
+    public static final int LOCAL_SECTION_RADIUS = 6;
+    /** 断面BFSが辿るY帯のレイヤー数 (足元+頭の2層)。 */
+    public static final int LOCAL_SECTION_HEIGHT = 2;
+    /** 覆いが「近い」とみなす垂直距離。これを超える覆いは巨大天蓋とみなす。 */
+    public static final int LOCAL_MAX_COVER_HEIGHT = 10;
+    /** 近い覆いを持つセルの必要割合 (%)。下回った場合は屋外。 */
+    public static final int LOCAL_MIN_COVERED_PERCENT = 75;
+    /** 局所断面テストが成立する最小セル数。これ未満なら判定をスキップする。 */
+    private static final int LOCAL_MIN_SAMPLES = 8;
+
     /** 探索を行う6方向 */
     private static final Direction[] DIRECTIONS = Direction.values();
 
@@ -209,6 +242,47 @@ public final class RoomFloodFill {
         // 誤カウントされない。除外済みセルに面する境界は開放面として数える。
         visitedAir.removeAll(s.exposedAir);
 
+        // 橋・渡り廊下など「細長い連結路」を切り離す。壁と屋根に囲まれた細い通路は
+        // 露出除外で切り離されないため、2つの家が一つの領域に連結されてしまう。
+        // 切り離し後、種の所属コンポーネントだけを残す (天井スライスのAABBが
+        // 相手側の家まで広がるのを防ぐ)。
+        LongOpenHashSet severed = detectLongThinChains(visitedAir, s.blockMap);
+        boolean regionReduced = false;
+        if (!severed.isEmpty()) {
+            visitedAir.removeAll(severed);
+            regionReduced = true;
+        }
+        if (visitedAir.contains(startLong)) {
+            int before = visitedAir.size();
+            reduceToSeedComponent(visitedAir, startLong);
+            regionReduced = regionReduced || visitedAir.size() != before;
+        } else if (severed.contains(startLong)) {
+            // 種が分断された連結路上にある (橋の上など): その連結路を空間とする
+            visitedAir.clear();
+            collectChain(severed, startLong, visitedAir);
+            regionReduced = true;
+        }
+        if (regionReduced) {
+            // 縮約後の領域でAABBを張り直す (天井スライスの範囲に直結する)
+            minX = Integer.MAX_VALUE;
+            minY = Integer.MAX_VALUE;
+            minZ = Integer.MAX_VALUE;
+            maxX = Integer.MIN_VALUE;
+            maxY = Integer.MIN_VALUE;
+            maxZ = Integer.MIN_VALUE;
+            for (long cell : visitedAir) {
+                int cx = BlockPos.getX(cell);
+                int cy = BlockPos.getY(cell);
+                int cz = BlockPos.getZ(cell);
+                if (cx < minX) minX = cx;
+                if (cy < minY) minY = cy;
+                if (cz < minZ) minZ = cz;
+                if (cx > maxX) maxX = cx;
+                if (cy > maxY) maxY = cy;
+                if (cz > maxZ) maxZ = cz;
+            }
+        }
+
         int wallFaces = 0;
         int openFaces = 0;
         for (LongIterator airIt = visitedAir.iterator(); airIt.hasNext(); ) {
@@ -230,12 +304,14 @@ public final class RoomFloodFill {
             }
         }
 
-        // 屋内 = 水平境界が壁面 (固体) で支配的であること (開放面が壁面の
-        // MAX_OPEN_FACE_PERCENT% を超えない)。頭上に覆いがあるだけの屋外空間
-        // (オーバーハング・木陰・屋根付き広場・開放型の屋根付き構造) は
-        // 開放面が多いため屋内と判定しない。
-        boolean enclosed = !visitedAir.isEmpty() && wallFaces > 0
-                && openFaces * 100 <= wallFaces * MAX_OPEN_FACE_PERCENT;
+        // 屋内 = ①種のセルが領域に残存すること (露出除外で落ちた = 開口部や軒の際に
+        // 直接立っている → 屋外)、②水平境界が壁面支配 (開放面が壁面の
+        // MAX_OPEN_FACE_PERCENT% 以下)、③足元断面の局所検定 (軒下リング / 巨大天蓋)
+        // を通ること。②だけだと家の内壁面が外周の開放面を希釈し、屋外の軒下で
+        // 屋内判定になるため①③を併用する。
+        boolean enclosed = visitedAir.contains(startLong) && wallFaces > 0
+                && openFaces * 100 <= wallFaces * MAX_OPEN_FACE_PERCENT
+                && !hasLocalOpening(s, startPos, visitedAir);
         BlockPos min = new BlockPos(minX, minY, minZ);
         BlockPos max = new BlockPos(maxX, maxY, maxZ);
 
@@ -259,6 +335,174 @@ public final class RoomFloodFill {
     }
 
     /**
+     * 領域内の「外気に開いた細長い連結路」(軒下ストリップ・デッキ下の通り) を検出して返す。
+     *
+     * <p>各セルについて、X方向とZ方向の領域内連続長を測り、どちらかが2以下のセルを
+     * 「細い断面」とする。細い断面のセルを6近傍で連結したチェーンのうち、
+     * バウンディングボックスの最大辺が {@link #THIN_SEVER_MIN_EXTENT} 以上で、かつ
+     * 外気 (領域外の非固体) に面したセルを含むものだけが対象。
+     *
+     * <p>切断はチェーン全体ではなく {@link #SEVER_CUT_DEPTH} 内の外気側の縁に限る。
+     * これにより通り沿いのストリップは除去されるが、チェーンで繋がった室内側の
+     * 細い部屋・階段・廊下は領域に残る (露天の縁だけを切る)。
+     * 完全に屋根で覆われた3幅以上の通路は検出しない (「部屋」とみなす)。
+     */
+    private static LongOpenHashSet detectLongThinChains(LongOpenHashSet region, BlockMap blockMap) {
+        final LongOpenHashSet thin = new LongOpenHashSet(region.size());
+        for (long cell : region) {
+            int x = BlockPos.getX(cell);
+            int y = BlockPos.getY(cell);
+            int z = BlockPos.getZ(cell);
+            if (axisRunLength(region, x, y, z, Direction.Axis.X) <= 2
+                    || axisRunLength(region, x, y, z, Direction.Axis.Z) <= 2) {
+                thin.add(cell);
+            }
+        }
+        if (thin.isEmpty()) {
+            return new LongOpenHashSet();
+        }
+        final LongOpenHashSet severed = new LongOpenHashSet();
+        final LongOpenHashSet visited = new LongOpenHashSet(thin.size());
+        final LongOpenHashSet openSeeds = new LongOpenHashSet();
+        final LongArrayList queue = new LongArrayList();
+        for (long cell : thin) {
+            if (!visited.add(cell)) {
+                continue;
+            }
+            queue.clear();
+            openSeeds.clear();
+            queue.add(cell);
+            int minX = BlockPos.getX(cell);
+            int maxX = minX;
+            int minY = BlockPos.getY(cell);
+            int maxY = minY;
+            int minZ = BlockPos.getZ(cell);
+            int maxZ = minZ;
+            int head = 0;
+            while (head < queue.size()) {
+                long cur = queue.getLong(head++);
+                int cx = BlockPos.getX(cur);
+                int cy = BlockPos.getY(cur);
+                int cz = BlockPos.getZ(cur);
+                if (cx < minX) minX = cx;
+                if (cy < minY) minY = cy;
+                if (cz < minZ) minZ = cz;
+                if (cx > maxX) maxX = cx;
+                if (cy > maxY) maxY = cy;
+                if (cz > maxZ) maxZ = cz;
+                if (facesOpenAir(region, blockMap, cx, cy, cz)) {
+                    openSeeds.add(cur);
+                }
+                for (Direction dir : DIRECTIONS) {
+                    long n = BlockPos.asLong(cx + dir.getStepX(), cy + dir.getStepY(), cz + dir.getStepZ());
+                    if (thin.contains(n) && visited.add(n)) {
+                        queue.add(n);
+                    }
+                }
+            }
+            int extent = Math.max(Math.max(maxX - minX, maxY - minY), maxZ - minZ) + 1;
+            if (extent < THIN_SEVER_MIN_EXTENT || openSeeds.isEmpty()) {
+                continue;
+            }
+            // 外気側の縁から SEVER_CUT_DEPTH 内だけを切り離す
+            severed.addAll(openSeeds);
+            LongOpenHashSet frontier = openSeeds;
+            for (int depth = 0; depth < SEVER_CUT_DEPTH; depth++) {
+                final LongOpenHashSet next = new LongOpenHashSet();
+                for (long cur : frontier) {
+                    int cx = BlockPos.getX(cur);
+                    int cy = BlockPos.getY(cur);
+                    int cz = BlockPos.getZ(cur);
+                    for (Direction dir : DIRECTIONS) {
+                        long n = BlockPos.asLong(cx + dir.getStepX(), cy + dir.getStepY(), cz + dir.getStepZ());
+                        if (thin.contains(n) && !severed.contains(n) && next.add(n)) {
+                            severed.add(n);
+                        }
+                    }
+                }
+                frontier = next;
+            }
+        }
+        return severed;
+    }
+
+    /**
+     * セルが外気 (領域外の非固体 = 覆いのない空気・露出除外済みセル) に水平で面しているか。
+     * 固体の隣接は開気ではない。
+     */
+    private static boolean facesOpenAir(LongSet region, BlockMap blockMap, int x, int y, int z) {
+        for (Direction dir : DIRECTIONS) {
+            if (dir.getStepY() != 0) {
+                continue;
+            }
+            int nx = x + dir.getStepX();
+            int nz = z + dir.getStepZ();
+            if (!region.contains(BlockPos.asLong(nx, y, nz)) && !blockMap.isSolid(nx, y, nz)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 指定軸方向の領域内連続長を測る。両方向合わせて3セルを超えた時点で打ち切る
+     * (しきい値「2以下」の判定に十分なため)。
+     */
+    private static int axisRunLength(LongOpenHashSet region, int x, int y, int z, Direction.Axis axis) {
+        int dx = axis == Direction.Axis.X ? 1 : 0;
+        int dz = axis == Direction.Axis.Z ? 1 : 0;
+        int len = 1;
+        for (int step = 1; step <= 2; step++) {
+            if (region.contains(BlockPos.asLong(x + dx * step, y, z + dz * step))) {
+                len++;
+            } else {
+                break;
+            }
+        }
+        for (int step = 1; step <= 2; step++) {
+            if (region.contains(BlockPos.asLong(x - dx * step, y, z - dz * step))) {
+                len++;
+            } else {
+                break;
+            }
+        }
+        return len;
+    }
+
+    /**
+     * 種の所属する連結コンポーネント以外を領域から取り除く。
+     * 分断された領域 (橋で切り離された相手側の家) が天井スライスのAABBに
+     * 取り込まれるのを防ぐ。
+     */
+    private static void reduceToSeedComponent(LongOpenHashSet region, long startLong) {
+        LongOpenHashSet keep = new LongOpenHashSet(region.size());
+        collectChain(region, startLong, keep);
+        if (keep.size() < region.size()) {
+            region.retainAll(keep);
+        }
+    }
+
+    /** {@code from} から6近傍BFSで到達できる {@code source} 内のセルを {@code out} に集める。 */
+    private static void collectChain(LongSet source, long from, LongOpenHashSet out) {
+        LongArrayList queue = new LongArrayList();
+        out.add(from);
+        queue.add(from);
+        int head = 0;
+        while (head < queue.size()) {
+            long cur = queue.getLong(head++);
+            int cx = BlockPos.getX(cur);
+            int cy = BlockPos.getY(cur);
+            int cz = BlockPos.getZ(cur);
+            for (Direction dir : DIRECTIONS) {
+                long n = BlockPos.asLong(cx + dir.getStepX(), cy + dir.getStepY(), cz + dir.getStepZ());
+                if (source.contains(n) && out.add(n)) {
+                    queue.add(n);
+                }
+            }
+        }
+    }
+
+    /**
      * 指定位置の直上 {@link #CEILING_SCAN_HEIGHT} 以内に固体の覆い(天井)があるか判定する。
      * 空気・葉・液体は覆いとみなさない(透過)。見つからなかったセルは記録して再走査を避ける。
      */
@@ -275,6 +519,150 @@ public final class RoomFloodFill {
         }
         s.noCover.add(key);
         return false;
+    }
+
+    /**
+     * 種の足元Y帯の断面が外に開いているかを2手法で直検する。
+     *
+     * <p>全域の開放率判定は領域内の壁面総数で希釈されるため、次の2つを併用する:
+     * <ol>
+     *   <li><b>断面BFS</b> — 種から足元+頭の2層を辿り (扉・ゲートは壁として扱い辿らない)、
+     *       辿った範囲が「領域外の非固体」(開けた空気・露出除外済みセル) に面する割合が
+     *       閾値を超えれば開放。軒下リングに立っているケースを検出する。</li>
+     *   <li><b>巨大天蓋サンプル</b> — 領域セルの直上の覆いまでの垂直距離が人間スケールを
+     *       超える割合が高ければ、巨大な覆いの下とみなす。</li>
+     * </ol>
+     */
+    private static boolean hasLocalOpening(Scratch s, BlockPos seed, LongSet region) {
+        return isLocalCrossSectionOpen(s, seed, region) || isGiantCanopyNearby(s, seed, region);
+    }
+
+    /**
+     * 種を中心に足元+頭の2層で断面BFSを行い、外向きの開放面が壁面に対して優過ぎないか検査する。
+     *
+     * <p>領域外の非固体セル = 開けた空気 (露出除外で切り離された軒下の外周を含む)。
+     * 半径打ち切りの面は、外が領域の継続なら開放面に数えない。扉・フェンスゲート
+     * (連結部) は壁として扱い、辿らない。これにより屋内側の壁面が開放面を希釈するのを防ぐ。
+     */
+    private static boolean isLocalCrossSectionOpen(Scratch s, BlockPos seed, LongSet region) {
+        final int radius = LOCAL_SECTION_RADIUS;
+        final int minY = seed.getY();
+        final int maxY = minY + LOCAL_SECTION_HEIGHT;
+        final int seedX = seed.getX();
+        final int seedZ = seed.getZ();
+
+        long startLong = seed.asLong();
+        if (!region.contains(startLong)) {
+            return false;
+        }
+        final LongOpenHashSet local = new LongOpenHashSet();
+        final LongArrayList queue = new LongArrayList();
+        local.add(startLong);
+        queue.add(startLong);
+
+        int wallFaces = 0;
+        int openFaces = 0;
+        int head = 0;
+        while (head < queue.size()) {
+            long cur = queue.getLong(head++);
+            int cx = BlockPos.getX(cur);
+            int cy = BlockPos.getY(cur);
+            int cz = BlockPos.getZ(cur);
+            for (Direction dir : DIRECTIONS) {
+                int nx = cx + dir.getStepX();
+                int ny = cy + dir.getStepY();
+                int nz = cz + dir.getStepZ();
+                if (ny < minY || ny >= maxY) {
+                    // 帯外 (上下階) は別断面のため中立
+                    continue;
+                }
+                if (Math.abs(nx - seedX) > radius || Math.abs(nz - seedZ) > radius) {
+                    // 半径打ち切り。外が領域の継続なら開放面ではない
+                    continue;
+                }
+                long nlong = BlockPos.asLong(nx, ny, nz);
+                if (s.blockMap.isSolid(nx, ny, nz) || s.blockMap.isConnector(nx, ny, nz)) {
+                    wallFaces++;
+                    continue;
+                }
+                if (region.contains(nlong)) {
+                    if (local.add(nlong)) {
+                        queue.add(nlong);
+                    }
+                    continue;
+                }
+                // 領域外の非固体 = 開けた空気 (露出除外セルを含む)
+                openFaces++;
+            }
+        }
+        if (local.size() < LOCAL_MIN_SAMPLES) {
+            return false;
+        }
+        return openFaces * 100 > wallFaces * MAX_OPEN_FACE_PERCENT;
+    }
+
+    /**
+     * 種の足元Y帯の断面サンプルで「非人間スケールの天蓋」を検出する。
+     *
+     * <p>巨大な覆い (祠・巨大菌の傘・岩屋根) の下では全空気が covered air として氾濫し、
+     * 全域の開放率判定は地形や柱による壁面の希釈で屋内側に倒れる。種の足元近傍にある
+     * 領域セルだけをサンプルし、各セルの直上の覆いまでの垂直距離を測る。
+     * 覆いが {@link #LOCAL_MAX_COVER_HEIGHT} より遠い (または無い) セルが多くを占める
+     * 断面は巨大天蓋の下とみなし、屋内判定を落とす。領域外のセルは母集団から除外するため、
+     * 窓・扉際の外気はサンプルに混入しない。
+     */
+    private static boolean isGiantCanopyNearby(Scratch s, BlockPos seed, LongSet region) {
+        final int radius = LOCAL_SECTION_RADIUS;
+        final int minY = seed.getY();
+        final int maxY = minY + LOCAL_SECTION_HEIGHT;
+        final int seedX = seed.getX();
+        final int seedZ = seed.getZ();
+
+        int near = 0;
+        int far = 0;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int y = minY; y < maxY; y++) {
+                    long pos = BlockPos.asLong(seedX + dx, y, seedZ + dz);
+                    if (!region.contains(pos)) {
+                        continue;
+                    }
+                    if (s.blockMap.isSolid(seedX + dx, y, seedZ + dz)) {
+                        continue;
+                    }
+                    if (firstCoverDistance(s, seedX + dx, y, seedZ + dz)
+                            <= LOCAL_MAX_COVER_HEIGHT) {
+                        near++;
+                    } else {
+                        far++;
+                    }
+                }
+            }
+        }
+        int total = near + far;
+        if (total < LOCAL_MIN_SAMPLES) {
+            return false;
+        }
+        return near * 100 < total * LOCAL_MIN_COVERED_PERCENT;
+    }
+
+    /**
+     * 直上の最初の覆いまでの垂直距離を返す。覆いがない場合は {@code Integer.MAX_VALUE}。
+     * 空気・葉・液体は透過する。覆いが全くないセルは {@code Scratch.noCover} でメモ化する。
+     */
+    private static int firstCoverDistance(Scratch s, int x, int y, int z) {
+        long key = BlockPos.asLong(x, y, z);
+        if (s.noCover.contains(key)) {
+            return Integer.MAX_VALUE;
+        }
+        final int limit = y + CEILING_SCAN_HEIGHT;
+        for (int yy = y + 1; yy <= limit; yy++) {
+            if (s.blockMap.isCover(x, yy, z)) {
+                return yy - y;
+            }
+        }
+        s.noCover.add(key);
+        return Integer.MAX_VALUE;
     }
 
     /**
