@@ -1,14 +1,12 @@
 package com.topdownview.state;
 
+import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.BuildingClassifier;
-import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.RoomSegmentation;
 import com.topdownview.spatial.SpaceProbe;
-import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import java.util.List;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockGetter;
 
 /**
  * 空間判定デバッグ状態。
@@ -27,12 +25,11 @@ public final class SpaceDebugState {
 
     private boolean enabled = false;
     private SpaceProbe.Result currentResult = null;
+    private SpaceProbe.Result currentRawResult = null;
     private BuildingClassifier.Result currentClassification = BuildingClassifier.Result.EMPTY;
     private RoomSegmentation.Result currentSegmentation = RoomSegmentation.Result.EMPTY;
     private List<Staircase> currentStaircases = List.of();
     private BlockPos currentSeed = null;
-    private long lastProbeTimeMs = 0;
-    private final RoomFloodFill.Scratch debugScratch = new RoomFloodFill.Scratch();
 
     private SpaceDebugState() {
     }
@@ -45,6 +42,7 @@ public final class SpaceDebugState {
         enabled = value;
         if (!enabled) {
             currentResult = null;
+            currentRawResult = null;
             currentClassification = BuildingClassifier.Result.EMPTY;
             currentSegmentation = RoomSegmentation.Result.EMPTY;
             currentStaircases = List.of();
@@ -76,45 +74,50 @@ public final class SpaceDebugState {
         return currentSeed;
     }
 
-    public long getLastProbeTimeMs() {
-        return lastProbeTimeMs;
+    /** ヒステリシス適用前の生のプローブ結果 (カリングに未反映の値)。未プローブなら null。 */
+    public SpaceProbe.Result getRawResult() {
+        return currentRawResult;
     }
 
     /**
-     * 指定シードで空間を判定し、結果を保持する。
-     * disabled の場合はクリアして何もしない。
+     * TopDownCuller が受理した空間プローブ結果を採り込む。
+     *
+     * <p>デバッグ独自のプローブを持たず、カリング実体と同じ結果・同じヒステリシスを
+     * 表示するための単一化ポイント。結果オブジェクトはプローブの受理ごとに新しくなるため、
+     * 参照一致で変化を検出し、変化のないフレームの再分類を避ける。
+     *
+     * @param rawResult     ヒステリシス適用前の生のプローブ結果
+     * @param appliedResult カリングが採用した結果 (ヒステリシス適用後)。未確定なら null
+     * @param blockMap      appliedResult のプローブで構築されたブロック判定キャッシュ
+     * @param staircases    階段ハンドラが検出した階段一覧
      */
-    public void update(BlockGetter level, BlockPos seed) {
-        if (!enabled || !com.topdownview.Config.isStaircaseExclusionEnabled() || level == null || seed == null) {
-            currentResult = null;
-            currentClassification = BuildingClassifier.Result.EMPTY;
-            currentSegmentation = RoomSegmentation.Result.EMPTY;
-            currentStaircases = List.of();
-            currentSeed = null;
+    public void adopt(SpaceProbe.Result rawResult, SpaceProbe.Result appliedResult,
+            BlockMap blockMap, List<Staircase> staircases) {
+        if (!enabled) {
             return;
         }
-        long start = System.currentTimeMillis();
-        currentSeed = seed.immutable();
-        currentResult = SpaceProbe.probe(level, seed, debugScratch);
-        currentClassification = BuildingClassifier.classify(
-                currentResult.getRoomResult(), debugScratch.getBlockMap());
-        currentSegmentation = currentResult.getSegmentation();
-        int feetY = seed.getY() - 1;
-        currentStaircases = StairAnalyzer.detect(seed, STAIR_SCAN_RADIUS, MIN_STAIRCASE_STEPS,
-                StairAnalyzer.scanMinY(feetY, MIN_STAIRCASE_STEPS),
-                StairAnalyzer.scanMaxY(feetY, com.topdownview.Config.getStaircaseExclusionHeight(),
-                        MIN_STAIRCASE_STEPS),
-                debugScratch.getBlockMap());
-        lastProbeTimeMs = System.currentTimeMillis() - start;
+        currentRawResult = rawResult;
+        if (appliedResult == currentResult) {
+            return;
+        }
+        currentResult = appliedResult;
+        currentSeed = appliedResult != null ? appliedResult.getOrigin() : null;
+        currentClassification = (appliedResult != null)
+                ? BuildingClassifier.classify(appliedResult.getRoomResult(), blockMap)
+                : BuildingClassifier.Result.EMPTY;
+        currentSegmentation = appliedResult != null
+                ? appliedResult.getSegmentation()
+                : RoomSegmentation.Result.EMPTY;
+        currentStaircases = staircases != null ? List.copyOf(staircases) : List.of();
     }
 
     public void reset() {
         enabled = false;
         currentResult = null;
+        currentRawResult = null;
         currentClassification = BuildingClassifier.Result.EMPTY;
         currentSegmentation = RoomSegmentation.Result.EMPTY;
         currentStaircases = List.of();
         currentSeed = null;
-        lastProbeTimeMs = 0;
     }
 }

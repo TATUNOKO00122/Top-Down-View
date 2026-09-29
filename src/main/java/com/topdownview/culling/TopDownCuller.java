@@ -129,7 +129,7 @@ public final class TopDownCuller {
 
     /** 直前に屋内と判定した座標。この近くの非屋内判定は段差等による一瞬のブレとして無視する。 */
     private BlockPos lastEnclosedSeed = null;
-    private static final int ENCLOSED_STICKY_MOVE = 3;
+    private static final int ENCLOSED_STICKY_MOVE = 1;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final FadeCacheManager fadeCache = new FadeCacheManager();
@@ -1012,6 +1012,26 @@ public final class TopDownCuller {
      */
     public SpaceProbe.Result getSpaceResult() {
         return rawSpaceResult;
+    }
+
+    /**
+     * カリング適用の基準となる空間プローブ結果 (屋内ヒステリシス適用後)。未確定なら null。
+     *
+     * <p>空間デバッグ表示はこの結果に単一化する。デバッグ独自のプローブは
+     * カリング実体とゲート (移動閾値・ヒステリシス) がずれ、表示と動作の乖離を生むため。
+     */
+    public SpaceProbe.Result getAppliedSpaceResult() {
+        return currentSpaceResult;
+    }
+
+    /** 受理済みプローブの BlockMap (建物分類などの追加解析用)。未確定なら null。 */
+    public com.topdownview.spatial.BlockMap getSpaceBlockMap() {
+        return spaceScratch != null ? spaceScratch.getBlockMap() : null;
+    }
+
+    /** 階段ハンドラが直近の走査で検出した階段一覧 (デバッグ表示用)。 */
+    public java.util.List<com.topdownview.spatial.Staircase> getDetectedStaircases() {
+        return stairHandler.getDetectedStaircases();
     }
 
     /** 天井スライスの差分範囲を返す。空なら差分追跡できている集合の変化は無い。 */

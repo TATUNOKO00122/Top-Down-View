@@ -37,10 +37,6 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 public final class SpaceDebugRenderer {
 
     private static final float BOX_SIZE = 0.4f;
-    /** プレイヤーがこのブロック数以上移動したら再判定 */
-    private static final int REPROBE_DISTANCE = 2;
-
-    private static BlockPos lastProbeSeed = null;
 
     private SpaceDebugRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -57,12 +53,11 @@ public final class SpaceDebugRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        // プレイヤー移動に応じて再判定
-        BlockPos playerPos = mc.player.blockPosition();
-        if (lastProbeSeed == null || lastProbeSeed.distManhattan(playerPos) > REPROBE_DISTANCE) {
-            ModState.SPACE_DEBUG.update(mc.level, playerPos);
-            lastProbeSeed = playerPos;
-        }
+        // カリング実体が受理した結果を採り込む (デバッグ独自のプローブは持たない)。
+        // 生結果とヒステリシス適用後の乖離が、そのまま「天井カリングの遅延」として可視化される。
+        TopDownCuller culler = TopDownCuller.getInstance();
+        ModState.SPACE_DEBUG.adopt(culler.getSpaceResult(), culler.getAppliedSpaceResult(),
+                culler.getSpaceBlockMap(), culler.getDetectedStaircases());
 
         SpaceProbe.Result result = ModState.SPACE_DEBUG.getCurrentResult();
         if (result == null) return;
@@ -87,11 +82,6 @@ public final class SpaceDebugRenderer {
         SpaceProbe.Result result = ModState.SPACE_DEBUG.getCurrentResult();
 
         renderHudText(gg, mc, result);
-    }
-
-    /** プレイヤーが次元移動等した時にキャッシュをクリア */
-    public static void clearCache() {
-        lastProbeSeed = null;
     }
 
     /**
@@ -229,7 +219,11 @@ public final class SpaceDebugRenderer {
 
         // 判定結果
         int resultColor = result.isEnclosed() ? 0xFF00FF00 : 0xFFFFFF00;
-        gg.drawString(mc.font, "Enclosed: " + result.isEnclosed(), x, y, resultColor, false);
+        // カリングに採用された結果と、ヒステリシス適用前の生の結果を並べて表示する。
+        // 両者の乖離が「天井カリングの解除遅延」の正体 (移動ゲート+ヒステリシス+プローブ遅延)。
+        SpaceProbe.Result raw = ModState.SPACE_DEBUG.getRawResult();
+        String rawStr = raw != null && raw != result ? "  (raw: " + raw.isEnclosed() + ")" : "";
+        gg.drawString(mc.font, "Enclosed: " + result.isEnclosed() + rawStr, x, y, resultColor, false);
         y += lineHeight;
 
         // 天井情報
@@ -323,7 +317,5 @@ public final class SpaceDebugRenderer {
 
         gg.drawString(mc.font, "Seed: [" + result.getOrigin().getX() + ","
                 + result.getOrigin().getY() + "," + result.getOrigin().getZ() + "]", x, y, 0xFFCCCCCC, false);
-        y += lineHeight;
-        gg.drawString(mc.font, "Probe: " + ModState.SPACE_DEBUG.getLastProbeTimeMs() + "ms", x, y, 0xFFCCCCCC, false);
     }
 }

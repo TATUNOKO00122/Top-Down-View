@@ -290,9 +290,6 @@ public final class InputHandler {
 
     private static void toggleSpaceDebug() {
         ModState.SPACE_DEBUG.toggle();
-        if (!ModState.SPACE_DEBUG.isEnabled()) {
-            SpaceDebugRenderer.clearCache();
-        }
     }
 
     @SubscribeEvent

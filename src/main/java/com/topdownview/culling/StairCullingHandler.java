@@ -29,6 +29,11 @@ public final class StairCullingHandler {
         detectedStaircases = List.of();
     }
 
+    /** デバッグ表示用: 直近の update で検出した階段一覧。 */
+    public List<Staircase> getDetectedStaircases() {
+        return detectedStaircases;
+    }
+
     public void update(Minecraft mc, int blockY, boolean currentSpaceEnclosed, RoomFloodFill.Result roomResult,
             BlockMap blockMap) {
         excludedStairBlocks.clear();
