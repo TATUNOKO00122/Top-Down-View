@@ -31,6 +31,10 @@ public final class PerfMonitor {
     private static final long FRAME_FREEZE_NANOS = 100_000_000L;
     /** これ以上フレームが空いたら計測を仕切り直す(初回/ロード明け/モニター復帰)。 */
     private static final long RESUME_GAP_NANOS = 1_000_000_000L;
+    /** 高頻度のブロック判定回数は1/256を標本計数して推定する。 */
+    private static final int BLOCK_CULL_SAMPLE_SHIFT = 8;
+    private static final long BLOCK_CULL_SAMPLE_MASK = (1L << BLOCK_CULL_SAMPLE_SHIFT) - 1L;
+    private static final long BLOCK_CULL_SAMPLE_MIX = 0x9E3779B97F4A7C15L;
 
     // ==================== フェーズ別タイマー ====================
     /** TopDownCuller.update 全体。 */
@@ -62,7 +66,7 @@ public final class PerfMonitor {
     public static final Timer COVER = new Timer();
 
     // ==================== カウンタ ====================
-    /** isBlockCulled の呼び出し回数(チャンク構築ワーカー含む)。 */
+    /** isBlockCulled の推定呼び出し回数(チャンク構築ワーカー含む)。 */
     public static final LongAdder IS_BLOCK_CULLED = new LongAdder();
     /** Embeddium へ要求したチャンク再構築回数。 */
     public static final LongAdder CHUNK_REBUILDS = new LongAdder();
@@ -114,7 +118,7 @@ public final class PerfMonitor {
         if (dt > SPIKE_NANOS && now - lastSpikeLogNanos >= SPIKE_LOG_INTERVAL_NANOS) {
             lastSpikeLogNanos = now;
             LOGGER.info("[TopDownView][Perf] SPIKE frame={}ms | render fade={}ms overlay={}ms | "
-                            + "tick cull={}ms probe={}ms | chunk rebuild={}ms ({} calls) | isBlockCulled={}",
+                            + "tick cull={}ms probe={}ms | chunk rebuild={}ms ({} calls) | isBlockCulled~={}",
                     f1(dt / 1.0E6), FADE_RENDER, OVERLAY_RENDER, CULL_UPDATE, PROBE,
                     CHUNK_REBUILD, CHUNK_REBUILDS.sum(), IS_BLOCK_CULLED.sum());
         }
@@ -134,7 +138,7 @@ public final class PerfMonitor {
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
         LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick cull={} entity={}ms | "
                         + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
-                        + "chunk rebuild={} (wide={}) ({}) sections={} | isBlockCulled={} fadeBlocks={}",
+                        + "chunk rebuild={} (wide={}) ({}) sections={} | isBlockCulled~={} fadeBlocks={}",
                 FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, CULL_UPDATE, ENTITY_CULL,
                 PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
@@ -175,6 +179,19 @@ public final class PerfMonitor {
         FADE_BLOCKS.add(count);
     }
 
+    /**
+     * 高頻度カリング問い合わせを標本計数する。位置ハッシュを使い、ブロック単位の出力は変えず
+     * LongAdder への更新回数を減らす。
+     */
+    public static void recordBlockCullSample(long posLong) {
+        long sampleKey = posLong * BLOCK_CULL_SAMPLE_MIX;
+        sampleKey ^= sampleKey >>> 32;
+        sampleKey ^= sampleKey >>> 16;
+        if ((sampleKey & BLOCK_CULL_SAMPLE_MASK) == 0L) {
+            IS_BLOCK_CULLED.add(1L << BLOCK_CULL_SAMPLE_SHIFT);
+        }
+    }
+
     // ==================== オーバーレイ用の読み取り ====================
 
     public static double getWindowFps() {
@@ -198,6 +215,7 @@ public final class PerfMonitor {
         return freezeFrames;
     }
 
+    /** 標本計数から算出した isBlockCulled 呼び出し回数の推定値。 */
     public static long getCulledCallCount() {
         return IS_BLOCK_CULLED.sum();
     }

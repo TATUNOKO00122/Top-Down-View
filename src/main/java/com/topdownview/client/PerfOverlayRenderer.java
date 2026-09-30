@@ -43,7 +43,7 @@ public final class PerfOverlayRenderer {
                         PerfMonitor.CULL_UPDATE.lastMs(), PerfMonitor.ENTITY_CULL.lastMs(),
                         PerfMonitor.PROBE.lastMs()));
         y = draw(graphics, mc, x, y, lineHeight, 0xFFCCCCCC,
-                String.format(Locale.ROOT, "chunk rebuild %d (%.2fms)  culled %d",
+                String.format(Locale.ROOT, "chunk rebuild %d (%.2fms)  culled ~%d",
                         PerfMonitor.getChunkRebuildCount(), PerfMonitor.CHUNK_REBUILD.lastMs(),
                         PerfMonitor.getCulledCallCount()));
     }

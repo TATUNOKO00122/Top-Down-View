@@ -257,9 +257,10 @@ public final class TopDownCuller {
         cacheClearedOnDisabled = false;
         if (level == null) return false;
 
-        PerfMonitor.IS_BLOCK_CULLED.increment();
-
         long posLong = pos.asLong();
+        if (Config.isPerformanceMonitorEnabled()) {
+            PerfMonitor.recordBlockCullSample(posLong);
+        }
         byte cached = cullingCache.get(posLong);
         if (cached != CullingCacheManager.UNKNOWN) return cached == 1;
 
