@@ -71,6 +71,11 @@ public class TopDownViewMod {
             LOGGER.info("TopDownView mod client setup");
             MinecraftForge.EVENT_BUS.register(com.topdownview.client.ClientForgeEvents.class);
             LOGGER.info("ClientForgeEvents registered");
+
+            if (net.minecraftforge.fml.ModList.get().isLoaded("embeddium")) {
+                com.topdownview.culling.CullBoundaryRenderer.register();
+                LOGGER.info("CullBoundaryRenderer registered");
+            }
         }
     }
 }

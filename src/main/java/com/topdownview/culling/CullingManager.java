@@ -3,6 +3,7 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.culling.geometry.BlockChangeBox;
+import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.state.ModState;
 import com.topdownview.util.PerfMonitor;
@@ -27,11 +28,16 @@ public final class CullingManager {
     private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
 
+    // 円柱境界の隣接セクションを同一フレームで確定させるためのフラグ。
+    // RenderSectionManagerMixin が allowImportantRebuilds() を true に上書きする。
+    private static volatile boolean forceImportantRebuild = false;
+
     private static boolean initialized = false;
     private static boolean initializationFailed = false;
     private static long lastChunkRebuildTime = 0;
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
+    private static Method rebuildChunkMethod = null;
 
     private static int lastRebuildPlayerX = Integer.MIN_VALUE;
     private static int lastRebuildPlayerY = Integer.MIN_VALUE;
@@ -57,6 +63,9 @@ public final class CullingManager {
                     int.class, int.class, int.class,
                     int.class, int.class, int.class,
                     boolean.class);
+            rebuildChunkMethod = rendererClass.getMethod(
+                    "scheduleRebuildForChunk",
+                    int.class, int.class, int.class, boolean.class);
             initialized = true;
             LOGGER.info("Embeddium reflection initialized successfully");
             return true;
@@ -177,7 +186,18 @@ public final class CullingManager {
             }
         }
 
-        if (scheduleChunkRebuildInternal(box)) {
+        boolean plainCylinder = !ModState.STATUS.isMiningMode() && !coverReleasing && !elementRebuild;
+
+        if (scheduleChunkRebuildInternal(box, false)) {
+            double movement;
+            if (lastRebuildPlayerX == Integer.MIN_VALUE) {
+                movement = Double.MAX_VALUE;
+            } else {
+                movement = Math.max(
+                        Math.abs(pX - lastRebuildPlayerX) + Math.abs(pY - lastRebuildPlayerY) + Math.abs(pZ - lastRebuildPlayerZ),
+                        Math.abs(cX - lastRebuildCameraX) + Math.abs(cY - lastRebuildCameraY) + Math.abs(cZ - lastRebuildCameraZ));
+            }
+
             lastChunkRebuildTime = currentTime;
             lastRebuildPlayerX = pX;
             lastRebuildPlayerY = pY;
@@ -194,31 +214,48 @@ public final class CullingManager {
             if (wideElementRebuild) {
                 PerfMonitor.CHUNK_REBUILDS_WIDE.increment();
             }
+
+            // 円柱境界を横切るセクションだけを重要(同期)に格上げし、隣接セクションを同一フレームで
+            // 確定させて継ぎ目の1フレーム穴を消す。全体ボックスは上で遅延として流してある。
+            if (plainCylinder) {
+                scheduleCylinderShell(box, movement);
+            }
         }
     }
 
-    private static boolean scheduleChunkRebuildInternal(AABB box) {
+    private static boolean scheduleChunkRebuildInternal(AABB box, boolean important) {
         if (!initialized) return false;
 
         long start = System.nanoTime();
         boolean scheduled = false;
+
+        int minX = (int) box.minX;
+        int minY = (int) box.minY;
+        int minZ = (int) box.minZ;
+        int maxX = (int) box.maxX;
+        int maxY = (int) box.maxY;
+        int maxZ = (int) box.maxZ;
+
+        int sx = (maxX - minX) / 16 + 1;
+        int sy = (maxY - minY) / 16 + 1;
+        int sz = (maxZ - minZ) / 16 + 1;
+        int sectionCount = Math.max(sx, 1) * Math.max(sy, 1) * Math.max(sz, 1);
+
         try {
             Object renderer = instanceMethod.invoke(null);
             if (renderer == null) {
                 LOGGER.debug("SodiumWorldRenderer instance is null");
             } else {
-                rebuildMethod.invoke(renderer,
-                        (int) box.minX, (int) box.minY, (int) box.minZ,
-                        (int) box.maxX, (int) box.maxY, (int) box.maxZ,
-                        true);
+                forceImportantRebuild = important;
+                try {
+                    rebuildMethod.invoke(renderer, minX, minY, minZ, maxX, maxY, maxZ, important);
+                } finally {
+                    forceImportantRebuild = false;
+                }
                 scheduled = true;
 
-                // 再構築規模の目安として要求ボックスのセクション数を積算する。
-                int sx = ((int) box.maxX - (int) box.minX) / 16 + 1;
-                int sy = ((int) box.maxY - (int) box.minY) / 16 + 1;
-                int sz = ((int) box.maxZ - (int) box.minZ) / 16 + 1;
                 PerfMonitor.CHUNK_REBUILDS.increment();
-                PerfMonitor.CHUNK_REBUILD_SECTIONS.add((long) Math.max(sx, 1) * Math.max(sy, 1) * Math.max(sz, 1));
+                PerfMonitor.CHUNK_REBUILD_SECTIONS.add(sectionCount);
             }
         } catch (IllegalAccessException e) {
             LOGGER.error("Cannot access Embeddium method: {}", e.getMessage());
@@ -231,6 +268,106 @@ public final class CullingManager {
         PerfMonitor.CHUNK_REBUILD.add(System.nanoTime() - start);
 
         return scheduled;
+    }
+
+    /**
+     * 円柱境界を横切るセクション（境界シェル）だけを重要(同期)再構築として登録する。
+     *
+     * <p>ボックス全体を同期するとフレームが止まる（半径10で約40セクション）。実際にカリング状態が
+     * 変わるのは境界を跨ぐセクションだけなので、そこだけ同期して継ぎ目の1フレーム穴を消しつつ
+     * 同期コストを数〜十数セクションに抑える。全体ボックスは別途遅延で流しておく。
+     *
+     * @param movement 前回再構築からの移動量(ブロック)。境界がこのぶん動いた分をバンドに含める。
+     */
+    private static void scheduleCylinderShell(AABB box, double movement) {
+        if (rebuildChunkMethod == null || movement > 16.0) {
+            return;
+        }
+
+        double cameraX = Math.floor(ModState.CAMERA.getCameraX()) + 0.5;
+        double cameraY = Math.floor(ModState.CAMERA.getCameraY()) + 0.5;
+        double cameraZ = Math.floor(ModState.CAMERA.getCameraZ()) + 0.5;
+
+        // 正規化距離^2 の境界 d²=1 付近の勾配 |∇d²|≤2/rMin を考慮し、movement ブロック分の余裕を
+        // d² 空間のバンドへ変換する。+2 は隣接面が現れる1ブロックと余裕。
+        double rMin = Math.max(1.0, Math.min(
+                Math.min(Config.getCylinderRadiusHorizontal(), Config.getCylinderRadiusVertical()), 16.0));
+        double bandSq = 2.0 * (movement + 2.0) / rMin;
+
+        int minCx = ((int) Math.floor(box.minX)) >> 4;
+        int minCy = ((int) Math.floor(box.minY)) >> 4;
+        int minCz = ((int) Math.floor(box.minZ)) >> 4;
+        int maxCx = ((int) Math.floor(box.maxX)) >> 4;
+        int maxCy = ((int) Math.floor(box.maxY)) >> 4;
+        int maxCz = ((int) Math.floor(box.maxZ)) >> 4;
+
+        try {
+            Object renderer = instanceMethod.invoke(null);
+            if (renderer == null) {
+                return;
+            }
+            forceImportantRebuild = true;
+            try {
+                for (int cx = minCx; cx <= maxCx; cx++) {
+                    for (int cy = minCy; cy <= maxCy; cy++) {
+                        for (int cz = minCz; cz <= maxCz; cz++) {
+                            if (sectionStraddlesCylinder(cx, cy, cz, cameraX, cameraY, cameraZ, bandSq)) {
+                                rebuildChunkMethod.invoke(renderer, cx, cy, cz, true);
+                                PerfMonitor.SHELL_REBUILD_SECTIONS.increment();
+                            }
+                        }
+                    }
+                }
+            } finally {
+                forceImportantRebuild = false;
+            }
+        } catch (IllegalAccessException e) {
+            LOGGER.error("Cannot access Embeddium method: {}", e.getMessage());
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            LOGGER.error("Embeddium method invocation failed: {}",
+                    e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (Exception e) {
+            LOGGER.error("Failed to schedule cylinder shell rebuild: {}", e.getMessage());
+        }
+    }
+
+    /** セクションの8隅(ブロック中心)が円柱境界 d²=1 の前後 bandSq 以内に入るか。 */
+    private static boolean sectionStraddlesCylinder(int cx, int cy, int cz,
+            double cameraX, double cameraY, double cameraZ, double bandSq) {
+        double x0 = (cx << 4) + 0.5;
+        double y0 = (cy << 4) + 0.5;
+        double z0 = (cz << 4) + 0.5;
+        double minValid = Double.POSITIVE_INFINITY;
+        double maxAll = Double.NEGATIVE_INFINITY;
+
+        for (int ix = 0; ix < 2; ix++) {
+            double x = ix == 0 ? x0 : x0 + 15.0;
+            for (int iy = 0; iy < 2; iy++) {
+                double y = iy == 0 ? y0 : y0 + 15.0;
+                for (int iz = 0; iz < 2; iz++) {
+                    double z = iz == 0 ? z0 : z0 + 15.0;
+                    double d = CylinderCalculator.getNormalizedDistanceSq(x, y, z, cameraX, cameraY, cameraZ);
+                    if (d < 0.0) {
+                        // 軸の端(キャップ)外。キャップ境界のセクションも拾うため最大側は無限大とする。
+                        maxAll = Double.POSITIVE_INFINITY;
+                    } else {
+                        if (d < minValid) {
+                            minValid = d;
+                        }
+                        if (d > maxAll) {
+                            maxAll = d;
+                        }
+                    }
+                }
+            }
+        }
+
+        return minValid <= 1.0 + bandSq && maxAll >= 1.0 - bandSq;
+    }
+
+    /** RenderSectionManagerMixin 用。true の間は Embeddium が重要(同期)再構築を行う。 */
+    public static boolean isForceImportantRebuild() {
+        return forceImportantRebuild;
     }
 
     public static boolean isCulled(BlockPos pos) {
@@ -269,7 +406,7 @@ public final class CullingManager {
                 playerPos.x - renderDistance, playerPos.y - 64, playerPos.z - renderDistance,
                 playerPos.x + renderDistance, playerPos.y + 64, playerPos.z + renderDistance
             );
-            scheduleChunkRebuildInternal(box);
+            scheduleChunkRebuildInternal(box, false);
             LOGGER.debug("Forced chunk rebuild on top-down disable");
         }
     }

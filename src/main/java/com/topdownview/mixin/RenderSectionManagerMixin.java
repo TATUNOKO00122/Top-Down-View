@@ -1,5 +1,6 @@
 package com.topdownview.mixin;
 
+import com.topdownview.culling.CullingManager;
 import com.topdownview.state.ModState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,6 +31,19 @@ public class RenderSectionManagerMixin {
             CallbackInfoReturnable<Boolean> cir) {
         if (ModState.STATUS.isEnabled()) {
             cir.setReturnValue(false);
+        }
+    }
+
+    /**
+     * Embeddium は alwaysDeferChunkUpdates=true のため important=true を渡しても遅延キューに入れてしまう。
+     * 円柱境界の隣接セクションが別フレームでアップロードされると継ぎ目に1フレームの穴ができる。
+     * CullingManager が再構築要求中だけフラグを立て、その間は重要再構築を許可して同一フレームで確定させる
+     * （巨大な再構築は CullingManager 側でフラグを立てない）。
+     */
+    @Inject(method = "allowImportantRebuilds", at = @At("HEAD"), cancellable = true)
+    private static void onAllowImportantRebuilds(CallbackInfoReturnable<Boolean> cir) {
+        if (CullingManager.isForceImportantRebuild()) {
+            cir.setReturnValue(true);
         }
     }
 }

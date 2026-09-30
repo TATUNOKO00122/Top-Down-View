@@ -5,10 +5,8 @@
     "compatibilityLevel": "JAVA_17",
     "minVersion": "0.8",
     "client": [
-        "BlockRendererMixin",
         "FluidRendererMixin",
         "DefaultMaterialsMixin",
-        "BlockOcclusionCacheMixin",
         "RenderSectionManagerMixin",
         "SodiumWorldRendererMixin",
         "compat.mobends.MoBendsModCompatManagerMixin"
