@@ -74,8 +74,6 @@ public final class PerfMonitor {
     public static final LongAdder CHUNK_REBUILDS_WIDE = new LongAdder();
     /** 再構築ボックスの合計セクション数(再構築規模の目安)。 */
     public static final LongAdder CHUNK_REBUILD_SECTIONS = new LongAdder();
-    /** うち同期(重要)コミットした境界シェルのセクション数。 */
-    public static final LongAdder SHELL_REBUILD_SECTIONS = new LongAdder();
     /** フェード描画対象ブロック数の合計。 */
     private static final LongAdder FADE_BLOCKS = new LongAdder();
 
@@ -140,11 +138,11 @@ public final class PerfMonitor {
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
         LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick cull={} entity={}ms | "
                         + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
-                        + "chunk rebuild={} (wide={}) ({}) sections={} shell={} | isBlockCulled~={} fadeBlocks={}",
+                        + "chunk rebuild={} (wide={}) ({}) sections={} | isBlockCulled~={} fadeBlocks={}",
                 FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, CULL_UPDATE, ENTITY_CULL,
                 PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
-                SHELL_REBUILD_SECTIONS.sum(), IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
+                IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
 
         resetAll();
         windowStart = now;
@@ -168,7 +166,6 @@ public final class PerfMonitor {
         CHUNK_REBUILDS.reset();
         CHUNK_REBUILDS_WIDE.reset();
         CHUNK_REBUILD_SECTIONS.reset();
-        SHELL_REBUILD_SECTIONS.reset();
         FADE_BLOCKS.reset();
         frameCount = 0;
         frameTotalNanos = 0L;

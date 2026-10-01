@@ -3,12 +3,13 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.TopDownViewMod;
 import com.topdownview.culling.geometry.BlockChangeBox;
-import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.state.ModState;
 import com.topdownview.util.PerfMonitor;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -27,17 +28,24 @@ public final class CullingManager {
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
     private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
+    /** ビルドが続いてもアップロード保留を打ち切る上限フレーム数(スタック防止)。 */
+    private static final int MAX_UPLOAD_HOLD_FRAMES = 60;
 
-    // 円柱境界の隣接セクションを同一フレームで確定させるためのフラグ。
-    // RenderSectionManagerMixin が allowImportantRebuilds() を true に上書きする。
-    private static volatile boolean forceImportantRebuild = false;
+    // カリング断面がセクションを跨ぐため、バッチの全セクションが揃うまでアップロードを保留する。
+    // 保留対象はこのバッチのセクションだけに限定する(新規チャンクロード等の無関係な
+    // アップロードを巻き込むと、画面外周のチャンクがアップロードされず穴になる)。
+    // さらに、確定するまで次の再構築を積まないことで、バッチの割り込みを防ぐ。
+    // これで f2a1eb9 の同期と同じ「同一フレーム確定」を描画スレッドをブロックせずに再現する。
+    private static boolean batchPending = false;
+    private static int batchFrames = 0;
+    /** 現在のバッチに含まれるセクション座標({@link SectionPos#asLong})。 */
+    private static final LongOpenHashSet batchSections = new LongOpenHashSet();
 
     private static boolean initialized = false;
     private static boolean initializationFailed = false;
     private static long lastChunkRebuildTime = 0;
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
-    private static Method rebuildChunkMethod = null;
 
     private static int lastRebuildPlayerX = Integer.MIN_VALUE;
     private static int lastRebuildPlayerY = Integer.MIN_VALUE;
@@ -63,9 +71,6 @@ public final class CullingManager {
                     int.class, int.class, int.class,
                     int.class, int.class, int.class,
                     boolean.class);
-            rebuildChunkMethod = rendererClass.getMethod(
-                    "scheduleRebuildForChunk",
-                    int.class, int.class, int.class, boolean.class);
             initialized = true;
             LOGGER.info("Embeddium reflection initialized successfully");
             return true;
@@ -95,8 +100,11 @@ public final class CullingManager {
         // ブロックを消して見通せるトップダウン中は、EntityCulling のカメラ基準カリングを止める
         EntityCullingIntegration.setSuspended(ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled());
 
+        // バッチ確定まではカリング状態を凍結する。バッチ構築中にプレイヤー/カメラが動くと
+        // セクション毎に別スナップショットで焼かれ、断面がずれて穴になる(f2a1eb9 は同期で
+        // メインスレッドを止める=凍結でこれを防いでいた)。
         int frequency = CULLER.getFrequency();
-        if (mc.player.tickCount % frequency == 0) {
+        if (!batchPending && mc.player.tickCount % frequency == 0) {
             long tUpdate = System.nanoTime();
             CULLER.update();
             PerfMonitor.CULL_UPDATE.add(System.nanoTime() - tUpdate);
@@ -109,6 +117,12 @@ public final class CullingManager {
 
     private static void scheduleChunkRebuildIfNeeded() {
         if (!initializeReflection()) {
+            return;
+        }
+
+        // 未確定のバッチがある間は新しい再構築を積まない。積むとバッチが完了前に陳腐化し、
+        // 部分アップロードで断面に穴が残る。確定(アップロード)後に改めて評価する。
+        if (batchPending) {
             return;
         }
 
@@ -186,18 +200,7 @@ public final class CullingManager {
             }
         }
 
-        boolean plainCylinder = !ModState.STATUS.isMiningMode() && !coverReleasing && !elementRebuild;
-
-        if (scheduleChunkRebuildInternal(box, false)) {
-            double movement;
-            if (lastRebuildPlayerX == Integer.MIN_VALUE) {
-                movement = Double.MAX_VALUE;
-            } else {
-                movement = Math.max(
-                        Math.abs(pX - lastRebuildPlayerX) + Math.abs(pY - lastRebuildPlayerY) + Math.abs(pZ - lastRebuildPlayerZ),
-                        Math.abs(cX - lastRebuildCameraX) + Math.abs(cY - lastRebuildCameraY) + Math.abs(cZ - lastRebuildCameraZ));
-            }
-
+        if (scheduleChunkRebuildInternal(box, true)) {
             lastChunkRebuildTime = currentTime;
             lastRebuildPlayerX = pX;
             lastRebuildPlayerY = pY;
@@ -214,16 +217,19 @@ public final class CullingManager {
             if (wideElementRebuild) {
                 PerfMonitor.CHUNK_REBUILDS_WIDE.increment();
             }
-
-            // 円柱境界を横切るセクションだけを重要(同期)に格上げし、隣接セクションを同一フレームで
-            // 確定させて継ぎ目の1フレーム穴を消す。全体ボックスは上で遅延として流してある。
-            if (plainCylinder) {
-                scheduleCylinderShell(box, movement);
-            }
         }
     }
 
-    private static boolean scheduleChunkRebuildInternal(AABB box, boolean important) {
+    /**
+     * 再構築要求ボックスを Embeddium の遅延キューへ流す。
+     *
+     * <p>IMPORTANT(同期)は描画スレッドを {@code awaitCompletion} と {@code tryStealTask} で
+     * ブロックし、移動中のFPSを直撃するため使わない。代わりに {@code holdUploads} のとき
+     * {@link #batchPending} を立て、{@link #shouldHoldUpload} 経由の Mixin がビルド完了
+     * (キュー空かつワーカー停止)までアップロードを保留して断面を1フレームで確定させる。
+     * 確定までは {@link #scheduleChunkRebuildIfNeeded} が次の再構築を積まない。
+     */
+    private static boolean scheduleChunkRebuildInternal(AABB box, boolean holdUploads) {
         if (!initialized) return false;
 
         long start = System.nanoTime();
@@ -246,13 +252,16 @@ public final class CullingManager {
             if (renderer == null) {
                 LOGGER.debug("SodiumWorldRenderer instance is null");
             } else {
-                forceImportantRebuild = important;
-                try {
-                    rebuildMethod.invoke(renderer, minX, minY, minZ, maxX, maxY, maxZ, important);
-                } finally {
-                    forceImportantRebuild = false;
-                }
+                rebuildMethod.invoke(renderer, minX, minY, minZ, maxX, maxY, maxZ, false);
                 scheduled = true;
+                if (holdUploads) {
+                    collectBatchSections(minX, minY, minZ, maxX, maxY, maxZ);
+                    batchPending = true;
+                    batchFrames = 0;
+                } else {
+                    batchPending = false;
+                    batchSections.clear();
+                }
 
                 PerfMonitor.CHUNK_REBUILDS.increment();
                 PerfMonitor.CHUNK_REBUILD_SECTIONS.add(sectionCount);
@@ -270,113 +279,91 @@ public final class CullingManager {
         return scheduled;
     }
 
-    /**
-     * 円柱境界を横切るセクション（境界シェル）だけを重要(同期)再構築として登録する。
-     *
-     * <p>ボックス全体を同期するとフレームが止まる（半径10で約40セクション）。実際にカリング状態が
-     * 変わるのは境界を跨ぐセクションだけなので、そこだけ同期して継ぎ目の1フレーム穴を消しつつ
-     * 同期コストを数〜十数セクションに抑える。全体ボックスは別途遅延で流しておく。
-     *
-     * @param movement 前回再構築からの移動量(ブロック)。境界がこのぶん動いた分をバンドに含める。
-     */
-    private static void scheduleCylinderShell(AABB box, double movement) {
-        if (rebuildChunkMethod == null || movement > 16.0) {
-            return;
-        }
-
-        double cameraX = Math.floor(ModState.CAMERA.getCameraX()) + 0.5;
-        double cameraY = Math.floor(ModState.CAMERA.getCameraY()) + 0.5;
-        double cameraZ = Math.floor(ModState.CAMERA.getCameraZ()) + 0.5;
-
-        // 正規化距離^2 の境界 d²=1 付近の勾配 |∇d²|≤2/rMin を考慮し、movement ブロック分の余裕を
-        // d² 空間のバンドへ変換する。+2 は隣接面が現れる1ブロックと余裕。
-        double rMin = Math.max(1.0, Math.min(
-                Math.min(Config.getCylinderRadiusHorizontal(), Config.getCylinderRadiusVertical()), 16.0));
-        double bandSq = 2.0 * (movement + 2.0) / rMin;
-
-        int minCx = ((int) Math.floor(box.minX)) >> 4;
-        int minCy = ((int) Math.floor(box.minY)) >> 4;
-        int minCz = ((int) Math.floor(box.minZ)) >> 4;
-        int maxCx = ((int) Math.floor(box.maxX)) >> 4;
-        int maxCy = ((int) Math.floor(box.maxY)) >> 4;
-        int maxCz = ((int) Math.floor(box.maxZ)) >> 4;
-
-        try {
-            Object renderer = instanceMethod.invoke(null);
-            if (renderer == null) {
-                return;
-            }
-            forceImportantRebuild = true;
-            try {
-                for (int cx = minCx; cx <= maxCx; cx++) {
-                    for (int cy = minCy; cy <= maxCy; cy++) {
-                        for (int cz = minCz; cz <= maxCz; cz++) {
-                            if (sectionStraddlesCylinder(cx, cy, cz, cameraX, cameraY, cameraZ, bandSq)) {
-                                rebuildChunkMethod.invoke(renderer, cx, cy, cz, true);
-                                PerfMonitor.SHELL_REBUILD_SECTIONS.increment();
-                            }
-                        }
-                    }
-                }
-            } finally {
-                forceImportantRebuild = false;
-            }
-        } catch (IllegalAccessException e) {
-            LOGGER.error("Cannot access Embeddium method: {}", e.getMessage());
-        } catch (java.lang.reflect.InvocationTargetException e) {
-            LOGGER.error("Embeddium method invocation failed: {}",
-                    e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
-        } catch (Exception e) {
-            LOGGER.error("Failed to schedule cylinder shell rebuild: {}", e.getMessage());
-        }
-    }
-
-    /** セクションの8隅(ブロック中心)が円柱境界 d²=1 の前後 bandSq 以内に入るか。 */
-    private static boolean sectionStraddlesCylinder(int cx, int cy, int cz,
-            double cameraX, double cameraY, double cameraZ, double bandSq) {
-        double x0 = (cx << 4) + 0.5;
-        double y0 = (cy << 4) + 0.5;
-        double z0 = (cz << 4) + 0.5;
-        double minValid = Double.POSITIVE_INFINITY;
-        double maxAll = Double.NEGATIVE_INFINITY;
-
-        for (int ix = 0; ix < 2; ix++) {
-            double x = ix == 0 ? x0 : x0 + 15.0;
-            for (int iy = 0; iy < 2; iy++) {
-                double y = iy == 0 ? y0 : y0 + 15.0;
-                for (int iz = 0; iz < 2; iz++) {
-                    double z = iz == 0 ? z0 : z0 + 15.0;
-                    double d = CylinderCalculator.getNormalizedDistanceSq(x, y, z, cameraX, cameraY, cameraZ);
-                    if (d < 0.0) {
-                        // 軸の端(キャップ)外。キャップ境界のセクションも拾うため最大側は無限大とする。
-                        maxAll = Double.POSITIVE_INFINITY;
-                    } else {
-                        if (d < minValid) {
-                            minValid = d;
-                        }
-                        if (d > maxAll) {
-                            maxAll = d;
-                        }
-                    }
-                }
-            }
-        }
-
-        return minValid <= 1.0 + bandSq && maxAll >= 1.0 - bandSq;
-    }
-
-    /** RenderSectionManagerMixin 用。true の間は Embeddium が重要(同期)再構築を行う。 */
-    public static boolean isForceImportantRebuild() {
-        return forceImportantRebuild;
-    }
-
     public static boolean isCulled(BlockPos pos) {
         return CULLER.isCulled(pos);
+    }
+
+    private static void collectBatchSections(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        batchSections.clear();
+        int minCx = minX >> 4;
+        int minCy = minY >> 4;
+        int minCz = minZ >> 4;
+        int maxCx = maxX >> 4;
+        int maxCy = maxY >> 4;
+        int maxCz = maxZ >> 4;
+        for (int cx = minCx; cx <= maxCx; cx++) {
+            for (int cy = minCy; cy <= maxCy; cy++) {
+                for (int cz = minCz; cz <= maxCz; cz++) {
+                    batchSections.add(SectionPos.asLong(cx, cy, cz));
+                }
+            }
+        }
+    }
+
+    /** 確定待ちのバッチがあるか。RenderSectionManagerMixin が保留分を合流させる判断に使う。 */
+    public static boolean hasPendingBatch() {
+        return batchPending;
+    }
+
+    /** 指定セクションが現在のバッチに含まれるか(セクション座標)。 */
+    public static boolean isBatchSection(int sectionX, int sectionY, int sectionZ) {
+        return batchSections.contains(SectionPos.asLong(sectionX, sectionY, sectionZ));
+    }
+
+    /** 現在のバッチのセクション座標。Mixin が各セクションの構築完了を個別に判定するのに使う。 */
+    public static LongOpenHashSet getBatchSections() {
+        return batchSections;
+    }
+
+    /** バッチ開始からの経過フレーム。Mixin が投入待ちの猶予に使う。 */
+    public static int getBatchFrames() {
+        return batchFrames;
+    }
+
+    /**
+     * RenderSectionManagerMixin が {@code uploadChunks} の先頭で毎フレーム呼ぶ。
+     *
+     * <p>結果が 1 つも無いフレームでは {@code processChunkBuildResults} が呼ばれないため、
+     * 保留時間の計測をそこに置くと安全弁が動かず {@link #batchPending} が刺さり得る。
+     * 毎フレーム必ず呼ばれるこの経路で計測し、上限を超えたら強制解放する。
+     */
+    public static void tickBatchHold() {
+        if (!batchPending) {
+            return;
+        }
+        if (++batchFrames >= MAX_UPLOAD_HOLD_FRAMES) {
+            batchPending = false;
+            batchFrames = 0;
+        }
+    }
+
+    /**
+     * RenderSectionManagerMixin から呼ぶ。true の間はバッチのセクションの結果を保留する。
+     *
+     * <p>再構築ボックスの各セクションはワーカーで並列に焼かれ、完了順にフレームを跨いで
+     * アップロードされる。カリング断面がセクション境界を跨ぐと、片側だけ先に更新されて
+     * 穴が見える。バッチが揃うまでバッチ分だけアップロードを保留し、まとめて1フレームで
+     * 確定させることで、描画スレッドをブロックせずに同期再構築と同じ原子性を得る。
+     * 無関係なアップロード(新規チャンクロード等)は保留しない。時間の打ち切りは
+     * {@link #tickBatchHold} が行う。
+     *
+     * @param batchComplete バッチの全セクションが構築済みか
+     */
+    public static boolean shouldHoldUpload(boolean batchComplete) {
+        return batchPending && !batchComplete;
+    }
+
+    /** バッチを確定する(保留分をアップロード済みにして次を受け付ける)。 */
+    public static void commitBatch() {
+        batchPending = false;
+        batchFrames = 0;
+        batchSections.clear();
     }
 
     public static void reset() {
         CULLER.reset();
         lastChunkRebuildTime = 0;
+        commitBatch();
         resetLastRebuildCoords();
     }
 
