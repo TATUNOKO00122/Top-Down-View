@@ -8,6 +8,7 @@
         "FluidRendererMixin",
         "DefaultMaterialsMixin",
         "BlockRendererMixin",
+        "BlockOcclusionCacheMixin",
         "RenderSectionManagerMixin",
         "SodiumWorldRendererMixin",
         "compat.mobends.MoBendsModCompatManagerMixin"

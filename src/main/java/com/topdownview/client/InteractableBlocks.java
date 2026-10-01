@@ -1,5 +1,6 @@
 package com.topdownview.client;
 
+import it.unimi.dsi.fastutil.objects.Reference2ByteOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.Container;
@@ -68,6 +69,20 @@ public final class InteractableBlocks {
         return classifyByProperty(state);
     }
 
+    // クラス/タグ/プロパティで決まる分類は Block 単位で不変なので、スレッドローカルに結果を持つ。
+    // ワーカースレッドのメッシュ生成で同一種類のブロックを大量に判定するため、instanceof連鎖を毎回
+    // 走らせない。位置依存なのは BlockEntity 系のみで、その場合だけ NEEDS_POS として都度判定する。
+    private static final byte UNKNOWN = 0;
+    private static final byte TRUE = 1;
+    private static final byte FALSE = 2;
+    private static final byte NEEDS_POS = 3;
+    private static final ThreadLocal<Reference2ByteOpenHashMap<Block>> BLOCK_CLASSIFICATION =
+            ThreadLocal.withInitial(() -> {
+                Reference2ByteOpenHashMap<Block> map = new Reference2ByteOpenHashMap<>();
+                map.defaultReturnValue(UNKNOWN);
+                return map;
+            });
+
     /**
      * カリング保護対象か判定する。プロンプト対象に加え、
      * 昇降・装飾・レッドストーン等の可視保護が必要なブロックも含む。
@@ -75,29 +90,45 @@ public final class InteractableBlocks {
     public static boolean isInteractable(BlockState state, BlockGetter level, BlockPos pos) {
         if (state == null || level == null || pos == null) return false;
 
+        Block block = state.getBlock();
+
         // OPEN / INTERACT の明示指定は保護対象。NONE はプロンプトのみ除外して保護は維持し、
-        // EXCLUDE は保護からも除外する。
-        InteractionKind override = InteractionRegistry.getOverride(state.getBlock());
+        // EXCLUDE は保護からも除外する。レジストリは再読込され得るためキャッシュしない。
+        InteractionKind override = InteractionRegistry.getOverride(block);
         if (override != null) {
             if (override != InteractionKind.NONE) {
                 return true;
             }
-            if (InteractionRegistry.isUnprotected(state.getBlock())) {
+            if (InteractionRegistry.isUnprotected(block)) {
                 return false;
             }
         }
 
-        if (classifyByBlock(state) != InteractionKind.NONE) return true;
-
-        Block block = state.getBlock();
-        if (block instanceof BaseEntityBlock) {
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof MenuProvider || blockEntity instanceof Container) return true;
+        Reference2ByteOpenHashMap<Block> cache = BLOCK_CLASSIFICATION.get();
+        byte cached = cache.getByte(block);
+        if (cached == UNKNOWN) {
+            cached = classifyPure(state);
+            cache.put(block, cached);
         }
+        if (cached == TRUE) return true;
+        if (cached == FALSE) return false;
 
+        // NEEDS_POS: ブロックエンティティに依存するため位置を伴う判定を行う。
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof MenuProvider || blockEntity instanceof Container) return true;
         if (classifyByProperty(state) != InteractionKind.NONE) return true;
-
         return isProtectionOnlyBlock(state);
+    }
+
+    /** 位置にも設定にも依存しない分類。BlockEntity 系のみ位置依存なので NEEDS_POS を返す。 */
+    private static byte classifyPure(BlockState state) {
+        if (classifyByBlock(state) != InteractionKind.NONE) return TRUE;
+
+        if (state.getBlock() instanceof BaseEntityBlock) return NEEDS_POS;
+
+        if (classifyByProperty(state) != InteractionKind.NONE) return TRUE;
+
+        return isProtectionOnlyBlock(state) ? TRUE : FALSE;
     }
 
     // ==================== 判定ヘルパー ====================
