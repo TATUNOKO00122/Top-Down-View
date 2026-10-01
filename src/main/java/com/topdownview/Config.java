@@ -123,6 +123,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue INDOOR_CEILING_CULLING_ENABLED = BUILDER
             .comment("Culls the ceiling slice above the player's floor while indoors.")
             .define("indoorCeilingCullingEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue PROTECT_INTERACTABLES_OUTDOORS = BUILDER
+            .comment("Keeps interactable blocks (chests, doors, etc.) visible near the player while outdoors.")
+            .define("protectInteractablesOutdoors", true);
     private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
             .define("playerNearTranslucencyEnabled", true);
     private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
@@ -376,6 +379,7 @@ public class Config {
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
     public static boolean isIndoorCeilingCullingEnabled() { return CULLING.isIndoorCeilingCullingEnabled(); }
+    public static boolean isProtectInteractablesOutdoors() { return CULLING.isProtectInteractablesOutdoors(); }
     public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
     public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
     public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
@@ -513,6 +517,7 @@ public class Config {
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
     public static void setIndoorCeilingCullingEnabled(boolean value) { CULLING.setIndoorCeilingCullingEnabled(value); }
+    public static void setProtectInteractablesOutdoors(boolean value) { CULLING.setProtectInteractablesOutdoors(value); }
     public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
     public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
     public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
@@ -699,6 +704,7 @@ public class Config {
         addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
         addBinding(CULLING_MODE, CULLING::setCullingMode, Config::getCullingMode);
         addBinding(INDOOR_CEILING_CULLING_ENABLED, CULLING::setIndoorCeilingCullingEnabled, Config::isIndoorCeilingCullingEnabled);
+        addBinding(PROTECT_INTERACTABLES_OUTDOORS, CULLING::setProtectInteractablesOutdoors, Config::isProtectInteractablesOutdoors);
         addBinding(PLAYER_NEAR_TRANSLUCENCY_ENABLED, CULLING::setPlayerNearTranslucencyEnabled, Config::isPlayerNearTranslucencyEnabled);
         addBinding(PLAYER_NEAR_TRANSLUCENCY_ALPHA, CULLING::setPlayerNearTranslucencyAlpha, Config::getPlayerNearTranslucencyAlpha);
         addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL, CULLING::setPlayerNearTranslucencyRangeHorizontal, Config::getPlayerNearTranslucencyRangeHorizontal);

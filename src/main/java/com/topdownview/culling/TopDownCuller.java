@@ -161,6 +161,7 @@ public final class TopDownCuller {
     private int cachedCullingMode;
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
+    private boolean cachedProtectInteractablesOutdoors = true;
     private double cachedViewWedgeCos;
     private double viewDirX = 0.0;
     private double viewDirZ = 1.0;
@@ -464,7 +465,7 @@ public final class TopDownCuller {
 
         if (InteractableBlocks.isInteractable(state, level, pos)) {
             int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
-            if (blockY <= protectY) {
+            if (blockY <= protectY && (currentSpaceEnclosed || cachedProtectInteractablesOutdoors)) {
                 return true;
             }
         }
@@ -551,6 +552,7 @@ public final class TopDownCuller {
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
         cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
+        cachedProtectInteractablesOutdoors = Config.isProtectInteractablesOutdoors();
         cachedViewWedgeProtection = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
         double wedgeDirX = playerX - cameraX;

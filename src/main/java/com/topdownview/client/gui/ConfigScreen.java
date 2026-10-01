@@ -249,6 +249,10 @@ public class ConfigScreen extends Screen {
         addToggle(x, y, w, h, "topdown_view.config.indoor_ceiling_culling_enabled", Config::isIndoorCeilingCullingEnabled, Config::setIndoorCeilingCullingEnabled);
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.interaction_protection", tx);
+        addToggle(x, y, w, h, "topdown_view.config.protect_interactables_outdoors", Config::isProtectInteractablesOutdoors, Config::setProtectInteractablesOutdoors);
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.fade", tx);
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;

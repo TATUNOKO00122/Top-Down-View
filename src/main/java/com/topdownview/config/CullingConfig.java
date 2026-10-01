@@ -53,6 +53,7 @@ public final class CullingConfig {
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private boolean indoorCeilingCullingEnabled = true;
+    private boolean protectInteractablesOutdoors = true;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
     private boolean translucentFluid = true;
@@ -180,6 +181,9 @@ public final class CullingConfig {
 
     public boolean isIndoorCeilingCullingEnabled() { return indoorCeilingCullingEnabled; }
     public void setIndoorCeilingCullingEnabled(boolean value) { this.indoorCeilingCullingEnabled = value; }
+
+    public boolean isProtectInteractablesOutdoors() { return protectInteractablesOutdoors; }
+    public void setProtectInteractablesOutdoors(boolean value) { this.protectInteractablesOutdoors = value; }
 
     public boolean isIgnoreLeavesInRaycast() { return ignoreLeavesInRaycast; }
     public void setIgnoreLeavesInRaycast(boolean value) { this.ignoreLeavesInRaycast = value; }
