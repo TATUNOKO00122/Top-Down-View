@@ -2,6 +2,7 @@ package com.topdownview.mixin;
 
 import com.topdownview.culling.CullingManager;
 import com.topdownview.state.ModState;
+import com.topdownview.util.PerfMonitor;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import me.jellysquid.mods.sodium.client.render.chunk.ChunkUpdateType;
@@ -41,6 +42,8 @@ public class RenderSectionManagerMixin {
     /** バッチのセクション結果。全セクションが構築済みになるまで保持し、1フレームでまとめて戻す。 */
     @Unique private final ArrayList<ChunkBuildOutput> heldResults = new ArrayList<>();
     @Unique private final LongOpenHashSet heldSections = new LongOpenHashSet();
+    @Unique private long uploadStartNanos;
+    @Unique private long processStartNanos;
 
     @Shadow private Map<ChunkUpdateType, ArrayDeque<RenderSection>> rebuildLists;
 
@@ -67,7 +70,13 @@ public class RenderSectionManagerMixin {
      */
     @Inject(method = "uploadChunks", at = @At("HEAD"))
     private void onUploadChunks(CallbackInfo ci) {
+        this.uploadStartNanos = System.nanoTime();
         CullingManager.tickBatchHold();
+    }
+
+    @Inject(method = "uploadChunks", at = @At("RETURN"))
+    private void onUploadChunksReturn(CallbackInfo ci) {
+        PerfMonitor.CHUNK_UPLOAD.add(System.nanoTime() - this.uploadStartNanos);
     }
 
     /**
@@ -78,6 +87,7 @@ public class RenderSectionManagerMixin {
      */
     @Inject(method = "processChunkBuildResults", at = @At("HEAD"))
     private void onProcessChunkBuildResults(ArrayList<ChunkBuildOutput> results, CallbackInfo ci) {
+        this.processStartNanos = System.nanoTime();
         if (CullingManager.hasPendingBatch()) {
             for (Iterator<ChunkBuildOutput> it = results.iterator(); it.hasNext();) {
                 ChunkBuildOutput result = it.next();
@@ -108,6 +118,11 @@ public class RenderSectionManagerMixin {
             heldResults.clear();
             heldSections.clear();
         }
+    }
+
+    @Inject(method = "processChunkBuildResults", at = @At("RETURN"))
+    private void onProcessChunkBuildResultsReturn(ArrayList<ChunkBuildOutput> results, CallbackInfo ci) {
+        PerfMonitor.CHUNK_PROCESS.add(System.nanoTime() - this.processStartNanos);
     }
 
     /**

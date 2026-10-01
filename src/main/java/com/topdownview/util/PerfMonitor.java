@@ -1,6 +1,9 @@
 package com.topdownview.util;
 
 import com.mojang.logging.LogUtils;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
@@ -64,6 +67,12 @@ public final class PerfMonitor {
     public static final Timer LADDER = new Timer();
     /** CoverCullingHandler.update。 */
     public static final Timer COVER = new Timer();
+    /** Minecraft.tick 全体(描画スレッド)。スパイクがtick/描画どちら由来かの切り分け用。 */
+    public static final Timer TICK_TOTAL = new Timer();
+    /** RenderSectionManager.uploadChunks (メッシュのGPUアップロード)。 */
+    public static final Timer CHUNK_UPLOAD = new Timer();
+    /** RenderSectionManager.processChunkBuildResults (ビルド結果の反映/保留処理)。 */
+    public static final Timer CHUNK_PROCESS = new Timer();
 
     // ==================== カウンタ ====================
     /** isBlockCulled の推定呼び出し回数(チャンク構築ワーカー含む)。 */
@@ -81,6 +90,10 @@ public final class PerfMonitor {
     private static long windowStart = System.nanoTime();
     private static long lastFrameNanos = 0L;
     private static long lastSpikeLogNanos = 0L;
+    /** GC の累積コレクション時間(ms)。前フレームからの増分でそのフレームのGC時間を推定する。 */
+    private static final List<GarbageCollectorMXBean> GC_BEANS = ManagementFactory.getGarbageCollectorMXBeans();
+    private static long lastGcTimeMs = totalGcTimeMs();
+    private static long lastGcDeltaMs;
     private static int frameCount;
     private static long frameTotalNanos;
     private static long frameMaxNanos;
@@ -104,6 +117,9 @@ public final class PerfMonitor {
         }
 
         long dt = now - lastFrameNanos;
+        long gcNow = totalGcTimeMs();
+        lastGcDeltaMs = gcNow - lastGcTimeMs;
+        lastGcTimeMs = gcNow;
         frameCount++;
         frameTotalNanos += dt;
         if (dt > frameMaxNanos) {
@@ -117,10 +133,12 @@ public final class PerfMonitor {
         }
         if (dt > SPIKE_NANOS && now - lastSpikeLogNanos >= SPIKE_LOG_INTERVAL_NANOS) {
             lastSpikeLogNanos = now;
-            LOGGER.info("[TopDownView][Perf] SPIKE frame={}ms | render fade={}ms overlay={}ms | "
-                            + "tick cull={}ms probe={}ms | chunk rebuild={}ms ({} calls) | isBlockCulled~={}",
-                    f1(dt / 1.0E6), FADE_RENDER, OVERLAY_RENDER, CULL_UPDATE, PROBE,
-                    CHUNK_REBUILD, CHUNK_REBUILDS.sum(), IS_BLOCK_CULLED.sum());
+            LOGGER.info("[TopDownView][Perf] SPIKE frame={}ms gc={}ms | tick total={}ms cull={}ms probe={}ms | "
+                            + "render fade={}ms overlay={}ms | chunk upload={}ms process={}ms rebuild={}ms ({} calls) "
+                            + "| isBlockCulled~={}",
+                    f1(dt / 1.0E6), lastGcDeltaMs, TICK_TOTAL, CULL_UPDATE, PROBE,
+                    FADE_RENDER, OVERLAY_RENDER, CHUNK_UPLOAD, CHUNK_PROCESS, CHUNK_REBUILD,
+                    CHUNK_REBUILDS.sum(), IS_BLOCK_CULLED.sum());
         }
         lastFrameNanos = now;
 
@@ -136,13 +154,14 @@ public final class PerfMonitor {
 
         LOGGER.info("[TopDownView][Perf] fps={} frame avg={}ms max={}ms | drop(>25ms)={} freeze(>100ms)={} frames={}",
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
-        LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick cull={} entity={}ms | "
+        LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick total={} cull={} entity={}ms | "
                         + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
-                        + "chunk rebuild={} (wide={}) ({}) sections={} | isBlockCulled~={} fadeBlocks={}",
-                FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, CULL_UPDATE, ENTITY_CULL,
+                        + "chunk rebuild={} (wide={}) ({}) sections={} upload={} process={} "
+                        + "| isBlockCulled~={} fadeBlocks={}",
+                FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, TICK_TOTAL, CULL_UPDATE, ENTITY_CULL,
                 PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
-                IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
+                CHUNK_UPLOAD, CHUNK_PROCESS, IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
 
         resetAll();
         windowStart = now;
@@ -162,6 +181,9 @@ public final class PerfMonitor {
         CEILING.reset();
         LADDER.reset();
         COVER.reset();
+        TICK_TOTAL.reset();
+        CHUNK_UPLOAD.reset();
+        CHUNK_PROCESS.reset();
         IS_BLOCK_CULLED.reset();
         CHUNK_REBUILDS.reset();
         CHUNK_REBUILDS_WIDE.reset();
@@ -177,6 +199,15 @@ public final class PerfMonitor {
     /** フェード描画対象数(overlay/ログ用)。 */
     public static void recordFadeBlocks(int count) {
         FADE_BLOCKS.add(count);
+    }
+
+    /** GC の累積コレクション時間(ms)。 */
+    private static long totalGcTimeMs() {
+        long total = 0L;
+        for (int i = 0, n = GC_BEANS.size(); i < n; i++) {
+            total += GC_BEANS.get(i).getCollectionTime();
+        }
+        return total;
     }
 
     /**
