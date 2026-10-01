@@ -1,6 +1,7 @@
 package com.topdownview.mixin;
 
 import com.topdownview.client.PlayerRotationController;
+import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import com.topdownview.util.PerfMonitor;
 import net.minecraft.client.Minecraft;
@@ -40,7 +41,7 @@ public class MinecraftMixin {
     )
     private void onShouldEntityAppearGlowing(Entity entity, CallbackInfoReturnable<Boolean> cir) {
         if (!ModState.STATUS.isEnabled()) return;
-        
+
         // TargetHighlightStateが管理するターゲットのみ発光
         if (ModState.TARGET_HIGHLIGHT.shouldHighlight(entity)) {
             cir.setReturnValue(true);

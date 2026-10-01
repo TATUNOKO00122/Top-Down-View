@@ -4,6 +4,8 @@ import com.topdownview.Config;
 import com.topdownview.state.ModState;
 import com.topdownview.client.MouseRaycast;
 import com.topdownview.client.MobVisibilityCache;
+import com.topdownview.client.HiddenBodyRenderer;
+import com.topdownview.client.HiddenBodyRenderType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -70,6 +72,12 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     // MOBの標準的な不透明描画指定を、半透明を許容する描画指定（RenderType.entityTranslucent()）へ変更する
     @Inject(method = "getRenderType", at = @At("HEAD"), cancellable = true)
     private void onGetRenderType(T entity, boolean bodyVisible, boolean translucent, boolean glowing, CallbackInfoReturnable<RenderType> cir) {
+        // 隠れた体の形（X線シルエット）パス中は単色白の専用描画指定に差し替える
+        if (HiddenBodyRenderer.HiddenBodyState.isActive()) {
+            cir.setReturnValue(HiddenBodyRenderType.hiddenBody());
+            return;
+        }
+
         // MODが無効、かつMobの半透明設定とコーンカリング設定がいずれも無効な場合は何もしない
         if (!ModState.STATUS.isEnabled() || (!Config.isMobTranslucencyEnabled() && !Config.isMobConeCullingEnabled())) {
             return;

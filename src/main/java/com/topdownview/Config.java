@@ -160,6 +160,8 @@ public class Config {
             .define("defaultEnabled", true);
     private static final ForgeConfigSpec.BooleanValue TARGET_GLOW_ENABLED = BUILDER
             .define("targetGlowEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_SILHOUETTE_ENABLED = BUILDER
+            .define("playerSilhouetteEnabled", false);
     private static final ForgeConfigSpec.BooleanValue MOB_CONE_CULLING_ENABLED = BUILDER
             .define("mobConeCullingEnabled", false);
     private static final ForgeConfigSpec.DoubleValue MOB_CONE_HALF_ANGLE = BUILDER
@@ -389,6 +391,7 @@ public class Config {
     public static double getRangeOther() { return INTERACTION.getRangeOther(); }
     public static boolean isDefaultEnabled() { return INTERACTION.isDefaultEnabled(); }
     public static boolean isTargetGlowEnabled() { return INTERACTION.isTargetGlowEnabled(); }
+    public static boolean isPlayerSilhouetteEnabled() { return INTERACTION.isPlayerSilhouetteEnabled(); }
     public static boolean isMobConeCullingEnabled() { return CULLING.isMobConeCullingEnabled(); }
     public static double getMobConeHalfAngle() { return CULLING.getMobConeHalfAngle(); }
     public static double getMobConeFadeAngle() { return CULLING.getMobConeFadeAngle(); }
@@ -525,6 +528,7 @@ public class Config {
     public static void setRangeOther(double value) { INTERACTION.setRangeOther(value); }
     public static void setDefaultEnabled(boolean value) { INTERACTION.setDefaultEnabled(value); }
     public static void setTargetGlowEnabled(boolean value) { INTERACTION.setTargetGlowEnabled(value); }
+    public static void setPlayerSilhouetteEnabled(boolean value) { INTERACTION.setPlayerSilhouetteEnabled(value); }
     public static void setMobConeCullingEnabled(boolean value) { CULLING.setMobConeCullingEnabled(value); }
     public static void setMobConeHalfAngle(double value) { CULLING.setMobConeHalfAngle(value); }
     public static void setMobConeFadeAngle(double value) { CULLING.setMobConeFadeAngle(value); }
@@ -710,6 +714,7 @@ public class Config {
         addBinding(RANGE_OTHER, INTERACTION::setRangeOther, Config::getRangeOther);
         addBinding(DEFAULT_ENABLED, INTERACTION::setDefaultEnabled, Config::isDefaultEnabled);
         addBinding(TARGET_GLOW_ENABLED, INTERACTION::setTargetGlowEnabled, Config::isTargetGlowEnabled);
+        addBinding(PLAYER_SILHOUETTE_ENABLED, INTERACTION::setPlayerSilhouetteEnabled, Config::isPlayerSilhouetteEnabled);
         addBinding(MOB_CONE_CULLING_ENABLED, CULLING::setMobConeCullingEnabled, Config::isMobConeCullingEnabled);
         addBinding(MOB_CONE_HALF_ANGLE, CULLING::setMobConeHalfAngle, Config::getMobConeHalfAngle);
         addBinding(MOB_CONE_FADE_ANGLE, CULLING::setMobConeFadeAngle, Config::getMobConeFadeAngle);

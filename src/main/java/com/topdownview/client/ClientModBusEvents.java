@@ -85,5 +85,16 @@ public class ClientModBusEvents {
         event.register(REGENERATE_LABELS_KEY);
     }
 
+    // シルエット専用シェーダー（法線の方向光もfogも無しの単色描画）
+    @SubscribeEvent
+    public static void registerShaders(net.minecraftforge.client.event.RegisterShadersEvent event) throws java.io.IOException {
+        event.registerShader(
+                new net.minecraft.client.renderer.ShaderInstance(
+                        event.getResourceProvider(),
+                        new net.minecraft.resources.ResourceLocation(TopDownViewMod.MODID, "silhouette"),
+                        com.mojang.blaze3d.vertex.DefaultVertexFormat.NEW_ENTITY),
+                HiddenBodyShaders::setSilhouette);
+    }
+
 
 }

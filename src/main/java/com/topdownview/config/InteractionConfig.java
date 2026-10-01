@@ -28,6 +28,8 @@ public final class InteractionConfig {
     private double rangeOther = 3.0;
     private boolean defaultEnabled = true;
     private boolean targetGlowEnabled = true;
+    /** 隠れたプレイヤーのシルエット表示（オンオフ）。 */
+    private boolean playerSilhouetteEnabled = false;
     private boolean targetLockEnabled = true;
     private int targetLockDuration = 120;
     private double targetHitboxExpansion = 1.0;
@@ -114,6 +116,9 @@ public final class InteractionConfig {
 
     public boolean isTargetGlowEnabled() { return targetGlowEnabled; }
     public void setTargetGlowEnabled(boolean value) { this.targetGlowEnabled = value; }
+
+    public boolean isPlayerSilhouetteEnabled() { return playerSilhouetteEnabled; }
+    public void setPlayerSilhouetteEnabled(boolean value) { this.playerSilhouetteEnabled = value; }
 
     public boolean isTargetLockEnabled() { return targetLockEnabled; }
     public void setTargetLockEnabled(boolean value) { this.targetLockEnabled = value; }

@@ -22,6 +22,8 @@
     "BoatEntityMixin",
     "LivingEntityMixin",
     "LivingEntityRendererMixin",
+    "LivingEntityRendererAccessor",
+    "PlayerRendererMixin",
     "SlimeOuterLayerMixin",
     "MultiPlayerGameModeMixin",
     "ListenerMixin",

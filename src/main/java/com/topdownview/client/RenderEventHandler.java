@@ -35,6 +35,12 @@ public final class RenderEventHandler {
             return;
         }
 
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS) {
+            long tRender = System.nanoTime();
+            HiddenBodyRenderer.onRenderLevelStage(event);
+            PerfMonitor.OVERLAY_RENDER.add(System.nanoTime() - tRender);
+        }
+
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             long tRender = System.nanoTime();
             TranslucentBlockRenderer.renderFadeBlocks(event);

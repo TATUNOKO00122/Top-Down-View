@@ -509,6 +509,10 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildVisualTab(int x, int y, int w, int h, int sp, int tx) {
+        y = addSection(y, "topdown_view.config.section.player_silhouette", tx);
+        addToggle(x, y, w, h, "topdown_view.config.player_silhouette_enabled", Config::isPlayerSilhouetteEnabled, Config::setPlayerSilhouetteEnabled);
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);
         addToggle(x, y, w, h, "topdown_view.config.placement_preview_enabled", Config::isPlacementPreviewEnabled, Config::setPlacementPreviewEnabled);
         y += sp;
