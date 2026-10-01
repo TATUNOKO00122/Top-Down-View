@@ -46,6 +46,7 @@ public final class CullingManager {
     private static long lastChunkRebuildTime = 0;
     private static Method instanceMethod = null;
     private static Method rebuildMethod = null;
+    private static Method rebuildChunkMethod = null;
 
     private static int lastRebuildPlayerX = Integer.MIN_VALUE;
     private static int lastRebuildPlayerY = Integer.MIN_VALUE;
@@ -71,6 +72,9 @@ public final class CullingManager {
                     int.class, int.class, int.class,
                     int.class, int.class, int.class,
                     boolean.class);
+            rebuildChunkMethod = rendererClass.getMethod(
+                    "scheduleRebuildForChunk",
+                    int.class, int.class, int.class, boolean.class);
             initialized = true;
             LOGGER.info("Embeddium reflection initialized successfully");
             return true;
@@ -200,7 +204,26 @@ public final class CullingManager {
             }
         }
 
-        if (scheduleChunkRebuildInternal(box, true)) {
+        // 旧方式(円柱のみ)で視点が動いただけの通常ケースは、カリング状態が変わるセクションが
+        // 円柱/ウェッジ/保護境界を跨ぐものだけなので、箱全体ではなく変化するセクションだけを
+        // 再構築する。覆い・屋内要素・鉱石モードは集合が広く動くため従来どおり箱全体を使う。
+        boolean plainCylinder = !ModState.STATUS.isMiningMode() && !coverReleasing && !generationChanged;
+        boolean scheduled;
+        if (plainCylinder) {
+            double movement;
+            if (lastRebuildPlayerX == Integer.MIN_VALUE) {
+                movement = Double.MAX_VALUE;
+            } else {
+                movement = Math.max(
+                        Math.abs(pX - lastRebuildPlayerX) + Math.abs(pY - lastRebuildPlayerY) + Math.abs(pZ - lastRebuildPlayerZ),
+                        Math.abs(cX - lastRebuildCameraX) + Math.abs(cY - lastRebuildCameraY) + Math.abs(cZ - lastRebuildCameraZ));
+            }
+            scheduled = scheduleCylinderDelta(box, movement);
+        } else {
+            scheduled = scheduleChunkRebuildInternal(box, true);
+        }
+
+        if (scheduled) {
             lastChunkRebuildTime = currentTime;
             lastRebuildPlayerX = pX;
             lastRebuildPlayerY = pY;
@@ -218,6 +241,102 @@ public final class CullingManager {
                 PerfMonitor.CHUNK_REBUILDS_WIDE.increment();
             }
         }
+    }
+
+    /**
+     * 通常の円柱カリング時、カリング状態が変化し得るセクションだけを再構築する。
+     *
+     * <p>移動量ぶん膨らませた各セクションのサンプル点で {@code isBlockCulled} を評価し、
+     * カリング有無が混在する(＝境界を跨ぐ)セクションだけを対象にする。これで円柱境界だけでなく
+     * カメラ側ウェッジ境界・保護境界・プレイヤー列もまとめて拾える。箱全体を焼くよりセクション数が
+     * 大幅に減る。バッチ原子コミットがあるため、対象を絞っても断面は同一フレームで確定する。
+     */
+    private static boolean scheduleCylinderDelta(AABB box, double movement) {
+        if (rebuildChunkMethod == null) {
+            return false;
+        }
+
+        Object renderer;
+        try {
+            renderer = instanceMethod.invoke(null);
+        } catch (ReflectiveOperationException e) {
+            LOGGER.error("Cannot access Embeddium renderer: {}", e.getMessage());
+            return false;
+        }
+        if (renderer == null) {
+            return false;
+        }
+
+        long start = System.nanoTime();
+        int pad = (int) Math.ceil(Math.max(0.0, Math.min(movement, 16.0))) + 2;
+        int minCx = ((int) Math.floor(box.minX)) >> 4;
+        int minCy = ((int) Math.floor(box.minY)) >> 4;
+        int minCz = ((int) Math.floor(box.minZ)) >> 4;
+        int maxCx = ((int) Math.floor(box.maxX)) >> 4;
+        int maxCy = ((int) Math.floor(box.maxY)) >> 4;
+        int maxCz = ((int) Math.floor(box.maxZ)) >> 4;
+
+        batchSections.clear();
+        BlockPos.MutableBlockPos sample = new BlockPos.MutableBlockPos();
+
+        try {
+            for (int cx = minCx; cx <= maxCx; cx++) {
+                for (int cy = minCy; cy <= maxCy; cy++) {
+                    for (int cz = minCz; cz <= maxCz; cz++) {
+                        if (sectionStraddlesCullBoundary(cx, cy, cz, pad, sample)) {
+                            rebuildChunkMethod.invoke(renderer, cx, cy, cz, false);
+                            batchSections.add(SectionPos.asLong(cx, cy, cz));
+                        }
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            LOGGER.error("Failed to schedule cylinder delta rebuild: {}",
+                    e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        }
+
+        PerfMonitor.CHUNK_REBUILD.add(System.nanoTime() - start);
+
+        if (batchSections.isEmpty()) {
+            return false;
+        }
+        batchPending = true;
+        batchFrames = 0;
+        PerfMonitor.CHUNK_REBUILDS.increment();
+        PerfMonitor.CHUNK_REBUILD_SECTIONS.add(batchSections.size());
+        return true;
+    }
+
+    /** セクション(移動量ぶん膨張)内の 3x3x3 サンプルでカリング有無が混在するか。 */
+    private static boolean sectionStraddlesCullBoundary(int cx, int cy, int cz, int pad,
+            BlockPos.MutableBlockPos sample) {
+        int x0 = (cx << 4) - pad;
+        int x1 = (cx << 4) + 15 + pad;
+        int y0 = (cy << 4) - pad;
+        int y1 = (cy << 4) + 15 + pad;
+        int z0 = (cz << 4) - pad;
+        int z1 = (cz << 4) + 15 + pad;
+        boolean anyCulled = false;
+        boolean anyNot = false;
+
+        for (int ix = 0; ix < 3; ix++) {
+            int x = ix == 0 ? x0 : (ix == 1 ? (x0 + x1) >> 1 : x1);
+            for (int iy = 0; iy < 3; iy++) {
+                int y = iy == 0 ? y0 : (iy == 1 ? (y0 + y1) >> 1 : y1);
+                for (int iz = 0; iz < 3; iz++) {
+                    int z = iz == 0 ? z0 : (iz == 1 ? (z0 + z1) >> 1 : z1);
+                    if (isCulled(sample.set(x, y, z))) {
+                        anyCulled = true;
+                    } else {
+                        anyNot = true;
+                    }
+                    if (anyCulled && anyNot) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -281,6 +400,11 @@ public final class CullingManager {
 
     public static boolean isCulled(BlockPos pos) {
         return CULLER.isCulled(pos);
+    }
+
+    /** メッシュ構築ワーカー用。メインスレッドの level ではなくそのスレッドの WorldSlice で判定する。 */
+    public static boolean isBlockCulled(BlockPos pos, net.minecraft.world.level.BlockGetter level) {
+        return CULLER.isBlockCulled(pos, level);
     }
 
     private static void collectBatchSections(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
