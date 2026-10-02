@@ -12,6 +12,8 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,9 +21,11 @@ import java.nio.file.Path;
 
 /**
  * 操作判定のデータ駆動オーバーライド。
- * config/topdown_view/interactions.json の block id → 種別を読み込み、
- * {@link InteractableBlocks} のヒューリスティックより優先する。
+ * jar 同梱の既定値 ({@value #DEFAULT_RESOURCE}) と config/topdown_view/interactions.json の
+ * block id → 種別を読み込み、{@link InteractableBlocks} のヒューリスティックより優先する。
  * これにより操作できない BlockEntity の除外や、操作できる非 BlockEntity の追加が可能。
+ * ユーザーファイルの同 id エントリは既定値を上書きするため、既定の追加を無効化（ブラックリスト化）
+ * することもできる。
  *
  * OPEN / INTERACT はプロンプト表示とカリング保護の対象。NONE はプロンプトのみ除外し保護は維持、
  * EXCLUDE はプロンプトとカリング保護の両方から除外する。
@@ -35,6 +39,7 @@ public final class InteractionRegistry {
     private static final Gson GSON = new Gson();
     private static final String OVERRIDE_DIR = "topdown_view";
     private static final String FILE_NAME = "interactions.json";
+    private static final String DEFAULT_RESOURCE = "/assets/topdown_view/interactions_default.json";
     private static final String EXCLUDE_TOKEN = "EXCLUDE";
 
     // マップに存在しない = オーバーライド無し。byte 0 (NONE) と区別する。
@@ -76,12 +81,15 @@ public final class InteractionRegistry {
         Object2ByteOpenHashMap<Block> kinds = emptyMap();
         ObjectOpenHashSet<Block> unprotected = new ObjectOpenHashSet<>();
 
+        // 同梱の既定値を先に入れ、ユーザー設定で同 id を上書きできるようにする。
+        loadBundledDefaults(kinds, unprotected);
+
         try {
             if (Files.notExists(file)) {
                 createDefaultFile(file);
             } else {
                 try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                    parse(GSON.fromJson(reader, JsonElement.class), kinds, unprotected);
+                    parse(GSON.fromJson(reader, JsonElement.class), kinds, unprotected, true);
                 }
             }
         } catch (Exception e) {
@@ -92,24 +100,40 @@ public final class InteractionRegistry {
         LOGGER.info("[TopDownView] Loaded {} interaction override(s)", kinds.size());
     }
 
-    private static void parse(JsonElement root, Object2ByteOpenHashMap<Block> kinds, ObjectOpenHashSet<Block> unprotected) {
+    /** jar 同梱の既定エントリを読み込む。未導入 MOD の id は黙って無視する。 */
+    private static void loadBundledDefaults(Object2ByteOpenHashMap<Block> kinds, ObjectOpenHashSet<Block> unprotected) {
+        InputStream stream = InteractionRegistry.class.getResourceAsStream(DEFAULT_RESOURCE);
+        if (stream == null) {
+            return;
+        }
+        try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            parse(GSON.fromJson(reader, JsonElement.class), kinds, unprotected, false);
+        } catch (Exception e) {
+            LOGGER.error("[TopDownView] Failed to load bundled interaction defaults", e);
+        }
+    }
+
+    private static void parse(JsonElement root, Object2ByteOpenHashMap<Block> kinds,
+                              ObjectOpenHashSet<Block> unprotected, boolean warnUnknown) {
         if (root == null || !root.isJsonObject()) {
             return;
         }
         for (var entry : root.getAsJsonObject().entrySet()) {
-            parseEntry(kinds, unprotected, entry.getKey(), entry.getValue());
+            parseEntry(kinds, unprotected, entry.getKey(), entry.getValue(), warnUnknown);
         }
     }
 
     private static void parseEntry(Object2ByteOpenHashMap<Block> kinds, ObjectOpenHashSet<Block> unprotected,
-                                   String blockId, JsonElement value) {
+                                   String blockId, JsonElement value, boolean warnUnknown) {
         // "_readme" などのメタキーを無視する
         if (blockId.startsWith("_") || value == null || !value.isJsonPrimitive()) {
             return;
         }
         ResourceLocation id = ResourceLocation.tryParse(blockId);
         if (id == null || !ForgeRegistries.BLOCKS.containsKey(id)) {
-            LOGGER.warn("[TopDownView] Unknown block id in interactions.json: {}", blockId);
+            if (warnUnknown) {
+                LOGGER.warn("[TopDownView] Unknown block id in interactions.json: {}", blockId);
+            }
             return;
         }
         Block block = ForgeRegistries.BLOCKS.getValue(id);
@@ -126,6 +150,8 @@ public final class InteractionRegistry {
             LOGGER.warn("[TopDownView] Unknown interaction kind '{}' for {}", value.getAsString(), blockId);
             return;
         }
+        // 既定の EXCLUDE をユーザーが OPEN 等で上書きした場合は保護を戻す。
+        unprotected.remove(block);
         kinds.put(block, (byte) kind.ordinal());
     }
 
@@ -143,9 +169,9 @@ public final class InteractionRegistry {
         Files.createDirectories(file.getParent());
         Files.writeString(file, """
                 {
-                  "_readme": "Add one line per block id. Values: OPEN (container, shows the '?' marker), INTERACT (other blocks), NONE (hides the prompt, keeps culling protection), EXCLUDE (hides the prompt and removes culling protection).",
+                  "_readme": "Entries here override the mod's built-in defaults. Values: OPEN (container, shows the '?' marker), INTERACT (other right-click blocks), NONE (hides the prompt, keeps culling protection), EXCLUDE (blacklist: hides the prompt and removes culling protection).",
                   "_example": {
-                    "modid:block_id": "NONE"
+                    "modid:block_id": "OPEN"
                   }
                 }
                 """, StandardCharsets.UTF_8);
