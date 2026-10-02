@@ -84,7 +84,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
         }
 
         // キャストを介してスーパークラス（EntityRenderer）のgetTextureLocationを呼び出す
-        // これにより、extendsによるMixin의 メソッド解決競合を防ぎつつ、難読化実行時のリマップも正しく適用される
+        // これにより、extends による Mixin のメソッド解決競合を防ぎつつ、難読化実行時のリマップも正しく適用される
         ResourceLocation texture = ((EntityRenderer<T>) (Object) this).getTextureLocation(entity);
         cir.setReturnValue(RenderType.entityTranslucent(texture));
     }

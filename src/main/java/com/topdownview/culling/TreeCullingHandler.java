@@ -32,20 +32,23 @@ public final class TreeCullingHandler {
         }
     }
 
-    private final Set<Long> protectedTreeLogPositions = new HashSet<>();
+    /** チャンク構築ワーカーから読まれるため、集合は volatile 参照ごと差し替える。 */
+    private volatile Set<Long> protectedTreeLogPositions = Set.of();
     private final List<ProtectedTreeTrunk> protectedTreeTrunks = new ArrayList<>();
-    private final Set<Long> occludedTreeTrunkColumns = new HashSet<>();
+    private volatile Set<Long> occludedTreeTrunkColumns = Set.of();
 
     public void clearCache() {
-        protectedTreeLogPositions.clear();
+        protectedTreeLogPositions = Set.of();
         protectedTreeTrunks.clear();
-        occludedTreeTrunkColumns.clear();
+        occludedTreeTrunkColumns = Set.of();
     }
 
     public boolean isOccludedLog(long posLong, BlockPos pos) {
-        if (!occludedTreeTrunkColumns.isEmpty() && protectedTreeLogPositions.contains(posLong)) {
+        Set<Long> occluded = occludedTreeTrunkColumns;
+        Set<Long> logs = protectedTreeLogPositions;
+        if (!occluded.isEmpty() && logs.contains(posLong)) {
             long columnKey = BlockPos.asLong(pos.getX(), 0, pos.getZ());
-            return occludedTreeTrunkColumns.contains(columnKey);
+            return occluded.contains(columnKey);
         }
         return false;
     }
@@ -55,21 +58,20 @@ public final class TreeCullingHandler {
     }
 
     public void updateLogs() {
-        protectedTreeLogPositions.clear();
-        protectedTreeLogPositions.addAll(NaturalTreeDetector.getNaturalTreeLogs());
-        
+        protectedTreeLogPositions = new HashSet<>(NaturalTreeDetector.getNaturalTreeLogs());
+
         if (Config.isProtectNaturalTreeLogs() && Config.isTreeOccludeEnabled()) {
             buildProtectedTreeTrunks();
         } else {
             protectedTreeTrunks.clear();
-            occludedTreeTrunkColumns.clear();
+            occludedTreeTrunkColumns = Set.of();
         }
     }
 
     private void buildProtectedTreeTrunks() {
         protectedTreeTrunks.clear();
-        occludedTreeTrunkColumns.clear();
-        Set<Long> logPositions = NaturalTreeDetector.getNaturalTreeLogs();
+        occludedTreeTrunkColumns = Set.of();
+        Set<Long> logPositions = protectedTreeLogPositions;
         if (logPositions.isEmpty()) {
             return;
         }
@@ -100,45 +102,47 @@ public final class TreeCullingHandler {
     }
 
     public void updateOcclusion(double pX, double pY, double pZ, double cX, double cY, double cZ) {
-        occludedTreeTrunkColumns.clear();
-        if (!Config.isTreeOccludeEnabled() || protectedTreeTrunks.isEmpty()) {
-            return;
-        }
-
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-        for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
-            boolean anyOccluding = false;
-            for (int y = trunk.bottomY; y <= trunk.topY; y++) {
-                mutablePos.set(trunk.x, y, trunk.z);
-                long posLong = mutablePos.asLong();
-                if (!protectedTreeLogPositions.contains(posLong)) continue;
-                if (OcclusionCalculator.isOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
-                    anyOccluding = true;
-                    break;
+        Set<Long> occluded = new HashSet<>();
+        if (Config.isTreeOccludeEnabled() && !protectedTreeTrunks.isEmpty()) {
+            Set<Long> logs = protectedTreeLogPositions;
+            BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+            for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
+                boolean anyOccluding = false;
+                for (int y = trunk.bottomY; y <= trunk.topY; y++) {
+                    mutablePos.set(trunk.x, y, trunk.z);
+                    long posLong = mutablePos.asLong();
+                    if (!logs.contains(posLong)) continue;
+                    if (OcclusionCalculator.isOccludingView(mutablePos, cX, cY, cZ, pX, pY, pZ)) {
+                        anyOccluding = true;
+                        break;
+                    }
+                }
+                if (anyOccluding) {
+                    occluded.add(BlockPos.asLong(trunk.x, 0, trunk.z));
                 }
             }
-            if (anyOccluding) {
-                occludedTreeTrunkColumns.add(BlockPos.asLong(trunk.x, 0, trunk.z));
-            }
         }
+        occludedTreeTrunkColumns = occluded;
     }
 
     public void collectOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
             double cX, double cY, double cZ, FadeCacheManager fadeCache) {
-        if (occludedTreeTrunkColumns.isEmpty() || protectedTreeTrunks.isEmpty()) {
+        Set<Long> occluded = occludedTreeTrunkColumns;
+        if (occluded.isEmpty() || protectedTreeTrunks.isEmpty()) {
             return;
         }
 
         float occludeAlpha = (float) Config.getTreeOccludeAlpha();
+        Set<Long> logs = protectedTreeLogPositions;
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (ProtectedTreeTrunk trunk : protectedTreeTrunks) {
             long columnKey = BlockPos.asLong(trunk.x, 0, trunk.z);
-            if (!occludedTreeTrunkColumns.contains(columnKey)) {
+            if (!occluded.contains(columnKey)) {
                 continue;
             }
             OcclusionFadeCollector.putColumn(level, fadeCache, trunk.x, trunk.z, trunk.bottomY, trunk.topY,
-                    mutablePos, protectedTreeLogPositions, false, occludeAlpha);
+                    mutablePos, logs, false, occludeAlpha);
         }
     }
 }

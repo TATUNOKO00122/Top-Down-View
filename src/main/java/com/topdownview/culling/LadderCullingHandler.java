@@ -40,22 +40,25 @@ public final class LadderCullingHandler {
     }
 
     private final List<ProtectedLadderChain> protectedLadderChains = new ArrayList<>();
-    private final Set<BlockPos> protectedLadderPositions = new HashSet<>();
+    /** チャンク構築ワーカーから読まれるため、集合は volatile 参照ごと差し替える。 */
+    private volatile Set<BlockPos> protectedLadderPositions = Set.of();
 
     public void clearCache() {
         protectedLadderChains.clear();
-        protectedLadderPositions.clear();
+        protectedLadderPositions = Set.of();
     }
 
     public boolean isProtectedPosition(BlockPos pos) {
-        return !protectedLadderPositions.isEmpty() && protectedLadderPositions.contains(pos);
+        Set<BlockPos> positions = protectedLadderPositions;
+        return !positions.isEmpty() && positions.contains(pos);
     }
 
     public void scan(Level level, int blockX, int blockZ, int playerFeetY) {
         protectedLadderChains.clear();
-        protectedLadderPositions.clear();
+        Set<BlockPos> positions = new HashSet<>();
 
         if (!Config.isLadderOccludeEnabled() || level == null) {
+            protectedLadderPositions = positions;
             return;
         }
 
@@ -93,13 +96,14 @@ public final class LadderCullingHandler {
                     protectedLadderChains.add(chain);
 
                     for (int y = chainBottomY; y <= chainTopY; y++) {
-                        protectedLadderPositions.add(new BlockPos(x, y, z));
-                        protectedLadderPositions.add(new BlockPos(chain.wallX, y, chain.wallZ));
+                        positions.add(new BlockPos(x, y, z));
+                        positions.add(new BlockPos(chain.wallX, y, chain.wallZ));
                     }
                     break;
                 }
             }
         }
+        protectedLadderPositions = positions;
     }
 
     public void collectOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,

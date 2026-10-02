@@ -7,8 +7,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class LadderHelper {
 
@@ -17,10 +17,12 @@ public final class LadderHelper {
     }
 
     // ハシゴの連続数キャッシュ (< 0 = 3未満, >= 0 = 連続数)
-    private static final Map<Long, Integer> chainLengthCache = new HashMap<>();
+    // isBlockCulled はチャンク構築ワーカーからも呼ばれ、ladderOcclude 無効時はワーカーが
+    // 書き込むため ConcurrentHashMap を使う。
+    private static final Map<Long, Integer> chainLengthCache = new ConcurrentHashMap<>();
 
     // チェーン最下部Yのキャッシュ（getChainBottomYの下方走査を1回に抑える）
-    private static final Map<Long, Integer> chainBottomCache = new HashMap<>();
+    private static final Map<Long, Integer> chainBottomCache = new ConcurrentHashMap<>();
 
     public static void clearCache() {
         chainLengthCache.clear();
