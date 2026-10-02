@@ -12,6 +12,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
@@ -31,6 +33,9 @@ public final class ClientForgeEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int BUTTON_SIZE = 20;
 
+    /** 直前の次元。変更時のみクライアントキャッシュを破棄する。 */
+    private static ResourceKey<Level> lastClientDimension = null;
+
     private ClientForgeEvents() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -38,6 +43,16 @@ public final class ClientForgeEvents {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            ResourceKey<Level> dimension = mc.level.dimension();
+            if (!dimension.equals(lastClientDimension)) {
+                lastClientDimension = dimension;
+                onDimensionChanged();
+            }
+        }
+
         ReachManager.onClientTick();
         PlacementPreviewManager.getInstance().onClientTick();
         OpenedContainerTracker.onTick();
@@ -47,6 +62,13 @@ public final class ClientForgeEvents {
         // DollhouseController.onClientTick();
     }
 
+    /** 次元が変わったとき、旧次元の座標に紐づくクライアント状態をまとめて破棄する。 */
+    private static void onDimensionChanged() {
+        InteractionPromptRenderer.clearScanCache();
+        TranslucentBlockRenderer.clearAlphaSmoothing();
+        ClickToMoveController.reset();
+    }
+
     @SubscribeEvent
     public static void onRenderTick(TickEvent.RenderTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
@@ -54,6 +76,9 @@ public final class ClientForgeEvents {
         if (ModState.STATUS.isEnabled() && Config.isPerformanceMonitorEnabled()) {
             // フレーム先頭で前フレームとの間隔を計測(描画/ロジック/再構築の切り分け用)
             PerfMonitor.onFrame();
+        } else {
+            // モニター無効時はスタック検出を止める(意図的なフレーム停止を誤検知しない)。
+            PerfMonitor.disarmWatchdog();
         }
         if (mc.level != null && mc.player != null) {
             PlayerRotationController.onRenderTick(mc, event.renderTickTime);
@@ -84,6 +109,7 @@ public final class ClientForgeEvents {
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        lastClientDimension = null;
         EntityCullingIntegration.setSuspended(false);
         ClickActionHandler.resetInput();
         Config.clearSyncedServerReach();

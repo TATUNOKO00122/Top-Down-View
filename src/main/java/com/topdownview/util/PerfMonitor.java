@@ -3,9 +3,15 @@ package com.topdownview.util;
 import com.mojang.logging.LogUtils;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
+import net.minecraftforge.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 
 /**
@@ -34,6 +40,17 @@ public final class PerfMonitor {
     private static final long FRAME_FREEZE_NANOS = 100_000_000L;
     /** これ以上フレームが空いたら計測を仕切り直す(初回/ロード明け/モニター復帰)。 */
     private static final long RESUME_GAP_NANOS = 1_000_000_000L;
+    /** 復帰時にこの時間以上空いていたらスタック原因の切り分け用に警告ログを残す。 */
+    private static final long STALL_WARN_NANOS = 3_000_000_000L;
+    /** この時間フレームが止まったらウォッチドッグが全スレッドをダンプする。 */
+    private static final long STALL_DUMP_NANOS = 5_000_000_000L;
+    /** ウォッチドッグのチェック間隔。 */
+    private static final long WATCHDOG_INTERVAL_NANOS = 1_000_000_000L;
+    /** 描画スレッドの心拍。ウォッチドッグから読むため volatile。 */
+    private static volatile long lastHeartbeatNanos = System.nanoTime();
+    /** true の間だけ停止を監視する。onFrame 受信で再武装、ダンプ後に解除。 */
+    private static volatile boolean heartbeatArmed = false;
+    private static volatile boolean watchdogStarted = false;
     /** 高頻度のブロック判定回数は1/256を標本計数して推定する。 */
     private static final int BLOCK_CULL_SAMPLE_SHIFT = 8;
     private static final long BLOCK_CULL_SAMPLE_MASK = (1L << BLOCK_CULL_SAMPLE_SHIFT) - 1L;
@@ -107,9 +124,21 @@ public final class PerfMonitor {
     /** 毎フレーム先頭で呼ぶ。前フレームとの間隔を計測し、スパイク/サマリを判定する。 */
     public static void onFrame() {
         long now = System.nanoTime();
+        lastHeartbeatNanos = now;
+        heartbeatArmed = true;
+        startWatchdog();
 
         // 初回・ロード画面明け・モニター無効化からの復帰は、離散的な巨大フレームを統計に混ぜないよう仕切り直す
         if (lastFrameNanos == 0L || now - lastFrameNanos > RESUME_GAP_NANOS) {
+            // 長時間の空白はフリーズの痕跡。GC 時間が小さければ「GC ではなくスレッドがブロック
+            // していた」ことを意味する(実際のスタックは StallWatchdog が停止中にダンプする)。
+            long gapMs = (now - lastFrameNanos) / 1_000_000L;
+            if (lastFrameNanos != 0L && gapMs * 1_000_000L >= STALL_WARN_NANOS) {
+                long gcDeltaMs = totalGcTimeMs() - lastGcTimeMs;
+                LOGGER.warn("[TopDownView][Perf] render loop resumed after {}ms (gc {}ms; "
+                        + "small gc means the thread was blocked, not a GC pause)", gapMs, gcDeltaMs);
+                lastGcTimeMs = totalGcTimeMs();
+            }
             resetAll();
             windowStart = now;
             lastFrameNanos = now;
@@ -199,6 +228,61 @@ public final class PerfMonitor {
     /** フェード描画対象数(overlay/ログ用)。 */
     public static void recordFadeBlocks(int count) {
         FADE_BLOCKS.add(count);
+    }
+
+    /** パフォーマンスモニターが無効になったら停止監視を解除する(誤検知防止)。 */
+    public static void disarmWatchdog() {
+        heartbeatArmed = false;
+    }
+
+    /** 描画スレッドが止まったときに全スレッドスタックを残す監視スレッド。 */
+    private static void startWatchdog() {
+        if (watchdogStarted) {
+            return;
+        }
+        watchdogStarted = true;
+        Thread watchdog = new Thread(PerfMonitor::watchdogLoop, "TopDownView-StallWatchdog");
+        watchdog.setDaemon(true);
+        watchdog.setPriority(Thread.MIN_PRIORITY);
+        watchdog.start();
+    }
+
+    private static void watchdogLoop() {
+        while (true) {
+            try {
+                Thread.sleep(WATCHDOG_INTERVAL_NANOS / 1_000_000L);
+            } catch (InterruptedException e) {
+                return;
+            }
+            if (!heartbeatArmed || System.nanoTime() - lastHeartbeatNanos < STALL_DUMP_NANOS) {
+                continue;
+            }
+            // 1回の停止につき1度だけダンプする(フレーム復帰で再武装)。
+            heartbeatArmed = false;
+            dumpThreads((System.nanoTime() - lastHeartbeatNanos) / 1_000_000L);
+        }
+    }
+
+    private static void dumpThreads(long stallMs) {
+        StringBuilder sb = new StringBuilder(16384);
+        sb.append("[TopDownView] render loop stalled for ").append(stallMs).append("ms; thread dump:");
+        for (Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+            Thread thread = entry.getKey();
+            sb.append("\n\"").append(thread.getName()).append("\" state=").append(thread.getState());
+            for (StackTraceElement frame : entry.getValue()) {
+                sb.append("\n\tat ").append(frame);
+            }
+        }
+        String dump = sb.toString();
+        LOGGER.warn(dump);
+        // ログバッファが失われても残るよう、ゲームディレクトリへも書き出す。
+        try {
+            Path file = FMLPaths.GAMEDIR.get().resolve("topdown_view_stall.txt");
+            Files.writeString(file, dump, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (Exception e) {
+            LOGGER.warn("[TopDownView] failed to write stall dump file", e);
+        }
     }
 
     /** GC の累積コレクション時間(ms)。 */

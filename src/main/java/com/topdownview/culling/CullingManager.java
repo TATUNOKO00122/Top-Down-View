@@ -10,6 +10,8 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -30,6 +32,17 @@ public final class CullingManager {
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
     /** ビルドが続いてもアップロード保留を打ち切る上限フレーム数(スタック防止)。 */
     private static final int MAX_UPLOAD_HOLD_FRAMES = 60;
+    /**
+     * 次元変更後にカリングを保留する上限ティック数(保険)。通常はロード画面が閉じた時点で
+     * 早期解除される。無限に保留しないための安全弁。
+     */
+    private static final int DIMENSION_SETTLE_MAX_TICKS = 200;
+    /** これ以上の辺を持つ再構築ボックスは異常(旧次元のカメラ等)として捨てる。 */
+    private static final double MAX_REBUILD_SPAN = 512.0;
+
+    /** 現在の次元。変更を検出して settle に入る。 */
+    private static ResourceKey<Level> lastDimension = null;
+    private static int settleTicks = 0;
 
     // カリング断面がセクションを跨ぐため、バッチの全セクションが揃うまでアップロードを保留する。
     // 保留対象はこのバッチのセクションだけに限定する(新規チャンクロード等の無関係な
@@ -100,6 +113,26 @@ public final class CullingManager {
         // ブロックを消して見通せるトップダウン中は、EntityCulling のカメラ基準カリングを止める
         EntityCullingIntegration.setSuspended(ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled());
 
+        // 次元変更直後は旧次元のカリング判定/probe/再構築を引きずるため、いったん状態を捨てる。
+        // 新レベルが描画可能になるまでは旧カメラ座標で走らせないが、ロード画面が閉じたら
+        // 待たずに即再開する(固定待ちだとカリング開始が遅れる)。
+        ResourceKey<Level> dimension = mc.level.dimension();
+        if (!dimension.equals(lastDimension)) {
+            lastDimension = dimension;
+            settleTicks = DIMENSION_SETTLE_MAX_TICKS;
+            CULLER.reset();
+            commitBatch();
+            resetLastRebuildCoords();
+        }
+        if (settleTicks > 0) {
+            if (isLevelReadyForCulling(mc)) {
+                settleTicks = 0;
+            } else {
+                settleTicks--;
+                return;
+            }
+        }
+
         int frequency = CULLER.getFrequency();
         if (mc.player.tickCount % frequency == 0) {
             long tUpdate = System.nanoTime();
@@ -110,6 +143,22 @@ public final class CullingManager {
         if (ModState.STATUS.isEnabled()) {
             scheduleChunkRebuildIfNeeded();
         }
+    }
+
+    /**
+     * 新レベルを描画できる状態か。ロード画面が閉じ、カメラがプレイヤー近傍にある
+     * (別次元の残存座標でない)とき true。true になった時点でカリングを再開する。
+     */
+    private static boolean isLevelReadyForCulling(Minecraft mc) {
+        if (mc.screen != null) {
+            return false;
+        }
+        Vec3 cameraPos = ModState.CAMERA.getCameraPosition();
+        if (!com.topdownview.state.CameraState.isPositionValid(cameraPos)) {
+            return false;
+        }
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        return cameraPos.distanceToSqr(eyePos) <= MAX_REBUILD_SPAN * MAX_REBUILD_SPAN;
     }
 
     private static void scheduleChunkRebuildIfNeeded() {
@@ -172,6 +221,16 @@ public final class CullingManager {
                     Math.max(0, coverRadius - radiusV),
                     Math.max(0, coverRadius - radiusH));
         }
+        // 旧次元のカメラ位置などでプレイヤーと大きく離れた箱は、Embeddium に膨大なセクションを
+        // 再構築させてフリーズさせるため捨てる。
+        if (box.getXsize() > MAX_REBUILD_SPAN || box.getYsize() > MAX_REBUILD_SPAN
+                || box.getZsize() > MAX_REBUILD_SPAN) {
+            LOGGER.warn("[TopDownView] skipped abnormal rebuild box {}x{}x{} (player {} {} {}, camera {} {} {})",
+                    (int) box.getXsize(), (int) box.getYsize(), (int) box.getZsize(),
+                    pX, pY, pZ, cX, cY, cZ);
+            return;
+        }
+
         boolean elementRebuild = generationChanged && CULLER.isIndoorElementActive();
         boolean wideElementRebuild = false;
         if (elementRebuild) {
@@ -242,7 +301,7 @@ public final class CullingManager {
         int sx = (maxX - minX) / 16 + 1;
         int sy = (maxY - minY) / 16 + 1;
         int sz = (maxZ - minZ) / 16 + 1;
-        int sectionCount = Math.max(sx, 1) * Math.max(sy, 1) * Math.max(sz, 1);
+        long sectionCount = (long) Math.max(sx, 1) * Math.max(sy, 1) * Math.max(sz, 1);
 
         try {
             Object renderer = instanceMethod.invoke(null);

@@ -65,6 +65,14 @@ public final class InteractionPromptRenderer {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    /** 次元変更時に旧次元のスキャン結果を破棄する。 */
+    public static void clearScanCache() {
+        scanCache.clear();
+        scannedBoundsCache.clear();
+        lastScanPlayerPos = null;
+        scanCooldown = 0;
+    }
+
     /**
      * 3Dワールド内のターゲットブロックにSF風ターゲットUIを描画し、
      * 周辺ブロックに空間プロンプト（はてなアイコン）を描画します。

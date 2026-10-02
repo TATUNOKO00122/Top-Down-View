@@ -48,6 +48,12 @@ public final class TranslucentBlockRenderer {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
+    /** 次元変更時に旧次元のα平滑化状態を破棄する。 */
+    public static void clearAlphaSmoothing() {
+        SMOOTHED_ALPHAS.clear();
+        lastFrameNanos = 0L;
+    }
+
     public static void renderFadeBlocks(RenderLevelStageEvent event) {
         long tRender = System.nanoTime();
         renderFadeBlocksInternal(event);
