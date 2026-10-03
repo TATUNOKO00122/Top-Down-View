@@ -48,6 +48,15 @@ public final class TranslucentBlockRenderer {
     /** これ以下になったゴーストは描画を止める(完全透明)。 */
     private static final float ALPHA_EPSILON = 0.02f;
 
+    /**
+     * ゴーストを描画する最大距離(プレイヤー基準)。
+     *
+     * <p>メッシュ専用ホールドもこの距離に合わせる。遠方までブロックを保留すると、覆うゴーストが
+     * 無いまま穴だけが残り、視点移動で境界が掃引して「穴が奥から波状に来る」ように見える。
+     * 範囲外の復元はホールドせず即座にメッシュへ戻す。
+     */
+    public static final double GHOST_RENDER_DISTANCE = 24.0;
+
     /** 位置ごとの現在のゴーストα。遷移方向が変わっても連続させる(点滅防止)。 */
     private static final Long2FloatOpenHashMap GHOST_ALPHA = new Long2FloatOpenHashMap();
 
@@ -122,10 +131,12 @@ public final class TranslucentBlockRenderer {
         BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
 
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
-        double pX = mc.player.getX();
-        double pY = mc.player.getY();
-        double pZ = mc.player.getZ();
-        double maxDistSq = 24.0 * 24.0; // 24ブロックより遠いフラッシュブロックは描画をスキップ
+        // カリング側(isBlockCulledForMesh のメッシュホールド距離)と同じ量子化中心にする。基準が
+        // ずれるとホールド範囲がゴースト描画範囲をはみ出し、覆うゴーストの無い穴が残る。
+        double pX = Math.floor(mc.player.getX()) + 0.5;
+        double pY = Math.floor(mc.player.getEyeY()) + 0.5;
+        double pZ = Math.floor(mc.player.getZ()) + 0.5;
+        double maxDistSq = GHOST_RENDER_DISTANCE * GHOST_RENDER_DISTANCE; // これより遠いフラッシュブロックは描画をスキップ
 
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ALPHA_CONSUMER.setDelegate(baseConsumer);

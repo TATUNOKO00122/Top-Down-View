@@ -253,7 +253,19 @@ public final class TopDownCuller {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || !cachedFadeTransitionsActive) {
             return false;
         }
-        return fadeTransitionController.isMeshHoldActive(pos.asLong());
+        if (!fadeTransitionController.isMeshHoldActive(pos.asLong())) {
+            return false;
+        }
+        if (!contextValid) {
+            return false;
+        }
+        // ゴーストはプレイヤーから一定距離以内しか描かない。それより遠くまでメッシュを保留すると、
+        // 覆うゴーストの無い穴が残り、視点移動で穴の境界が掃引して波状に見える。範囲外は保留しない。
+        double ghostDistance = com.topdownview.client.TranslucentBlockRenderer.GHOST_RENDER_DISTANCE;
+        double dx = pos.getX() + 0.5 - playerX;
+        double dy = pos.getY() + 0.5 - playerY;
+        double dz = pos.getZ() + 0.5 - playerZ;
+        return dx * dx + dy * dy + dz * dz <= ghostDistance * ghostDistance;
     }
 
     public boolean isBlockCulled(BlockPos pos, BlockGetter level) {
