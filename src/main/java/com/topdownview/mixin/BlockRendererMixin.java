@@ -27,7 +27,7 @@ public class BlockRendererMixin {
             return;
         }
         BlockPos pos = ctx.pos();
-        if (pos != null && CullingManager.isBlockCulled(pos, ctx.world())) {
+        if (pos != null && CullingManager.isBlockCulledForMesh(pos, ctx.world())) {
             ci.cancel();
         }
     }

@@ -46,6 +46,18 @@ public final class FadeTransitionController {
     /** 直近で復元した(pos→開始ms)。集合境界の揺れで再フラッシュするのを抑える。 */
     private final Long2LongOpenHashMap recentlyRestored = new Long2LongOpenHashMap();
 
+    /**
+     * メッシュ専用ホールド(pos→期限ms)。復元フラッシュの間、メッシュにブロックを戻さず
+     * 穴を保つことで、ゴーストの α0→1 を目視できるようにする。判定本体(レイキャスト・
+     * エンティティ・空間走査)には使わない。ワーカーが読むため不変スナップショットで公開する。
+     */
+    private final Long2LongOpenHashMap meshHoldUntil = new Long2LongOpenHashMap();
+    private volatile LongOpenHashSet meshHoldView = new LongOpenHashSet();
+    private boolean meshHoldDirty = false;
+
+    /** メッシュ専用ホールドの解除(メッシュ復帰)が未処理。CullingManager の再構築トリガ。 */
+    private boolean meshHoldRebuildPending = false;
+
     /** 初回の集合取り込みはイベントを出さず基準にするだけ。有効化直後に全カリングが点滅するのを防ぐ。 */
     private boolean baselineSeeded = false;
 
@@ -54,6 +66,10 @@ public final class FadeTransitionController {
         fadeOutStarts.clear();
         restoreStarts.clear();
         recentlyRestored.clear();
+        meshHoldUntil.clear();
+        meshHoldView = new LongOpenHashSet();
+        meshHoldDirty = false;
+        meshHoldRebuildPending = false;
         baselineSeeded = false;
     }
 
@@ -65,6 +81,29 @@ public final class FadeTransitionController {
     /** 完走した消失フラッシュを除去する(描画スレッド=メインスレッドから)。 */
     public void forgetFadeOut(long posLong) {
         fadeOutStarts.remove(posLong);
+    }
+
+    /** メッシュ専用ホールド中か(復元フラッシュの穴を保つ)。ワーカーから呼ばれる。 */
+    public boolean isMeshHoldActive(long posLong) {
+        return meshHoldView.contains(posLong);
+    }
+
+    /** メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映する。 */
+    public void publishMeshHoldView() {
+        if (!meshHoldDirty) {
+            return;
+        }
+        meshHoldDirty = false;
+        meshHoldView = new LongOpenHashSet(meshHoldUntil.keySet());
+    }
+
+    /** メッシュ専用ホールドの解除でメッシュ復帰が必要か。 */
+    public boolean isMeshHoldRebuildPending() {
+        return meshHoldRebuildPending;
+    }
+
+    public void consumeMeshHoldRebuildPending() {
+        meshHoldRebuildPending = false;
     }
 
     /** 復元フラッシュ中の位置を列挙する(描画側の復元ゴースト対象)。 */
@@ -114,6 +153,7 @@ public final class FadeTransitionController {
             fadeOutStarts.remove(posLong);
             restoreStarts.put(posLong, now);
             recentlyRestored.put(posLong, now);
+            openMeshHold(posLong, now);
         }
 
         // ---- 今回新たに収集された位置(消失) ----
@@ -134,6 +174,7 @@ public final class FadeTransitionController {
             }
         }
 
+        publishMeshHoldView();
         return flashes;
     }
 
@@ -151,7 +192,13 @@ public final class FadeTransitionController {
             fadeOutStarts.remove(posLong);
             restoreStarts.put(posLong, now);
             recentlyRestored.put(posLong, now);
+            openMeshHold(posLong, now);
         }
+    }
+
+    private void openMeshHold(long posLong, long now) {
+        meshHoldUntil.put(posLong, now + getTransitionMillis() + RESTORE_LINGER_MS);
+        meshHoldDirty = true;
     }
 
     /**
@@ -180,6 +227,19 @@ public final class FadeTransitionController {
             }
         }
         purgeOlder(recentlyRestored, now, transition * 2);
+
+        // メッシュ専用ホールドの期限切れを除去(期限が来たらメッシュが復帰する)。
+        if (!meshHoldUntil.isEmpty()) {
+            LongIterator iterator = meshHoldUntil.keySet().iterator();
+            while (iterator.hasNext()) {
+                long posLong = iterator.nextLong();
+                if (now >= meshHoldUntil.get(posLong)) {
+                    iterator.remove();
+                    meshHoldDirty = true;
+                    meshHoldRebuildPending = true;
+                }
+            }
+        }
     }
 
     private static void purgeOlder(Long2LongOpenHashMap map, long now, long lifetime) {

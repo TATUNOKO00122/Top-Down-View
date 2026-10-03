@@ -57,7 +57,7 @@ public class BlockOcclusionCacheMixin {
         if (memoPos.equals(neighborPos)) {
             culled = memo[0];
         } else {
-            culled = CullingManager.isBlockCulled(neighborPos, view);
+            culled = CullingManager.isBlockCulledForMesh(neighborPos, view);
             memoPos.set(neighborPos);
             memo[0] = culled;
         }

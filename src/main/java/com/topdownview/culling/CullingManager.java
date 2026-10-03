@@ -189,10 +189,12 @@ public final class CullingManager {
 
         // 覆いカリングの時間差進行中は、プレイヤーが静止していても再構築して1つずつ消す。
         boolean coverReleasing = CULLER.hasActiveCoverRelease();
+        // 復元フェードのメッシュ専用ホールドが解除されたら、メッシュを戻す再構築を一度だけ要求する。
+        boolean meshHoldRelease = CULLER.isMeshHoldRebuildPending();
         // 屋内要素カリングは視点の回転だけで手前壁が変わる。世代が進んだら座標が同じでも再構築する。
         long generation = CULLER.getCullingGeneration();
         boolean generationChanged = generation != lastRebuildGeneration;
-        if (!coverReleasing && !generationChanged
+        if (!coverReleasing && !meshHoldRelease && !generationChanged
                 && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
@@ -214,8 +216,8 @@ public final class CullingManager {
         }
         // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
-        if (coverReleasing) {
-            // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
+        if (coverReleasing || meshHoldRelease) {
+            // 覆い/復元は円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
             int coverRadius = Config.getCoverCullingRadius();
             box = box.inflate(
                     Math.max(0, coverRadius - radiusH),
@@ -259,6 +261,7 @@ public final class CullingManager {
 
         if (scheduleChunkRebuildInternal(box, true)) {
             lastChunkRebuildTime = currentTime;
+            CULLER.consumeMeshHoldRebuildPending();
             lastRebuildPlayerX = pX;
             lastRebuildPlayerY = pY;
             lastRebuildPlayerZ = pZ;
@@ -343,6 +346,11 @@ public final class CullingManager {
     /** メッシュ構築ワーカー用。メインスレッドの level ではなくそのスレッドの WorldSlice で判定する。 */
     public static boolean isBlockCulled(BlockPos pos, net.minecraft.world.level.BlockGetter level) {
         return CULLER.isBlockCulled(pos, level);
+    }
+
+    /** メッシュ構築専用。復元フラッシュのメッシュ専用ホールドも尊重する。 */
+    public static boolean isBlockCulledForMesh(BlockPos pos, net.minecraft.world.level.BlockGetter level) {
+        return CULLER.isBlockCulledForMesh(pos, level);
     }
 
     private static void collectBatchSections(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {

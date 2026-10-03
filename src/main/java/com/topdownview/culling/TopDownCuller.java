@@ -241,6 +241,21 @@ public final class TopDownCuller {
         return isBlockCulled(pos, mc.level);
     }
 
+    /**
+     * メッシュ構築専用のカリング判定。判定本体に加えて、復元フラッシュ中のメッシュ専用ホールド
+     * (穴を保ってゴーストのフェードインを見せる)を尊重する。レイキャスト・エンティティ・空間
+     * 走査はこのホールドを見ないため、ゲームプレイの判定は {@link #isBlockCulled} のまま不変。
+     */
+    public boolean isBlockCulledForMesh(BlockPos pos, BlockGetter level) {
+        if (isBlockCulled(pos, level)) {
+            return true;
+        }
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || !cachedFadeTransitionsActive) {
+            return false;
+        }
+        return fadeTransitionController.isMeshHoldActive(pos.asLong());
+    }
+
     public boolean isBlockCulled(BlockPos pos, BlockGetter level) {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
             if (!cacheClearedOnDisabled) {
@@ -627,6 +642,8 @@ public final class TopDownCuller {
         }
         // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
         fadeTransitionController.tick();
+        // メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映(再構築より前に)。
+        fadeTransitionController.publishMeshHoldView();
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
@@ -973,6 +990,15 @@ public final class TopDownCuller {
     /** 覆いカリングが時間差で進行中か(進行中はチャンク再構築を強制する必要がある)。 */
     public boolean hasActiveCoverRelease() {
         return cachedCoverCullingActive && coverHandler.isReleasing();
+    }
+
+    /** メッシュ専用ホールドの解除でメッシュ復帰の再構築が必要か。 */
+    public boolean isMeshHoldRebuildPending() {
+        return fadeTransitionController.isMeshHoldRebuildPending();
+    }
+
+    public void consumeMeshHoldRebuildPending() {
+        fadeTransitionController.consumeMeshHoldRebuildPending();
     }
 
     /** 復元フェードの差分トラッカー(描画側が遷移時刻を読むため公開)。 */
