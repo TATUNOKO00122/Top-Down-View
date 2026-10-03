@@ -24,17 +24,8 @@ public final class CullingConfig {
     private boolean trapdoorTranslucencyEnabled = false;
     private double trapdoorTransparency = 0.3;
     private boolean fadeEnabled = false;
-    private double fadeBlockHitThreshold = 0.5;
-    private double fadeStart = 0.7;
-    private double fadeNearAlpha = 0.0;
-    private double fadeSmoothingHalfLife = 0.14;
+    private double fadeFlashDuration = 0.3;
     private boolean disableFadeIndoors = true;
-    private boolean disableNearTranslucencyIndoors = true;
-    private boolean playerNearTranslucencyEnabled = true;
-    private double playerNearTranslucencyAlpha = 0.6;
-    private int playerNearTranslucencyRangeHorizontal = 2;
-    private int playerNearTranslucencyRangeVertical = 2;
-    private boolean playerNearTranslucencyHittable = true;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
     private double mobConeFadeAngle = 10.0;
@@ -43,11 +34,8 @@ public final class CullingConfig {
     private boolean staircaseExclusionEnabled = true;
     private int staircaseExclusionHeight = 2;
     private boolean staircaseOccludeEnabled = true;
-    private double staircaseOccludeAlpha = 0.4;
     private boolean ladderOccludeEnabled = true;
-    private double ladderOccludeAlpha = 0.4;
     private boolean treeOccludeEnabled = true;
-    private double treeOccludeAlpha = 0.4;
     private int viewWedgeHalfAngle = 60;
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
@@ -95,38 +83,12 @@ public final class CullingConfig {
     public boolean isFadeEnabled() { return fadeEnabled; }
     public void setFadeEnabled(boolean value) { this.fadeEnabled = value; }
 
-    public double getFadeBlockHitThreshold() { return fadeBlockHitThreshold; }
-    public void setFadeBlockHitThreshold(double value) { this.fadeBlockHitThreshold = MathUtil.clamp(value, 0.0, 1.0); }
-
-    public double getFadeStart() { return fadeStart; }
-    public void setFadeStart(double value) { this.fadeStart = MathUtil.clamp(value, 0.0, 0.9); }
-
-    public double getFadeNearAlpha() { return fadeNearAlpha; }
-    public void setFadeNearAlpha(double value) { this.fadeNearAlpha = MathUtil.clamp(value, 0.0, 1.0); }
-
-    public double getFadeSmoothingHalfLife() { return fadeSmoothingHalfLife; }
-    public void setFadeSmoothingHalfLife(double value) { this.fadeSmoothingHalfLife = MathUtil.clamp(value, 0.0, 1.0); }
+    /** 消失/復元フェードの秒数。0 = 即時切替(遷移なし)。 */
+    public double getFadeFlashDuration() { return fadeFlashDuration; }
+    public void setFadeFlashDuration(double value) { this.fadeFlashDuration = MathUtil.clamp(value, 0.0, 1.0); }
 
     public boolean isDisableFadeIndoors() { return disableFadeIndoors; }
     public void setDisableFadeIndoors(boolean value) { this.disableFadeIndoors = value; }
-
-    public boolean isDisableNearTranslucencyIndoors() { return disableNearTranslucencyIndoors; }
-    public void setDisableNearTranslucencyIndoors(boolean value) { this.disableNearTranslucencyIndoors = value; }
-
-    public boolean isPlayerNearTranslucencyEnabled() { return playerNearTranslucencyEnabled; }
-    public void setPlayerNearTranslucencyEnabled(boolean value) { this.playerNearTranslucencyEnabled = value; }
-
-    public double getPlayerNearTranslucencyAlpha() { return playerNearTranslucencyAlpha; }
-    public void setPlayerNearTranslucencyAlpha(double value) { this.playerNearTranslucencyAlpha = MathUtil.clamp(value, 0.0, 1.0); }
-
-    public int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
-    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = MathUtil.clamp(value, 1, 5); }
-
-    public int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
-    public void setPlayerNearTranslucencyRangeVertical(int value) { this.playerNearTranslucencyRangeVertical = MathUtil.clamp(value, 1, 5); }
-
-    public boolean isPlayerNearTranslucencyHittable() { return playerNearTranslucencyHittable; }
-    public void setPlayerNearTranslucencyHittable(boolean value) { this.playerNearTranslucencyHittable = value; }
 
     public boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
     public void setMobConeCullingEnabled(boolean value) { this.mobConeCullingEnabled = value; }
@@ -152,20 +114,11 @@ public final class CullingConfig {
     public boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
     public void setStaircaseOccludeEnabled(boolean value) { this.staircaseOccludeEnabled = value; }
 
-    public double getStaircaseOccludeAlpha() { return staircaseOccludeAlpha; }
-    public void setStaircaseOccludeAlpha(double value) { this.staircaseOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
-
     public boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
     public void setLadderOccludeEnabled(boolean value) { this.ladderOccludeEnabled = value; }
 
-    public double getLadderOccludeAlpha() { return ladderOccludeAlpha; }
-    public void setLadderOccludeAlpha(double value) { this.ladderOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
-
     public boolean isTreeOccludeEnabled() { return treeOccludeEnabled; }
     public void setTreeOccludeEnabled(boolean value) { this.treeOccludeEnabled = value; }
-
-    public double getTreeOccludeAlpha() { return treeOccludeAlpha; }
-    public void setTreeOccludeAlpha(double value) { this.treeOccludeAlpha = MathUtil.clamp(value, 0.0, 1.0); }
 
     public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
     public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = MathUtil.clamp(value, 10, 90); }

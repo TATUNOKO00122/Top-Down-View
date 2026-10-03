@@ -3,6 +3,7 @@ package com.topdownview.culling;
 import com.topdownview.Config;
 import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.ladder.LadderHelper;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -20,6 +21,8 @@ import java.util.Set;
  * ハシゴおよびその支えとなる壁ブロックの保護・半透明化判定を担うハンドラー。
  */
 public final class LadderCullingHandler {
+
+    private static final int MAX_FADE_POSITIONS = FadeCacheManager.MAX_FADE_POSITIONS;
 
     private static final class ProtectedLadderChain {
         final int x;
@@ -106,28 +109,21 @@ public final class LadderCullingHandler {
         protectedLadderPositions = positions;
     }
 
-    public void collectOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
-            double cX, double cY, double cZ, FadeCacheManager fadeCache) {
+    public void collectCullPositions(BlockGetter level, LongOpenHashSet out) {
         if (protectedLadderChains.isEmpty() || !Config.isLadderOccludeEnabled()) {
             return;
         }
 
-        float occludeAlpha = (float) Config.getLadderOccludeAlpha();
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (ProtectedLadderChain chain : protectedLadderChains) {
-            if (fadeCache.isFadeBlocksFull()) {
+            if (out.size() >= MAX_FADE_POSITIONS) {
                 return;
             }
-            boolean anyOccluding = OcclusionFadeCollector.anyOccludingColumn(
-                    chain.x, chain.z, chain.bottomY, chain.topY, mutablePos, cX, cY, cZ, pX, pY, pZ)
-                    || OcclusionFadeCollector.anyOccludingColumn(
-                    chain.wallX, chain.wallZ, chain.bottomY, chain.topY, mutablePos, cX, cY, cZ, pX, pY, pZ);
-            float alpha = anyOccluding ? occludeAlpha : 1.0f;
-            OcclusionFadeCollector.putColumn(level, fadeCache, chain.x, chain.z, chain.bottomY, chain.topY,
-                    mutablePos, null, false, alpha);
-            OcclusionFadeCollector.putColumn(level, fadeCache, chain.wallX, chain.wallZ, chain.bottomY, chain.topY,
-                    mutablePos, null, true, alpha);
+            OcclusionFadeCollector.addColumn(level, out, chain.x, chain.z, chain.bottomY, chain.topY,
+                    mutablePos, null, false);
+            OcclusionFadeCollector.addColumn(level, out, chain.wallX, chain.wallZ, chain.bottomY, chain.topY,
+                    mutablePos, null, true);
         }
     }
 }

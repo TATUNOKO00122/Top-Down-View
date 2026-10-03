@@ -65,7 +65,7 @@ public final class ClientForgeEvents {
     /** 次元が変わったとき、旧次元の座標に紐づくクライアント状態をまとめて破棄する。 */
     private static void onDimensionChanged() {
         InteractionPromptRenderer.clearScanCache();
-        TranslucentBlockRenderer.clearAlphaSmoothing();
+        TranslucentBlockRenderer.clearTransitionState();
         ClickToMoveController.reset();
     }
 

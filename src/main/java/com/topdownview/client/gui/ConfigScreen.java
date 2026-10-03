@@ -254,36 +254,12 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.fade", tx);
-        addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
-        y += sp;
         addToggle(x, y, w, h, "topdown_view.config.fade_enabled", Config::isFadeEnabled, Config::setFadeEnabled);
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_block_hit_threshold", Config.getFadeBlockHitThreshold(), 0.0,
-                1.0, val -> Config.setFadeBlockHitThreshold(val)));
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_flash_duration", Config.getFadeFlashDuration(), 0.0,
+                1.0, val -> Config.setFadeFlashDuration(val)));
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_start", Config.getFadeStart(), 0.0, 0.9,
-                val -> Config.setFadeStart(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_near_alpha", Config.getFadeNearAlpha(), 0.0,
-                1.0, val -> Config.setFadeNearAlpha(val)));
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_smoothing_half_life", Config.getFadeSmoothingHalfLife(), 0.0,
-                1.0, val -> Config.setFadeSmoothingHalfLife(val)));
-        y += sp;
-        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_enabled", Config::isPlayerNearTranslucencyEnabled, Config::setPlayerNearTranslucencyEnabled);
-        y += sp;
-        addToggle(x, y, w, h, "topdown_view.config.disable_near_translucency_indoors", Config::isDisableNearTranslucencyIndoors, Config::setDisableNearTranslucencyIndoors);
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
-                1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 1,
-                5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
-        y += sp;
-        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
-                5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
-        y += sp;
-        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_hittable", Config::isPlayerNearTranslucencyHittable, Config::setPlayerNearTranslucencyHittable);
+        addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.fluid", tx);
@@ -303,25 +279,13 @@ public class ConfigScreen extends Screen {
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
         addToggle(x, y, w, h, "topdown_view.config.staircase_occlude_enabled", Config::isStaircaseOccludeEnabled, Config::setStaircaseOccludeEnabled);
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.staircase_occlude_alpha",
-                Config.getStaircaseOccludeAlpha(), 0.0, 1.0,
-                val -> Config.setStaircaseOccludeAlpha(val)));
-        y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.staircase_exclusion_height",
                 Config.getStaircaseExclusionHeight(), 1, 10,
                 val -> Config.setStaircaseExclusionHeight(val)));
         y += sp;
         addToggle(x, y, w, h, "topdown_view.config.ladder_occlude_enabled", Config::isLadderOccludeEnabled, Config::setLadderOccludeEnabled);
         y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.ladder_occlude_alpha",
-                Config.getLadderOccludeAlpha(), 0.0, 1.0,
-                val -> Config.setLadderOccludeAlpha(val)));
-        y += sp;
         addToggle(x, y, w, h, "topdown_view.config.tree_occlude_enabled", Config::isTreeOccludeEnabled, Config::setTreeOccludeEnabled);
-        y += sp;
-        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.tree_occlude_alpha",
-                Config.getTreeOccludeAlpha(), 0.0, 1.0,
-                val -> Config.setTreeOccludeAlpha(val)));
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.underground_culling", tx);

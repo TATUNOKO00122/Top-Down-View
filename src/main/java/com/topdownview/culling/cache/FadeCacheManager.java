@@ -1,65 +1,34 @@
 package com.topdownview.culling.cache;
 
-import it.unimi.dsi.fastutil.longs.Long2FloatMap;
-import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 /**
- * フェード用のアルファ値キャッシュおよびフェード表示対象ブロックリストを管理するマネージャ。
- * アロケーション削減のため、BlockPos の代わりに long (pos.asLong()) をキーとして使用します。
+ * 遷移フェードの対象となる「今カリングされている位置」の集合を保持する。
+ * 走査ごとに作り直されるため α値は保持せず、遷移(消失/復元)の判定は
+ * {@link com.topdownview.culling.FadeTransitionController} が行う。
  */
-public final class FadeCacheManager extends EpochCache<Long2FloatOpenHashMap> {
+public final class FadeCacheManager {
 
-    private static final int MAX_FADE_ALPHA_CACHE_SIZE = 2000;
-    private static final int MAX_FADE_BLOCKS_CACHE_SIZE = 4000;
+    /** フェード集合の上限(ハンドラ側の登録打ち切り判定と共有)。 */
+    public static final int MAX_FADE_POSITIONS = 4000;
 
-    // 描画ブロックキャッシュ（メイン/レンダスレッドのみからアクセスされるため synchronized なしで直接保持）
-    private final Long2FloatOpenHashMap fadeBlocksCache = new Long2FloatOpenHashMap(500);
+    private final LongOpenHashSet fadePositions = new LongOpenHashSet(500);
 
-    public FadeCacheManager() {
-        super(() -> {
-            Long2FloatOpenHashMap map = new Long2FloatOpenHashMap(500);
-            map.defaultReturnValue(-1.0f);
-            return map;
-        });
-        fadeBlocksCache.defaultReturnValue(-1.0f);
-    }
-
-    /** フェードα(有効値は 0..1)。キャッシュ未登録は負値。 */
-    public float getFadeAlpha(long posLong) {
-        return map().get(posLong);
-    }
-
-    public void putFadeAlpha(long posLong, float alpha) {
-        Long2FloatOpenHashMap cache = map();
-        cache.put(posLong, alpha);
-        if (cache.size() > MAX_FADE_ALPHA_CACHE_SIZE) {
-            cache.clear();
+    public void addFadePosition(long posLong) {
+        if (fadePositions.size() < MAX_FADE_POSITIONS) {
+            fadePositions.add(posLong);
         }
     }
 
-    public void putFadeBlock(long posLong, float alpha) {
-        fadeBlocksCache.put(posLong, alpha);
+    public boolean isFull() {
+        return fadePositions.size() >= MAX_FADE_POSITIONS;
     }
 
-    public Long2FloatMap getFadeBlocksCache() {
-        return fadeBlocksCache;
+    public LongOpenHashSet getFadePositions() {
+        return fadePositions;
     }
 
-    public void clearFadeBlocks() {
-        fadeBlocksCache.clear();
-    }
-
-    public boolean isFadeBlocksFull() {
-        return fadeBlocksCache.size() >= MAX_FADE_BLOCKS_CACHE_SIZE;
-    }
-
-    @Override
-    protected void clearMap(Long2FloatOpenHashMap cache) {
-        cache.clear();
-    }
-
-    @Override
-    protected void onClear() {
-        fadeBlocksCache.clear();
+    public void clear() {
+        fadePositions.clear();
     }
 }

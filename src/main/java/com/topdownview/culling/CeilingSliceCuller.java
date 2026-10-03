@@ -91,7 +91,9 @@ public final class CeilingSliceCuller {
         }
         LongIterator removed = slicePositions.iterator();
         while (removed.hasNext()) {
-            pendingChange.includeCell(removed.nextLong());
+            long cell = removed.nextLong();
+            pendingChange.includeCell(cell);
+            leavingPositions.add(cell);
         }
         slicePositions = new LongOpenHashSet();
         generation++;
@@ -109,6 +111,21 @@ public final class CeilingSliceCuller {
     public boolean isCeilingSliceBlock(long posLong) {
         LongOpenHashSet set = slicePositions;
         return !set.isEmpty() && set.contains(posLong);
+    }
+
+    /** 現在天井スライスになっている全セルを out に積む(遷移フェードのイベント源)。 */
+    public void forEachSlicePosition(LongOpenHashSet out) {
+        LongOpenHashSet set = slicePositions;
+        if (set.isEmpty()) {
+            return;
+        }
+        for (LongIterator iterator = set.iterator(); iterator.hasNext(); ) {
+            long posLong = iterator.nextLong();
+            if (out.size() >= 4000) {
+                return;
+            }
+            out.add(posLong);
+        }
     }
 
     /** 天井スライス集合の世代番号。値が変わればカリング結果が変わった可能性がある。 */
@@ -335,9 +352,25 @@ public final class CeilingSliceCuller {
             long cell = removed.nextLong();
             if (!next.contains(cell)) {
                 pendingChange.includeCell(cell);
+                leavingPositions.add(cell);
             }
         }
         slicePositions = next;
         generation++;
+    }
+
+    /**
+     * 遷移フェード用: 直近の更新でスライス集合から外れたセル。
+     * update/clearCache がメインスレッドから呼ばれ、取り出し側もメインスレッドなので非 volatile。
+     */
+    private final LongOpenHashSet leavingPositions = new LongOpenHashSet();
+
+    /** スライス集合から外れたセルを out に移して返す(復元フェードのイベント源)。 */
+    public void takeLeavingPositions(LongOpenHashSet out) {
+        if (leavingPositions.isEmpty()) {
+            return;
+        }
+        out.addAll(leavingPositions);
+        leavingPositions.clear();
     }
 }

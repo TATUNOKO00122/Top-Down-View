@@ -1,8 +1,8 @@
 package com.topdownview.culling;
 
 import com.topdownview.Config;
-import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.geometry.OcclusionCalculator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 
@@ -125,14 +125,12 @@ public final class TreeCullingHandler {
         occludedTreeTrunkColumns = occluded;
     }
 
-    public void collectOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
-            double cX, double cY, double cZ, FadeCacheManager fadeCache) {
+    public void collectCullPositions(BlockGetter level, LongOpenHashSet out) {
         Set<Long> occluded = occludedTreeTrunkColumns;
         if (occluded.isEmpty() || protectedTreeTrunks.isEmpty()) {
             return;
         }
 
-        float occludeAlpha = (float) Config.getTreeOccludeAlpha();
         Set<Long> logs = protectedTreeLogPositions;
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
@@ -141,8 +139,8 @@ public final class TreeCullingHandler {
             if (!occluded.contains(columnKey)) {
                 continue;
             }
-            OcclusionFadeCollector.putColumn(level, fadeCache, trunk.x, trunk.z, trunk.bottomY, trunk.topY,
-                    mutablePos, logs, false, occludeAlpha);
+            OcclusionFadeCollector.addColumn(level, out, trunk.x, trunk.z, trunk.bottomY, trunk.topY,
+                    mutablePos, logs, false);
         }
     }
 }

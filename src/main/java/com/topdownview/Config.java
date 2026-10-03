@@ -101,15 +101,9 @@ public class Config {
             .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
     private static final ForgeConfigSpec.BooleanValue FADE_ENABLED = BUILDER
             .define("fadeEnabled", false);
-    private static final ForgeConfigSpec.DoubleValue FADE_BLOCK_HIT_THRESHOLD = BUILDER
-            .defineInRange("fadeBlockHitThreshold", 0.5, 0.0, 1.0);
-    private static final ForgeConfigSpec.DoubleValue FADE_START = BUILDER
-            .defineInRange("fadeStart", 0.7, 0.0, 0.9);
-    private static final ForgeConfigSpec.DoubleValue FADE_NEAR_ALPHA = BUILDER
-            .defineInRange("fadeNearAlpha", 0.0, 0.0, 1.0);
-    private static final ForgeConfigSpec.DoubleValue FADE_SMOOTHING_HALF_LIFE = BUILDER
-            .comment("Exponential smoothing half-life (seconds) for the translucent fade alpha. 0 disables smoothing.")
-            .defineInRange("fadeSmoothingHalfLife", 0.14, 0.0, 1.0);
+    private static final ForgeConfigSpec.DoubleValue FADE_FLASH_DURATION = BUILDER
+            .comment("Duration (seconds) of the vanish / restore transition fade. 0 = instant switch.")
+            .defineInRange("fadeFlashDuration", 0.3, 0.0, 1.0);
     private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
             .comment("0 = Legacy (cylinder), 1 = New (cover + corridor).")
             .defineInRange("cullingMode", 1, 0, 1);
@@ -126,23 +120,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue PROTECT_INTERACTABLES_OUTDOORS = BUILDER
             .comment("Keeps interactable blocks (chests, doors, etc.) visible near the player while outdoors.")
             .define("protectInteractablesOutdoors", true);
-    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
-            .define("playerNearTranslucencyEnabled", true);
-    private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
-            .defineInRange("playerNearTranslucencyAlpha", 0.6, 0.0, 1.0);
-    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL = BUILDER
-            .defineInRange("playerNearTranslucencyRangeHorizontal", 2, 1, 5);
-    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
-            .defineInRange("playerNearTranslucencyRangeVertical", 2, 1, 5);
-    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_HITTABLE = BUILDER
-            .comment("Whether proximity-displayed blocks can be hit by the mouse raycast.")
-            .define("playerNearTranslucencyHittable", true);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
             .comment("Disables boundary fade rendering while the player is indoors.")
             .define("disableFadeIndoors", true);
-    private static final ForgeConfigSpec.BooleanValue DISABLE_NEAR_TRANSLUCENCY_INDOORS = BUILDER
-            .comment("Disables proximity translucency (near-block ghosts) while the player is indoors. Culling itself is unchanged.")
-            .define("disableNearTranslucencyIndoors", true);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -259,18 +239,12 @@ public class Config {
             .defineInRange("staircaseExclusionHeight", 2, 1, 10);
     private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
             .define("staircaseOccludeEnabled", true);
-    private static final ForgeConfigSpec.DoubleValue STAIRCASE_OCCLUDE_ALPHA = BUILDER
-            .defineInRange("staircaseOccludeAlpha", 0.4, 0.0, 1.0);
 
     private static final ForgeConfigSpec.BooleanValue LADDER_OCCLUDE_ENABLED = BUILDER
             .define("ladderOccludeEnabled", true);
-    private static final ForgeConfigSpec.DoubleValue LADDER_OCCLUDE_ALPHA = BUILDER
-            .defineInRange("ladderOccludeAlpha", 0.4, 0.0, 1.0);
 
     private static final ForgeConfigSpec.BooleanValue TREE_OCCLUDE_ENABLED = BUILDER
             .define("treeOccludeEnabled", true);
-    private static final ForgeConfigSpec.DoubleValue TREE_OCCLUDE_ALPHA = BUILDER
-            .defineInRange("treeOccludeAlpha", 0.4, 0.0, 1.0);
 
     private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
             .defineInRange("signHoverDisplayMode", 2, 0, 2);
@@ -368,23 +342,14 @@ public class Config {
     public static boolean isTrapdoorTranslucencyEnabled() { return CULLING.isTrapdoorTranslucencyEnabled(); }
     public static double getTrapdoorTransparency() { return CULLING.getTrapdoorTransparency(); }
     public static boolean isFadeEnabled() { return CULLING.isFadeEnabled(); }
-    public static double getFadeBlockHitThreshold() { return CULLING.getFadeBlockHitThreshold(); }
-    public static double getFadeStart() { return CULLING.getFadeStart(); }
-    public static double getFadeNearAlpha() { return CULLING.getFadeNearAlpha(); }
-    public static double getFadeSmoothingHalfLife() { return CULLING.getFadeSmoothingHalfLife(); }
+    public static double getFadeFlashDuration() { return CULLING.getFadeFlashDuration(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
-    public static boolean isDisableNearTranslucencyIndoors() { return CULLING.isDisableNearTranslucencyIndoors(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
     public static boolean isIndoorCeilingCullingEnabled() { return CULLING.isIndoorCeilingCullingEnabled(); }
     public static boolean isProtectInteractablesOutdoors() { return CULLING.isProtectInteractablesOutdoors(); }
-    public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
-    public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
-    public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
-    public static int getPlayerNearTranslucencyRangeVertical() { return CULLING.getPlayerNearTranslucencyRangeVertical(); }
-    public static boolean isPlayerNearTranslucencyHittable() { return CULLING.isPlayerNearTranslucencyHittable(); }
     public static boolean isRangeIndicatorEnabled() { return INTERACTION.isRangeIndicatorEnabled(); }
     public static boolean isDestinationHighlightEnabled() { return INTERACTION.isDestinationHighlightEnabled(); }
     public static double getRangeEmptyHand() { return INTERACTION.getRangeEmptyHand(); }
@@ -444,11 +409,8 @@ public class Config {
     public static boolean isStaircaseExclusionEnabled() { return CULLING.isStaircaseExclusionEnabled(); }
     public static int getStaircaseExclusionHeight() { return CULLING.getStaircaseExclusionHeight(); }
     public static boolean isStaircaseOccludeEnabled() { return CULLING.isStaircaseOccludeEnabled(); }
-    public static double getStaircaseOccludeAlpha() { return CULLING.getStaircaseOccludeAlpha(); }
     public static boolean isLadderOccludeEnabled() { return CULLING.isLadderOccludeEnabled(); }
-    public static double getLadderOccludeAlpha() { return CULLING.getLadderOccludeAlpha(); }
     public static boolean isTreeOccludeEnabled() { return CULLING.isTreeOccludeEnabled(); }
-    public static double getTreeOccludeAlpha() { return CULLING.getTreeOccludeAlpha(); }
     public static boolean isIgnoreLeavesInRaycast() { return CULLING.isIgnoreLeavesInRaycast(); }
     public static boolean isProtectNaturalTreeLogs() { return CULLING.isProtectNaturalTreeLogs(); }
     public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
@@ -506,23 +468,14 @@ public class Config {
     public static void setTrapdoorTranslucencyEnabled(boolean value) { CULLING.setTrapdoorTranslucencyEnabled(value); }
     public static void setTrapdoorTransparency(double value) { CULLING.setTrapdoorTransparency(value); }
     public static void setFadeEnabled(boolean value) { CULLING.setFadeEnabled(value); }
-    public static void setFadeBlockHitThreshold(double value) { CULLING.setFadeBlockHitThreshold(value); }
-    public static void setFadeStart(double value) { CULLING.setFadeStart(value); }
-    public static void setFadeNearAlpha(double value) { CULLING.setFadeNearAlpha(value); }
-    public static void setFadeSmoothingHalfLife(double value) { CULLING.setFadeSmoothingHalfLife(value); }
+    public static void setFadeFlashDuration(double value) { CULLING.setFadeFlashDuration(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
-    public static void setDisableNearTranslucencyIndoors(boolean value) { CULLING.setDisableNearTranslucencyIndoors(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
     public static void setIndoorCeilingCullingEnabled(boolean value) { CULLING.setIndoorCeilingCullingEnabled(value); }
     public static void setProtectInteractablesOutdoors(boolean value) { CULLING.setProtectInteractablesOutdoors(value); }
-    public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
-    public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
-    public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
-    public static void setPlayerNearTranslucencyRangeVertical(int value) { CULLING.setPlayerNearTranslucencyRangeVertical(value); }
-    public static void setPlayerNearTranslucencyHittable(boolean value) { CULLING.setPlayerNearTranslucencyHittable(value); }
     public static void setRangeIndicatorEnabled(boolean value) { INTERACTION.setRangeIndicatorEnabled(value); }
     public static void setDestinationHighlightEnabled(boolean value) { INTERACTION.setDestinationHighlightEnabled(value); }
     public static void setRangeEmptyHand(double value) { INTERACTION.setRangeEmptyHand(value); }
@@ -579,11 +532,8 @@ public class Config {
     public static void setStaircaseExclusionEnabled(boolean value) { CULLING.setStaircaseExclusionEnabled(value); }
     public static void setStaircaseExclusionHeight(int value) { CULLING.setStaircaseExclusionHeight(value); }
     public static void setStaircaseOccludeEnabled(boolean value) { CULLING.setStaircaseOccludeEnabled(value); }
-    public static void setStaircaseOccludeAlpha(double value) { CULLING.setStaircaseOccludeAlpha(value); }
     public static void setLadderOccludeEnabled(boolean value) { CULLING.setLadderOccludeEnabled(value); }
-    public static void setLadderOccludeAlpha(double value) { CULLING.setLadderOccludeAlpha(value); }
     public static void setTreeOccludeEnabled(boolean value) { CULLING.setTreeOccludeEnabled(value); }
-    public static void setTreeOccludeAlpha(double value) { CULLING.setTreeOccludeAlpha(value); }
     public static void setIgnoreLeavesInRaycast(boolean value) { CULLING.setIgnoreLeavesInRaycast(value); }
     public static void setProtectNaturalTreeLogs(boolean value) { CULLING.setProtectNaturalTreeLogs(value); }
     public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
@@ -693,23 +643,14 @@ public class Config {
         addBinding(TRAPDOOR_TRANSLUCENCY_ENABLED, CULLING::setTrapdoorTranslucencyEnabled, Config::isTrapdoorTranslucencyEnabled);
         addBinding(TRAPDOOR_TRANSPARENCY, CULLING::setTrapdoorTransparency, Config::getTrapdoorTransparency);
         addBinding(FADE_ENABLED, CULLING::setFadeEnabled, Config::isFadeEnabled);
-        addBinding(FADE_BLOCK_HIT_THRESHOLD, CULLING::setFadeBlockHitThreshold, Config::getFadeBlockHitThreshold);
-        addBinding(FADE_START, CULLING::setFadeStart, Config::getFadeStart);
-        addBinding(FADE_NEAR_ALPHA, CULLING::setFadeNearAlpha, Config::getFadeNearAlpha);
-        addBinding(FADE_SMOOTHING_HALF_LIFE, CULLING::setFadeSmoothingHalfLife, Config::getFadeSmoothingHalfLife);
+        addBinding(FADE_FLASH_DURATION, CULLING::setFadeFlashDuration, Config::getFadeFlashDuration);
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
-        addBinding(DISABLE_NEAR_TRANSLUCENCY_INDOORS, CULLING::setDisableNearTranslucencyIndoors, Config::isDisableNearTranslucencyIndoors);
         addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
         addBinding(COVER_CULLING_RADIUS, CULLING::setCoverCullingRadius, Config::getCoverCullingRadius);
         addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
         addBinding(CULLING_MODE, CULLING::setCullingMode, Config::getCullingMode);
         addBinding(INDOOR_CEILING_CULLING_ENABLED, CULLING::setIndoorCeilingCullingEnabled, Config::isIndoorCeilingCullingEnabled);
         addBinding(PROTECT_INTERACTABLES_OUTDOORS, CULLING::setProtectInteractablesOutdoors, Config::isProtectInteractablesOutdoors);
-        addBinding(PLAYER_NEAR_TRANSLUCENCY_ENABLED, CULLING::setPlayerNearTranslucencyEnabled, Config::isPlayerNearTranslucencyEnabled);
-        addBinding(PLAYER_NEAR_TRANSLUCENCY_ALPHA, CULLING::setPlayerNearTranslucencyAlpha, Config::getPlayerNearTranslucencyAlpha);
-        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL, CULLING::setPlayerNearTranslucencyRangeHorizontal, Config::getPlayerNearTranslucencyRangeHorizontal);
-        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL, CULLING::setPlayerNearTranslucencyRangeVertical, Config::getPlayerNearTranslucencyRangeVertical);
-        addBinding(PLAYER_NEAR_TRANSLUCENCY_HITTABLE, CULLING::setPlayerNearTranslucencyHittable, Config::isPlayerNearTranslucencyHittable);
         addBinding(RANGE_INDICATOR_ENABLED, INTERACTION::setRangeIndicatorEnabled, Config::isRangeIndicatorEnabled);
         addBinding(DESTINATION_HIGHLIGHT_ENABLED, INTERACTION::setDestinationHighlightEnabled, Config::isDestinationHighlightEnabled);
         addBinding(RANGE_EMPTY_HAND, INTERACTION::setRangeEmptyHand, Config::getRangeEmptyHand);
@@ -766,11 +707,8 @@ public class Config {
         addBinding(STAIRCASE_EXCLUSION_ENABLED, CULLING::setStaircaseExclusionEnabled, Config::isStaircaseExclusionEnabled);
         addBinding(STAIRCASE_EXCLUSION_HEIGHT, CULLING::setStaircaseExclusionHeight, Config::getStaircaseExclusionHeight);
         addBinding(STAIRCASE_OCCLUDE_ENABLED, CULLING::setStaircaseOccludeEnabled, Config::isStaircaseOccludeEnabled);
-        addBinding(STAIRCASE_OCCLUDE_ALPHA, CULLING::setStaircaseOccludeAlpha, Config::getStaircaseOccludeAlpha);
         addBinding(LADDER_OCCLUDE_ENABLED, CULLING::setLadderOccludeEnabled, Config::isLadderOccludeEnabled);
-        addBinding(LADDER_OCCLUDE_ALPHA, CULLING::setLadderOccludeAlpha, Config::getLadderOccludeAlpha);
         addBinding(TREE_OCCLUDE_ENABLED, CULLING::setTreeOccludeEnabled, Config::isTreeOccludeEnabled);
-        addBinding(TREE_OCCLUDE_ALPHA, CULLING::setTreeOccludeAlpha, Config::getTreeOccludeAlpha);
         addBinding(IGNORE_LEAVES_IN_RAYCAST, CULLING::setIgnoreLeavesInRaycast, Config::isIgnoreLeavesInRaycast);
         addBinding(PROTECT_NATURAL_TREE_LOGS, CULLING::setProtectNaturalTreeLogs, Config::isProtectNaturalTreeLogs);
         addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);

@@ -146,18 +146,15 @@ public final class TopDownCuller {
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
     private final FadeTransitionController fadeTransitionController = new FadeTransitionController();
 
-    private double cachedFadeStart;
-    private double cachedFadeNearAlpha;
-    private double cachedFadeBlockHitThreshold;
-    private boolean cachedPlayerNearTranslucencyHittable;
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
     private boolean cachedViewWedgeProtection;
+    /** 遷移フェード(ゴースト表示)が有効な期間を通して保持するフラグ。切替でトラッカーをリセットする。 */
+    private boolean cachedFadeTransitionsActive = false;
     /** 天井スライス等の要素集合の差分を union した再構築範囲。 */
     private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
-    private boolean cachedDisableIndoorNear;
     private int cachedCullingMode;
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
@@ -195,7 +192,7 @@ public final class TopDownCuller {
         
         currentSpaceEnclosed = false;
         cachedDisableIndoorFade = false;
-        cachedDisableIndoorNear = false;
+        cachedFadeTransitionsActive = false;
         cachedIndoorElementActive = false;
         cachedCoverCullingActive = false;
         currentSpaceResult = null;
@@ -348,17 +345,6 @@ public final class TopDownCuller {
         return isCulled;
     }
 
-    private boolean isPlayerNearBlock(BlockPos pos) {
-        int pBX = cachedPlayerBlockX;
-        int pBY = cachedPlayerFloorY;
-        int pBZ = cachedPlayerBlockZ;
-        int rangeH = Config.getPlayerNearTranslucencyRangeHorizontal();
-        int rangeV = Config.getPlayerNearTranslucencyRangeVertical();
-        return pos.getX() >= pBX - rangeH && pos.getX() <= pBX + rangeH
-            && pos.getZ() >= pBZ - rangeH && pos.getZ() <= pBZ + rangeH
-            && pos.getY() >= pBY && pos.getY() < pBY + rangeV;
-    }
-
     /**
      * 注視点（プレイヤー）から一定距離以上離れた列で、地表から深い位置のブロックをカリングする。
      * トップダウン視点では地表下は見えないため、遠方の地下ジオメトリを削減する。
@@ -380,35 +366,30 @@ public final class TopDownCuller {
         return pos.getY() < surfaceY - cachedUndergroundCullingKeepDepth;
     }
 
+    /**
+     * 円柱フェードの判定。円柱内(カメラ〜プレイヤー)はカリング対象(0.0)、
+     * それ以外は不透明(1.0)。視界コーン・ピラミッド保護で残すブロックは 1.0 以上になる。
+     */
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
                 cX, cY, cZ);
+        if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
+            return 1.0f;
+        }
 
         // 円柱内でも、プレイヤーより奥や真横のブロックは保護する。
         // カメラ側(手前)の視界コーン内だけをカリングし、手前の壁を通り抜けて見えるようにする。
-        if (cachedViewWedgeProtection && normalizedDistSq >= 0.0 && normalizedDistSq <= 1.0
-                && !OcclusionCalculator.isWithinViewWedge(
-                        pos.getX() + 0.5, pos.getZ() + 0.5,
-                        pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
+        if (cachedViewWedgeProtection && !OcclusionCalculator.isWithinViewWedge(
+                pos.getX() + 0.5, pos.getZ() + 0.5,
+                pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
             return 1.0f;
         }
 
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
                 pos, pX, pY, pZ, cX, cZ);
-
-        float cylinderAlpha;
-        if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
-            cylinderAlpha = 1.0f;
-        } else if (normalizedDistSq <= cachedFadeStart) {
-            cylinderAlpha = (float) cachedFadeNearAlpha;
-        } else {
-            double t = (normalizedDistSq - cachedFadeStart) / (1.0 - cachedFadeStart);
-            cylinderAlpha = (float) (cachedFadeNearAlpha + t * (1.0 - cachedFadeNearAlpha));
-        }
-
-        float finalAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
+        float finalAlpha = (float) pyramidFactor;
         // FASTグラフィックの葉は不透明テクスチャで描かれるため、半透明にすると「別ブロック」のように
         // 見える。見た目の変化を避けるため、半透明化せず完全にカリングして視界から消す。
         if (finalAlpha < 1.0f && isFastGraphicsLeaves(state)) {
@@ -533,6 +514,9 @@ public final class TopDownCuller {
             return;
         }
 
+        // カリング座標はブロック中心に量子化する。カリング結果キャッシュは「カメラ/プレイヤーの
+        // ブロックが変わったら破棄」で、ブロック内では判定が一定である前提のため、生座標だと
+        // 1tickごとに文脈が変わってキャッシュが古くなり、範囲内なのに未カリング/誤復元が起きる。
         playerX = currentBlockX + 0.5;
         playerY = currentBlockY + 0.5;
         playerZ = currentBlockZ + 0.5;
@@ -543,11 +527,6 @@ public final class TopDownCuller {
 
         CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift(),
                 playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
-
-        cachedFadeStart = Config.getFadeStart();
-        cachedFadeNearAlpha = Config.getFadeNearAlpha();
-        cachedFadeBlockHitThreshold = Config.getFadeBlockHitThreshold();
-        cachedPlayerNearTranslucencyHittable = Config.isPlayerNearTranslucencyHittable();
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
@@ -635,19 +614,19 @@ public final class TopDownCuller {
             // ドールハウス表示専用: カリング固有の処理(フェード/エンティティカリング等)は走らせない。
             return;
         }
-        // 屋内判定が変わったらキャッシュを破棄して、フェード/近接半透明化の切替を即座に反映する
+        // 屋内判定が変わったらキャッシュを破棄して、フェードの切替を即座に反映する
         boolean disableIndoorFade = Config.isDisableFadeIndoors() && currentSpaceEnclosed;
-        boolean disableIndoorNear = Config.isDisableNearTranslucencyIndoors() && currentSpaceEnclosed;
-        if (disableIndoorFade != cachedDisableIndoorFade || disableIndoorNear != cachedDisableIndoorNear) {
+        if (disableIndoorFade != cachedDisableIndoorFade) {
             cullingCache.clear();
             fadeCache.clear();
         }
         cachedDisableIndoorFade = disableIndoorFade;
-        cachedDisableIndoorNear = disableIndoorNear;
         if (cachedCoverCullingActive && coverHandler.isReleasing()) {
             // 覆いのカリング開始時刻が時間で進むため、ワーカーの判定結果を毎tick作り直す。
             cullingCache.clear();
         }
+        // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
+        fadeTransitionController.tick();
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
@@ -865,6 +844,23 @@ public final class TopDownCuller {
         } else {
             coverHandler.clearCache();
         }
+
+        drainFadeRestores();
+    }
+
+    /**
+     * カリング側の集合差分(天井スライス・覆い)を「復元済み」として記録する。
+     * 復元フラッシュは描かない(メッシュ再構築で即時復帰)ため、ここでは
+     * 直後に再カリングされたときの誤フラッシュ抑制だけを行う。
+     */
+    private void drainFadeRestores() {
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet leaving = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        ceilingSliceCuller.takeLeavingPositions(leaving);
+        coverHandler.takeDroppedPositions(leaving);
+        if (!leaving.isEmpty()) {
+            fadeTransitionController.registerRestores(leaving);
+            cullingCache.clear();
+        }
     }
 
     /** probe ワーカー例外のログ (スパム防止で最初の1件のみ)。 */
@@ -979,6 +975,11 @@ public final class TopDownCuller {
         return cachedCoverCullingActive && coverHandler.isReleasing();
     }
 
+    /** 復元フェードの差分トラッカー(描画側が遷移時刻を読むため公開)。 */
+    public FadeTransitionController getFadeController() {
+        return fadeTransitionController;
+    }
+
     /** 屋内の天井スライスカリングが有効か。 */
     public boolean isIndoorElementActive() {
         return cachedIndoorElementActive;
@@ -1049,33 +1050,14 @@ public final class TopDownCuller {
         ceilingSliceCuller.clearPendingChange();
     }
 
-    public float getFadeAlpha(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode()) return 1.0f;
-        long posLong = pos.asLong();
-        // 天井スライスのブロックは透明(0)。それ以外は通常のフェード/半透明をそのまま適用する。
-        if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return 0.0f;
-        if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) return 0.0f;
-        float cached = fadeCache.getFadeAlpha(posLong);
-        if (cached >= 0.0f) return cached;
-
-        BlockState state = level.getBlockState(pos);
-        float fadeAlpha = calculateFadeAlpha(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
-
-        // 近接半透明化はカリング済み(フェード対象)のブロックだけに適用する。カリングされて
-        // いないブロックは不透明のまま残すため、プレイヤー周囲を箱状に消さない。
-        if (fadeAlpha < 1.0f && Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear
-                && isPlayerNearBlock(pos)
-                && !isProtectedBlock(pos, state, playerY, level)
-                && !isFastGraphicsLeaves(state)) {
-            float nearAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
-            fadeCache.putFadeAlpha(posLong, nearAlpha);
-            return nearAlpha;
-        }
-
-        // 屋内では境界フェードの半透明ゴーストを止める(カリング自体は calculateFadeAlpha 側で維持)
-        if (!Config.isFadeEnabled() || cachedDisableIndoorFade) return 1.0f;
-        fadeCache.putFadeAlpha(posLong, fadeAlpha);
-        return fadeAlpha;
+    /**
+     * カリング境界の半ゴースト表示の間、マウスレイキャストをブロックするか。
+     * 遷移フェード(消失/復元)のフラッシュ中の位置は実ブロックとみなして触れられる。
+     */
+    public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() || level == null) return false;
+        if (!cachedFadeTransitionsActive) return false;
+        return com.topdownview.client.TranslucentBlockRenderer.isGhostVisible(pos.asLong());
     }
 
     /**
@@ -1087,50 +1069,37 @@ public final class TopDownCuller {
                 && Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST;
     }
 
-    public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() || level == null) return false;
-        if (!Config.isFadeEnabled() && !Config.isPlayerNearTranslucencyEnabled() && !Config.isStaircaseOccludeEnabled() 
-            && !Config.isLadderOccludeEnabled() && !Config.isTreeOccludeEnabled()) return false;
-        if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(pos.asLong())) return false;
-        if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) return false;
-        float alpha = getFadeAlpha(pos, level);
-        if (alpha >= 1.0f) return false;
-        // 近接ブロック表示は不透明度が固定のため、オン/オフ設定で触れ可否を決める
-        if (isPlayerNearTranslucencyBlock(pos, level)) return cachedPlayerNearTranslucencyHittable;
-        return alpha > cachedFadeBlockHitThreshold;
-    }
-
     /**
-     * {@link #getFadeAlpha} が近接半透明化を適用したブロックかを判定する。
-     * 同じ条件(カリング済み・プレイヤー近傍・保護対象外・FAST葉以外)を再評価する。
+     * 遷移フェードの対象集合(=今カリングされている位置)に入れ替わる集合を返す。
+     * 遷移フェードが無効な間は空集合。
      */
-    private boolean isPlayerNearTranslucencyBlock(BlockPos pos, BlockGetter level) {
-        if (!Config.isPlayerNearTranslucencyEnabled() || cachedDisableIndoorNear) return false;
-        if (!isPlayerNearBlock(pos)) return false;
-        BlockState state = level.getBlockState(pos);
-        if (isProtectedBlock(pos, state, playerY, level)) return false;
-        if (isFastGraphicsLeaves(state)) return false;
-        return calculateFadeAlpha(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ) < 1.0f;
-    }
-
-    public it.unimi.dsi.fastutil.longs.Long2FloatMap getFadeBlocks(BlockGetter level) {
+    public it.unimi.dsi.fastutil.longs.LongOpenHashSet getFadePositions(BlockGetter level) {
         long tCollect = System.nanoTime();
-        it.unimi.dsi.fastutil.longs.Long2FloatMap result = collectFadeBlocksImpl(level);
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet result = collectCullSetImpl(level);
         PerfMonitor.FADE_COLLECT.add(System.nanoTime() - tCollect);
         return result;
     }
 
-    private it.unimi.dsi.fastutil.longs.Long2FloatMap collectFadeBlocksImpl(BlockGetter level) {
-        boolean fadeEnabled = Config.isFadeEnabled() && !cachedDisableIndoorFade;
-        boolean stairOcclude = Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled();
-        boolean ladderOcclude = Config.isLadderOccludeEnabled();
-        boolean treeOcclude = Config.isTreeOccludeEnabled();
-        boolean playerNearTrans = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear;
-
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() ||
-            (!fadeEnabled && !stairOcclude && !ladderOcclude && !treeOcclude && !playerNearTrans) || level == null || !contextValid) {
-            fadeCache.clearFadeBlocks();
-            return fadeCache.getFadeBlocksCache();
+    private it.unimi.dsi.fastutil.longs.LongOpenHashSet collectCullSetImpl(BlockGetter level) {
+        // 遷移フェード(ゴースト表示)が無効な間はイベントを出さない。カリング自体は
+        // isBlockCulled 側で維持され、消失/復元は即時のまま。
+        boolean transitionsActive = ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled()
+                && !ModState.STATUS.isMiningMode() && Config.isFadeEnabled()
+                && !cachedDisableIndoorFade && contextValid;
+        if (!transitionsActive) {
+            if (cachedFadeTransitionsActive) {
+                cachedFadeTransitionsActive = false;
+                fadeTransitionController.clearCache();
+                fadeCache.clear();
+            }
+            return fadeCache.getFadePositions();
+        }
+        if (!cachedFadeTransitionsActive) {
+            cachedFadeTransitionsActive = true;
+            fadeCache.clear();
+        }
+        if (level == null) {
+            return fadeCache.getFadePositions();
         }
 
         Minecraft mc = Minecraft.getInstance();
@@ -1141,9 +1110,12 @@ public final class TopDownCuller {
             int cBX = (int) Math.floor(cameraX);
             int cBY = (int) Math.floor(cameraY);
             int cBZ = (int) Math.floor(cameraZ);
-            if (!fadeTransitionController.hasActiveHandoffs() && pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
+            // 覆いの開始時刻が進行中は位置が同じでも走査し直す(時間差で消える覆いを取りこぼさない)。
+            // 復元ホールド中は走査不要: 描画はトラッカーのホールドを直接読むため。
+            boolean timeDriven = cachedCoverCullingActive && coverHandler.isReleasing();
+            if (!timeDriven && pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
                     && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ) {
-                return fadeCache.getFadeBlocksCache();
+                return fadeCache.getFadePositions();
             }
             lastFadePBlockX = pBX;
             lastFadePBlockY = pBY;
@@ -1153,22 +1125,45 @@ public final class TopDownCuller {
             lastFadeCBlockZ = cBZ;
         }
 
-        fadeCache.clearFadeBlocks();
+        fadeCache.clear();
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet current = fadeCache.getFadePositions();
 
-        if (stairOcclude) stairHandler.collectOcclusionBlocks(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, fadeCache);
-        if (ladderOcclude) ladderHandler.collectOcclusionBlocks(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, fadeCache);
-        if (treeOcclude) treeHandler.collectOcclusionBlocks(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, fadeCache);
-
-        if ((fadeEnabled || playerNearTrans) && !fadeCache.isFadeBlocksFull()) {
-            collectFadeBlocks(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+        if (Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled()) {
+            stairHandler.collectCullPositions(level, current);
+        }
+        if (Config.isLadderOccludeEnabled()) {
+            ladderHandler.collectCullPositions(level, current);
+        }
+        if (Config.isTreeOccludeEnabled()) {
+            treeHandler.collectCullPositions(level, current);
+        }
+        if (cachedCoverCullingActive) {
+            coverHandler.addOverdueCullPositions(current);
+        }
+        if (cachedIndoorElementActive) {
+            ceilingSliceCuller.forEachSlicePosition(current);
         }
 
-        return fadeCache.getFadeBlocksCache();
+        collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, current);
+
+        // 消失/復元の差分を検出する。収集漏れは生判定で保持され、復元ホールドが立つ。
+        // 収集漏れの保持(再カリングの誤フラッシュ防止)のため生判定で検証する。
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        fadeTransitionController.processCullSet(current, posLong -> {
+            probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+            return isBlockCulled(probe, level);
+        });
+
+        return current;
     }
 
-    private void collectFadeBlocks(BlockGetter level, double pX, double pY, double pZ, double cX, double cY, double cZ) {
-        fadeTransitionController.onStartCollection();
-
+    /**
+     * 円柱フェード帯(カメラとプレイヤー間で半透明表示の対象になっていたブロック)の
+     * 内、カリング条件と一致する位置を収集する。地下カリングはここでは扱わない
+     * (遠方地下の消去はフェードなしの即時切替)。
+     */
+    private void collectCylinderCullPositions(BlockGetter level, double pX, double pY, double pZ,
+            double cX, double cY, double cZ, it.unimi.dsi.fastutil.longs.LongOpenHashSet out) {
         int radiusH = cachedCylinderRadiusHorizontal;
         int radiusV = cachedCylinderRadiusVertical;
         int margin = 2;
@@ -1181,14 +1176,9 @@ public final class TopDownCuller {
         int maxZ = (int) Math.floor(Math.max(pZ, cZ)) + radiusH + margin;
 
         // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
-        boolean fadeEnabled = Config.isFadeEnabled() && !cachedDisableIndoorFade;
-        boolean nearTranslucencyEnabled = Config.isPlayerNearTranslucencyEnabled() && !cachedDisableIndoorNear;
         boolean ladderOcclude = Config.isLadderOccludeEnabled();
         boolean stairOcclude = Config.isStaircaseExclusionEnabled();
         boolean treeOcclude = Config.isTreeOccludeEnabled();
-        // FASTグラフィックの葉は半透明にすると見た目が変わるため、フェード集合へ入れず消す。
-        boolean fastGraphics = Minecraft.getInstance().options.graphicsMode().get()
-                == net.minecraft.client.GraphicsStatus.FAST;
 
         MutableBlockPos mutablePos = new MutableBlockPos();
 
@@ -1196,72 +1186,30 @@ public final class TopDownCuller {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
-                    boolean isNearTarget = nearTranslucencyEnabled && isPlayerNearBlock(mutablePos);
-
-                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(x + 0.5, y + 0.5, z + 0.5, cX, cY, cZ);
-                    double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(mutablePos, pX, pY, pZ, cX, cZ);
-
-                    float cylinderAlpha;
-                    if (normalizedDistSq < 0 || normalizedDistSq > 1.0) cylinderAlpha = 1.0f;
-                    else if (normalizedDistSq <= cachedFadeStart) cylinderAlpha = (float) cachedFadeNearAlpha;
-                    else {
-                        double t = (normalizedDistSq - cachedFadeStart) / (1.0 - cachedFadeStart);
-                        cylinderAlpha = (float) (cachedFadeNearAlpha + t * (1.0 - cachedFadeNearAlpha));
-                    }
-                    float tempAlpha = (float) Math.max(cylinderAlpha, pyramidFactor);
-
-                    long posLong = mutablePos.asLong();
-                    boolean isTarget = false;
-                    float finalAlpha = tempAlpha;
-                    boolean cylinderCulled = tempAlpha < 1.0f;
-
-                    if (isNearTarget && cylinderCulled) {
-                        // 近接半透明化はカリング済みのブロックだけを対象にする
-                        isTarget = true;
-                        finalAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
-                    } else if (cylinderCulled && tempAlpha > 0.0f && fadeEnabled) {
-                        isTarget = true;
-                        fadeTransitionController.onBlockFaded(posLong);
-                    } else if (fadeEnabled && tempAlpha >= 1.0f
-                            && fadeTransitionController.isHandoffActive(posLong)) {
-                        isTarget = true;
-                        finalAlpha = 1.0f;
-                        fadeTransitionController.activateHandoff(posLong);
-                    }
-
-                    if (!isTarget) continue;
-
-                    if (cachedViewWedgeProtection
-                            && normalizedDistSq >= 0.0 && normalizedDistSq <= 1.0
-                            && !OcclusionCalculator.isWithinViewWedge(
-                                    mutablePos.getX() + 0.5, mutablePos.getZ() + 0.5,
-                                    pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
-                        continue;
-                    }
-
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
+                    if (calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ) >= 1.0f) continue;
+                    // 保護対象(支え/操作可能ブロック等)はカリングされないので集合にも入れない。
                     if (isProtectedBlock(mutablePos, state, pY, level)) continue;
 
-                    if (cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)) continue;
+                    long posLong = mutablePos.asLong();
+
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
                     if (cachedCoverCullingActive && coverHandler.isCoverBlock(mutablePos)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
-
-                    if (finalAlpha < 1.0f && state.is(net.minecraft.tags.BlockTags.LEAVES) && fastGraphics) {
+                    if (state.is(net.minecraft.tags.BlockTags.LEAVES)
+                            && Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
                         continue;
                     }
 
-                    fadeCache.putFadeBlock(posLong, finalAlpha);
-                    if (fadeCache.isFadeBlocksFull()) break;
+                    out.add(posLong);
+                    if (out.size() >= 4000) return;
                 }
-                if (fadeCache.isFadeBlocksFull()) break;
+                if (out.size() >= 4000) return;
             }
-            if (fadeCache.isFadeBlocksFull()) break;
+            if (out.size() >= 4000) return;
         }
-
-        fadeTransitionController.onEndCollection();
     }
 }

@@ -1,6 +1,5 @@
 package com.topdownview.culling.geometry;
 
-import com.topdownview.Config;
 import net.minecraft.core.BlockPos;
 
 /**
@@ -73,8 +72,7 @@ public final class PyramidProtectionCalc {
 
         if (diff >= -FADE_BOUNDARY_THICKNESS) {
             double t = (FADE_BOUNDARY_THICKNESS + diff) / FADE_BOUNDARY_THICKNESS;
-            double fadeNearAlpha = Config.getFadeNearAlpha();
-            return fadeNearAlpha + t * (1.0 - fadeNearAlpha);
+            return t;
         }
 
         return 0.0;

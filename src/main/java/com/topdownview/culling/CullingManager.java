@@ -212,6 +212,7 @@ public final class CullingManager {
             radiusH = Config.getCylinderRadiusHorizontal();
             radiusV = Config.getCylinderRadiusVertical();
         }
+        // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
         if (coverReleasing) {
             // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。

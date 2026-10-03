@@ -7,6 +7,7 @@ import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.SpaceDebugState;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -21,6 +22,9 @@ import java.util.Set;
  * 階段ブロックの走査、保護、および視線遮蔽判定を担うハンドラー。
  */
 public final class StairCullingHandler {
+
+    private static final int MAX_FADE_POSITIONS = FadeCacheManager.MAX_FADE_POSITIONS;
+
     /** チャンク構築ワーカーから読まれるため、集合は volatile 参照ごと差し替える。 */
     private volatile Set<BlockPos> excludedStairBlocks = Set.of();
     private List<Staircase> detectedStaircases = List.of();
@@ -99,24 +103,17 @@ public final class StairCullingHandler {
         return !excluded.isEmpty() && excluded.contains(pos);
     }
 
-    public void collectOcclusionBlocks(BlockGetter level, double pX, double pY, double pZ,
-            double cX, double cY, double cZ, FadeCacheManager fadeCache) {
+    public void collectCullPositions(BlockGetter level, LongOpenHashSet out) {
         Set<BlockPos> excluded = excludedStairBlocks;
         if (detectedStaircases.isEmpty() || !Config.isStaircaseExclusionEnabled() || !Config.isStaircaseOccludeEnabled()) {
             return;
         }
 
-        float occludeAlpha = (float) Config.getStaircaseOccludeAlpha();
-
         for (Staircase stair : detectedStaircases) {
-            if (fadeCache.isFadeBlocksFull()) {
+            if (out.size() >= MAX_FADE_POSITIONS) {
                 return;
             }
-            List<BlockPos> steps = stair.getSteps();
-            boolean anyOccluding = OcclusionFadeCollector.anyOccluding(steps, excluded,
-                    cX, cY, cZ, pX, pY, pZ);
-            float alpha = anyOccluding ? occludeAlpha : 1.0f;
-            OcclusionFadeCollector.putBlocks(level, fadeCache, steps, excluded, alpha);
+            OcclusionFadeCollector.addBlocks(level, out, stair.getSteps(), excluded);
         }
     }
 }

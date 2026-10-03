@@ -4,10 +4,12 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.topdownview.Config;
+import com.topdownview.culling.FadeTransitionController;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.util.PerfMonitor;
-import it.unimi.dsi.fastutil.longs.Long2FloatMap;
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -25,18 +27,36 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.model.data.ModelData;
 
 /**
- * カリング境界フェード描画 & マイニングモード動的描画
- * RenderLevelStageEvent.AFTER_TRANSLUCENT_BLOCKSで描画
+ * 消失/復元フラッシュ描画(RenderLevelStageEvent.AFTER_TRANSLUCENT_BLOCKS)
+ *
+ * <p>ブロックが消える瞬間(α1→0)と戻る瞬間(α0→1)に半透明ゴーストでフラッシュする。
+ * 位置ごとに α を保持し目標値へ時間比例で動かすため、境界移動で消失/復元が交互に
+ * 起きても α が飛ばず点滅しない。カリング判定には一切介入しない(判定は生のまま)。
+ *
+ * <ul>
+ *   <li>消失: カリング集合の位置。開始時 α=1 から 0 へ。</li>
+ *   <li>復元: 集合から外れた位置。α=0 から 1 へ。メッシュ再構築が戻るまでの穴を覆い、
+ *       メッシュが戻れば ポリゴンオフセット(奥)で隠れて見えない。</li>
+ * </ul>
  */
 public final class TranslucentBlockRenderer {
 
     private static final RandomSource RANDOM = RandomSource.create();
 
-    /**
-     * 前フレームのフェードα。位置ごとに目標値へ指数減衰させ、プレイヤー移動時の
-     * ブロック単位のα段差(点滅)を無くす。描画スレッドからのみ触る。
-     */
-    private static final Long2FloatOpenHashMap SMOOTHED_ALPHAS = new Long2FloatOpenHashMap();
+    private static final long INVALID = Long.MIN_VALUE;
+
+    /** これ以下になったゴーストは描画を止める(完全透明)。 */
+    private static final float ALPHA_EPSILON = 0.02f;
+
+    /** 位置ごとの現在のゴーストα。遷移方向が変わっても連続させる(点滅防止)。 */
+    private static final Long2FloatOpenHashMap GHOST_ALPHA = new Long2FloatOpenHashMap();
+
+    /** 今フレームに描画中のゴースト位置(isHittableFadeBlock / レイキャスト用)。 */
+    private static final LongOpenHashSet GHOST_VISIBLE = new LongOpenHashSet();
+
+    /** 今フレーム処理した位置。使われなくなった α を掃除するための作業用。 */
+    private static final LongOpenHashSet SEEN = new LongOpenHashSet();
+
     private static long lastFrameNanos;
 
     // 描画スレッド専用。ラッパーをフレーム毎に生成しないよう再利用する。
@@ -48,10 +68,17 @@ public final class TranslucentBlockRenderer {
         throw new IllegalStateException("ユーティリティクラス");
     }
 
-    /** 次元変更時に旧次元のα平滑化状態を破棄する。 */
-    public static void clearAlphaSmoothing() {
-        SMOOTHED_ALPHAS.clear();
+    /** 次元変更時に遷移フェードの状態を破棄する。 */
+    public static void clearTransitionState() {
+        GHOST_ALPHA.clear();
+        GHOST_VISIBLE.clear();
+        SEEN.clear();
         lastFrameNanos = 0L;
+    }
+
+    /** ゴーストが今描画されている位置か(レイキャストのヒット判定用)。 */
+    public static boolean isGhostVisible(long posLong) {
+        return GHOST_VISIBLE.contains(posLong);
     }
 
     public static void renderFadeBlocks(RenderLevelStageEvent event) {
@@ -65,76 +92,119 @@ public final class TranslucentBlockRenderer {
         if (mc.level == null || mc.player == null) {
             return;
         }
-
-        // フェード有効/無効の判定は getFadeBlocks() 側で行う。
-        Long2FloatMap fadeBlocks = TopDownCuller.getInstance().getFadeBlocks(mc.level);
-        PerfMonitor.recordFadeBlocks(fadeBlocks.size());
-
-        if (fadeBlocks.isEmpty()) {
-            SMOOTHED_ALPHAS.clear();
+        // スクリーン/ポーズ中は描画もα更新も凍結する(時間だけ進んで戻った瞬間に
+        // フラッシュが一斉に消えるのを防ぐ)。
+        if (mc.screen != null || mc.isPaused()) {
             lastFrameNanos = 0L;
             return;
         }
 
-        long now = System.nanoTime();
-        float dt = lastFrameNanos == 0L ? 0.0f : Math.min((now - lastFrameNanos) / 1.0E9f, 0.1f);
-        lastFrameNanos = now;
-        float halfLife = (float) Config.getFadeSmoothingHalfLife();
+        TopDownCuller culler = TopDownCuller.getInstance();
+        LongOpenHashSet fadePositions = culler.getFadePositions(mc.level);
+        FadeTransitionController tracker = culler.getFadeController();
+        PerfMonitor.recordFadeBlocks(fadePositions.size());
+
+        long now = System.currentTimeMillis();
+        float transitionMs = (float) (Config.getFadeFlashDuration() * 1000.0);
+        if (transitionMs < 1.0f) {
+            // フェード時間0 = 遷移なし(即時)。状態もゴーストも破棄する。
+            clearTransitionState();
+            return;
+        }
+
+        // フレームレート非依存の変化量。dt をクランプして一時停止復帰での暴れを防ぐ。
+        float dt = lastFrameNanos == 0L ? 0.0f : Math.min((System.nanoTime() - lastFrameNanos) / 1.0E9f, 0.1f);
+        lastFrameNanos = System.nanoTime();
+        float step = dt * 1000.0f / transitionMs;
 
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-
         BlockRenderDispatcher blockRenderer = mc.getBlockRenderer();
 
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
         double pX = mc.player.getX();
         double pY = mc.player.getY();
         double pZ = mc.player.getZ();
-        double maxDistSq = 24.0 * 24.0; // 24ブロックより遠いフェードブロックは描画をスキップ
+        double maxDistSq = 24.0 * 24.0; // 24ブロックより遠いフラッシュブロックは描画をスキップ
 
-        // ラッパーオブジェクトを再利用してアロケーションを抑える
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ALPHA_CONSUMER.setDelegate(baseConsumer);
-        FADE_LEVEL.set(mc.level, fadeBlocks);
+        FADE_LEVEL.set(mc.level, fadePositions);
 
-        for (Long2FloatMap.Entry entry : fadeBlocks.long2FloatEntrySet()) {
-            long posLong = entry.getLongKey();
+        GHOST_VISIBLE.clear();
+        SEEN.clear();
+
+        // ==================== カリング集合(消失/継続) ====================
+        for (LongIterator iterator = fadePositions.iterator(); iterator.hasNext(); ) {
+            long posLong = iterator.nextLong();
+            long start = tracker.getFadeOutStart(posLong);
+            // 新規カリング(開始記録あり)は α=1 から、継続カリングは直前の α から 0 へ。
+            float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong)
+                    : (start != INVALID ? 1.0f : 0.0f);
+            float alpha = approach(previous, 0.0f, step);
+            if (alpha <= ALPHA_EPSILON) {
+                GHOST_ALPHA.remove(posLong);
+                // 完走した消失フラッシュは除去(再シードでの再点滅を防ぐ)。
+                if (start != INVALID) {
+                    tracker.forgetFadeOut(posLong);
+                }
+                continue;
+            }
+            SEEN.add(posLong);
+            GHOST_ALPHA.put(posLong, alpha);
+
             int bx = BlockPos.getX(posLong);
             int by = BlockPos.getY(posLong);
             int bz = BlockPos.getZ(posLong);
-
-            // 距離カリング：遠すぎるフェードブロックの描画・アロケーションをスキップ
             double dx = bx + 0.5 - pX;
             double dy = by + 0.5 - pY;
             double dz = bz + 0.5 - pZ;
             if (dx * dx + dy * dy + dz * dz > maxDistSq) {
                 continue;
             }
-
-            // αを前フレームから時間平滑化(フレームレート非依存)。チラツキ低減用。
-            // 透明化方向(α減少)は遅延なく即時反映し、不透明方向(α増加)だけ滑らかにする。
-            float target = entry.getFloatValue();
-            float previous = SMOOTHED_ALPHAS.getOrDefault(posLong, target);
-            float alpha = target < previous ? target : expDecay(previous, target, halfLife, dt);
-            SMOOTHED_ALPHAS.put(posLong, alpha);
-
+            GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
             renderFadeBlock(mc.level, FADE_LEVEL, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
         }
 
-        // フェード集合から外れたブロックの平滑化状態を破棄(無制限な増加を防ぐ)
-        if (SMOOTHED_ALPHAS.size() > fadeBlocks.size()) {
-            var iterator = SMOOTHED_ALPHAS.long2FloatEntrySet().iterator();
+        // ==================== 復元フラッシュ(集合から外れた位置) ====================
+        // メッシュ再構築が戻るまでの穴を α0→1 で覆う。メッシュが戻ればポリゴンオフセットで
+        // ゴーストは奥に隠れる。再カリングされた位置は消失側が担当するのでここでは描かない。
+        tracker.forEachActiveRestore(posLong -> {
+            if (fadePositions.contains(posLong)) {
+                return;
+            }
+            float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong) : 0.0f;
+            float alpha = approach(previous, 1.0f, step);
+            SEEN.add(posLong);
+            GHOST_ALPHA.put(posLong, alpha);
+
+            int bx = BlockPos.getX(posLong);
+            int by = BlockPos.getY(posLong);
+            int bz = BlockPos.getZ(posLong);
+            double dx = bx + 0.5 - pX;
+            double dy = by + 0.5 - pY;
+            double dz = bz + 0.5 - pZ;
+            if (dx * dx + dy * dy + dz * dz > maxDistSq) {
+                return;
+            }
+            GHOST_VISIBLE.add(posLong);
+            FADE_POS.set(bx, by, bz);
+            renderFadeBlock(mc.level, FADE_LEVEL, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+        });
+
+        // 使われなくなった α を掃除(無制限な増加を防ぐ)。
+        if (!GHOST_ALPHA.isEmpty()) {
+            LongIterator iterator = GHOST_ALPHA.keySet().iterator();
             while (iterator.hasNext()) {
-                if (!fadeBlocks.containsKey(iterator.next().getLongKey())) {
+                if (!SEEN.contains(iterator.nextLong())) {
                     iterator.remove();
                 }
             }
         }
 
-        // 復帰ゴースト(alpha=1)は再構築済みメッシュのブロックと同一平面に描かれることがある。
-        // 深度をわずかに奥へずらし、コプレーナな不透明メッシュに負けさせる。ずらさないと
-        // 半透明ゴーストが不透明ブロックに重なってブレンドされ、明るく光って見える。
+        // ゴーストと不透明メッシュが同一平面に重なることがある。深度をわずかに奥へずらし、
+        // メッシュがある場所ではゴーストを負けさせる(穴の部分だけフラッシュが見える)。
         RenderSystem.enablePolygonOffset();
         RenderSystem.polygonOffset(1.0f, 1.0f);
         try {
@@ -145,13 +215,12 @@ public final class TranslucentBlockRenderer {
         }
     }
 
-    /** フレームレート非依存の指数減衰。halfLife<=0 なら即時追従。 */
-    private static float expDecay(float current, float target, float halfLifeSeconds, float dtSeconds) {
-        if (halfLifeSeconds <= 0.0f || dtSeconds <= 0.0f) {
-            return target;
+    /** 現在値を目標値へ step 分だけ近づける(オーバーシュートしない)。 */
+    private static float approach(float current, float target, float step) {
+        if (current < target) {
+            return Math.min(target, current + step);
         }
-        float factor = 1.0f - (float) Math.pow(2.0, -dtSeconds / halfLifeSeconds);
-        return current + (target - current) * factor;
+        return Math.max(target, current - step);
     }
 
     private static void renderFadeBlock(
@@ -189,9 +258,7 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // 面カリングはフェード集合の所属だけで判定する(α値には依存しない)。
-        // 実ブロックで判定すると、隣が不透明ブロックの面まで消えて露出面(多くの場合は上面)しか
-        // 描かれず、Blockが一面だけの板に見える。フェード同士は面を消して二重合成を防ぐ。
+        // 面カリングはフェード集合の所属だけで判定する。
         blockRenderer.getModelRenderer().tesselateBlock(
                 fadeLevel,
                 model,
@@ -215,23 +282,22 @@ public final class TranslucentBlockRenderer {
      * フェードブロック描画用のBlockAndTintGetterプロキシ。
      * フェード集合内のブロックは実状態を返し(面カリング対象)、集合外のブロックは空気として扱う。
      * こうすることで、フェードブロックは不透明ブロックと接する面も描画され、Blockの形を保つ。
-     * 判定は集合の所属のみで行うため、α値が変化しても面の描画は反転しない。
      */
     private static final class FadeBlockGetter extends DelegatingBlockGetter {
-        private Long2FloatMap fadeBlocks;
+        private LongOpenHashSet fadeBlocks;
 
         FadeBlockGetter() {
             super(null);
         }
 
-        void set(BlockAndTintGetter delegate, Long2FloatMap fadeBlocks) {
+        void set(BlockAndTintGetter delegate, LongOpenHashSet fadeBlocks) {
             this.delegate = delegate;
             this.fadeBlocks = fadeBlocks;
         }
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            if (fadeBlocks.containsKey(pos.asLong())) {
+            if (fadeBlocks != null && fadeBlocks.contains(pos.asLong())) {
                 return delegate.getBlockState(pos);
             }
             return AIR_STATE;

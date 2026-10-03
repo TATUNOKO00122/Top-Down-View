@@ -52,6 +52,12 @@ public final class CoverCullingHandler {
     private static final long RELEASE_WINDOW_MS = 700L;
 
     /**
+     * 一度消えた覆いがスキャンの揺れで集合から外れても、すぐ復元させずカリングを保持する時間。
+     * BFS/viewshed/箱の境界で集合が揺れるたびに「復元→再カリング」で再フェードするのを防ぐ。
+     */
+    private static final long COVER_RETENTION_MS = 1500L;
+
+    /**
      * 覆いブロックとそのカリング開始時刻(ms)。集合全体を一斉に消すと樹冠などが塊で
      * 消えるため、ブロックごとに開始時刻をずらす。ワーカーから読むため volatile 参照を差し替える。
      */
@@ -60,6 +66,9 @@ public final class CoverCullingHandler {
     /** 未カリングのブロックが残る最終時刻(ms)。これを過ぎたら再構築を強制する必要はない。 */
     private volatile long releaseEndMillis;
 
+    /** 保持中(集合から外れたが実際に消えている)覆いの離脱時刻(ms)。メインスレッド専用。 */
+    private final Long2LongOpenHashMap coverLeftAt = new Long2LongOpenHashMap();
+
     private int lastScanX = Integer.MIN_VALUE;
     private int lastScanY = Integer.MIN_VALUE;
     private int lastScanZ = Integer.MIN_VALUE;
@@ -67,7 +76,15 @@ public final class CoverCullingHandler {
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
     public void clearCache() {
+        // この時点で消えている覆いは全て復元対象にする(モード切替・空間離脱の即時ポップを避ける)
+        long nowMillis = System.currentTimeMillis();
+        for (Long2LongMap.Entry entry : coverCullDeadlines.long2LongEntrySet()) {
+            if (nowMillis >= entry.getLongValue()) {
+                droppedPositions.add(entry.getLongKey());
+            }
+        }
         coverCullDeadlines = new Long2LongOpenHashMap();
+        coverLeftAt.clear();
         releaseEndMillis = 0L;
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
@@ -98,6 +115,26 @@ public final class CoverCullingHandler {
     /** まだカリング開始待ちのブロックが残っているか(チャンク再構築の強制が必要か)。 */
     public boolean isReleasing() {
         return System.currentTimeMillis() < releaseEndMillis;
+    }
+
+    /**
+     * 開始時刻に達した覆いブロック(実際にメッシュから消えているもの)を out に積む。
+     * 遷移フェードのイベント源で、走査ごとにワーカー参照から読む。
+     */
+    public void addOverdueCullPositions(LongOpenHashSet out) {
+        Long2LongMap deadlines = coverCullDeadlines;
+        if (deadlines.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (Long2LongMap.Entry entry : deadlines.long2LongEntrySet()) {
+            if (out.size() >= 4000) {
+                return;
+            }
+            if (now >= entry.getLongValue()) {
+                out.add(entry.getLongKey());
+            }
+        }
     }
 
     /**
@@ -189,13 +226,53 @@ public final class CoverCullingHandler {
             long deadline = previous.getOrDefault(posLong,
                     now + staggerDelayMillis(posLong, refX, refY, refZ, radius));
             deadlines.put(posLong, deadline);
+            // 集合へ戻った位置は保持を解除する。
+            coverLeftAt.remove(posLong);
             if (deadline > end) {
                 end = deadline;
             }
         }
+
+        // 集合から外れた覆いのうち、実際にメッシュから消えていたものはすぐには復元せず、
+        // retention の間はカリングを保持する。スキャンの揺れによる再フェードを防ぐ。
+        LongIterator dropped = previous.keySet().iterator();
+        while (dropped.hasNext()) {
+            long droppedLong = dropped.nextLong();
+            if (deadlines.containsKey(droppedLong)) {
+                continue;
+            }
+            long oldDeadline = previous.get(droppedLong);
+            if (oldDeadline > now) {
+                // まだ消えていないブロック: 保持の必要はない(カリング未開始)。
+                coverLeftAt.remove(droppedLong);
+                continue;
+            }
+            long leftAt = coverLeftAt.getOrDefault(droppedLong, now);
+            if (now - leftAt < COVER_RETENTION_MS) {
+                // 保持: 過去の開始時刻のままカリングを継続させる。
+                deadlines.put(droppedLong, oldDeadline);
+                coverLeftAt.put(droppedLong, leftAt);
+            } else {
+                // 保持期限切れ: 復元対象にする。
+                coverLeftAt.remove(droppedLong);
+                droppedPositions.add(droppedLong);
+            }
+        }
+
         coverCullDeadlines = deadlines;
         releaseEndMillis = end;
     }
+
+    /** 復元フェード用: 集合から外れた覆いを out に移して返す(メインスレッド専用)。 */
+    public void takeDroppedPositions(LongOpenHashSet out) {
+        if (droppedPositions.isEmpty()) {
+            return;
+        }
+        out.addAll(droppedPositions);
+        droppedPositions.clear();
+    }
+
+    private final LongOpenHashSet droppedPositions = new LongOpenHashSet();
 
     /** プレイヤーからの距離に比例した遅延(近いほど早い)＋同一距離帯を散らす小さなジッタ。 */
     private static long staggerDelayMillis(long posLong, int refX, int refY, int refZ, int radius) {
