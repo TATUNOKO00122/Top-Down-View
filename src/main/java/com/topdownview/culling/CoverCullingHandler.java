@@ -58,6 +58,12 @@ public final class CoverCullingHandler {
     private static final long COVER_RETENTION_MS = 1500L;
 
     /**
+     * 走査半径の外側でも、この余白(ブロック)以内なら既に消えた覆いを保持する。
+     * 再スキャン間隔(3)より大きくし、前後の往復で境界が揺れても出入りしないようにする。
+     */
+    private static final int COVER_EDGE_MARGIN = 4;
+
+    /**
      * 覆いブロックとそのカリング開始時刻(ms)。集合全体を一斉に消すと樹冠などが塊で
      * 消えるため、ブロックごとに開始時刻をずらす。ワーカーから読むため volatile 参照を差し替える。
      */
@@ -68,6 +74,17 @@ public final class CoverCullingHandler {
 
     /** 保持中(集合から外れたが実際に消えている)覆いの離脱時刻(ms)。メインスレッド専用。 */
     private final Long2LongOpenHashMap coverLeftAt = new Long2LongOpenHashMap();
+
+    /**
+     * 復元(=保持切れでカリング解除)した時刻(ms)。メインスレッド専用。
+     *
+     * <p>直近に復元した覆いが再度集合へ入ったときは、新しい未来の開始時刻を与えず即カリングに
+     * 戻す。視界シェード/BFS の揺れで離脱→再集合が繰り返されると、時間差の再割り当てで
+     * 「出現→フェード消失」が往復してしまうための緩和。
+     */
+    private static final long COVER_RE_CULL_WINDOW_MS = 3000L;
+
+    private final Long2LongOpenHashMap lastDroppedAt = new Long2LongOpenHashMap();
 
     private int lastScanX = Integer.MIN_VALUE;
     private int lastScanY = Integer.MIN_VALUE;
@@ -85,6 +102,7 @@ public final class CoverCullingHandler {
         }
         coverCullDeadlines = new Long2LongOpenHashMap();
         coverLeftAt.clear();
+        lastDroppedAt.clear();
         releaseEndMillis = 0L;
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
@@ -223,8 +241,19 @@ public final class CoverCullingHandler {
         long end = 0L;
         while (iterator.hasNext()) {
             long posLong = iterator.nextLong();
-            long deadline = previous.getOrDefault(posLong,
-                    now + staggerDelayMillis(posLong, refX, refY, refZ, radius));
+            long oldDeadline = previous.getOrDefault(posLong, Long.MIN_VALUE);
+            long deadline;
+            if (oldDeadline != Long.MIN_VALUE) {
+                deadline = oldDeadline;
+            } else {
+                deadline = now + staggerDelayMillis(posLong, refX, refY, refZ, radius);
+                long droppedAt = lastDroppedAt.getOrDefault(posLong, -1L);
+                if (droppedAt >= 0L && now - droppedAt < COVER_RE_CULL_WINDOW_MS) {
+                    // 直近に復元した位置の再集合: 未来の時間差を与えて表示し直すと
+                    // (出現→フェード消失)の往復になるので、即カリングに戻す。
+                    deadline = now;
+                }
+            }
             deadlines.put(posLong, deadline);
             // 集合へ戻った位置は保持を解除する。
             coverLeftAt.remove(posLong);
@@ -247,15 +276,36 @@ public final class CoverCullingHandler {
                 coverLeftAt.remove(droppedLong);
                 continue;
             }
+            int edgeDistance = Math.max(Math.abs(BlockPos.getX(droppedLong) - refX),
+                    Math.abs(BlockPos.getZ(droppedLong) - refZ));
+            if (edgeDistance > radius && edgeDistance <= radius + COVER_EDGE_MARGIN) {
+                // 半径の外へ出ただけ(走査範囲外で未評価)の覆いは余白内なら保持する。
+                // 端にまたがる木が歩行のたびに一部だけ「復元→再カリング」を繰り返すのを防ぐ。
+                deadlines.put(droppedLong, oldDeadline);
+                coverLeftAt.remove(droppedLong);
+                continue;
+            }
             long leftAt = coverLeftAt.getOrDefault(droppedLong, now);
             if (now - leftAt < COVER_RETENTION_MS) {
                 // 保持: 過去の開始時刻のままカリングを継続させる。
                 deadlines.put(droppedLong, oldDeadline);
                 coverLeftAt.put(droppedLong, leftAt);
             } else {
-                // 保持期限切れ: 復元対象にする。
+                // 保持期限切れ: 復元対象にする。再集合時の即時カリング戻しのために時刻も残す。
                 coverLeftAt.remove(droppedLong);
+                lastDroppedAt.put(droppedLong, now);
                 droppedPositions.add(droppedLong);
+            }
+        }
+
+        // 古い離脱記録を掃除(窓より古いものは通常の時間差割り当てに戻す)。
+        if (!lastDroppedAt.isEmpty()) {
+            LongIterator stale = lastDroppedAt.keySet().iterator();
+            while (stale.hasNext()) {
+                long staleLong = stale.nextLong();
+                if (now - lastDroppedAt.get(staleLong) >= COVER_RE_CULL_WINDOW_MS) {
+                    stale.remove();
+                }
             }
         }
 

@@ -19,7 +19,6 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -70,7 +69,6 @@ public final class TranslucentBlockRenderer {
 
     // 描画スレッド専用。ラッパーをフレーム毎に生成しないよう再利用する。
     private static final AlphaVertexConsumer ALPHA_CONSUMER = new AlphaVertexConsumer();
-    private static final FadeBlockGetter FADE_LEVEL = new FadeBlockGetter();
     private static final BlockPos.MutableBlockPos FADE_POS = new BlockPos.MutableBlockPos();
 
     private TranslucentBlockRenderer() {
@@ -109,7 +107,9 @@ public final class TranslucentBlockRenderer {
         }
 
         TopDownCuller culler = TopDownCuller.getInstance();
-        LongOpenHashSet fadePositions = culler.getFadePositions(mc.level);
+        // 走査/差分検出は update()(ティック)側で行いホールドを再構築スケジューリングより先に
+        // 確定させる。描画側は走査済み集合を読むだけ。
+        LongOpenHashSet fadePositions = culler.getCollectedFadePositions();
         FadeTransitionController tracker = culler.getFadeController();
         PerfMonitor.recordFadeBlocks(fadePositions.size());
 
@@ -140,7 +140,6 @@ public final class TranslucentBlockRenderer {
 
         VertexConsumer baseConsumer = bufferSource.getBuffer(RenderType.translucent());
         ALPHA_CONSUMER.setDelegate(baseConsumer);
-        FADE_LEVEL.set(mc.level, fadePositions);
 
         GHOST_VISIBLE.clear();
         SEEN.clear();
@@ -175,7 +174,7 @@ public final class TranslucentBlockRenderer {
             }
             GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
-            renderFadeBlock(mc.level, FADE_LEVEL, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+            renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
         }
 
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
@@ -201,7 +200,7 @@ public final class TranslucentBlockRenderer {
             }
             GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
-            renderFadeBlock(mc.level, FADE_LEVEL, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+            renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
         });
 
         // 使われなくなった α を掃除(無制限な増加を防ぐ)。
@@ -236,7 +235,6 @@ public final class TranslucentBlockRenderer {
 
     private static void renderFadeBlock(
             BlockAndTintGetter level,
-            FadeBlockGetter fadeLevel,
             BlockPos pos,
             PoseStack poseStack,
             BlockRenderDispatcher blockRenderer,
@@ -269,15 +267,17 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // 面カリングはフェード集合の所属だけで判定する。
+        // 実レベルを渡し、面カリングを無効化(checkSides=false)して全面を描く。近傍を空気と偽ると
+        // AO(環境遮蔽)が一切かからず実ブロックより平坦/明るくなるため、近傍は実状態のまま参照させ、
+        // 内部面は深度で隠す。
         blockRenderer.getModelRenderer().tesselateBlock(
-                fadeLevel,
+                level,
                 model,
                 state,
                 pos,
                 poseStack,
                 alphaConsumer,
-                true,
+                false,
                 RANDOM,
                 seed,
                 OverlayTexture.NO_OVERLAY,
@@ -285,33 +285,5 @@ public final class TranslucentBlockRenderer {
                 RenderType.translucent());
 
         poseStack.popPose();
-    }
-
-    private static final BlockState AIR_STATE = Blocks.AIR.defaultBlockState();
-
-    /**
-     * フェードブロック描画用のBlockAndTintGetterプロキシ。
-     * フェード集合内のブロックは実状態を返し(面カリング対象)、集合外のブロックは空気として扱う。
-     * こうすることで、フェードブロックは不透明ブロックと接する面も描画され、Blockの形を保つ。
-     */
-    private static final class FadeBlockGetter extends DelegatingBlockGetter {
-        private LongOpenHashSet fadeBlocks;
-
-        FadeBlockGetter() {
-            super(null);
-        }
-
-        void set(BlockAndTintGetter delegate, LongOpenHashSet fadeBlocks) {
-            this.delegate = delegate;
-            this.fadeBlocks = fadeBlocks;
-        }
-
-        @Override
-        public BlockState getBlockState(BlockPos pos) {
-            if (fadeBlocks != null && fadeBlocks.contains(pos.asLong())) {
-                return delegate.getBlockState(pos);
-            }
-            return AIR_STATE;
-        }
     }
 }

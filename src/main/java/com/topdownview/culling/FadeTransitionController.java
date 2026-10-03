@@ -68,6 +68,26 @@ public final class FadeTransitionController {
     private long lastFlipLogMillis = 0L;
     private long lastFlipPosLong = Long.MIN_VALUE;
 
+    // ---------- 遷移フェードイベントの診断計測(出現→フェード消失の往復の原因特定用) ----------
+    /** このウィンドウで開始した消失(新規カリング)/復元フラッシュの件数。 */
+    private int vanishEventCount = 0;
+    private int restoreEventCount = 0;
+    private int restoreConfirmedCount = 0;
+    private int pendingCancelCount = 0;
+    private int handlerDroppedCount = 0;
+    private int flipFlopCount = 0;
+    private long lastFlipFlopPosLong = Long.MIN_VALUE;
+    private long lastVanishPosLong = Long.MIN_VALUE;
+    private long lastRestorePosLong = Long.MIN_VALUE;
+    private long fadeDiagLogMillis = 0L;
+    private int diagMaxCollected = 0;
+
+    private static final long FADE_DIAG_LOG_INTERVAL_MS = 5_000L;
+
+    /** 同一位置の直近イベント時刻。この時間内の再イベントを「フリップフロップ」と数える。 */
+    private static final long FLIP_FLOP_WINDOW_MS = 3_000L;
+    private final Long2LongOpenHashMap lastEventAt = new Long2LongOpenHashMap();
+
     /** 前回走査でカリングされていた集合(差分の基準)。 */
     private LongOpenHashSet previousCulled = new LongOpenHashSet();
 
@@ -109,6 +129,17 @@ public final class FadeTransitionController {
         boundaryFlipCount = 0L;
         lastFlipLogMillis = 0L;
         lastFlipPosLong = Long.MIN_VALUE;
+        vanishEventCount = 0;
+        restoreEventCount = 0;
+        restoreConfirmedCount = 0;
+        pendingCancelCount = 0;
+        handlerDroppedCount = 0;
+        flipFlopCount = 0;
+        lastFlipFlopPosLong = Long.MIN_VALUE;
+        lastVanishPosLong = Long.MIN_VALUE;
+        lastRestorePosLong = Long.MIN_VALUE;
+        fadeDiagLogMillis = 0L;
+        lastEventAt.clear();
     }
 
     /** 消失フラッシュの開始時刻ms。進行していなければ INVALID。 */
@@ -167,6 +198,8 @@ public final class FadeTransitionController {
     public int processCullSet(LongSet currentCulled, java.util.function.LongPredicate stillCulled) {
         int flashes = 0;
         long now = System.currentTimeMillis();
+        // TODO(診断・一時)
+        diagMaxCollected = Math.max(diagMaxCollected, currentCulled.size());
         if (!baselineSeeded) {
             previousCulled.addAll(currentCulled);
             baselineSeeded = true;
@@ -190,6 +223,8 @@ public final class FadeTransitionController {
             prevIterator.remove();
             fadeOutStarts.remove(posLong);
             deferRestore(posLong, now);
+            restoreEventCount++;
+            lastRestorePosLong = posLong;
         }
 
         // ---- 今回新たに収集された位置(消失) ----
@@ -201,10 +236,12 @@ public final class FadeTransitionController {
                 continue;
             }
             if (pendingRestores.containsKey(posLong)) {
-                // デバウンス中の復元が取り消された: 消失/復元の往復を無かったことにする。
-                // フラッシュもメッシュホールドも未確定なので関係解除だけで済む。
+                // デバウンス中の再カリング: 復元を取り消し、対応するホールドも外す。
+                // ブロックはカリング中なのでメッシュからは外れたまま。
                 pendingRestores.remove(posLong);
                 restoreStarts.remove(posLong);
+                releaseMeshHold(posLong);
+                pendingCancelCount++;
                 noteBoundaryFlip(posLong, now);
                 continue;
             }
@@ -212,10 +249,14 @@ public final class FadeTransitionController {
                 // 直近に確定復元した位置の再カリング: 境界の揺れとみなしフラッシュしない
                 fadeOutStarts.remove(posLong);
                 restoreStarts.remove(posLong);
+                releaseMeshHold(posLong);
                 noteBoundaryFlip(posLong, now);
             } else if (!fadeOutStarts.containsKey(posLong)) {
+                recordEvent(posLong, now);
                 fadeOutStarts.put(posLong, now);
                 flashes++;
+                vanishEventCount++;
+                lastVanishPosLong = posLong;
             }
         }
 
@@ -223,13 +264,44 @@ public final class FadeTransitionController {
         return flashes;
     }
 
-    /** 復元をデバウンスへ置く(初回検出時刻のみ記録し窓内で延長しない)。 */
+    /**
+     * 復元をデバウンスへ置き、確定までメッシュから外し続ける。
+     *
+     * <p>デバウンス中にホールドしないと、窓内の移動由来再構築が実ブロックをメッシュへ戻し
+     * (フェード無しの1回目の復元)、確定時にホールドが開いて次の再構築で外れ、ゴーストが
+     * 改めてフェードインする(2回目の復元)。これを「二回復元」として防ぐ。
+     */
     private void deferRestore(long posLong, long now) {
+        recordEvent(posLong, now);
         if (pendingRestores.containsKey(posLong)) {
             return;
         }
         pendingRestores.put(posLong, now);
         recentlyRestored.put(posLong, now);
+        // 期限はデバウンス + フェード + 残光。確定後に始まるフェードインより後に切れる。
+        meshHoldUntil.put(posLong, now + RESTORE_DEBOUNCE_MS + getTransitionMillis() + RESTORE_LINGER_MS);
+        meshHoldDirty = true;
+    }
+
+    /**
+     * 同一位置のイベント再発を数える診断。「出現→フェード消失の往復が高頻度で繰り返される」時、
+     * どの位置で再反転が起きているかをはかる。太行走査ごとの十分な掃除を内蔵する。
+     */
+    private void recordEvent(long posLong, long now) {
+        long last = lastEventAt.get(posLong);
+        if (last != 0L && now - last < FLIP_FLOP_WINDOW_MS) {
+            flipFlopCount++;
+            lastFlipFlopPosLong = posLong;
+        }
+        lastEventAt.put(posLong, now);
+        if (lastEventAt.size() > 12000) {
+            LongIterator iterator = lastEventAt.keySet().iterator();
+            while (iterator.hasNext()) {
+                if (now - lastEventAt.get(iterator.nextLong()) >= FLIP_FLOP_WINDOW_MS) {
+                    iterator.remove();
+                }
+            }
+        }
     }
 
     /**
@@ -244,19 +316,30 @@ public final class FadeTransitionController {
         LongIterator iterator = positions.iterator();
         while (iterator.hasNext()) {
             long posLong = iterator.nextLong();
+            // 差分基準からも外す。残すとデバウンス確定が「再カリング済み」と誤認してゴースト無しで
+            // ホールドだけ切れ(突然出現)、次の走査で再検出され穴→フェードが繰り返される。
+            previousCulled.remove(posLong);
             fadeOutStarts.remove(posLong);
             deferRestore(posLong, now);
         }
     }
 
-    private void openMeshHold(long posLong, long now) {
-        meshHoldUntil.put(posLong, now + getTransitionMillis() + RESTORE_LINGER_MS);
-        meshHoldDirty = true;
+    /** メッシュ専用ホールドを外す(復元の取り消し時)。カリング中の位置では穴が維持される。 */
+    private void releaseMeshHold(long posLong) {
+        if (meshHoldUntil.containsKey(posLong)) {
+            meshHoldUntil.remove(posLong);
+            meshHoldDirty = true;
+        }
     }
 
-    /**
-     * 期限切れエントリの掃除とデバウンスの確定。ティックごとにメインスレッドから呼ぶ。
-     */
+    /** カリング側直接(drainFadeRestores)経由の復元登録件数を計測に加える。 */
+    public void noteHandlerDropped(int count) {
+        if (count > 0) {
+            handlerDroppedCount += count;
+        }
+    }
+
+    /** 期限切れエントリの掃除とデバウンスの確定。ティックごとにメインスレッドから呼ぶ。 */
     public void tick() {
         long now = System.currentTimeMillis();
         long transition = getTransitionMillis();
@@ -282,7 +365,7 @@ public final class FadeTransitionController {
             }
         }
 
-        // デバウンスを確定する(フラッシュ開始とメッシュホールドは確定時刻基準)。
+        // デバウンスを確定する(ゴーストのフェード開始のみ。メッシュホールドは検出時に開いている)。
         // publishMeshHoldView は update() 側が tick の直後に呼ぶため、ここでは放置でよい。
         if (!pendingRestores.isEmpty()) {
             LongIterator iterator = pendingRestores.keySet().iterator();
@@ -297,11 +380,36 @@ public final class FadeTransitionController {
                     continue;
                 }
                 restoreStarts.put(posLong, now);
-                openMeshHold(posLong, now);
+                restoreConfirmedCount++;
+                lastRestorePosLong = posLong;
             }
         }
 
-        purgeOlder(recentlyRestored, now, transition * 2);
+        // 復元後の抑制窓。歩行中の同一位置の「復元→再カリング」の往復は長い窓で沈黙させる
+        // (再カリングはフラッシュせず即時の状態変更として返す)。短い窓だと往復が見え続ける。
+        purgeOlder(recentlyRestored, now, Math.max(transition * 2, FLIP_FLOP_WINDOW_MS));
+
+        // 遷移フェードイベントの集計ログ(5秒間隔)。「出現→フェード消失の往復」が消失と復元
+        // どちらの側で起きているかをはかる。最後のイベント位置も残す。
+        if ((vanishEventCount > 0 || restoreEventCount > 0 || pendingCancelCount > 0 || handlerDroppedCount > 0)
+                && (fadeDiagLogMillis == 0L || now - fadeDiagLogMillis >= FADE_DIAG_LOG_INTERVAL_MS)) {
+            LOGGER.info("[TopDownView] fade events/5s: maxCollected={} vanish={} restoreDetected={} restoreConfirmed={} recullCancel={} handlerDropped={} flipFlop={} lastFlashPos=({},{},{}) lastFlopPos=({},{},{})",
+                    diagMaxCollected, vanishEventCount, restoreEventCount, restoreConfirmedCount, pendingCancelCount, handlerDroppedCount, flipFlopCount,
+                    lastVanishPosLong == Long.MIN_VALUE ? -1 : BlockPos.getX(lastVanishPosLong),
+                    lastVanishPosLong == Long.MIN_VALUE ? -1 : BlockPos.getY(lastVanishPosLong),
+                    lastVanishPosLong == Long.MIN_VALUE ? -1 : BlockPos.getZ(lastVanishPosLong),
+                    lastFlipFlopPosLong == Long.MIN_VALUE ? -1 : BlockPos.getX(lastFlipFlopPosLong),
+                    lastFlipFlopPosLong == Long.MIN_VALUE ? -1 : BlockPos.getY(lastFlipFlopPosLong),
+                    lastFlipFlopPosLong == Long.MIN_VALUE ? -1 : BlockPos.getZ(lastFlipFlopPosLong));
+            fadeDiagLogMillis = now;
+            diagMaxCollected = 0;
+            vanishEventCount = 0;
+            restoreEventCount = 0;
+            restoreConfirmedCount = 0;
+            pendingCancelCount = 0;
+            handlerDroppedCount = 0;
+            flipFlopCount = 0;
+        }
 
         // メッシュ専用ホールドの期限切れを除去(期限が来たらメッシュが復帰する)。
         if (!meshHoldUntil.isEmpty()) {

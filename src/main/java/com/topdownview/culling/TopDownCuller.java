@@ -20,6 +20,7 @@ import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.topdownview.util.PerfMonitor;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,7 +58,13 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
-    private static final int CACHE_CLEAR_MOVE_THRESHOLD = 3;
+    /**
+     * カリング判定キャッシュの破棄量子。座標はブロック中心(floor+0.5)に量子化されており、
+     * プレイヤー/カメラの 1 ブロック移動でも判定が反転し得る。3 ブロック閾値にすると、
+     * 幅白血病の間「古い非カリング/カリング値」が焼かれ、メッシュにカリング済みブロックが
+     * 出現してからフラッシュが始まる(出現→フェード)。必ず 1 に保ち、小移動をスキップしない。
+     */
+    private static final int CACHE_CLEAR_MOVE_THRESHOLD = 1;
 
     private double playerX;
     private double playerY;
@@ -653,6 +660,8 @@ public final class TopDownCuller {
             cullingCache.clear();
         }
         // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
+        // 遷移フェードの走査/差分検出はチャンク再構築のスケジューリングより先にここで行う。
+        updateFadePositions(mc.level);
         fadeTransitionController.tick();
         // メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映(再構築より前に)。
         fadeTransitionController.publishMeshHoldView();
@@ -874,7 +883,7 @@ public final class TopDownCuller {
             coverHandler.clearCache();
         }
 
-        drainFadeRestores();
+        drainFadeRestores(level);
     }
 
     /**
@@ -882,13 +891,35 @@ public final class TopDownCuller {
      * 復元フラッシュは描かない(メッシュ再構築で即時復帰)ため、ここでは
      * 直後に再カリングされたときの誤フラッシュ抑制だけを行う。
      */
-    private void drainFadeRestores() {
+    private void drainFadeRestores(BlockGetter level) {
         it.unimi.dsi.fastutil.longs.LongOpenHashSet leaving = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
         ceilingSliceCuller.takeLeavingPositions(leaving);
         coverHandler.takeDroppedPositions(leaving);
+        if (leaving.isEmpty()) {
+            return;
+        }
+        cullingCache.clear();
+        if (!cachedFadeTransitionsActive) {
+            // フェード無効時は復元イベントを登録しない。登録するとデバウンス昇格が
+            // processCullSet の取り消し補正なしで走り、カリング範囲内のブロックに
+            // 復元ゴースト(フェード適用の復元)が一瞬出て消える。
+            return;
+        }
+        // 離脱は「由来ハンドラの集合から外れた」だけを意味する。他のカリング経路(覆い・円柱・
+        // 天井スライス)でまだカリング中なら復元は誤報で、放置するとカリング済みブロックに
+        // 復元ゴーストが立つ(出現→フェード→再カリング)。走査差分と同じ生判定でふるい落とす。
+        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        LongIterator iterator = leaving.iterator();
+        while (iterator.hasNext()) {
+            long posLong = iterator.nextLong();
+            probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+            if (isBlockCulled(probe, level)) {
+                iterator.remove();
+            }
+        }
         if (!leaving.isEmpty()) {
+            fadeTransitionController.noteHandlerDropped(leaving.size());
             fadeTransitionController.registerRestores(leaving);
-            cullingCache.clear();
         }
     }
 
@@ -1108,14 +1139,22 @@ public final class TopDownCuller {
     }
 
     /**
-     * 遷移フェードの対象集合(=今カリングされている位置)に入れ替わる集合を返す。
-     * 遷移フェードが無効な間は空集合。
+     * 遷移フェードの走査を update() からティックごとに実行する。チャンク再構築の
+     * スケジューリング(同 tick の後続)より先に復元ホールド/フラッシュを確定させる。
+     * 描画パスで遅れて検出すると、実ブロックが先にメッシュへ復帰してから復元ゴーストが
+     * 置き換わる(=カリング済みブロックが出現しフェードが始まる)レースが残る。
      */
-    public it.unimi.dsi.fastutil.longs.LongOpenHashSet getFadePositions(BlockGetter level) {
+    public void updateFadePositions(BlockGetter level) {
         long tCollect = System.nanoTime();
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet result = collectCullSetImpl(level);
+        collectCullSetImpl(level);
         PerfMonitor.FADE_COLLECT.add(System.nanoTime() - tCollect);
-        return result;
+    }
+
+    /**
+     * 走査済みの遷移フェード対象集合を返す(描画パス用・走査はしない)。
+     */
+    public it.unimi.dsi.fastutil.longs.LongOpenHashSet getCollectedFadePositions() {
+        return fadeCache.getFadePositions();
     }
 
     private it.unimi.dsi.fastutil.longs.LongOpenHashSet collectCullSetImpl(BlockGetter level) {
@@ -1226,9 +1265,10 @@ public final class TopDownCuller {
                     mutablePos.set(x, y, z);
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
-                    if (calculateFadeAlpha(mutablePos, level, state, pX, pY, pZ, cX, cY, cZ) >= 1.0f) continue;
-                    // 保護対象(支え/操作可能ブロック等)はカリングされないので集合にも入れない。
-                    if (isProtectedBlock(mutablePos, state, pY, level)) continue;
+                    // 円柱の即時計算ではなく判定キャッシュのみで集める(メッシュ構築時の値と一致させる)。
+                    // メッシュと同じ判定(キャッシュ共有)で確定させる。円柱の即時計算だけで集めると
+                    // 境界でメッシュと食い違い、既に穴の位置に消失ゴースト(α=1)が立つ。
+                    if (!isBlockCulled(mutablePos, level)) continue;
 
                     long posLong = mutablePos.asLong();
 
