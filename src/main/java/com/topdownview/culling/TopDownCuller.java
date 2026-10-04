@@ -603,6 +603,11 @@ public final class TopDownCuller {
         if (!shape.isEmpty() && shape.max(Direction.Axis.Y) >= 1.0) {
             return false;
         }
+        // チェスト・バレル等は高さ14/16で「薄い面」に誤判定されるが装飾ではなく操作対象。
+        // 支えが消えても連鎖させず、後段の isProtectedBlock に保護判定を委ねる。
+        if (InteractableBlocks.isInteractable(state, level, pos)) {
+            return false;
+        }
         MutableBlockPos below = SUPPORT_CHECK_POS.get();
         below.set(pos.getX(), pos.getY() - 1, pos.getZ());
         return isBlockCulled(below, level);
