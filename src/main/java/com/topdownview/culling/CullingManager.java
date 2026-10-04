@@ -189,10 +189,12 @@ public final class CullingManager {
 
         // 復元フェードのメッシュ専用ホールドが解除されたら、メッシュを戻す再構築を一度だけ要求する。
         boolean meshHoldRelease = CULLER.isMeshHoldRebuildPending();
+        // 復元開示(覆いドロップ・走査差分)が未反映なら座標が変わらなくても再構築が必要。
+        boolean revealRebuild = CULLER.hasPendingRevealChange();
         // カリング集合の世代(天井スライス+覆い)。覆い集合が入れ替わったら座標が同じでも再構築する。
         long generation = CULLER.getCullingGeneration();
         boolean generationChanged = generation != lastRebuildGeneration;
-        if (!meshHoldRelease && !generationChanged
+        if (!meshHoldRelease && !revealRebuild && !generationChanged
                 && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
@@ -200,9 +202,9 @@ public final class CullingManager {
 
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
-            // ホールド解除の再構築は間隔待ちを飛ばす(穴即閉鎖優先)。再構築予約があっても
+            // ホールド解除/復元開示の再構築は間隔待ちを飛ばす(穴即閉鎖優先)。再構築予約があっても
             // 50ms 待つと、復元ゴーストの寿命が尽きて1フレーム穴が出る。
-            if (!CULLER.isMeshHoldRebuildPending()) {
+            if (!meshHoldRelease && !revealRebuild) {
                 return;
             }
         }
@@ -237,9 +239,12 @@ public final class CullingManager {
             return;
         }
 
+        // 差分(天井スライス)がある要素再構築と、復元開示(覆いドロップ・走査差分・ホールド解除)。
+        // 復元位置はプレイヤー↔カメラボックスの外にいることがあるため、revealPending のときは
+        // 差分ボックスを必ず union する(ボックスが届かずメッシュが復帰しない事象の修正)。
         boolean elementRebuild = generationChanged && CULLER.isIndoorElementActive();
         boolean wideElementRebuild = false;
-        if (elementRebuild) {
+        if (elementRebuild || revealRebuild) {
             BlockChangeBox pending = CULLER.getPendingElementChange();
             if (!pending.isEmpty()) {
                 // 天井スライス等の差分セルだけを再構築する。集合の変化は通常数ブロック
@@ -251,7 +256,7 @@ public final class CullingManager {
                         Math.max(box.maxX, pending.getMaxX() + 1.0),
                         Math.max(box.maxY, pending.getMaxY() + 1.0),
                         Math.max(box.maxZ, pending.getMaxZ() + 1.0));
-            } else {
+            } else if (elementRebuild) {
                 // 差分不明時のみ探索キャッシュ全域へ広げる。
                 wideElementRebuild = true;
                 int revealRadius = BlockMap.RADIUS_XZ;
@@ -272,7 +277,7 @@ public final class CullingManager {
             lastRebuildCameraY = cY;
             lastRebuildCameraZ = cZ;
             lastRebuildGeneration = generation;
-            if (elementRebuild) {
+            if (elementRebuild || revealRebuild) {
                 // 差分を消費したのでリセットする。要素非アクティブ時の変更は残しておき、
                 // 次に要素カリングが有効になった再構築でまとめて反映する。
                 CULLER.clearPendingElementChange();

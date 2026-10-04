@@ -1,5 +1,6 @@
 package com.topdownview.culling;
 
+import com.mojang.logging.LogUtils;
 import com.topdownview.Config;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -32,10 +33,24 @@ import net.minecraft.core.SectionPos;
  */
 public final class FadeTransitionController {
 
+    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+
     private static final long INVALID = Long.MIN_VALUE;
 
-    /** 集合上限(ハンドラ側と共有)。 */
-    private static final int MAX_POSITIONS = 4000;
+    /** 復元診断ログの間隔(ms)。復元が「されない」事象の切り分け用。確定後に撤去する。 */
+    private static final long RESTORE_LOG_INTERVAL_MS = 2000L;
+    private long lastRestoreLogAt;
+    private long lastKillLogAt;
+
+    private final java.util.function.LongConsumer revealSink;
+
+    /**
+     * 復元が確定した位置を受け取るシンク。蓄積先(復元開示ボックス)を差分トラッカーが
+     * 知る必要はないのでコールバックで分離する。
+     */
+    public FadeTransitionController(java.util.function.LongConsumer revealSink) {
+        this.revealSink = revealSink;
+    }
 
     /** 復元フラッシュの残光。この間 α=1 で穴を覆うだけ(判定は不変)。 */
     private static final long RESTORE_LINGER_MS = 200L;
@@ -47,17 +62,6 @@ public final class FadeTransitionController {
      * 穴を無くす。
      */
     private static final long RESTORE_HANDOFF_MS = 300L;
-
-    /**
-     * 消失のメッシュ専用ホールド猶予。走査で新規カリングを検出した瞬間、メッシュにはまだ
-     * 実ブロックが残る(再構築は50ms間隔+ワーカー+バッチで数フレーム遅れる)。検出時に
-     * ホールドを開けばメッシュから真っ先に外れるため、ゴースト(α=1で減衰開始)とメッシュ除去が
-     * 同じフレームで揃い、「完全に消えてからゴースト」という位相ズレが生じない。
-     */
-    private static final long VANISH_HOLD_MS = 400L;
-
-    /** 消失フラッシュ開始時刻(pos→ms)。メッシュ反映済みかの判定に使う。メインスレッド専用。 */
-    private final Long2LongOpenHashMap culledAt = new Long2LongOpenHashMap();
 
     /**
      * 新規カリングを検出したが、未だメッシュに反映されていない位置(pos→検出ms)。メインスレッド専用。
@@ -106,7 +110,6 @@ public final class FadeTransitionController {
         fadeOutStarts.clear();
         restoreStarts.clear();
         recentlyRestored.clear();
-        culledAt.clear();
         pendingVanish.clear();
         meshHoldUntil.clear();
         meshHoldView = new LongOpenHashSet();
@@ -157,7 +160,7 @@ public final class FadeTransitionController {
     }
 
     /** 直近に復元した位置か(集合境界の揺れによる再フラッシュ抑制)。 */
-    public boolean isRecentlyRestored(long posLong) {
+    boolean isRecentlyRestored(long posLong) {
         return recentlyRestored.containsKey(posLong);
     }
 
@@ -192,11 +195,18 @@ public final class FadeTransitionController {
             }
             prevIterator.remove();
             fadeOutStarts.remove(posLong);
-            culledAt.remove(posLong);
             pendingVanish.remove(posLong);
             restoreStarts.put(posLong, now);
             openMeshHold(posLong, now);
             recentlyRestored.put(posLong, now);
+            revealSink.accept(posLong);
+            long nowLogged = now;
+            if (nowLogged - lastRestoreLogAt >= RESTORE_LOG_INTERVAL_MS) {
+                lastRestoreLogAt = nowLogged;
+                LOGGER.info("[TopDownView] restore registered pos=({} {} {}) transitionMs={}",
+                        BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong),
+                        (int) getTransitionMillis());
+            }
         }
 
         // ---- 今回新たに収集された位置(消失) ----
@@ -209,6 +219,12 @@ public final class FadeTransitionController {
             }
             if (isRecentlyRestored(posLong)) {
                 // 直近に確定復元した位置の再カリング: 境界の揺れとみなしフラッシュしない
+                if (restoreStarts.containsKey(posLong) && now - lastKillLogAt >= RESTORE_LOG_INTERVAL_MS) {
+                    lastKillLogAt = now;
+                    LOGGER.info("[TopDownView] restore killed by re-cull pos=({} {} {}) age={}ms",
+                            BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong),
+                            now - restoreStarts.get(posLong));
+                }
                 fadeOutStarts.remove(posLong);
                 restoreStarts.remove(posLong);
                 pendingVanish.remove(posLong);
@@ -249,7 +265,6 @@ public final class FadeTransitionController {
                 continue;
             }
             fadeOutStarts.put(posLong, now);
-            culledAt.put(posLong, now);
         }
     }
 
@@ -286,7 +301,6 @@ public final class FadeTransitionController {
             }
         }
         purgeOlder(recentlyRestored, now, transition * 2);
-        purgeOlder(culledAt, now, transition + 1500L);
 
         // メッシュ確定が取りこぼされた場合の安全弁。一定時間でフラッシュを開始する。
         if (!pendingVanish.isEmpty()) {
@@ -297,7 +311,6 @@ public final class FadeTransitionController {
                     iterator.remove();
                     if (previousCulled.contains(posLong)) {
                         fadeOutStarts.put(posLong, now);
-                        culledAt.put(posLong, now);
                     }
                 }
             }
@@ -311,9 +324,10 @@ public final class FadeTransitionController {
                 if (now >= meshHoldUntil.get(posLong)) {
                     iterator.remove();
                     meshHoldDirty = true;
+                    revealSink.accept(posLong);
                 }
             }
-            if (meshHoldDirty && meshHoldRebuildPending == false) {
+            if (meshHoldDirty && !meshHoldRebuildPending) {
                 // 解除されたブロックはメッシュへ戻す必要がある。CullingManager が
                 // 次のスケジュールで覆い半径ボックスの再構築を必ず走らせる。
                 meshHoldRebuildPending = true;
@@ -336,10 +350,5 @@ public final class FadeTransitionController {
 
     private static long getTransitionMillis() {
         return (long) (Config.getFadeFlashDuration() * 1000.0);
-    }
-
-    /** 走査集合の上限(ハンドラ側の addOverdueCullPositions と揃える)。 */
-    public static int getMaxPositions() {
-        return MAX_POSITIONS;
     }
 }

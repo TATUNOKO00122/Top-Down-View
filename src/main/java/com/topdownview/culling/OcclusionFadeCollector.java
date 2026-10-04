@@ -16,8 +16,6 @@ import java.util.Set;
  */
 public final class OcclusionFadeCollector {
 
-    private static final int MAX_FADE_POSITIONS = 4000;
-
     private OcclusionFadeCollector() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -29,7 +27,7 @@ public final class OcclusionFadeCollector {
     public static void addBlocks(BlockGetter level, LongOpenHashSet out, List<BlockPos> blocks,
             Set<BlockPos> filter) {
         for (int i = 0, n = blocks.size(); i < n; i++) {
-            if (out.size() >= MAX_FADE_POSITIONS) {
+            if (out.size() >= TopDownCuller.MAX_FADE_POSITIONS) {
                 return;
             }
             BlockPos pos = blocks.get(i);
@@ -52,7 +50,7 @@ public final class OcclusionFadeCollector {
     public static void addColumn(BlockGetter level, LongOpenHashSet out, int x, int z, int y0, int y1,
             BlockPos.MutableBlockPos scratch, Set<Long> includeLongs, boolean requireDry) {
         for (int y = y0; y <= y1; y++) {
-            if (out.size() >= MAX_FADE_POSITIONS) {
+            if (out.size() >= TopDownCuller.MAX_FADE_POSITIONS) {
                 return;
             }
             scratch.set(x, y, z);

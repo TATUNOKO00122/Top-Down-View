@@ -1,7 +1,6 @@
 package com.topdownview.culling;
 
 import com.topdownview.Config;
-import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.ladder.LadderHelper;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -21,8 +20,6 @@ import java.util.Set;
  * ハシゴおよびその支えとなる壁ブロックの保護・半透明化判定を担うハンドラー。
  */
 public final class LadderCullingHandler {
-
-    private static final int MAX_FADE_POSITIONS = FadeCacheManager.MAX_FADE_POSITIONS;
 
     private static final class ProtectedLadderChain {
         final int x;
@@ -117,7 +114,7 @@ public final class LadderCullingHandler {
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (ProtectedLadderChain chain : protectedLadderChains) {
-            if (out.size() >= MAX_FADE_POSITIONS) {
+            if (out.size() >= TopDownCuller.MAX_FADE_POSITIONS) {
                 return;
             }
             OcclusionFadeCollector.addColumn(level, out, chain.x, chain.z, chain.bottomY, chain.topY,

@@ -70,6 +70,18 @@ public final class CoverCullingHandler {
         return generation;
     }
 
+    /** 復元対象(集合から外れた覆い)の受け渡し。メインスレッド専用。 */
+    private final LongOpenHashSet droppedPositions = new LongOpenHashSet();
+
+    /** 指定位置が覆いカリング対象か。 */
+    public boolean isCoverCulled(long posLong) {
+        return coverCullPositions.contains(posLong);
+    }
+
+    public boolean isCoverCulled(BlockPos pos) {
+        return isCoverCulled(pos.asLong());
+    }
+
     public void clearCache() {
         // この時点で消えている覆いは全て復元対象にする(モード切替・空間離脱の即時ポップを避ける)
         droppedPositions.addAll(coverCullPositions);
@@ -80,29 +92,6 @@ public final class CoverCullingHandler {
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
         lastScanZ = Integer.MIN_VALUE;
-    }
-
-    /** 指定位置が覆いカリング対象か。 */
-    public boolean isCoverBlock(long posLong) {
-        return coverCullPositions.contains(posLong);
-    }
-
-    public boolean isCoverBlock(BlockPos pos) {
-        return isCoverBlock(pos.asLong());
-    }
-
-    /** 指定位置が覆いカリング対象か(時差開始廃止のため isCoverBlock と同一)。 */
-    public boolean isCoverCullBlock(long posLong) {
-        return coverCullPositions.contains(posLong);
-    }
-
-    public boolean isCoverCulled(BlockPos pos) {
-        return isCoverCullBlock(pos.asLong());
-    }
-
-    /** 時差進行は廃止。互換用(false 固定)。 */
-    public boolean isReleasing() {
-        return false;
     }
 
     /**
@@ -231,8 +220,6 @@ public final class CoverCullingHandler {
         out.addAll(droppedPositions);
         droppedPositions.clear();
     }
-
-    private final LongOpenHashSet droppedPositions = new LongOpenHashSet();
 
     /**
      * 立位列の最初の覆い(足元+2より上で最初の天井形状ブロック)から、カメラYまたは地表までを

@@ -143,6 +143,10 @@ public final class TranslucentBlockRenderer {
         SEEN.clear();
 
         // ==================== カリング集合(消失/継続) ====================
+        // α帳簿は距離に関係なく毎フレーム更新する。遠方の復元ゴーストはメッシュホールドで
+        // 穴を開けたまま待機しており、接近した瞬間に α=1 で穴を覆えるよう常時 α=1 まで
+        // 遷移させておく必要がある(帳簿を距離で止めると接近時に α0 再レンプとなり、穴が
+        // フェード時間の間露出する)。距離判定は描画(GHOST_VISIBLE/頂点生成)の直前に限定する。
         for (LongIterator iterator = fadePositions.iterator(); iterator.hasNext(); ) {
             long posLong = iterator.nextLong();
             long start = tracker.getFadeOutStart(posLong);
@@ -179,6 +183,7 @@ public final class TranslucentBlockRenderer {
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
         // メッシュ再構築が戻るまでの穴を α0→1 で覆う。メッシュが戻ればポリゴンオフセットで
         // ゴーストは奥に隠れる。再カリングされた位置は消失側が担当するのでここでは描かない。
+        // 消失側と同様、α帳簿は遠方でも毎フレーム進める(接近時に α=1 で即座に穴を覆えるように)。
         tracker.forEachActiveRestore(posLong -> {
             if (fadePositions.contains(posLong)) {
                 return;

@@ -4,26 +4,31 @@ import com.topdownview.Config;
 import com.topdownview.config.CullingConfig;
 import com.topdownview.client.InteractableBlocks;
 import com.topdownview.client.MouseRaycast;
+import com.topdownview.client.TranslucentBlockRenderer;
 import com.topdownview.compat.VerticalUnitHelper;
 import com.topdownview.culling.cache.CullingCacheManager;
-import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.culling.cache.SurfaceHeightCache;
 import com.topdownview.culling.geometry.BlockChangeBox;
 import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
+import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.RoomSegmentation;
 import com.topdownview.spatial.SpaceProbe;
+import com.topdownview.spatial.Staircase;
 import com.topdownview.state.ModState;
 import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.topdownview.util.PerfMonitor;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -59,6 +64,8 @@ public final class TopDownCuller {
     private static final int UPDATE_FREQUENCY = 1;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 1;
+    /** 遷移フェード走査集合の上限。各ハンドラの収集ライムと共有する唯一の定義。 */
+    public static final int MAX_FADE_POSITIONS = 4000;
 
     private double playerX;
     private double playerY;
@@ -136,8 +143,9 @@ public final class TopDownCuller {
     private static final int ENCLOSED_STICKY_MOVE = 1;
 
     private final CullingCacheManager cullingCache = new CullingCacheManager();
-    private final FadeCacheManager fadeCache = new FadeCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
+    /** 遷移フェードの対象となる「今カリングされている位置」の集合。走査ごとに作り直す。 */
+    private final LongOpenHashSet fadePositions = new LongOpenHashSet(500);
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
     /** 下支え判定用。isBlockCulled はワーカースレッドからも呼ばれるため ThreadLocal で共有回避。 */
     private static final ThreadLocal<MutableBlockPos> SUPPORT_CHECK_POS =
@@ -148,7 +156,15 @@ public final class TopDownCuller {
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingSliceCuller ceilingSliceCuller = new CeilingSliceCuller();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
-    private final FadeTransitionController fadeTransitionController = new FadeTransitionController();
+    /**
+     * 復元が確定した(=メッシュに戻る必要がある)位置の開示ボックス。
+     * 復元位置はプレイヤー↔カメラボックスの外にいることがある(覆いは覆い半径+余白の外で
+     * 初めてドロップされる)ため、ボックスだけに頼ると再構築されずに消えたままになる。
+     */
+    private final BlockChangeBox revealChange = new BlockChangeBox();
+
+    private final FadeTransitionController fadeTransitionController =
+            new FadeTransitionController(posLong -> revealChange.includeCell(posLong));
 
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
@@ -185,7 +201,7 @@ public final class TopDownCuller {
 
     public void clearCache() {
         cullingCache.clear();
-        fadeCache.clear();
+        fadePositions.clear();
         surfaceHeightCache.clear();
         stairHandler.clearCache();
         ladderHandler.clearCache();
@@ -218,9 +234,6 @@ public final class TopDownCuller {
     }
 
     private void resetLastBlockCoords() {
-        fadeTransitionController.clearCache();
-        stairHandler.clearCache();
-
         lastFadePBlockX = Integer.MIN_VALUE;
         lastFadePBlockY = Integer.MIN_VALUE;
         lastFadePBlockZ = Integer.MIN_VALUE;
@@ -259,7 +272,7 @@ public final class TopDownCuller {
         }
         // ゴーストはプレイヤーから一定距離以内しか描かない。それより遠くまでメッシュを保留すると、
         // 覆うゴーストの無い穴が残り、視点移動で穴の境界が掃引して波状に見える。範囲外は保留しない。
-        double ghostDistance = com.topdownview.client.TranslucentBlockRenderer.GHOST_RENDER_DISTANCE;
+        double ghostDistance = TranslucentBlockRenderer.GHOST_RENDER_DISTANCE;
         double dx = pos.getX() + 0.5 - playerX;
         double dy = pos.getY() + 0.5 - playerY;
         double dz = pos.getZ() + 0.5 - playerZ;
@@ -270,7 +283,7 @@ public final class TopDownCuller {
         if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
             if (!cacheClearedOnDisabled) {
                 cullingCache.clear();
-                fadeCache.clear();
+                fadePositions.clear();
                 LadderHelper.clearCache();
                 NaturalTreeDetector.clearCache();
                 cacheClearedOnDisabled = true;
@@ -615,7 +628,7 @@ public final class TopDownCuller {
 
         if (playerMoved || cameraMoved) {
             cullingCache.clear();
-            fadeCache.clear();
+            fadePositions.clear();
             if (playerMoved) {
                 lastPlayerBlockX = currentBlockX;
                 lastPlayerBlockY = currentBlockY;
@@ -643,7 +656,7 @@ public final class TopDownCuller {
         boolean disableIndoorFade = Config.isDisableFadeIndoors() && currentSpaceEnclosed;
         if (disableIndoorFade != cachedDisableIndoorFade) {
             cullingCache.clear();
-            fadeCache.clear();
+            fadePositions.clear();
         }
         cachedDisableIndoorFade = disableIndoorFade;
         // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
@@ -892,11 +905,15 @@ public final class TopDownCuller {
      * 再構築が新しい生判定で焼かれるようにする。
      */
     private void drainFadeRestores() {
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet leaving = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        LongOpenHashSet leaving = new LongOpenHashSet();
         ceilingSliceCuller.takeLeavingPositions(leaving);
         coverHandler.takeDroppedPositions(leaving);
         if (!leaving.isEmpty()) {
             cullingCache.clear();
+            LongIterator iterator = leaving.iterator();
+            while (iterator.hasNext()) {
+                revealChange.includeCell(iterator.nextLong());
+            }
         }
     }
 
@@ -1012,13 +1029,8 @@ public final class TopDownCuller {
         return cachedCoverCullingActive;
     }
 
-    /** 覆いカリングが時間差で進行中か(時差開始廃止のため常に false)。 */
-    public boolean hasActiveCoverRelease() {
-        return false;
-    }
-
     /** メッシュ再構築バッチの確定通知。該当セクションの消失フラッシュを開始する。 */
-    public void onMeshCommit(it.unimi.dsi.fastutil.longs.LongOpenHashSet committedSections) {
+    public void onMeshCommit(LongOpenHashSet committedSections) {
         fadeTransitionController.onMeshCommit(System.currentTimeMillis(), committedSections);
     }
 
@@ -1092,7 +1104,7 @@ public final class TopDownCuller {
     }
 
     /** 階段ハンドラが直近の走査で検出した階段一覧 (デバッグ表示用)。 */
-    public java.util.List<com.topdownview.spatial.Staircase> getDetectedStaircases() {
+    public List<Staircase> getDetectedStaircases() {
         return stairHandler.getDetectedStaircases();
     }
 
@@ -1100,12 +1112,20 @@ public final class TopDownCuller {
     public BlockChangeBox getPendingElementChange() {
         pendingElementChange.reset();
         pendingElementChange.includeBox(ceilingSliceCuller.getPendingChange());
+        // 復元開示(覆いドロップ・走査差分・ホールド解除)も同じボックス経路で配る。
+        pendingElementChange.includeBox(revealChange);
         return pendingElementChange;
+    }
+
+    /** 復元が確定した位置の開示ボックスが空でないか(再構築トリガ)。 */
+    public boolean hasPendingRevealChange() {
+        return !revealChange.isEmpty();
     }
 
     /** 再構築を実際にスケジュールした後に呼ぶ。次回の差分を新しく蓄積し直す。 */
     public void clearPendingElementChange() {
         ceilingSliceCuller.clearPendingChange();
+        revealChange.reset();
     }
 
     /**
@@ -1123,8 +1143,8 @@ public final class TopDownCuller {
      * {@code calculateFadeAlpha} と同じ判定を近接半透明化側でも使う。
      */
     private boolean isFastGraphicsLeaves(BlockState state) {
-        return state.is(net.minecraft.tags.BlockTags.LEAVES)
-                && Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST;
+        return state.is(BlockTags.LEAVES)
+                && Minecraft.getInstance().options.graphicsMode().get() == GraphicsStatus.FAST;
     }
 
     /**
@@ -1140,11 +1160,11 @@ public final class TopDownCuller {
     /**
      * 走査済みの遷移フェード対象集合を返す(描画パス用・走査はしない)。
      */
-    public it.unimi.dsi.fastutil.longs.LongOpenHashSet getCollectedFadePositions() {
-        return fadeCache.getFadePositions();
+    public LongOpenHashSet getCollectedFadePositions() {
+        return fadePositions;
     }
 
-    private it.unimi.dsi.fastutil.longs.LongOpenHashSet collectCullSetImpl(BlockGetter level) {
+    private LongOpenHashSet collectCullSetImpl(BlockGetter level) {
         // 遷移フェード(ゴースト表示)が無効な間はイベントを出さない。カリング自体は
         // isBlockCulled 側で維持され、消失/復元は即時のまま。
         boolean transitionsActive = ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled()
@@ -1154,16 +1174,16 @@ public final class TopDownCuller {
             if (cachedFadeTransitionsActive) {
                 cachedFadeTransitionsActive = false;
                 fadeTransitionController.clearCache();
-                fadeCache.clear();
+                fadePositions.clear();
             }
-            return fadeCache.getFadePositions();
+            return fadePositions;
         }
         if (!cachedFadeTransitionsActive) {
             cachedFadeTransitionsActive = true;
-            fadeCache.clear();
+            fadePositions.clear();
         }
         if (level == null) {
-            return fadeCache.getFadePositions();
+            return fadePositions;
         }
 
         Minecraft mc = Minecraft.getInstance();
@@ -1183,7 +1203,7 @@ public final class TopDownCuller {
             if (pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
                     && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ
                     && coverGen == lastFadeCoverGen && sliceGen == lastFadeSliceGen) {
-                return fadeCache.getFadePositions();
+                return fadePositions;
             }
             lastFadePBlockX = pBX;
             lastFadePBlockY = pBY;
@@ -1195,8 +1215,8 @@ public final class TopDownCuller {
             lastFadeSliceGen = sliceGen;
         }
 
-        fadeCache.clear();
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet current = fadeCache.getFadePositions();
+        fadePositions.clear();
+        LongOpenHashSet current = fadePositions;
 
         if (Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled()) {
             stairHandler.collectCullPositions(level, current);
@@ -1233,7 +1253,7 @@ public final class TopDownCuller {
      * (遠方地下の消去はフェードなしの即時切替)。
      */
     private void collectCylinderCullPositions(BlockGetter level, double pX, double pY, double pZ,
-            double cX, double cY, double cZ, it.unimi.dsi.fastutil.longs.LongOpenHashSet out) {
+            double cX, double cY, double cZ, LongOpenHashSet out) {
         int radiusH = cachedCylinderRadiusHorizontal;
         int radiusV = cachedCylinderRadiusVertical;
         int margin = 2;
@@ -1256,6 +1276,22 @@ public final class TopDownCuller {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
+                    // 円柱内かを先に判定する。円柱そのものと同一の CylinderCalculator を使うため
+                    // 走査とメッシュ判定の境界で食い違わない。捨てボックスの約7割が円柱外のため、
+                    // 生判定のパイプラインコストを円柱内ブロックだけに抑えられる。
+                    double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                            x + 0.5, y + 0.5, z + 0.5, cX, cY, cZ);
+                    if (normalizedDistSq < 0.0 || normalizedDistSq > 1.0) {
+                        // 円柱外でもカリングが真になるのは下支えカリングに連動する薄いブロック類
+                        // (雪・カーペット・植物など)。下支えのカリング判定だけを見て拾う。
+                        BlockState state = level.getBlockState(mutablePos);
+                        if (state.isAir() || !state.getFluidState().isEmpty()) continue;
+                        if (isRestingOnCulledBlock(mutablePos, state, level)) {
+                            out.add(mutablePos.asLong());
+                            if (out.size() >= MAX_FADE_POSITIONS) return;
+                        }
+                        continue;
+                    }
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
                     // 円柱の即時計算ではなく判定キャッシュのみで集める(メッシュ構築時の値と一致させる)。
@@ -1266,21 +1302,21 @@ public final class TopDownCuller {
                     long posLong = mutablePos.asLong();
 
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
-                    if (cachedCoverCullingActive && coverHandler.isCoverBlock(mutablePos)) continue;
+                    if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
-                    if (state.is(net.minecraft.tags.BlockTags.LEAVES)
-                            && Minecraft.getInstance().options.graphicsMode().get() == net.minecraft.client.GraphicsStatus.FAST) {
+                    if (state.is(BlockTags.LEAVES)
+                            && Minecraft.getInstance().options.graphicsMode().get() == GraphicsStatus.FAST) {
                         continue;
                     }
 
                     out.add(posLong);
-                    if (out.size() >= 4000) return;
+                    if (out.size() >= MAX_FADE_POSITIONS) return;
                 }
-                if (out.size() >= 4000) return;
+                if (out.size() >= MAX_FADE_POSITIONS) return;
             }
-            if (out.size() >= 4000) return;
+            if (out.size() >= MAX_FADE_POSITIONS) return;
         }
     }
 }

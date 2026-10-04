@@ -1,7 +1,6 @@
 package com.topdownview.culling;
 
 import com.topdownview.Config;
-import com.topdownview.culling.cache.FadeCacheManager;
 import com.topdownview.spatial.BlockMap;
 import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.StairAnalyzer;
@@ -22,8 +21,6 @@ import java.util.Set;
  * 階段ブロックの走査、保護、および視線遮蔽判定を担うハンドラー。
  */
 public final class StairCullingHandler {
-
-    private static final int MAX_FADE_POSITIONS = FadeCacheManager.MAX_FADE_POSITIONS;
 
     /** チャンク構築ワーカーから読まれるため、集合は volatile 参照ごと差し替える。 */
     private volatile Set<BlockPos> excludedStairBlocks = Set.of();
@@ -110,7 +107,7 @@ public final class StairCullingHandler {
         }
 
         for (Staircase stair : detectedStaircases) {
-            if (out.size() >= MAX_FADE_POSITIONS) {
+            if (out.size() >= TopDownCuller.MAX_FADE_POSITIONS) {
                 return;
             }
             OcclusionFadeCollector.addBlocks(level, out, stair.getSteps(), excluded);
