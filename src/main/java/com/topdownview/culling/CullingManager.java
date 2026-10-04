@@ -187,14 +187,12 @@ public final class CullingManager {
         int cY = (int) Math.floor(cameraPos.y);
         int cZ = (int) Math.floor(cameraPos.z);
 
-        // 覆いカリングの時間差進行中は、プレイヤーが静止していても再構築して1つずつ消す。
-        boolean coverReleasing = CULLER.hasActiveCoverRelease();
         // 復元フェードのメッシュ専用ホールドが解除されたら、メッシュを戻す再構築を一度だけ要求する。
         boolean meshHoldRelease = CULLER.isMeshHoldRebuildPending();
-        // 屋内要素カリングは視点の回転だけで手前壁が変わる。世代が進んだら座標が同じでも再構築する。
+        // カリング集合の世代(天井スライス+覆い)。覆い集合が入れ替わったら座標が同じでも再構築する。
         long generation = CULLER.getCullingGeneration();
         boolean generationChanged = generation != lastRebuildGeneration;
-        if (!coverReleasing && !meshHoldRelease && !generationChanged
+        if (!meshHoldRelease && !generationChanged
                 && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
@@ -202,7 +200,11 @@ public final class CullingManager {
 
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
-            return;
+            // ホールド解除の再構築は間隔待ちを飛ばす(穴即閉鎖優先)。再構築予約があっても
+            // 50ms 待つと、復元ゴーストの寿命が尽きて1フレーム穴が出る。
+            if (!CULLER.isMeshHoldRebuildPending()) {
+                return;
+            }
         }
 
         int radiusH;
@@ -214,10 +216,11 @@ public final class CullingManager {
             radiusH = Config.getCylinderRadiusHorizontal();
             radiusV = Config.getCylinderRadiusVertical();
         }
-        // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
+        // 覆いは円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。円柱ボックスの
+        // ままだと覆い領域(円柱半径の外側)のセクションが再構築されず、カリング済みなのに
+        // メッシュが残って遅れて消える(円柱モードでは起きない覆いモード固有の不具合)。
         AABB box = new AABB(playerPos, cameraPos).inflate(radiusH, radiusV, radiusH);
-        if (coverReleasing || meshHoldRelease) {
-            // 覆い/復元は円柱より広い。箱を覆い半径まで広げて該当セクションを再構築する。
+        if (CULLER.isCoverCullingActive() || meshHoldRelease) {
             int coverRadius = Config.getCoverCullingRadius();
             box = box.inflate(
                     Math.max(0, coverRadius - radiusH),
@@ -427,6 +430,11 @@ public final class CullingManager {
     public static void commitBatch() {
         batchPending = false;
         batchFrames = 0;
+        // メッシュが実際に更新された瞬間。このバッチに属するセクションの新規カリングについて
+        // 消失フラッシュをここで開始し(α=1を消灯と同フレームに揃える)、バッチ外は次の該当
+        // バッチまで待つ。無関係なバッチ確定で開始すると、実ブロック未除去のまま減衰が進む。
+        // クリア前にセクション集合を渡す(クリア後だと一致が取れない)。
+        CULLER.onMeshCommit(batchSections);
         batchSections.clear();
     }
 

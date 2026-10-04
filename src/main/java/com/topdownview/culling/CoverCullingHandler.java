@@ -1,8 +1,6 @@
 package com.topdownview.culling;
 
 import com.topdownview.spatial.WallAnalyzer;
-import it.unimi.dsi.fastutil.longs.Long2LongMap;
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -46,45 +44,20 @@ public final class CoverCullingHandler {
     private static final int SCAN_MOVE_THRESHOLD = 3;
 
     /**
-     * 覆い集合が入れ替わってから、全ブロックが消えるまでの猶予。プレイヤーからの距離に比例させて
-     * 開始時刻をずらすことで、塊ではなく近い順に1ブロックずつ消える。
-     */
-    private static final long RELEASE_WINDOW_MS = 700L;
-
-    /**
-     * 一度消えた覆いがスキャンの揺れで集合から外れても、すぐ復元させずカリングを保持する時間。
-     * BFS/viewshed/箱の境界で集合が揺れるたびに「復元→再カリング」で再フェードするのを防ぐ。
-     */
-    private static final long COVER_RETENTION_MS = 1500L;
-
-    /**
      * 走査半径の外側でも、この余白(ブロック)以内なら既に消えた覆いを保持する。
      * 再スキャン間隔(3)より大きくし、前後の往復で境界が揺れても出入りしないようにする。
      */
     private static final int COVER_EDGE_MARGIN = 4;
 
     /**
-     * 覆いブロックとそのカリング開始時刻(ms)。集合全体を一斉に消すと樹冠などが塊で
-     * 消えるため、ブロックごとに開始時刻をずらす。ワーカーから読むため volatile 参照を差し替える。
+     * 覆い集合(カリング対象の全ブロック)。時差開始は廃止し、走査が確定した瞬間にメッシュから
+     * 消える。フェードは集合の差分(消失/復元フラッシュ)で表示側が担うため、ここは判定だけを
+     * 持つ。ワーカーから読むため volatile 参照を差し替える。
      */
-    private volatile Long2LongMap coverCullDeadlines = new Long2LongOpenHashMap();
+    private volatile LongOpenHashSet coverCullPositions = new LongOpenHashSet();
 
-    /** 未カリングのブロックが残る最終時刻(ms)。これを過ぎたら再構築を強制する必要はない。 */
-    private volatile long releaseEndMillis;
-
-    /** 保持中(集合から外れたが実際に消えている)覆いの離脱時刻(ms)。メインスレッド専用。 */
-    private final Long2LongOpenHashMap coverLeftAt = new Long2LongOpenHashMap();
-
-    /**
-     * 復元(=保持切れでカリング解除)した時刻(ms)。メインスレッド専用。
-     *
-     * <p>直近に復元した覆いが再度集合へ入ったときは、新しい未来の開始時刻を与えず即カリングに
-     * 戻す。視界シェード/BFS の揺れで離脱→再集合が繰り返されると、時間差の再割り当てで
-     * 「出現→フェード消失」が往復してしまうための緩和。
-     */
-    private static final long COVER_RE_CULL_WINDOW_MS = 3000L;
-
-    private final Long2LongOpenHashMap lastDroppedAt = new Long2LongOpenHashMap();
+    /** 覆い集合が入れ替わるたびに進む世代。再構築ボックスのトリガに使う。 */
+    private long generation;
 
     private int lastScanX = Integer.MIN_VALUE;
     private int lastScanY = Integer.MIN_VALUE;
@@ -92,67 +65,52 @@ public final class CoverCullingHandler {
 
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
+    /** 覆い集合の世代番号。値が変わればカリング結果が変わり得る。 */
+    public long getGeneration() {
+        return generation;
+    }
+
     public void clearCache() {
         // この時点で消えている覆いは全て復元対象にする(モード切替・空間離脱の即時ポップを避ける)
-        long nowMillis = System.currentTimeMillis();
-        for (Long2LongMap.Entry entry : coverCullDeadlines.long2LongEntrySet()) {
-            if (nowMillis >= entry.getLongValue()) {
-                droppedPositions.add(entry.getLongKey());
-            }
+        droppedPositions.addAll(coverCullPositions);
+        coverCullPositions = new LongOpenHashSet();
+        if (!droppedPositions.isEmpty()) {
+            generation++;
         }
-        coverCullDeadlines = new Long2LongOpenHashMap();
-        coverLeftAt.clear();
-        lastDroppedAt.clear();
-        releaseEndMillis = 0L;
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
         lastScanZ = Integer.MIN_VALUE;
     }
 
-    /** 指定位置が覆いカリング対象か(開始時刻の到達に関係なく)。 */
+    /** 指定位置が覆いカリング対象か。 */
     public boolean isCoverBlock(long posLong) {
-        Long2LongMap deadlines = coverCullDeadlines;
-        return !deadlines.isEmpty() && deadlines.containsKey(posLong);
+        return coverCullPositions.contains(posLong);
     }
 
     public boolean isCoverBlock(BlockPos pos) {
         return isCoverBlock(pos.asLong());
     }
 
-    /** 指定位置が覆いカリング対象で、かつ開始時刻に達しているか。 */
+    /** 指定位置が覆いカリング対象か(時差開始廃止のため isCoverBlock と同一)。 */
     public boolean isCoverCullBlock(long posLong) {
-        Long2LongMap deadlines = coverCullDeadlines;
-        long deadline = deadlines.getOrDefault(posLong, Long.MIN_VALUE);
-        return deadline != Long.MIN_VALUE && System.currentTimeMillis() >= deadline;
+        return coverCullPositions.contains(posLong);
     }
 
     public boolean isCoverCulled(BlockPos pos) {
         return isCoverCullBlock(pos.asLong());
     }
 
-    /** まだカリング開始待ちのブロックが残っているか(チャンク再構築の強制が必要か)。 */
+    /** 時差進行は廃止。互換用(false 固定)。 */
     public boolean isReleasing() {
-        return System.currentTimeMillis() < releaseEndMillis;
+        return false;
     }
 
     /**
-     * 開始時刻に達した覆いブロック(実際にメッシュから消えているもの)を out に積む。
-     * 遷移フェードのイベント源で、走査ごとにワーカー参照から読む。
+     * 覆いカリング対象の全ブロックを out に積む。遷移フェードのイベント源で、
+     * 走査ごとに参照する。
      */
     public void addOverdueCullPositions(LongOpenHashSet out) {
-        Long2LongMap deadlines = coverCullDeadlines;
-        if (deadlines.isEmpty()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        for (Long2LongMap.Entry entry : deadlines.long2LongEntrySet()) {
-            if (out.size() >= 4000) {
-                return;
-            }
-            if (now >= entry.getLongValue()) {
-                out.add(entry.getLongKey());
-            }
-        }
+        out.addAll(coverCullPositions);
     }
 
     /**
@@ -229,88 +187,40 @@ public final class CoverCullingHandler {
     }
 
     /**
-     * 収集した覆い集合へ、カリング開始時刻を割り当てて差し替える。プレイヤーに近いブロックほど
-     * 早く消え、同距離帯は位置ハッシュでばらけさせて輪状の塊にならないようにする。
-     * 既存ブロックの開始時刻は引き継ぐ(再割り当てすると、既に消えた覆いが復活してしまう)。
+     * 収集した覆い集合へ差し替える。入ったブロックは即カリング。集合から外れたものでも、
+     * 走査範囲内(半径+余白)に残っているものは保持し、範囲外へ出たものだけ復元対象にする。
+     *
+     * <p>BFS/ビューシェッドの揺れで集合が毎スキャン少し変わるため、時間で復元させると
+     * 「復元→再カリング」を繰り返し、歩行中にブロックが消え/現れする(フェードOFFでも点滅)。
+     * 距離で保持する=プレイヤーが近くにいる限りカリングは単調になり、点滅しない。
      */
     private void applyCollected(LongOpenHashSet next, int refX, int refY, int refZ, int radius) {
-        long now = System.currentTimeMillis();
-        Long2LongMap previous = coverCullDeadlines;
-        Long2LongOpenHashMap deadlines = new Long2LongOpenHashMap(next.size());
-        LongIterator iterator = next.iterator();
-        long end = 0L;
-        while (iterator.hasNext()) {
-            long posLong = iterator.nextLong();
-            long oldDeadline = previous.getOrDefault(posLong, Long.MIN_VALUE);
-            long deadline;
-            if (oldDeadline != Long.MIN_VALUE) {
-                deadline = oldDeadline;
-            } else {
-                deadline = now + staggerDelayMillis(posLong, refX, refY, refZ, radius);
-                long droppedAt = lastDroppedAt.getOrDefault(posLong, -1L);
-                if (droppedAt >= 0L && now - droppedAt < COVER_RE_CULL_WINDOW_MS) {
-                    // 直近に復元した位置の再集合: 未来の時間差を与えて表示し直すと
-                    // (出現→フェード消失)の往復になるので、即カリングに戻す。
-                    deadline = now;
-                }
-            }
-            deadlines.put(posLong, deadline);
-            // 集合へ戻った位置は保持を解除する。
-            coverLeftAt.remove(posLong);
-            if (deadline > end) {
-                end = deadline;
-            }
-        }
+        LongOpenHashSet previous = coverCullPositions;
+        LongOpenHashSet kept = new LongOpenHashSet(next.size());
+        kept.addAll(next);
 
-        // 集合から外れた覆いのうち、実際にメッシュから消えていたものはすぐには復元せず、
-        // retention の間はカリングを保持する。スキャンの揺れによる再フェードを防ぐ。
-        LongIterator dropped = previous.keySet().iterator();
+        LongIterator dropped = previous.iterator();
         while (dropped.hasNext()) {
-            long droppedLong = dropped.nextLong();
-            if (deadlines.containsKey(droppedLong)) {
+            long posLong = dropped.nextLong();
+            if (kept.contains(posLong)) {
                 continue;
             }
-            long oldDeadline = previous.get(droppedLong);
-            if (oldDeadline > now) {
-                // まだ消えていないブロック: 保持の必要はない(カリング未開始)。
-                coverLeftAt.remove(droppedLong);
-                continue;
-            }
-            int edgeDistance = Math.max(Math.abs(BlockPos.getX(droppedLong) - refX),
-                    Math.abs(BlockPos.getZ(droppedLong) - refZ));
-            if (edgeDistance > radius && edgeDistance <= radius + COVER_EDGE_MARGIN) {
-                // 半径の外へ出ただけ(走査範囲外で未評価)の覆いは余白内なら保持する。
-                // 端にまたがる木が歩行のたびに一部だけ「復元→再カリング」を繰り返すのを防ぐ。
-                deadlines.put(droppedLong, oldDeadline);
-                coverLeftAt.remove(droppedLong);
-                continue;
-            }
-            long leftAt = coverLeftAt.getOrDefault(droppedLong, now);
-            if (now - leftAt < COVER_RETENTION_MS) {
-                // 保持: 過去の開始時刻のままカリングを継続させる。
-                deadlines.put(droppedLong, oldDeadline);
-                coverLeftAt.put(droppedLong, leftAt);
+            int edgeDistance = Math.max(Math.abs(BlockPos.getX(posLong) - refX),
+                    Math.abs(BlockPos.getZ(posLong) - refZ));
+            if (edgeDistance <= radius + COVER_EDGE_MARGIN) {
+                // 走査範囲内の取りこぼしは保持(揺れで一時的に外れただけ)。
+                kept.add(posLong);
             } else {
-                // 保持期限切れ: 復元対象にする。再集合時の即時カリング戻しのために時刻も残す。
-                coverLeftAt.remove(droppedLong);
-                lastDroppedAt.put(droppedLong, now);
-                droppedPositions.add(droppedLong);
+                // 範囲外へ出た(=もう覆う必要がない)ので復元対象にする。
+                droppedPositions.add(posLong);
             }
         }
 
-        // 古い離脱記録を掃除(窓より古いものは通常の時間差割り当てに戻す)。
-        if (!lastDroppedAt.isEmpty()) {
-            LongIterator stale = lastDroppedAt.keySet().iterator();
-            while (stale.hasNext()) {
-                long staleLong = stale.nextLong();
-                if (now - lastDroppedAt.get(staleLong) >= COVER_RE_CULL_WINDOW_MS) {
-                    stale.remove();
-                }
-            }
+        // 集合が実際に変わったときだけ世代を進め、覆い半径まで広げた再構築を誘発する。
+        if (!kept.equals(previous)) {
+            generation++;
         }
-
-        coverCullDeadlines = deadlines;
-        releaseEndMillis = end;
+        coverCullPositions = kept;
     }
 
     /** 復元フェード用: 集合から外れた覆いを out に移して返す(メインスレッド専用)。 */
@@ -323,22 +233,6 @@ public final class CoverCullingHandler {
     }
 
     private final LongOpenHashSet droppedPositions = new LongOpenHashSet();
-
-    /** プレイヤーからの距離に比例した遅延(近いほど早い)＋同一距離帯を散らす小さなジッタ。 */
-    private static long staggerDelayMillis(long posLong, int refX, int refY, int refZ, int radius) {
-        double dx = BlockPos.getX(posLong) + 0.5 - refX;
-        double dy = BlockPos.getY(posLong) + 0.5 - refY;
-        double dz = BlockPos.getZ(posLong) + 0.5 - refZ;
-        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        double normalized = Math.min(distance / (radius + 1.0), 1.0);
-        long base = (long) (normalized * RELEASE_WINDOW_MS);
-        long span = Math.max(1L, RELEASE_WINDOW_MS / 6L);
-        long hash = posLong;
-        hash ^= hash >>> 33;
-        hash *= 0xff51afd7ed558ccdL;
-        hash ^= hash >>> 33;
-        return base + (hash & Long.MAX_VALUE) % span;
-    }
 
     /**
      * 立位列の最初の覆い(足元+2より上で最初の天井形状ブロック)から、カメラYまたは地表までを

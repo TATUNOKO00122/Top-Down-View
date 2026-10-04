@@ -58,12 +58,6 @@ public final class TopDownCuller {
 
     private static final int UPDATE_FREQUENCY = 1;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
-    /**
-     * カリング判定キャッシュの破棄量子。座標はブロック中心(floor+0.5)に量子化されており、
-     * プレイヤー/カメラの 1 ブロック移動でも判定が反転し得る。3 ブロック閾値にすると、
-     * 幅白血病の間「古い非カリング/カリング値」が焼かれ、メッシュにカリング済みブロックが
-     * 出現してからフラッシュが始まる(出現→フェード)。必ず 1 に保ち、小移動をスキップしない。
-     */
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 1;
 
     private double playerX;
@@ -93,6 +87,9 @@ public final class TopDownCuller {
     private int lastFadeCBlockX = Integer.MIN_VALUE;
     private int lastFadeCBlockY = Integer.MIN_VALUE;
     private int lastFadeCBlockZ = Integer.MIN_VALUE;
+    /** 走査集合の凍結条件に含める、覆い集合/天井スライスの直近世代。 */
+    private long lastFadeCoverGen = Long.MIN_VALUE;
+    private long lastFadeSliceGen = Long.MIN_VALUE;
     private boolean cacheClearedOnDisabled = false;
     private boolean spaceClearedOnDisabled = false;
 
@@ -257,13 +254,7 @@ public final class TopDownCuller {
         if (isBlockCulled(pos, level)) {
             return true;
         }
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || !cachedFadeTransitionsActive) {
-            return false;
-        }
         if (!fadeTransitionController.isMeshHoldActive(pos.asLong())) {
-            return false;
-        }
-        if (!contextValid) {
             return false;
         }
         // ゴーストはプレイヤーから一定距離以内しか描かない。それより遠くまでメッシュを保留すると、
@@ -655,16 +646,15 @@ public final class TopDownCuller {
             fadeCache.clear();
         }
         cachedDisableIndoorFade = disableIndoorFade;
-        if (cachedCoverCullingActive && coverHandler.isReleasing()) {
-            // 覆いのカリング開始時刻が時間で進むため、ワーカーの判定結果を毎tick作り直す。
-            cullingCache.clear();
-        }
         // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
-        // 遷移フェードの走査/差分検出はチャンク再構築のスケジューリングより先にここで行う。
-        updateFadePositions(mc.level);
         fadeTransitionController.tick();
         // メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映(再構築より前に)。
         fadeTransitionController.publishMeshHoldView();
+        // 遷移フェードの走査/差分検出を同じティックで行う。チャンク再構築のスケジューリング
+        // (ClientForgeEvents の CullingManager.tick 後段)より先にフラッシュとメッシュホールドを
+        // 確定させる。描画パスで遅れて検出すると、実ブロックが先にメッシュから消えてから
+        // 消失フラッシュが始まる(α=1が一瞬見えてからフェードに差し替わる)レースが残る。
+        updateFadePositions(mc.level);
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
@@ -879,47 +869,34 @@ public final class TopDownCuller {
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
                     Config.isCoverCullingViewshedEnabled());
             PerfMonitor.COVER.add(System.nanoTime() - tCover);
+            // 覆い集合の入れ替わりでカリング判定が反転する。判定キャッシュが古い値を保持した
+            // ままだと、メッシュからの除去が走査(フェード開始)より遅れて発生し、フェード途中で
+            // ブロックが弾かれる(カリングがフェードに先行する)。集合確定の同ティックで判定を
+            // 反転させ、メッシュの除去とフェード開始を揃える。
+            cullingCache.clear();
         } else {
             coverHandler.clearCache();
         }
 
-        drainFadeRestores(level);
+        drainFadeRestores();
     }
 
     /**
-     * カリング側の集合差分(天井スライス・覆い)を「復元済み」として記録する。
-     * 復元フラッシュは描かない(メッシュ再構築で即時復帰)ため、ここでは
-     * 直後に再カリングされたときの誤フラッシュ抑制だけを行う。
+     * カリング側の集合差分(天井スライス・覆い)の離脱イベントを消費する。
+     *
+     * <p>ここでは復元フラッシュを登録しない。復元は走査差分({@code processCullSet})が唯一の
+     * 発生源であり、ドレインが個別に復元を登録すると走査差分と二重に発火し、「出現→一度消え→
+     * 再度復元」の二回復元(フェードOFFでも点滅)になる。走査集合は覆いの全メンバー
+     * ({@code addOverdueCullPositions})を含むため、覆いの離脱は必ず次の走査差分で検出され、
+     * ホールド/ゴーストはそこで一貫して管理される。判定キャッシュだけを破棄し、
+     * 再構築が新しい生判定で焼かれるようにする。
      */
-    private void drainFadeRestores(BlockGetter level) {
+    private void drainFadeRestores() {
         it.unimi.dsi.fastutil.longs.LongOpenHashSet leaving = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
         ceilingSliceCuller.takeLeavingPositions(leaving);
         coverHandler.takeDroppedPositions(leaving);
-        if (leaving.isEmpty()) {
-            return;
-        }
-        cullingCache.clear();
-        if (!cachedFadeTransitionsActive) {
-            // フェード無効時は復元イベントを登録しない。登録するとデバウンス昇格が
-            // processCullSet の取り消し補正なしで走り、カリング範囲内のブロックに
-            // 復元ゴースト(フェード適用の復元)が一瞬出て消える。
-            return;
-        }
-        // 離脱は「由来ハンドラの集合から外れた」だけを意味する。他のカリング経路(覆い・円柱・
-        // 天井スライス)でまだカリング中なら復元は誤報で、放置するとカリング済みブロックに
-        // 復元ゴーストが立つ(出現→フェード→再カリング)。走査差分と同じ生判定でふるい落とす。
-        BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
-        LongIterator iterator = leaving.iterator();
-        while (iterator.hasNext()) {
-            long posLong = iterator.nextLong();
-            probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
-            if (isBlockCulled(probe, level)) {
-                iterator.remove();
-            }
-        }
         if (!leaving.isEmpty()) {
-            fadeTransitionController.noteHandlerDropped(leaving.size());
-            fadeTransitionController.registerRestores(leaving);
+            cullingCache.clear();
         }
     }
 
@@ -1030,9 +1007,19 @@ public final class TopDownCuller {
         playerX = playerY = playerZ = cameraX = cameraY = cameraZ = 0.0;
     }
 
-    /** 覆いカリングが時間差で進行中か(進行中はチャンク再構築を強制する必要がある)。 */
+    /** 覆いカリング(Newモード)が有効か。再構築ボックスを覆い半径まで広げる判断に使う。 */
+    public boolean isCoverCullingActive() {
+        return cachedCoverCullingActive;
+    }
+
+    /** 覆いカリングが時間差で進行中か(時差開始廃止のため常に false)。 */
     public boolean hasActiveCoverRelease() {
-        return cachedCoverCullingActive && coverHandler.isReleasing();
+        return false;
+    }
+
+    /** メッシュ再構築バッチの確定通知。該当セクションの消失フラッシュを開始する。 */
+    public void onMeshCommit(it.unimi.dsi.fastutil.longs.LongOpenHashSet committedSections) {
+        fadeTransitionController.onMeshCommit(System.currentTimeMillis(), committedSections);
     }
 
     /** メッシュ専用ホールドの解除でメッシュ復帰の再構築が必要か。 */
@@ -1072,9 +1059,11 @@ public final class TopDownCuller {
     /**
      * カリング集合の世代番号。値が変わるとカリング結果が変わった可能性がある。
      * 屋内天井スライスは視点の回転や階の移動で変わるため、チャンク再構築のトリガに使う。
+     * 覆い集合(Newモード)も列集合が入れ替わったときに世代を進め、覆い半径まで広げた
+     * 再構築ボックスの再構築を誘発する。
      */
     public long getCullingGeneration() {
-        return ceilingSliceCuller.getGeneration();
+        return ceilingSliceCuller.getGeneration() * 31L + coverHandler.getGeneration();
     }
 
     /**
@@ -1139,10 +1128,8 @@ public final class TopDownCuller {
     }
 
     /**
-     * 遷移フェードの走査を update() からティックごとに実行する。チャンク再構築の
-     * スケジューリング(同 tick の後続)より先に復元ホールド/フラッシュを確定させる。
-     * 描画パスで遅れて検出すると、実ブロックが先にメッシュへ復帰してから復元ゴーストが
-     * 置き換わる(=カリング済みブロックが出現しフェードが始まる)レースが残る。
+     * 遷移フェードの走査をティック(update)内で実行する。チャンク再構築のスケジューリング
+     * (同 tick の後続)より先にフラッシュ/メッシュホールドを確定させるため、ここでしか走らない。
      */
     public void updateFadePositions(BlockGetter level) {
         long tCollect = System.nanoTime();
@@ -1187,11 +1174,15 @@ public final class TopDownCuller {
             int cBX = (int) Math.floor(cameraX);
             int cBY = (int) Math.floor(cameraY);
             int cBZ = (int) Math.floor(cameraZ);
-            // 覆いの開始時刻が進行中は位置が同じでも走査し直す(時間差で消える覆いを取りこぼさない)。
-            // 復元ホールド中は走査不要: 描画はトラッカーのホールドを直接読むため。
-            boolean timeDriven = cachedCoverCullingActive && coverHandler.isReleasing();
-            if (!timeDriven && pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
-                    && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ) {
+            // 覆い集合/天井スライスは非同期プローブ受理で任意ティックに入れ替わる。凍結条件を
+            // 座標変化だけにすると、静止中の集合交代で判定だけ反転し再構築が先に走り
+            // (メッシュからブロックが消える)、フェード走査の検出が遅れて「カリング後に出現」に
+            // 見える。集合の世代変化でも走査を再実行する。
+            long coverGen = coverHandler.getGeneration();
+            long sliceGen = ceilingSliceCuller.getGeneration();
+            if (pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
+                    && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ
+                    && coverGen == lastFadeCoverGen && sliceGen == lastFadeSliceGen) {
                 return fadeCache.getFadePositions();
             }
             lastFadePBlockX = pBX;
@@ -1200,6 +1191,8 @@ public final class TopDownCuller {
             lastFadeCBlockX = cBX;
             lastFadeCBlockY = cBY;
             lastFadeCBlockZ = cBZ;
+            lastFadeCoverGen = coverGen;
+            lastFadeSliceGen = sliceGen;
         }
 
         fadeCache.clear();

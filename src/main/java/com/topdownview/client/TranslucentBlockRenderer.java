@@ -107,13 +107,11 @@ public final class TranslucentBlockRenderer {
         }
 
         TopDownCuller culler = TopDownCuller.getInstance();
-        // 走査/差分検出は update()(ティック)側で行いホールドを再構築スケジューリングより先に
-        // 確定させる。描画側は走査済み集合を読むだけ。
+        // 走査/差分検出は update()(ティック)側で済んでいる。描画はその集合を読むだけ。
         LongOpenHashSet fadePositions = culler.getCollectedFadePositions();
         FadeTransitionController tracker = culler.getFadeController();
         PerfMonitor.recordFadeBlocks(fadePositions.size());
 
-        long now = System.currentTimeMillis();
         float transitionMs = (float) (Config.getFadeFlashDuration() * 1000.0);
         if (transitionMs < 1.0f) {
             // フェード時間0 = 遷移なし(即時)。状態もゴーストも破棄する。
@@ -149,6 +147,7 @@ public final class TranslucentBlockRenderer {
             long posLong = iterator.nextLong();
             long start = tracker.getFadeOutStart(posLong);
             // 新規カリング(開始記録あり)は α=1 から、継続カリングは直前の α から 0 へ。
+            // 開始時刻はメッシュ確定時に刻まれるため、α=1 の瞬間＝実ブロックが消えた瞬間になる。
             float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong)
                     : (start != INVALID ? 1.0f : 0.0f);
             float alpha = approach(previous, 0.0f, step);
@@ -213,10 +212,12 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // ゴーストと不透明メッシュが同一平面に重なることがある。深度をわずかに奥へずらし、
-        // メッシュがある場所ではゴーストを負けさせる(穴の部分だけフラッシュが見える)。
+        // ゴーストは実ブロックの手前にわずかにずらして描く。同一テクスチャなので α=1 では
+        // 実ブロックと見分けが付かず、α を下げるほど手前のゴーストが背景へ混ざって自然に
+        // 消える。奥へずらす方式だと、メッシュがブロックを外すフレームまでゴーストが隠れ、
+        // 「カリングが先に見え、次フレームでゴースト」という位相ズレが出ていた。
         RenderSystem.enablePolygonOffset();
-        RenderSystem.polygonOffset(1.0f, 1.0f);
+        RenderSystem.polygonOffset(-1.0f, -1.0f);
         try {
             bufferSource.endBatch(RenderType.translucent());
         } finally {
