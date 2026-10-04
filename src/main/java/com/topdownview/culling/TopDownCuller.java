@@ -168,7 +168,11 @@ public final class TopDownCuller {
 
     private int cachedCylinderRadiusHorizontal;
     private int cachedCylinderRadiusVertical;
-    private boolean cachedViewWedgeProtection;
+    /** Newモード時にカメラ側クリップを行うか。奥の壁を保護する。 */
+    private boolean cachedCameraSideClip;
+    /** カメラ側クリップを扇形(旧方式)にするか。false は角度制限なしの半空間。 */
+    private boolean cachedCameraSideClipWedge;
+    private double cachedViewWedgeCos;
     /** 遷移フェード(ゴースト表示)が有効な期間を通して保持するフラグ。切替でトラッカーをリセットする。 */
     private boolean cachedFadeTransitionsActive = false;
     /** 天井スライス等の要素集合の差分を union した再構築範囲。 */
@@ -179,7 +183,6 @@ public final class TopDownCuller {
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
     private boolean cachedProtectInteractablesOutdoors = true;
-    private double cachedViewWedgeCos;
     private double viewDirX = 0.0;
     private double viewDirZ = 1.0;
 
@@ -406,7 +409,7 @@ public final class TopDownCuller {
 
     /**
      * 円柱フェードの判定。円柱内(カメラ〜プレイヤー)はカリング対象(0.0)、
-     * それ以外は不透明(1.0)。視界コーン・ピラミッド保護で残すブロックは 1.0 以上になる。
+     * それ以外は不透明(1.0)。奥の半空間・ピラミッド保護で残すブロックは 1.0 以上になる。
      */
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
             double pX, double pY, double pZ, double cX, double cY, double cZ) {
@@ -417,12 +420,20 @@ public final class TopDownCuller {
             return 1.0f;
         }
 
-        // 円柱内でも、プレイヤーより奥や真横のブロックは保護する。
-        // カメラ側(手前)の視界コーン内だけをカリングし、手前の壁を通り抜けて見えるようにする。
-        if (cachedViewWedgeProtection && !OcclusionCalculator.isWithinViewWedge(
-                pos.getX() + 0.5, pos.getZ() + 0.5,
-                pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
-            return 1.0f;
+        // 円柱内でもプレイヤーより奥のブロックは保護する。扇形(旧方式)では角度外も保護し、
+        // 半空間では角度制限なしでカメラ側をカリングして左右の視野を確保する。
+        if (cachedCameraSideClip) {
+            if (cachedCameraSideClipWedge) {
+                if (!OcclusionCalculator.isWithinViewWedge(
+                        pos.getX() + 0.5, pos.getZ() + 0.5,
+                        pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
+                    return 1.0f;
+                }
+            } else if (OcclusionCalculator.isBeyondPlayerHorizontally(
+                    pos.getX() + 0.5, pos.getZ() + 0.5,
+                    pX, pZ, viewDirX, viewDirZ)) {
+                return 1.0f;
+            }
         }
 
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
@@ -570,7 +581,8 @@ public final class TopDownCuller {
         cachedCullingMode = Config.getCullingMode();
         cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
         cachedProtectInteractablesOutdoors = Config.isProtectInteractablesOutdoors();
-        cachedViewWedgeProtection = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
+        cachedCameraSideClip = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
+        cachedCameraSideClipWedge = Config.isCameraSideClipWedge();
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
         double wedgeDirX = playerX - cameraX;
         double wedgeDirZ = playerZ - cameraZ;

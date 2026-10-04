@@ -240,9 +240,19 @@ public class ConfigScreen extends Screen {
                 Config.getCylinderForwardShift(), 0, 10, val -> Config.setCylinderForwardShift(val)));
         y += sp;
         if (coverMode) {
-            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle", Config.getViewWedgeHalfAngle(), 10,
-                    90, val -> Config.setViewWedgeHalfAngle(val)));
+            addRightWidget(Button.builder(getOnOffComponent("topdown_view.config.camera_side_clip_wedge",
+                    Config.isCameraSideClipWedge()), btn -> {
+                        Config.setCameraSideClipWedge(!Config.isCameraSideClipWedge());
+                        this.init();
+                    }).bounds(x, y, w, h)
+                    .tooltip(Tooltip.create(Component.translatable("topdown_view.config.camera_side_clip_wedge.tooltip")))
+                    .build());
             y += sp;
+            if (Config.isCameraSideClipWedge()) {
+                addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.view_wedge_half_angle",
+                        Config.getViewWedgeHalfAngle(), 10, 90, val -> Config.setViewWedgeHalfAngle(val)));
+                y += sp;
+            }
         }
 
         y = addSection(y, "topdown_view.config.section.indoor_culling", tx);

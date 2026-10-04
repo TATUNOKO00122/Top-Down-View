@@ -37,6 +37,7 @@ public final class CullingConfig {
     private boolean ladderOccludeEnabled = true;
     private boolean treeOccludeEnabled = true;
     private int viewWedgeHalfAngle = 60;
+    private boolean cameraSideClipWedge = false;
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
@@ -122,6 +123,10 @@ public final class CullingConfig {
 
     public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
     public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = MathUtil.clamp(value, 10, 90); }
+
+    /** true = 旧来の扇形(コーン)、false = 角度制限なしの水平半空間クリップ。 */
+    public boolean isCameraSideClipWedge() { return cameraSideClipWedge; }
+    public void setCameraSideClipWedge(boolean value) { this.cameraSideClipWedge = value; }
 
     public int getCoverCullingRadius() { return coverCullingRadius; }
     public void setCoverCullingRadius(int value) { this.coverCullingRadius = MathUtil.clamp(value, 4, 24); }

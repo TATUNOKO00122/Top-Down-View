@@ -17,13 +17,11 @@ public final class OcclusionCalculator {
 
     /**
      * ブロックがプレイヤーを原点とする「カメラ側の視界コーン(楔)」の内側かを、
-     * 水平面の角度で判定する。
+     * 水平面の角度で判定する。角度制限ありの旧方式。
      *
      * <p>プレイヤーからブロックへの水平ベクトルと、視線軸方向(カメラ→プレイヤーの
      * 単位ベクトル)のなす角が半角以内で、かつブロックがカメラ側(軸の手前側)にある場合に
-     * true を返す。つまり手前の壁だけがカリング対象となり、プレイヤーより奥の壁や
-     * 真横の構造物は対象外(保護)になる。
-     * 真上・真下付近(水平長さ≈0)はカリング寄りとして true を返す。
+     * true を返す。真上・真下付近(水平長さ≈0)はカリング寄りとして true を返す。
      *
      * @param dirX 視線軸方向X(単位ベクトル、カメラ→プレイヤー)
      * @param dirZ 視線軸方向Z(単位ベクトル、カメラ→プレイヤー)
@@ -44,6 +42,24 @@ public final class OcclusionCalculator {
             return false;
         }
         return dot * dot >= cosHalfAngle * cosHalfAngle * lenSq;
+    }
+
+    /**
+     * ブロックがプレイヤーより奥（水平方向）にあるかを判定する。
+     *
+     * <p>プレイヤーからブロックへの水平ベクトルと、視線軸方向(カメラ→プレイヤーの単位ベクトル)の
+     * 内積が正なら、ブロックはプレイヤーを越えてカメラから遠ざかる側にある。角度制限は設けず、
+     * 円柱内のカメラ側の半空間を丸ごとカリング対象にすることで左右の視野を確保する。
+     *
+     * @param dirX 視線軸方向X(単位ベクトル、カメラ→プレイヤー)
+     * @param dirZ 視線軸方向Z(単位ベクトル、カメラ→プレイヤー)
+     * @return true = プレイヤーより奥(保護対象) / false = カメラ側(カリング候補)
+     */
+    public static boolean isBeyondPlayerHorizontally(double bX, double bZ,
+            double pX, double pZ, double dirX, double dirZ) {
+        double toBX = bX - pX;
+        double toBZ = bZ - pZ;
+        return toBX * dirX + toBZ * dirZ > 0.0;
     }
 
     public static boolean isOccludingView(BlockPos pos, double cX, double cY, double cZ, double pX, double pY, double pZ) {
