@@ -61,6 +61,12 @@ public final class PerfMonitor {
     public static final Timer CULL_UPDATE = new Timer();
     /** TopDownCuller.getFadeBlocks (フェード集合の収集)。 */
     public static final Timer FADE_COLLECT = new Timer();
+    /** フェード集合走査の内訳: ハンドラ収集(階段/ハシゴ/木/覆い/スライス)。 */
+    public static final Timer FADE_SCAN_HANDLERS = new Timer();
+    /** フェード集合走査の内訳: 円柱走査。 */
+    public static final Timer FADE_SCAN_CYLINDER = new Timer();
+    /** フェード集合走査の内訳: 差分検出(processCullSet)。 */
+    public static final Timer FADE_SCAN_DIFF = new Timer();
     /** updateEntityCulling。 */
     public static final Timer ENTITY_CULL = new Timer();
     /** TranslucentBlockRenderer.renderFadeBlocks。 */
@@ -102,6 +108,8 @@ public final class PerfMonitor {
     public static final LongAdder CHUNK_REBUILD_SECTIONS = new LongAdder();
     /** フェード描画対象ブロック数の合計。 */
     private static final LongAdder FADE_BLOCKS = new LongAdder();
+    /** 実際にテッセレートしたゴースト数の合計。 */
+    private static final LongAdder FADE_GHOSTS = new LongAdder();
 
     // ==================== フレーム統計(ウィンドウ内) ====================
     private static long windowStart = System.nanoTime();
@@ -183,11 +191,13 @@ public final class PerfMonitor {
 
         LOGGER.info("[TopDownView][Perf] fps={} frame avg={}ms max={}ms | drop(>25ms)={} freeze(>100ms)={} frames={}",
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
-        LOGGER.info("[TopDownView][Perf] render fade={} collect={} overlay={}ms | tick total={} cull={} entity={}ms | "
+        LOGGER.info("[TopDownView][Perf] render fade={} collect={} (h={} c={} d={}) ghosts={} overlay={}ms | "
+                        + "tick total={} cull={} entity={}ms | "
                         + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
                         + "chunk rebuild={} (wide={}) ({}) sections={} upload={} process={} "
                         + "| isBlockCulled~={} fadeBlocks={}",
-                FADE_RENDER, FADE_COLLECT, OVERLAY_RENDER, TICK_TOTAL, CULL_UPDATE, ENTITY_CULL,
+                FADE_RENDER, FADE_COLLECT, FADE_SCAN_HANDLERS, FADE_SCAN_CYLINDER, FADE_SCAN_DIFF, FADE_GHOSTS.sum(),
+                OVERLAY_RENDER, TICK_TOTAL, CULL_UPDATE, ENTITY_CULL,
                 PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
                 CHUNK_UPLOAD, CHUNK_PROCESS, IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
@@ -199,6 +209,9 @@ public final class PerfMonitor {
     private static void resetAll() {
         CULL_UPDATE.reset();
         FADE_COLLECT.reset();
+        FADE_SCAN_HANDLERS.reset();
+        FADE_SCAN_CYLINDER.reset();
+        FADE_SCAN_DIFF.reset();
         ENTITY_CULL.reset();
         FADE_RENDER.reset();
         OVERLAY_RENDER.reset();
@@ -218,6 +231,7 @@ public final class PerfMonitor {
         CHUNK_REBUILDS_WIDE.reset();
         CHUNK_REBUILD_SECTIONS.reset();
         FADE_BLOCKS.reset();
+        FADE_GHOSTS.reset();
         frameCount = 0;
         frameTotalNanos = 0L;
         frameMaxNanos = 0L;
@@ -228,6 +242,11 @@ public final class PerfMonitor {
     /** フェード描画対象数(overlay/ログ用)。 */
     public static void recordFadeBlocks(int count) {
         FADE_BLOCKS.add(count);
+    }
+
+    /** 実際にテッセレートしたゴースト数(描画負荷の確認用)。 */
+    public static void recordFadeGhosts(int count) {
+        FADE_GHOSTS.add(count);
     }
 
     /** パフォーマンスモニターが無効になったら停止監視を解除する(誤検知防止)。 */

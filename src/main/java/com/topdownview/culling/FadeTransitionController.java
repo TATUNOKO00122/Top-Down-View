@@ -105,6 +105,12 @@ public final class FadeTransitionController {
     /** 初回の集合取り込みはイベントを出さず基準にするだけ。有効化直後に全カリングが点滅するのを防ぐ。 */
     private boolean baselineSeeded = false;
 
+    /**
+     * 同時に保持する遷移ゴースト(消失+復元)の上限。復元はメッシュホールドも同じ枠を共有するため、
+     * 超過分はフェードせず即時切替にして穴を残さない。密集地の一斉遷移で描画がスパイクするのを防ぐ。
+     */
+    private static final int MAX_ACTIVE_FLASHES = 512;
+
     public void clearCache() {
         previousCulled = new LongOpenHashSet();
         fadeOutStarts.clear();
@@ -169,9 +175,14 @@ public final class FadeTransitionController {
      *
      * @param currentCulled 今回の走査で収集した位置。取りこぼしを保持するため追加することがある。
      * @param stillCulled   位置が実際にまだカリング中かを返す生判定(収集漏れの保持用)。
+     * @param playerX       プレイヤーのブロックX(ゴースト距離フィルタ用)。
+     * @param playerY       プレイヤーのブロックY(同上)。
+     * @param playerZ       プレイヤーのブロックZ(同上)。
+     * @param maxFlashDistSq ゴーストを登録する距離の二乗。描画距離より少し広く取る。
      * @return 新規に消えた(=消失フラッシュを開始した)位置の数
      */
-    public int processCullSet(LongSet currentCulled, java.util.function.LongPredicate stillCulled) {
+    public int processCullSet(LongSet currentCulled, java.util.function.LongPredicate stillCulled,
+            int playerX, int playerY, int playerZ, double maxFlashDistSq) {
         int flashes = 0;
         long now = System.currentTimeMillis();
         if (!baselineSeeded) {
@@ -196,13 +207,17 @@ public final class FadeTransitionController {
             prevIterator.remove();
             fadeOutStarts.remove(posLong);
             pendingVanish.remove(posLong);
+            // メッシュ復帰は距離・枠に関係なく必要(カリングで消えた位置を戻す)。
+            revealSink.accept(posLong);
+            recentlyRestored.put(posLong, now);
+            // 遠方はゴーストが見えないのでフェード登録しない(握るべき穴も無い)。枠も消費しない。
+            if (!canRegisterFlash() || !isWithinFlashRange(posLong, playerX, playerY, playerZ, maxFlashDistSq)) {
+                continue;
+            }
             restoreStarts.put(posLong, now);
             openMeshHold(posLong, now);
-            recentlyRestored.put(posLong, now);
-            revealSink.accept(posLong);
-            long nowLogged = now;
-            if (nowLogged - lastRestoreLogAt >= RESTORE_LOG_INTERVAL_MS) {
-                lastRestoreLogAt = nowLogged;
+            if (now - lastRestoreLogAt >= RESTORE_LOG_INTERVAL_MS) {
+                lastRestoreLogAt = now;
                 LOGGER.info("[TopDownView] restore registered pos=({} {} {}) transitionMs={}",
                         BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong),
                         (int) getTransitionMillis());
@@ -228,7 +243,9 @@ public final class FadeTransitionController {
                 fadeOutStarts.remove(posLong);
                 restoreStarts.remove(posLong);
                 pendingVanish.remove(posLong);
-            } else if (!fadeOutStarts.containsKey(posLong) && !pendingVanish.containsKey(posLong)) {
+            } else if (!fadeOutStarts.containsKey(posLong) && !pendingVanish.containsKey(posLong)
+                    && canRegisterFlash()
+                    && isWithinFlashRange(posLong, playerX, playerY, playerZ, maxFlashDistSq)) {
                 // フラッシュの開始はメッシュ確定まで待つ(pendingVanish)。実ブロックが残る間に
                 // 減衰を始めると、メッシュ確定時に「完全消灯→フェード出現」の位相ズレが見える。
                 pendingVanish.put(posLong, now);
@@ -238,6 +255,19 @@ public final class FadeTransitionController {
 
         publishMeshHoldView();
         return flashes;
+    }
+
+    /** 保持中の遷移ゴースト数が上限未満か。 */
+    private boolean canRegisterFlash() {
+        return restoreStarts.size() + fadeOutStarts.size() + pendingVanish.size() < MAX_ACTIVE_FLASHES;
+    }
+
+    /** ゴースト描画距離内か。遠方は描画されないため登録しない。 */
+    private static boolean isWithinFlashRange(long posLong, int playerX, int playerY, int playerZ, double maxDistSq) {
+        int dx = BlockPos.getX(posLong) - playerX;
+        int dy = BlockPos.getY(posLong) - playerY;
+        int dz = BlockPos.getZ(posLong) - playerZ;
+        return dx * dx + dy * dy + dz * dz <= maxDistSq;
     }
 
     /**

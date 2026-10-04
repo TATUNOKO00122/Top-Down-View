@@ -233,7 +233,10 @@ public final class TopDownCuller {
         probeInFlight = false;
         probeRetryAfterNanos = 0L;
         pendingElementChange.reset();
-        // 次元/ワールドをまたいだ差分を持ち越さない。
+        // 次元/ワールドをまたいだ差分を持ち越さない。revealChange を残すと、settle 後の
+        // 初回再構築で旧次元座標と新次元ボックスが union され、2次元にまたがる巨大ボックス
+        // (実測 sections=111928)になる。
+        revealChange.reset();
         ceilingSliceCuller.clearPendingChange();
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
@@ -1313,6 +1316,7 @@ public final class TopDownCuller {
         fadePositions.clear();
         LongOpenHashSet current = fadePositions;
 
+        long tHandlers = System.nanoTime();
         if (Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled()) {
             stairHandler.collectCullPositions(level, current);
         }
@@ -1328,16 +1332,24 @@ public final class TopDownCuller {
         if (cachedIndoorElementActive) {
             ceilingSliceCuller.forEachSlicePosition(current);
         }
+        PerfMonitor.FADE_SCAN_HANDLERS.add(System.nanoTime() - tHandlers);
 
+        long tCylinder = System.nanoTime();
         collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, current);
+        PerfMonitor.FADE_SCAN_CYLINDER.add(System.nanoTime() - tCylinder);
 
         // 消失/復元の差分を検出する。収集漏れは生判定で保持され、復元ホールドが立つ。
         // 収集漏れの保持(再カリングの誤フラッシュ防止)のため生判定で検証する。
+        long tDiff = System.nanoTime();
         BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        // 描画側のゴースト距離より僅かに広く取る。これより遠い遷移はゴーストが見えず
+        // メッシュホールドも掛からないため、登録せず地図の肥大と遷移枠の浪費を防ぐ。
+        double flashDist = TranslucentBlockRenderer.GHOST_RENDER_DISTANCE + 1.0;
         fadeTransitionController.processCullSet(current, posLong -> {
             probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
             return isBlockCulled(probe, level);
-        });
+        }, cachedPlayerBlockX, cachedPlayerFloorY, cachedPlayerBlockZ, flashDist * flashDist);
+        PerfMonitor.FADE_SCAN_DIFF.add(System.nanoTime() - tDiff);
 
         return current;
     }

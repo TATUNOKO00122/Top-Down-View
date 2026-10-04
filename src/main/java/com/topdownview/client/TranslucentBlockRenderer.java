@@ -71,6 +71,9 @@ public final class TranslucentBlockRenderer {
     private static final AlphaVertexConsumer ALPHA_CONSUMER = new AlphaVertexConsumer();
     private static final BlockPos.MutableBlockPos FADE_POS = new BlockPos.MutableBlockPos();
 
+    /** 今フレームにテッセレートしたゴースト数(ラムダ内から加算するための再利用ホルダー)。 */
+    private static final int[] GHOST_COUNT = new int[1];
+
     private TranslucentBlockRenderer() {
         throw new IllegalStateException("ユーティリティクラス");
     }
@@ -142,6 +145,8 @@ public final class TranslucentBlockRenderer {
         GHOST_VISIBLE.clear();
         SEEN.clear();
 
+        GHOST_COUNT[0] = 0;
+
         // ==================== カリング集合(消失/継続) ====================
         // α帳簿は距離に関係なく毎フレーム更新する。遠方の復元ゴーストはメッシュホールドで
         // 穴を開けたまま待機しており、接近した瞬間に α=1 で穴を覆えるよう常時 α=1 まで
@@ -178,6 +183,7 @@ public final class TranslucentBlockRenderer {
             GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
             renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+            GHOST_COUNT[0]++;
         }
 
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
@@ -205,7 +211,10 @@ public final class TranslucentBlockRenderer {
             GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
             renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+            GHOST_COUNT[0]++;
         });
+
+        PerfMonitor.recordFadeGhosts(GHOST_COUNT[0]);
 
         // 使われなくなった α を掃除(無制限な増加を防ぐ)。
         if (!GHOST_ALPHA.isEmpty()) {
