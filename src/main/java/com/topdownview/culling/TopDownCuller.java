@@ -44,6 +44,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -149,6 +150,9 @@ public final class TopDownCuller {
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
     /** 下支え判定用。isBlockCulled はワーカースレッドからも呼ばれるため ThreadLocal で共有回避。 */
     private static final ThreadLocal<MutableBlockPos> SUPPORT_CHECK_POS =
+            ThreadLocal.withInitial(MutableBlockPos::new);
+    /** 視線判定用。同じくワーカースレッドから呼ばれるため作業座標は ThreadLocal で確保する。 */
+    private static final ThreadLocal<MutableBlockPos> LOS_CHECK_POS =
             ThreadLocal.withInitial(MutableBlockPos::new);
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
@@ -494,9 +498,88 @@ public final class TopDownCuller {
         if (treeHandler.isProtectedLog(pos.asLong())) return true;
 
         if (InteractableBlocks.isInteractable(state, level, pos)) {
-            int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
-            if (blockY <= protectY && (currentSpaceEnclosed || cachedProtectInteractablesOutdoors)) {
+            if (currentSpaceEnclosed || cachedProtectInteractablesOutdoors) {
+                int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
+                // 視線が通っていれば階違いでも残す。Yバンド制限のみを上書きし、屋外設定などのゲートは維持する。
+                if (blockY <= protectY || hasClearLineOfSight(level, pos)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * プレイヤー目線（量子化したアイブロック中心）から対象ブロック中心まで、衝突形状を持つ
+     * 遮蔽物が無いかを判定する。カリング対象のインタラクションブロックを「見えていれば残す」
+     * ために使い、Yバンド制限を上書きする。
+     *
+     * <p>isBlockCulled は Embeddium のチャンク構築ワーカーからも呼ばれるため、{@link BlockGetter}
+     * の読み取りだけで完結させ、作業用座標は ThreadLocal で確保する。
+     */
+    private boolean hasClearLineOfSight(BlockGetter level, BlockPos target) {
+        double startX = playerX;
+        double startY = playerY;
+        double startZ = playerZ;
+        double dirX = target.getX() + 0.5 - startX;
+        double dirY = target.getY() + 0.5 - startY;
+        double dirZ = target.getZ() + 0.5 - startZ;
+
+        int x = (int) Math.floor(startX);
+        int y = (int) Math.floor(startY);
+        int z = (int) Math.floor(startZ);
+        int targetX = target.getX();
+        int targetY = target.getY();
+        int targetZ = target.getZ();
+        if (x == targetX && y == targetY && z == targetZ) {
+            return true;
+        }
+
+        int stepX = Double.compare(dirX, 0);
+        int stepY = Double.compare(dirY, 0);
+        int stepZ = Double.compare(dirZ, 0);
+        double tDeltaX = stepX != 0 ? Math.abs(1.0 / dirX) : Double.MAX_VALUE;
+        double tDeltaY = stepY != 0 ? Math.abs(1.0 / dirY) : Double.MAX_VALUE;
+        double tDeltaZ = stepZ != 0 ? Math.abs(1.0 / dirZ) : Double.MAX_VALUE;
+        double tMaxX = stepX > 0 ? ((x + 1) - startX) * tDeltaX
+                : stepX < 0 ? (startX - x) * tDeltaX : Double.MAX_VALUE;
+        double tMaxY = stepY > 0 ? ((y + 1) - startY) * tDeltaY
+                : stepY < 0 ? (startY - y) * tDeltaY : Double.MAX_VALUE;
+        double tMaxZ = stepZ > 0 ? ((z + 1) - startZ) * tDeltaZ
+                : stepZ < 0 ? (startZ - z) * tDeltaZ : Double.MAX_VALUE;
+
+        double length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+        int maxSteps = (int) Math.min(length * 3 + 8, 1024);
+        MutableBlockPos check = LOS_CHECK_POS.get();
+        for (int i = 0; i < maxSteps; i++) {
+            if (tMaxX < tMaxY) {
+                if (tMaxX < tMaxZ) {
+                    x += stepX;
+                    tMaxX += tDeltaX;
+                } else {
+                    z += stepZ;
+                    tMaxZ += tDeltaZ;
+                }
+            } else {
+                if (tMaxY < tMaxZ) {
+                    y += stepY;
+                    tMaxY += tDeltaY;
+                } else {
+                    z += stepZ;
+                    tMaxZ += tDeltaZ;
+                }
+            }
+
+            if (x == targetX && y == targetY && z == targetZ) {
                 return true;
+            }
+            check.set(x, y, z);
+            BlockState blocking = level.getBlockState(check);
+            if (blocking.isAir() || blocking.is(Blocks.BARRIER)) {
+                continue;
+            }
+            if (!blocking.getCollisionShape(level, check).isEmpty()) {
+                return false;
             }
         }
         return false;
