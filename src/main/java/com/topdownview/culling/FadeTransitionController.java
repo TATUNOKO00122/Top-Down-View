@@ -55,21 +55,6 @@ public final class FadeTransitionController {
      */
     private static final long RESTORE_HANDOFF_MS = 300L;
 
-    /**
-     * 新規カリングを検出したが、未だメッシュに反映されていない位置(pos→検出ms)。メインスレッド専用。
-     *
-     * <p>走査でカリング反転を検出した時点では、メッシュにはまだ実ブロックが残る(再構築は
-     * 50ms間隔+ワーカー+バッチ確定で数フレーム遅れる)。ここでフラッシュを始めると、実ブロックが
-     * 残っている間にゴーストだけが減衰し、メッシュ確定のフレームで「途中まで薄い」として
-     * 表面化する(見た目＝完全に消えてからフェードが始まる)。そこでメッシュ確定
-     * ({@link #onMeshCommit})までフラッシュ開始を遅らせ、消える瞬間とゴースト α=1 を一致させる。
-     * 確定が来ない場合の安全弁は {@link #VANISH_START_FALLBACK_MS}。
-     */
-    private final Long2LongOpenHashMap pendingVanish = new Long2LongOpenHashMap();
-
-    /** メッシュ確定が来ないときにフラッシュを開始する安全弁(ms)。 */
-    private static final long VANISH_START_FALLBACK_MS = 750L;
-
     /** 前回走査でカリングされていた集合(差分の基準)。 */
     private LongOpenHashSet previousCulled = new LongOpenHashSet();
 
@@ -88,6 +73,13 @@ public final class FadeTransitionController {
      * エンティティ・空間走査)には使わない。ワーカーが読むため不変スナップショットで公開する。
      */
     private final Long2LongOpenHashMap meshHoldUntil = new Long2LongOpenHashMap();
+
+    /**
+     * 各復元位置のホールド失効時刻。復元帳簿を閉じてよい条件(確定バッチが失効後に
+     * スケジュールされたか)の判定に使う。ホールド本体(meshHoldUntil)は tick が除去するが、
+     * 失効時刻は帳簿が閉じるまで保持する。
+     */
+    private final Long2LongOpenHashMap meshHoldExpiry = new Long2LongOpenHashMap();
     private volatile LongOpenHashSet meshHoldView = new LongOpenHashSet();
     private boolean meshHoldDirty = false;
 
@@ -108,8 +100,8 @@ public final class FadeTransitionController {
         fadeOutStarts.clear();
         restoreStarts.clear();
         recentlyRestored.clear();
-        pendingVanish.clear();
         meshHoldUntil.clear();
+        meshHoldExpiry.clear();
         meshHoldView = new LongOpenHashSet();
         meshHoldDirty = false;
         meshHoldRebuildPending = false;
@@ -203,7 +195,6 @@ public final class FadeTransitionController {
             }
             prevIterator.remove();
             fadeOutStarts.remove(posLong);
-            pendingVanish.remove(posLong);
             // メッシュ復帰は距離・枠に関係なく必要(カリングで消えた位置を戻す)。
             revealSink.accept(posLong);
             recentlyRestored.put(posLong, now);
@@ -218,6 +209,11 @@ public final class FadeTransitionController {
         }
 
         // ---- 今回新たに収集された位置(消失) ----
+        // 消失フラッシュは検出時(走査時)に即開始する。ゴーストは実ブロックがまだメッシュに
+        // 残っている間、その背後で減衰する(同一テクスチャなので見えない)。メッシュの除去確定
+        // (数フレーム後)の時点でゴーストは α≈0.6〜0.9 になっており、除去フレームで穴を
+        // ほぼ覆った状態から減衰が続く=穴が露出しない。確定フレームで開始を刻む方式は、
+        // フレーム内の処理順序(アップロードとフェードパスの前後)で1フレームの穴が出るため廃止。
         LongIterator currentIterator = currentCulled.iterator();
         while (currentIterator.hasNext()) {
             long posLong = currentIterator.nextLong();
@@ -226,18 +222,14 @@ public final class FadeTransitionController {
                 continue;
             }
             if (isRecentlyRestored(posLong)) {
-                // 直近に確定復元した位置の再カリング: 境界の揺れとみなしフラッシュしない。
-                // restoreStarts は残す。描画側は復元ゴーストを凍結し(消失側は減衰させない)、
-                // 揺れが戻ったら同一帳簿からレンプを続ける。ここで除去すると α=1 の帳簿が
-                // 消失ループに流れ「フルαの単発ゴースト→フェーズアウト→再レンプロ」になる。
-                fadeOutStarts.remove(posLong);
-                pendingVanish.remove(posLong);
-            } else if (!fadeOutStarts.containsKey(posLong) && !pendingVanish.containsKey(posLong)
-                    && canRegisterFlash()
+                // 直近に確定復元した位置の再カリング: 復元帳簿を閉じ、共有 α 帳簿の現在値から
+                // そのまま消失フェードへクロスフェードする。帳簿は GHOST_ALPHA が共有のため
+                // レンプの再スタート(点滅)にはならず、自然な「見えていたものが溶ける」になる。
+                restoreStarts.remove(posLong);
+            }
+            if (!fadeOutStarts.containsKey(posLong) && canRegisterFlash()
                     && isWithinFlashRange(posLong, playerX, playerY, playerZ, maxFlashDistSq)) {
-                // フラッシュの開始はメッシュ確定まで待つ(pendingVanish)。実ブロックが残る間に
-                // 減衰を始めると、メッシュ確定時に「完全消灯→フェード出現」の位相ズレが見える。
-                pendingVanish.put(posLong, now);
+                fadeOutStarts.put(posLong, now);
                 flashes++;
             }
         }
@@ -248,7 +240,7 @@ public final class FadeTransitionController {
 
     /** 保持中の遷移ゴースト数が上限未満か。 */
     private boolean canRegisterFlash() {
-        return restoreStarts.size() + fadeOutStarts.size() + pendingVanish.size() < MAX_ACTIVE_FLASHES;
+        return restoreStarts.size() + fadeOutStarts.size() < MAX_ACTIVE_FLASHES;
     }
 
     /** ゴースト描画距離内か。遠方は描画されないため登録しない。 */
@@ -260,35 +252,46 @@ public final class FadeTransitionController {
     }
 
     /**
-     * メッシュ再構築のバッチ確定時に呼ぶ。確定バッチに含まれるセクションの位置だけを
-     * フラッシュ開始(その確定時刻)として刻む。バッチ外の位置は次の該当バッチ確定まで待つ
-     * (無関係なバッチの確定で刻むと、実ブロック未除去のままゴーストが減衰してしまう)。
-     * CullingManager.commitBatch から呼ばれる。
+     * メッシュ再構築のバッチ確定時に呼ぶ。復元帳簿の締め処理のみを行う: 確定したセクションに
+     * 含まれる復元位置のうち、判定が復元済みで、かつ「このバッチがホールド失効後に
+     * スケジュールされた」ものだけを閉じる。スケジュール条件が要る理由: ホールドが生きている
+     * 間に構築された古いバッチの確定は、そのメッシュに実ブロックが乗っていない。そこで閉じると
+     * 帳簿が先に消え、実ブロックが次の確定で来るまでの1フレーム穴が露出する
+     * (ゴースト→実ブロックの切り替わりで1フレーム消える)。消失フラッシュの開始は検出時即時のため
+     * ここでは扱わない。CullingManager.commitBatch から呼ばれる。
+     *
+     * @param batchScheduledAtMs この確定バッチをスケジュールした時刻(ms)
      */
-    public void onMeshCommit(long now, LongSet committedSections) {
-        if (pendingVanish.isEmpty()) {
-            return;
-        }
-        LongIterator iterator = pendingVanish.keySet().iterator();
-        while (iterator.hasNext()) {
-            long posLong = iterator.nextLong();
-            int sx = BlockPos.getX(posLong) >> 4;
-            int sy = BlockPos.getY(posLong) >> 4;
-            int sz = BlockPos.getZ(posLong) >> 4;
-            if (!committedSections.contains(SectionPos.asLong(sx, sy, sz))) {
-                continue;
+    public void onMeshCommit(long now, LongSet committedSections, long batchScheduledAtMs) {
+        if (!restoreStarts.isEmpty()) {
+            LongIterator iterator = restoreStarts.keySet().iterator();
+            while (iterator.hasNext()) {
+                long posLong = iterator.nextLong();
+                if (previousCulled.contains(posLong)) {
+                    continue;
+                }
+                Long holdExpiry = meshHoldExpiry.get(posLong);
+                if (holdExpiry == null || batchScheduledAtMs < holdExpiry) {
+                    // ホールドがまだ生きている、またはその失効前にスケジュールされたバッチ:
+                    // このメッシュに実ブロックは乗っていない。帳簿を維持してゴーストで穴を覆う。
+                    continue;
+                }
+                int sx = BlockPos.getX(posLong) >> 4;
+                int sy = BlockPos.getY(posLong) >> 4;
+                int sz = BlockPos.getZ(posLong) >> 4;
+                if (committedSections.contains(SectionPos.asLong(sx, sy, sz))) {
+                    iterator.remove();
+                    meshHoldExpiry.remove(posLong);
+                }
             }
-            iterator.remove();
-            // 既に復元済み(previousCulled から外れた)なら開始しない。
-            if (!previousCulled.contains(posLong)) {
-                continue;
-            }
-            fadeOutStarts.put(posLong, now);
         }
     }
 
     private void openMeshHold(long posLong, long now) {
-        meshHoldUntil.put(posLong, now + getTransitionMillis() + RESTORE_LINGER_MS);
+        long expiry = now + getTransitionMillis() + RESTORE_LINGER_MS;
+        meshHoldUntil.put(posLong, expiry);
+        // 帳簿をいつ閉じてよいかを判定するため失効時刻を保持する(ホールド本体は tick が除去する)。
+        meshHoldExpiry.put(posLong, expiry);
         meshHoldDirty = true;
     }
 
@@ -316,24 +319,11 @@ public final class FadeTransitionController {
                 // 戻るまでの穴を覆い切る(ここを手前で切ると消え際に一瞬穴が見える)。
                 if (now >= restoreStarts.get(posLong) + transition + RESTORE_LINGER_MS + RESTORE_HANDOFF_MS) {
                     iterator.remove();
+                    meshHoldExpiry.remove(posLong);
                 }
             }
         }
         purgeOlder(recentlyRestored, now, transition * 2);
-
-        // メッシュ確定が取りこぼされた場合の安全弁。一定時間でフラッシュを開始する。
-        if (!pendingVanish.isEmpty()) {
-            LongIterator iterator = pendingVanish.keySet().iterator();
-            while (iterator.hasNext()) {
-                long posLong = iterator.nextLong();
-                if (now - pendingVanish.get(posLong) >= VANISH_START_FALLBACK_MS) {
-                    iterator.remove();
-                    if (previousCulled.contains(posLong)) {
-                        fadeOutStarts.put(posLong, now);
-                    }
-                }
-            }
-        }
 
         // メッシュ専用ホールドの期限切れを除去(期限が来たらメッシュが復帰する)。
         if (!meshHoldUntil.isEmpty()) {
@@ -342,6 +332,10 @@ public final class FadeTransitionController {
                 long posLong = iterator.nextLong();
                 if (now >= meshHoldUntil.get(posLong)) {
                     iterator.remove();
+                    // 復元帳簿はここでは閉じない: メッシュの復帰は開示→再構築→バッチ確定の
+                    // あと(立ち止まっていると更に遅延する)。ここで閉じるとゴーストが消えて
+                    // から実ブロックが戻るまでのフレーム差分が穴として露出する。
+                    // 帳簿は onMeshCommit(実ブロックがメッシュに乗った確定時)で閉じる。
                     meshHoldDirty = true;
                     revealSink.accept(posLong);
                 }

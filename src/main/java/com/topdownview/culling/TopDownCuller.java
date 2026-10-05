@@ -926,15 +926,19 @@ public final class TopDownCuller {
         if (cachedCoverCullingActive) {
             coverHandler.updateRetention(cachedPlayerBlockX, cachedPlayerBlockZ);
         }
+        // 連鎖の距離保持も毎tick判定する(離脱の応答性)。集合の再計算はプローブ時のみ。
+        if (Config.isConnectedWallCullingEnabled()) {
+            connectedWallHandler.updateRetention(cachedPlayerBlockX, cachedPlayerBlockZ);
+        }
+        // 集合の離脱(覆い/スライス/連鎖)の消費は毎tick行う。プローブ時のみだと、毎tickの
+        // 保持が解放した位置の開示(メッシュ復帰)が最大3ブロックぶん遅れる(復元が遅い)。
+        drainFadeRestores();
         // 遷移フェードの走査/差分検出を同じティックで行う。チャンク再構築のスケジューリング
         // (ClientForgeEvents の CullingManager.tick 後段)より先にフラッシュとメッシュホールドを
         // 確定させる。描画パスで遅れて検出すると、実ブロックが先にメッシュから消えてから
         // 消失フラッシュが始まる(α=1が一瞬見えてからフェードに差し替わる)レースが残る。
         updateFadePositions(mc.level);
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
-        connectedWallHandler.update(mc.level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
-                viewDirX, viewDirZ, fadePositions,
-                posLong -> !(cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)));
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
         PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
@@ -1157,7 +1161,22 @@ public final class TopDownCuller {
             coverHandler.clearCache();
         }
 
-        drainFadeRestores();
+        // 連鎖壁カリングも覆いと同じ「プローブ間隔」で再計算する(毎ティック再構築は入力の
+        // 1ティック揺れをすべてメンバーシップの揺れにして不安定になる)。シードは幾何のみで、
+        // 判定の出力(=フェード収集合)を参照しないため自己参照ループが無い。
+        if (ModState.STATUS.isEnabled() && Config.isConnectedWallCullingEnabled()) {
+            long wallGenBefore = connectedWallHandler.getGeneration();
+            connectedWallHandler.update(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
+                    viewDirX, viewDirZ, cachedCameraSideClipWedge, cachedViewWedgeCos,
+                    cachedCylinderRadiusHorizontal, cachedCylinderRadiusVertical,
+                    (pos, state) -> isProtectedBlock(pos, state, playerY, level));
+            if (connectedWallHandler.getGeneration() != wallGenBefore) {
+                // 覆いと同じ: 集合確定の同ティックで判定を反転させる。
+                cullingCache.clear();
+            }
+        } else {
+            connectedWallHandler.clearCache();
+        }
     }
 
     /**
@@ -1301,12 +1320,9 @@ public final class TopDownCuller {
         return connectedWallHandler.getChainCount();
     }
 
-    /**
-
-
-    /** メッシュ再構築バッチの確定通知。該当セクションの消失フラッシュを開始する。 */
-    public void onMeshCommit(LongOpenHashSet committedSections) {
-        fadeTransitionController.onMeshCommit(System.currentTimeMillis(), committedSections);
+    /** メッシュ再構築バッチの確定通知。復元帳簿の締め処理を行う。 */
+    public void onMeshCommit(LongOpenHashSet committedSections, long batchScheduledAtMs) {
+        fadeTransitionController.onMeshCommit(System.currentTimeMillis(), committedSections, batchScheduledAtMs);
     }
 
     /** メッシュ専用ホールドの解除でメッシュ復帰の再構築が必要か。 */
@@ -1514,9 +1530,9 @@ public final class TopDownCuller {
         collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, current);
         PerfMonitor.FADE_SCAN_CYLINDER.add(System.nanoTime() - tCylinder);
 
-        // 連鎖メンバーの最終除外。各コレクタ(階段/ラダー/木/覆い/スライス)が連鎖メンバーと
-        // 重なる位置を直接 add するため、差分の前に一括で弾く(これが無いと連鎖の当落が
-        // 消失/復元イベントとして出力され、フェードと連鎖の同時運用で点滅する)。
+        // 連鎖メンバーの最終除外(2層目)。階段/ラダー/木/覆い/スライスの各収集器は位置を直接
+        // add するため、円柱ループ内の除外だけでは連鎖メンバーが再混入する。差分の前に一括で
+        // 弾くことで、連鎖の当落・予算消費がフェードへ漏れない。
         current.removeIf(connectedWallHandler::isConnectedCulled);
 
         // 消失/復元の差分を検出する。収集漏れは生判定で保持され、復元ホールドが立つ。
@@ -1635,10 +1651,10 @@ public final class TopDownCuller {
 
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
                     if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
-                    // 連鎖カリングも即時切替(地下カリングと同じ扱い)。連鎖集合は毎ティック
-                    // 再構築されるため境界の当落が頻繁で、フェードの消失/復元イベントに流すと
-                    // ゴースト/ホールド/開示が追従しきらず点滅する。解放は droppedPositions →
-                    // drain(開示)でメッシュへ即戻る。
+                    // 連鎖メンバーは即時切替(フェード予算を消費しない)。連鎖は家に入った瞬間など
+                    // 数百メンバーを一斉公開するため、フェードの512枠を埋めて覆い等の本来の
+                    // 消失/復元イベントを登録拒否にしていた。帳簿(previousCulled)は復元ループの
+                    // stillCulled put-back が同期する(連鎖メンバー=判定true→必ず戻る)。
                     if (connectedWallHandler.isConnectedCulled(posLong)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;

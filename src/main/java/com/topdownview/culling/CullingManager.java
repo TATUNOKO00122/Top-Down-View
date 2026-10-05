@@ -51,6 +51,8 @@ public final class CullingManager {
     // これで f2a1eb9 の同期と同じ「同一フレーム確定」を描画スレッドをブロックせずに再現する。
     private static boolean batchPending = false;
     private static int batchFrames = 0;
+    /** 現在保留中のバッチのスケジュール時刻(ms)。復元帳簿の締め判定に使う。 */
+    private static long batchScheduledAtMs;
     /** 現在のバッチに含まれるセクション座標({@link SectionPos#asLong})。 */
     private static final LongOpenHashSet batchSections = new LongOpenHashSet();
 
@@ -352,6 +354,7 @@ public final class CullingManager {
                     collectBatchSections(minX, minY, minZ, maxX, maxY, maxZ);
                     batchPending = true;
                     batchFrames = 0;
+                    batchScheduledAtMs = System.currentTimeMillis();
                 } else {
                     batchPending = false;
                     batchSections.clear();
@@ -461,11 +464,10 @@ public final class CullingManager {
     public static void commitBatch() {
         batchPending = false;
         batchFrames = 0;
-        // メッシュが実際に更新された瞬間。このバッチに属するセクションの新規カリングについて
-        // 消失フラッシュをここで開始し(α=1を消灯と同フレームに揃える)、バッチ外は次の該当
-        // バッチまで待つ。無関係なバッチ確定で開始すると、実ブロック未除去のまま減衰が進む。
-        // クリア前にセクション集合を渡す(クリア後だと一致が取れない)。
-        CULLER.onMeshCommit(batchSections);
+        // メッシュが実際に更新された瞬間。復元帳簿の締め処理(実ブロックがメッシュに乗った
+        // 確定でゴーストを消す)を行う。バッチのスケジュール時刻を渡し、ホールド失効前に
+        // スケジュールされた(メッシュに実ブロックが乗っていない)確定では閉じない。
+        CULLER.onMeshCommit(batchSections, batchScheduledAtMs);
         batchSections.clear();
     }
 
