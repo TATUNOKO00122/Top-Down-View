@@ -262,6 +262,11 @@ public final class SpaceDebugRenderer {
             y += lineHeight;
         }
 
+        // 連鎖カリング情報 (動作確認用の実数)
+        int chainCount = com.topdownview.culling.TopDownCuller.getInstance().getChainCount();
+        gg.drawString(mc.font, "Connected walls: " + chainCount, x, y, 0xFFCCCCCC, false);
+        y += lineHeight;
+
         // 空間セル情報
         com.topdownview.spatial.RoomFloodFill.Result roomRes = result.getRoomResult();
         if (roomRes != null && roomRes.isEnclosed()) {

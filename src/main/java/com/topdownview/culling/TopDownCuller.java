@@ -107,6 +107,7 @@ public final class TopDownCuller {
     /** 走査集合の凍結条件に含める、覆い集合/天井スライスの直近世代。 */
     private long lastFadeCoverGen = Long.MIN_VALUE;
     private long lastFadeSliceGen = Long.MIN_VALUE;
+    private long lastFadeWallGen = Long.MIN_VALUE;
     private boolean cacheClearedOnDisabled = false;
     private boolean spaceClearedOnDisabled = false;
 
@@ -932,7 +933,8 @@ public final class TopDownCuller {
         updateFadePositions(mc.level);
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         connectedWallHandler.update(mc.level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
-                viewDirX, viewDirZ, cachedViewWedgeCos, cachedCameraSideClipWedge);
+                viewDirX, viewDirZ, fadePositions,
+                posLong -> !(cachedIndoorElementActive && ceilingSliceCuller.isCeilingSliceBlock(posLong)));
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
         PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
@@ -1172,6 +1174,7 @@ public final class TopDownCuller {
         LongOpenHashSet leaving = new LongOpenHashSet();
         ceilingSliceCuller.takeLeavingPositions(leaving);
         coverHandler.takeDroppedPositions(leaving);
+        connectedWallHandler.takeDroppedPositions(leaving);
         if (!leaving.isEmpty()) {
             cullingCache.clear();
             LongIterator iterator = leaving.iterator();
@@ -1293,6 +1296,11 @@ public final class TopDownCuller {
         return cachedCoverCullingActive;
     }
 
+    /** デバッグHUD用: 連鎖カリング中のブロック数。 */
+    public int getChainCount() {
+        return connectedWallHandler.getChainCount();
+    }
+
     /**
 
 
@@ -1342,7 +1350,8 @@ public final class TopDownCuller {
      * 再構築ボックスの再構築を誘発する。
      */
     public long getCullingGeneration() {
-        return ceilingSliceCuller.getGeneration() * 31L + coverHandler.getGeneration();
+        return ceilingSliceCuller.getGeneration() * 31L + coverHandler.getGeneration() * 7L
+                + connectedWallHandler.getGeneration();
     }
 
     /**
@@ -1432,22 +1441,17 @@ public final class TopDownCuller {
     }
 
     private LongOpenHashSet collectCullSetImpl(BlockGetter level) {
-        // 遷移フェード(ゴースト表示)が無効な間はイベントを出さない。カリング自体は
-        // isBlockCulled 側で維持され、消失/復元は即時のまま。
+        // 遷移フェード(ゴースト表示)のゲートは「フラッシュ登録」にのみ掛かる。収集自体は
+        // 連鎖カリングのシード源として常時維持する(フェード無効時に連鎖が死なないように)。
         boolean transitionsActive = ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled()
                 && !ModState.STATUS.isMiningMode() && Config.isFadeEnabled()
                 && !cachedDisableIndoorFade && contextValid;
-        if (!transitionsActive) {
-            if (cachedFadeTransitionsActive) {
-                cachedFadeTransitionsActive = false;
-                fadeTransitionController.clearCache();
-                fadePositions.clear();
-            }
-            return fadePositions;
+        if (!transitionsActive && cachedFadeTransitionsActive) {
+            cachedFadeTransitionsActive = false;
+            fadeTransitionController.clearCache();
         }
-        if (!cachedFadeTransitionsActive) {
+        if (transitionsActive && !cachedFadeTransitionsActive) {
             cachedFadeTransitionsActive = true;
-            fadePositions.clear();
         }
         if (level == null) {
             return fadePositions;
@@ -1467,9 +1471,11 @@ public final class TopDownCuller {
             // 見える。集合の世代変化でも走査を再実行する。
             long coverGen = coverHandler.getGeneration();
             long sliceGen = ceilingSliceCuller.getGeneration();
+            long wallGen = connectedWallHandler.getGeneration();
             if (pBX == lastFadePBlockX && pBY == lastFadePBlockY && pBZ == lastFadePBlockZ
                     && cBX == lastFadeCBlockX && cBY == lastFadeCBlockY && cBZ == lastFadeCBlockZ
-                    && coverGen == lastFadeCoverGen && sliceGen == lastFadeSliceGen) {
+                    && coverGen == lastFadeCoverGen && sliceGen == lastFadeSliceGen
+                    && wallGen == lastFadeWallGen) {
                 return fadePositions;
             }
             lastFadePBlockX = pBX;
@@ -1480,6 +1486,7 @@ public final class TopDownCuller {
             lastFadeCBlockZ = cBZ;
             lastFadeCoverGen = coverGen;
             lastFadeSliceGen = sliceGen;
+            lastFadeWallGen = wallGen;
         }
 
         fadePositions.clear();
@@ -1507,6 +1514,11 @@ public final class TopDownCuller {
         collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, current);
         PerfMonitor.FADE_SCAN_CYLINDER.add(System.nanoTime() - tCylinder);
 
+        // 連鎖メンバーの最終除外。各コレクタ(階段/ラダー/木/覆い/スライス)が連鎖メンバーと
+        // 重なる位置を直接 add するため、差分の前に一括で弾く(これが無いと連鎖の当落が
+        // 消失/復元イベントとして出力され、フェードと連鎖の同時運用で点滅する)。
+        current.removeIf(connectedWallHandler::isConnectedCulled);
+
         // 消失/復元の差分を検出する。収集漏れは生判定で保持され、復元ホールドが立つ。
         // 収集漏れの保持(再カリングの誤フラッシュ防止)のため生判定で検証する。
         long tDiff = System.nanoTime();
@@ -1514,10 +1526,12 @@ public final class TopDownCuller {
         // 描画側のゴースト距離より僅かに広く取る。これより遠い遷移はゴーストが見えず
         // メッシュホールドも掛からないため、登録せず地図の肥大と遷移枠の浪費を防ぐ。
         double flashDist = TranslucentBlockRenderer.GHOST_RENDER_DISTANCE + 1.0;
-        fadeTransitionController.processCullSet(current, posLong -> {
-            probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
-            return isBlockCulled(probe, level);
-        }, cachedPlayerBlockX, cachedPlayerFloorY, cachedPlayerBlockZ, flashDist * flashDist);
+        if (transitionsActive) {
+            fadeTransitionController.processCullSet(current, posLong -> {
+                probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+                return isBlockCulled(probe, level);
+            }, cachedPlayerBlockX, cachedPlayerFloorY, cachedPlayerBlockZ, flashDist * flashDist);
+        }
         PerfMonitor.FADE_SCAN_DIFF.add(System.nanoTime() - tDiff);
 
         fadeTransitionController.publishMeshHoldView();
@@ -1621,6 +1635,11 @@ public final class TopDownCuller {
 
                     // 覆いブロックは覆い側の時間差カリングに任せる(円柱フェードと二重に扱わない)
                     if (cachedCoverCullingActive && coverHandler.isCoverCulled(mutablePos)) continue;
+                    // 連鎖カリングも即時切替(地下カリングと同じ扱い)。連鎖集合は毎ティック
+                    // 再構築されるため境界の当落が頻繁で、フェードの消失/復元イベントに流すと
+                    // ゴースト/ホールド/開示が追従しきらず点滅する。解放は droppedPositions →
+                    // drain(開示)でメッシュへ即戻る。
+                    if (connectedWallHandler.isConnectedCulled(posLong)) continue;
                     if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
                     if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
                     if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
