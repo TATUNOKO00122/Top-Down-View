@@ -112,6 +112,12 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue CAMERA_SIDE_CLIP_WEDGE = BUILDER
             .comment("Camera-side clip shape: true = wedge/fan (original), false = half-space (wider side view).")
             .define("cameraSideClipWedge", false);
+    private static final ForgeConfigSpec.BooleanValue CONNECTED_WALL_CULLING_ENABLED = BUILDER
+            .comment("Propagates culling along connected wall blocks to prevent V-shaped blind spots at corners.")
+            .define("connectedWallCullingEnabled", true);
+    private static final ForgeConfigSpec.IntValue CONNECTED_WALL_MAX_DISTANCE = BUILDER
+            .comment("Maximum step distance for connected wall culling propagation.")
+            .defineInRange("connectedWallMaxDistance", 3, 1, 6);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
             .defineInRange("coverCullingRadius", 10, 4, 24);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
@@ -349,6 +355,8 @@ public class Config {
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static boolean isCameraSideClipWedge() { return CULLING.isCameraSideClipWedge(); }
+    public static boolean isConnectedWallCullingEnabled() { return CULLING.isConnectedWallCullingEnabled(); }
+    public static int getConnectedWallMaxDistance() { return CULLING.getConnectedWallMaxDistance(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
@@ -476,6 +484,8 @@ public class Config {
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCameraSideClipWedge(boolean value) { CULLING.setCameraSideClipWedge(value); }
+    public static void setConnectedWallCullingEnabled(boolean value) { CULLING.setConnectedWallCullingEnabled(value); }
+    public static void setConnectedWallMaxDistance(int value) { CULLING.setConnectedWallMaxDistance(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
@@ -652,6 +662,8 @@ public class Config {
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
         addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
         addBinding(CAMERA_SIDE_CLIP_WEDGE, CULLING::setCameraSideClipWedge, Config::isCameraSideClipWedge);
+        addBinding(CONNECTED_WALL_CULLING_ENABLED, CULLING::setConnectedWallCullingEnabled, Config::isConnectedWallCullingEnabled);
+        addBinding(CONNECTED_WALL_MAX_DISTANCE, CULLING::setConnectedWallMaxDistance, Config::getConnectedWallMaxDistance);
         addBinding(COVER_CULLING_RADIUS, CULLING::setCoverCullingRadius, Config::getCoverCullingRadius);
         addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
         addBinding(CULLING_MODE, CULLING::setCullingMode, Config::getCullingMode);

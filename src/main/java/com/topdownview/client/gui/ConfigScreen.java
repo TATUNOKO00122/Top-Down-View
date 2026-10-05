@@ -255,6 +255,12 @@ public class ConfigScreen extends Screen {
             }
         }
 
+        addToggle(x, y, w, h, "topdown_view.config.connected_wall_culling_enabled", Config::isConnectedWallCullingEnabled, Config::setConnectedWallCullingEnabled);
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.connected_wall_max_distance",
+                Config.getConnectedWallMaxDistance(), 1, 6, val -> Config.setConnectedWallMaxDistance(val)));
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.indoor_culling", tx);
         addToggle(x, y, w, h, "topdown_view.config.indoor_ceiling_culling_enabled", Config::isIndoorCeilingCullingEnabled, Config::setIndoorCeilingCullingEnabled);
         y += sp;

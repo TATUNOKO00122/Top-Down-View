@@ -48,6 +48,15 @@ public final class CullingConfig {
     private boolean translucentFluid = true;
     private double fluidAlpha = 0.35;
 
+    private boolean connectedWallCullingEnabled = true;
+    private int connectedWallMaxDistance = 3;
+
+    public boolean isConnectedWallCullingEnabled() { return connectedWallCullingEnabled; }
+    public void setConnectedWallCullingEnabled(boolean value) { this.connectedWallCullingEnabled = value; }
+
+    public int getConnectedWallMaxDistance() { return connectedWallMaxDistance; }
+    public void setConnectedWallMaxDistance(int value) { this.connectedWallMaxDistance = MathUtil.clamp(value, 1, 6); }
+
     public int getCylinderRadiusHorizontal() { return cylinderRadiusHorizontal; }
     public void setCylinderRadiusHorizontal(int value) { this.cylinderRadiusHorizontal = MathUtil.clamp(value, 1, 10); }
 

@@ -160,6 +160,7 @@ public final class TopDownCuller {
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingSliceCuller ceilingSliceCuller = new CeilingSliceCuller();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
+    private final ConnectedWallHandler connectedWallHandler = new ConnectedWallHandler();
     /**
      * 復元が確定した(=メッシュに戻る必要がある)位置の開示ボックス。
      * 復元位置はプレイヤー↔カメラボックスの外にいることがある(覆いは覆い半径+余白の外で
@@ -228,6 +229,7 @@ public final class TopDownCuller {
         treeHandler.clearCache();
         ceilingSliceCuller.clearCache();
         coverHandler.clearCache();
+        connectedWallHandler.clearCache();
         fadeTransitionController.clearCache();
         
         currentSpaceEnclosed = false;
@@ -470,6 +472,11 @@ public final class TopDownCuller {
             boolean occludeEnabled = Config.isStaircaseOccludeEnabled();
             cullingCache.put(posLong, occludeEnabled);
             return occludeEnabled;
+        }
+
+        if (connectedWallHandler.isConnectedCulled(posLong)) {
+            cullingCache.put(posLong, true);
+            return true;
         }
 
         float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cZ);
@@ -841,6 +848,8 @@ public final class TopDownCuller {
         // 消失フラッシュが始まる(α=1が一瞬見えてからフェードに差し替わる)レースが残る。
         updateFadePositions(mc.level);
         treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+        connectedWallHandler.update(mc.level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
+                viewDirX, viewDirZ, cachedViewWedgeCos, cachedCameraSideClipWedge);
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
         PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
