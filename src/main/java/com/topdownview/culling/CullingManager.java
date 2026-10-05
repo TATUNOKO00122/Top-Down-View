@@ -67,6 +67,8 @@ public final class CullingManager {
     private static int lastRebuildCameraY = Integer.MIN_VALUE;
     private static int lastRebuildCameraZ = Integer.MIN_VALUE;
     private static long lastRebuildGeneration = Long.MIN_VALUE;
+    /** 前回再構築時に確定したカメラ文脈の改訂番号。回転(フレーム毎)で変わる。 */
+    private static long lastRebuildContextRevision = Long.MIN_VALUE;
 
     private CullingManager() {
         throw new IllegalStateException("ユーティリティクラス");
@@ -146,6 +148,30 @@ public final class CullingManager {
     }
 
     /**
+     * レンダーフレーム単位のフック({@code RenderSectionManagerMixin} から毎フレーム呼ぶ)。
+     *
+     * <p>カリング文脈と再構築スケジュールをクライアントtick(20Hz)だけで回すと、カメラ回転が
+     * 1tick(最大50ms)遅れて追従し、さらにバッチ確定後に次tickを待つ分だけメッシュ更新が
+     * 遅れる。フレーム毎にカメラ文脈を更新し、空いているバッチへ再構築を積むことで追従を揃える。
+     * スケジュールは batchPending で直列化されるため、バッチ確定以上の頻度では走らない。
+     */
+    public static void onRenderFrame() {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || mc.screen != null || mc.isPaused()) {
+            return;
+        }
+        // 次元変更の settle 中は旧次元の座標で再構築しないよう、tick 側と同じゲートに従う。
+        if (settleTicks > 0 || !CULLER.isContextValid()) {
+            return;
+        }
+        CULLER.syncCameraContext();
+        scheduleChunkRebuildIfNeeded();
+    }
+
+    /**
      * 新レベルを描画できる状態か。ロード画面が閉じ、カメラがプレイヤー近傍にある
      * (別次元の残存座標でない)とき true。true になった時点でカリングを再開する。
      */
@@ -194,7 +220,10 @@ public final class CullingManager {
         // カリング集合の世代(天井スライス+覆い)。覆い集合が入れ替わったら座標が同じでも再構築する。
         long generation = CULLER.getCullingGeneration();
         boolean generationChanged = generation != lastRebuildGeneration;
-        if (!meshHoldRelease && !revealRebuild && !generationChanged
+        // カメラ文脈の改訂番号。回転(フレーム毎)や真上付近での yaw 回転でも変化する。
+        long contextRevision = CULLER.getViewContextRevision();
+        boolean contextChanged = contextRevision != lastRebuildContextRevision;
+        if (!meshHoldRelease && !revealRebuild && !generationChanged && !contextChanged
                 && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
                 && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
             return;
@@ -204,7 +233,9 @@ public final class CullingManager {
         if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
             // ホールド解除/復元開示の再構築は間隔待ちを飛ばす(穴即閉鎖優先)。再構築予約があっても
             // 50ms 待つと、復元ゴーストの寿命が尽きて1フレーム穴が出る。
-            if (!meshHoldRelease && !revealRebuild) {
+            // カメラ回転も同じく飛ばす: 50ms 待つと回転中に追従が目に見えて遅れる。バッチ直列化で
+            // 実際の頻度はバッチ確定間隔が上限になるため、暴走はしない。
+            if (!meshHoldRelease && !revealRebuild && !contextChanged) {
                 return;
             }
         }
@@ -277,6 +308,7 @@ public final class CullingManager {
             lastRebuildCameraY = cY;
             lastRebuildCameraZ = cZ;
             lastRebuildGeneration = generation;
+            lastRebuildContextRevision = contextRevision;
             if (elementRebuild || revealRebuild) {
                 // 差分を消費したのでリセットする。要素非アクティブ時の変更は残しておき、
                 // 次に要素カリングが有効になった再構築でまとめて反映する。
@@ -458,6 +490,7 @@ public final class CullingManager {
         lastRebuildCameraY = Integer.MIN_VALUE;
         lastRebuildCameraZ = Integer.MIN_VALUE;
         lastRebuildGeneration = Long.MIN_VALUE;
+        lastRebuildContextRevision = Long.MIN_VALUE;
     }
 
     public static void forceChunkRebuild(Minecraft mc) {

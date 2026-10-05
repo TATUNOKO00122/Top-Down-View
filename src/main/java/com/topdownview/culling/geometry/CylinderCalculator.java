@@ -20,9 +20,10 @@ public final class CylinderCalculator {
      */
     private static volatile Axis axis = Axis.INVALID;
 
-    private record Axis(double segX, double segY, double segZ, double segLengthSq,
+    private record Axis(double camX, double camY, double camZ,
+                        double segX, double segY, double segZ, double segLengthSq,
                         double invSegLength, double extensionT) {
-        static final Axis INVALID = new Axis(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        static final Axis INVALID = new Axis(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     }
 
     private CylinderCalculator() {
@@ -48,29 +49,27 @@ public final class CylinderCalculator {
             return;
         }
         double segLength = Math.sqrt(segLengthSq);
-        axis = new Axis(segX, segY, segZ, segLengthSq, 1.0 / segLength, EXTENSION_BLOCKS / segLength);
+        // カメラ座標も同じ不変スナップショットへ入れる。フレーム毎の更新中に
+        // ワーカーが「新しい軸 + 古いカメラ座標」の混在を読まないようにする。
+        axis = new Axis(cameraX, cameraY, cameraZ, segX, segY, segZ, segLengthSq,
+                1.0 / segLength, EXTENSION_BLOCKS / segLength);
     }
 
     /**
      * ブロック位置のシリンダー内正規化距離の二乗を計算する。
-     * 軸は {@link #updateCache} の値を用いるため、プレイヤー座標は受け取らない。
+     * 軸とカメラ座標は {@link #updateCache} が公開した不変スナップショットを用いる。
      *
      * @param blockX ブロック中心X座標
      * @param blockY ブロック中心Y座標
      * @param blockZ ブロック中心Z座標
-     * @param cameraX カメラX座標(updateCache と同一値)
-     * @param cameraY カメラY座標
-     * @param cameraZ カメラZ座標
      * @return 正規化距離の二乗 (1.0以下=シリンダー内, 負値=無効)
      */
-    public static double getNormalizedDistanceSq(
-            double blockX, double blockY, double blockZ,
-            double cameraX, double cameraY, double cameraZ) {
+    public static double getNormalizedDistanceSq(double blockX, double blockY, double blockZ) {
         Axis a = axis;
         if (a.segLengthSq() < MIN_SEGMENT_LENGTH_SQ) {
             return -1.0;
         }
-        return cylinderValue(blockX, blockY, blockZ, cameraX, cameraY, cameraZ,
+        return cylinderValue(blockX, blockY, blockZ, a.camX(), a.camY(), a.camZ(),
                 a.segX(), a.segY(), a.segZ(), a.segLengthSq(), a.invSegLength(), a.extensionT());
     }
 

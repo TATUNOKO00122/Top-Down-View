@@ -71,6 +71,8 @@ public class RenderSectionManagerMixin {
     @Inject(method = "uploadChunks", at = @At("HEAD"))
     private void onUploadChunks(CallbackInfo ci) {
         this.uploadStartNanos = System.nanoTime();
+        // フレーム毎にカメラ文脈を更新して再構築を評価する(tick 20Hz では回転追従が遅れる)。
+        CullingManager.onRenderFrame();
         CullingManager.tickBatchHold();
     }
 

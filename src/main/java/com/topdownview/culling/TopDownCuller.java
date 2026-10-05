@@ -190,6 +190,19 @@ public final class TopDownCuller {
     private double viewDirX = 0.0;
     private double viewDirZ = 1.0;
 
+    /**
+     * カメラ由来のカリング文脈(カメラブロック・視線方向)の改訂番号。値が変わると再構築が必要。
+     * クライアントtick(20Hz)では回転追従が1tick遅れるため、フレーム毎の
+     * {@link #syncCameraContext()} から進める。CullingManager の再構築トリガに使う。
+     */
+    private long viewContextRevision = 0L;
+    /** フレーム毎のカメラ文脈変化検出用。tick 側の lastCameraBlock とは独立に持つ。 */
+    private int lastSyncCamBlockX = Integer.MIN_VALUE;
+    private int lastSyncCamBlockY = Integer.MIN_VALUE;
+    private int lastSyncCamBlockZ = Integer.MIN_VALUE;
+    private double lastSyncViewDirX = Double.NaN;
+    private double lastSyncViewDirZ = Double.NaN;
+
     private boolean undergroundCullingActive = false;
     private double undergroundCullingStartDistSq = 0.0;
     private int cachedUndergroundCullingKeepDepth = 0;
@@ -260,6 +273,78 @@ public final class TopDownCuller {
         lastCameraBlockX = Integer.MIN_VALUE;
         lastCameraBlockY = Integer.MIN_VALUE;
         lastCameraBlockZ = Integer.MIN_VALUE;
+        lastSyncCamBlockX = Integer.MIN_VALUE;
+        lastSyncCamBlockY = Integer.MIN_VALUE;
+        lastSyncCamBlockZ = Integer.MIN_VALUE;
+        lastSyncViewDirX = Double.NaN;
+        lastSyncViewDirZ = Double.NaN;
+        viewContextRevision = 0L;
+    }
+
+    /**
+     * カメラ由来のカリング文脈(カメラ座標・円柱軸・視線方向)を更新する。
+     *
+     * <p>カメラはレンダーフレーム単位で滑らかに動くが {@link #update()} はクライアントtick(20Hz)
+     * でしか走らないため、回転時に文脈が1tick分遅れる。さらにピッチが真上に近いとカメラブロックが
+     * 変わらず yaw 方向だけが回るため、tick のブロック変化検出ではキャッシュが破棄されず
+     * カリングが全く追従しない。フレーム毎にここで文脈を確定し、変化があれば判定キャッシュを
+     * 破棄して改訂番号を進める(再構築トリガは CullingManager 側)。
+     *
+     * <p>プレイヤーの量子化座標は tick 側の {@link #update()} が確定した値を使う。メインスレッド専用。
+     */
+    public void syncCameraContext() {
+        if (!contextValid) {
+            return;
+        }
+        int camBlockX = (int) Math.floor(ModState.CAMERA.getCameraX());
+        int camBlockY = (int) Math.floor(ModState.CAMERA.getCameraY());
+        int camBlockZ = (int) Math.floor(ModState.CAMERA.getCameraZ());
+        cameraX = camBlockX + 0.5;
+        cameraY = camBlockY + 0.5;
+        cameraZ = camBlockZ + 0.5;
+
+        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift(),
+                playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+
+        double wedgeDirX = playerX - cameraX;
+        double wedgeDirZ = playerZ - cameraZ;
+        double wedgeDirLen = Math.sqrt(wedgeDirX * wedgeDirX + wedgeDirZ * wedgeDirZ);
+        if (wedgeDirLen < 1.0E-4) {
+            // カメラが真上付近: yaw から前方向を求める(CylinderCalculator と同じ規約)
+            double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
+            viewDirX = -Math.sin(yawRad);
+            viewDirZ = Math.cos(yawRad);
+        } else {
+            viewDirX = wedgeDirX / wedgeDirLen;
+            viewDirZ = wedgeDirZ / wedgeDirLen;
+        }
+
+        boolean changed = camBlockX != lastSyncCamBlockX || camBlockY != lastSyncCamBlockY
+                || camBlockZ != lastSyncCamBlockZ;
+        if (!changed) {
+            double dirDeltaX = viewDirX - lastSyncViewDirX;
+            double dirDeltaZ = viewDirZ - lastSyncViewDirZ;
+            changed = dirDeltaX * dirDeltaX + dirDeltaZ * dirDeltaZ > 1.0E-6;
+        }
+        if (changed) {
+            cullingCache.clear();
+            lastSyncCamBlockX = camBlockX;
+            lastSyncCamBlockY = camBlockY;
+            lastSyncCamBlockZ = camBlockZ;
+            lastSyncViewDirX = viewDirX;
+            lastSyncViewDirZ = viewDirZ;
+            viewContextRevision++;
+        }
+    }
+
+    /** カメラ由来の文脈の改訂番号。値が変わると再構築が必要(CullingManager が参照)。 */
+    public long getViewContextRevision() {
+        return viewContextRevision;
+    }
+
+    /** カリング文脈(プレイヤー/カメラ座標)が確定しているか。フレーム毎フックの前提条件。 */
+    public boolean isContextValid() {
+        return contextValid;
     }
 
     public boolean isCulled(BlockPos pos) {
@@ -387,7 +472,7 @@ public final class TopDownCuller {
             return occludeEnabled;
         }
 
-        float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cY, cZ);
+        float alpha = calculateFadeAlpha(pos, level, state, pX, pY, pZ, cX, cZ);
         boolean isCulled = alpha < 1.0f;
         cullingCache.put(posLong, isCulled);
         return isCulled;
@@ -419,10 +504,9 @@ public final class TopDownCuller {
      * それ以外は不透明(1.0)。奥の半空間・ピラミッド保護で残すブロックは 1.0 以上になる。
      */
     private float calculateFadeAlpha(BlockPos pos, BlockGetter level, BlockState state,
-            double pX, double pY, double pZ, double cX, double cY, double cZ) {
+            double pX, double pY, double pZ, double cX, double cZ) {
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                cX, cY, cZ);
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
             return 1.0f;
         }
@@ -660,13 +744,10 @@ public final class TopDownCuller {
         playerX = currentBlockX + 0.5;
         playerY = currentBlockY + 0.5;
         playerZ = currentBlockZ + 0.5;
-        cameraX = Math.floor(ModState.CAMERA.getCameraX()) + 0.5;
-        cameraY = Math.floor(ModState.CAMERA.getCameraY()) + 0.5;
-        cameraZ = Math.floor(ModState.CAMERA.getCameraZ()) + 0.5;
         contextValid = true;
+        // カメラ座標・円柱軸・視線方向はフレーム毎の syncCameraContext() と同じ経路で更新する。
+        syncCameraContext();
 
-        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift(),
-                playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
@@ -675,18 +756,6 @@ public final class TopDownCuller {
         cachedCameraSideClip = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
         cachedCameraSideClipWedge = Config.isCameraSideClipWedge();
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
-        double wedgeDirX = playerX - cameraX;
-        double wedgeDirZ = playerZ - cameraZ;
-        double wedgeDirLen = Math.sqrt(wedgeDirX * wedgeDirX + wedgeDirZ * wedgeDirZ);
-        if (wedgeDirLen < 1.0E-4) {
-            // カメラが真上付近: yaw から前方向を求める(CylinderCalculator と同じ規約)
-            double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
-            viewDirX = -Math.sin(yawRad);
-            viewDirZ = Math.cos(yawRad);
-        } else {
-            viewDirX = wedgeDirX / wedgeDirLen;
-            viewDirZ = wedgeDirZ / wedgeDirLen;
-        }
 
         undergroundCullingActive = Config.isUndergroundCullingEnabled();
         double undergroundCullingStartBlocks = Config.getUndergroundCullingStartDistance() * 16.0;
@@ -1063,7 +1132,7 @@ public final class TopDownCuller {
                     }
                     boolean shouldCull = (entity instanceof Mob || entity instanceof ItemEntity)
                         ? shouldCullSupportedEntity(entity, mc, playerFeetBlockY, eyePos)
-                        : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
+                        : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ);
                     cullable.topdownview_setCulled(shouldCull);
                 }
             }
@@ -1100,13 +1169,13 @@ public final class TopDownCuller {
         return false;
     }
 
-    private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ, double cX, double cY, double cZ) {
+    private boolean shouldCullDecorativeEntity(Entity entity, double pX, double pY, double pZ) {
         Vec3 pos = entity.position();
         double dx = pos.x - pX;
         double dy = pos.y - pY;
         double dz = pos.z - pZ;
         if (dx * dx + dy * dy + dz * dz <= ENTITY_PROTECTION_RADIUS_SQ) return false;
-        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos.x, pos.y, pos.z, cX, cY, cZ);
+        double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(pos.x, pos.y, pos.z);
         if (normalizedDistSq < 0) return false;
         return normalizedDistSq <= 1.0;
     }
@@ -1392,7 +1461,7 @@ public final class TopDownCuller {
                     // 走査とメッシュ判定の境界で食い違わない。捨てボックスの約7割が円柱外のため、
                     // 生判定のパイプラインコストを円柱内ブロックだけに抑えられる。
                     double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
-                            x + 0.5, y + 0.5, z + 0.5, cX, cY, cZ);
+                            x + 0.5, y + 0.5, z + 0.5);
                     if (normalizedDistSq < 0.0 || normalizedDistSq > 1.0) {
                         // 円柱外でもカリングが真になるのは下支えカリングに連動する薄いブロック類
                         // (雪・カーペット・植物など)。下支えのカリング判定だけを見て拾う。
