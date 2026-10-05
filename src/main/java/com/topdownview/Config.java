@@ -132,6 +132,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
             .comment("Disables boundary fade rendering while the player is indoors.")
             .define("disableFadeIndoors", true);
+    private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_BURIED = BUILDER
+            .comment("Disables the transition fade while the top-down camera is buried in terrain.")
+            .define("disableFadeBuried", true);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -345,6 +348,7 @@ public class Config {
     public static boolean isFadeEnabled() { return CULLING.isFadeEnabled(); }
     public static double getFadeFlashDuration() { return CULLING.getFadeFlashDuration(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
+    public static boolean isDisableFadeBuried() { return CULLING.isDisableFadeBuried(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static boolean isCameraSideClipWedge() { return CULLING.isCameraSideClipWedge(); }
     public static boolean isConnectedWallCullingEnabled() { return CULLING.isConnectedWallCullingEnabled(); }
@@ -471,6 +475,7 @@ public class Config {
     public static void setFadeEnabled(boolean value) { CULLING.setFadeEnabled(value); }
     public static void setFadeFlashDuration(double value) { CULLING.setFadeFlashDuration(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
+    public static void setDisableFadeBuried(boolean value) { CULLING.setDisableFadeBuried(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCameraSideClipWedge(boolean value) { CULLING.setCameraSideClipWedge(value); }
     public static void setConnectedWallCullingEnabled(boolean value) { CULLING.setConnectedWallCullingEnabled(value); }
@@ -646,6 +651,7 @@ public class Config {
         addBinding(FADE_ENABLED, CULLING::setFadeEnabled, Config::isFadeEnabled);
         addBinding(FADE_FLASH_DURATION, CULLING::setFadeFlashDuration, Config::getFadeFlashDuration);
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
+        addBinding(DISABLE_FADE_BURIED, CULLING::setDisableFadeBuried, Config::isDisableFadeBuried);
         addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
         addBinding(CAMERA_SIDE_CLIP_WEDGE, CULLING::setCameraSideClipWedge, Config::isCameraSideClipWedge);
         addBinding(CONNECTED_WALL_CULLING_ENABLED, CULLING::setConnectedWallCullingEnabled, Config::isConnectedWallCullingEnabled);

@@ -76,6 +76,10 @@ public final class TopDownCuller {
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 1;
     /** 遷移フェード走査集合の上限。各ハンドラの収集ライムと共有する唯一の定義。 */
     public static final int MAX_FADE_POSITIONS = 4000;
+    /** カメラ埋没と判定するために固体中を走破する距離(ブロック)。 */
+    private static final double BURIED_ENTER_DISTANCE = 10.0;
+    /** 埋没判定を解除する距離(ブロック)。走破距離がここまで減ったら解除する(往復防止)。 */
+    private static final double BURIED_EXIT_DISTANCE = 5.0;
 
     private double playerX;
     private double playerY;
@@ -224,6 +228,15 @@ public final class TopDownCuller {
     private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
     private boolean cachedDisableIndoorFade;
+    /** カメラが地形に埋没している(固体中を一定距離走破した)と確定した状態。 */
+    private boolean cachedCameraBuried;
+    /** カメラが固体中を連続して走破した距離(ブロック)。ヒステリシス用。 */
+    private double cameraBuriedTravel;
+    private int lastBuriedCamX = Integer.MIN_VALUE;
+    private int lastBuriedCamY = Integer.MIN_VALUE;
+    private int lastBuriedCamZ = Integer.MIN_VALUE;
+    /** 埋没判定用のカメラブロック位置(再利用)。 */
+    private final MutableBlockPos cameraProbe = new MutableBlockPos();
     private int cachedCullingMode;
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
@@ -273,6 +286,11 @@ public final class TopDownCuller {
         
         currentSpaceEnclosed = false;
         cachedDisableIndoorFade = false;
+        cachedCameraBuried = false;
+        cameraBuriedTravel = 0.0;
+        lastBuriedCamX = Integer.MIN_VALUE;
+        lastBuriedCamY = Integer.MIN_VALUE;
+        lastBuriedCamZ = Integer.MIN_VALUE;
         cachedFadeTransitionsActive = false;
         cachedIndoorElementActive = false;
         cachedCoverCullingActive = false;
@@ -848,6 +866,8 @@ public final class TopDownCuller {
         int currentCamBlockY = (int) Math.floor(ModState.CAMERA.getCameraY());
         int currentCamBlockZ = (int) Math.floor(ModState.CAMERA.getCameraZ());
 
+        updateCameraBuried(mc, currentCamBlockX, currentCamBlockY, currentCamBlockZ);
+
         boolean playerMoved = false;
         if (lastPlayerBlockX != Integer.MIN_VALUE) {
             int moveDist = Math.abs(currentBlockX - lastPlayerBlockX)
@@ -928,6 +948,48 @@ public final class TopDownCuller {
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
         PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
+    }
+
+    /**
+     * カメラが地形に埋没しているかを判定する。カメラのブロックが固体のまま一定距離
+     * ({@link #BURIED_ENTER_DISTANCE} ブロック)走破したら埋没とし、遷移フェードを抑制する。
+     *
+     * <p>地表ハイトマップや Y を使わないため次元に依存しない。単一ブロックのかすめ
+     * (走破距離が届かない)や、カメラ位置が空気の開けた洞窟(固体条件が偽)では発動しない。
+     * 離脱は {@link #BURIED_EXIT_DISTANCE} まで減衰してからで、固体/空洞が交互の地形でも往復しない。
+     */
+    private void updateCameraBuried(Minecraft mc, int camBlockX, int camBlockY, int camBlockZ) {
+        if (!Config.isDisableFadeBuried() || mc.level == null) {
+            cachedCameraBuried = false;
+            cameraBuriedTravel = 0.0;
+            return;
+        }
+        cameraProbe.set(camBlockX, camBlockY, camBlockZ);
+        BlockState camState = mc.level.getBlockState(cameraProbe);
+        boolean buriedRaw = !camState.isAir()
+                && !camState.getCollisionShape(mc.level, cameraProbe).isEmpty();
+
+        double step = 0.0;
+        if (lastBuriedCamX != Integer.MIN_VALUE) {
+            double dx = camBlockX - lastBuriedCamX;
+            double dy = camBlockY - lastBuriedCamY;
+            double dz = camBlockZ - lastBuriedCamZ;
+            step = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+        lastBuriedCamX = camBlockX;
+        lastBuriedCamY = camBlockY;
+        lastBuriedCamZ = camBlockZ;
+
+        if (buriedRaw) {
+            cameraBuriedTravel = Math.min(cameraBuriedTravel + step, BURIED_ENTER_DISTANCE);
+        } else {
+            cameraBuriedTravel = Math.max(cameraBuriedTravel - step, 0.0);
+        }
+        if (!cachedCameraBuried && cameraBuriedTravel >= BURIED_ENTER_DISTANCE) {
+            cachedCameraBuried = true;
+        } else if (cachedCameraBuried && cameraBuriedTravel <= BURIED_EXIT_DISTANCE) {
+            cachedCameraBuried = false;
+        }
     }
 
     private void updateSpaceRecognition(Minecraft mc, int blockX, int blockY, int blockZ) {
@@ -1439,11 +1501,12 @@ public final class TopDownCuller {
     }
 
     private LongOpenHashSet collectCullSetImpl(BlockGetter level) {
-        // 遷移フェード(ゴースト表示)のゲートは「フラッシュ登録」にのみ掛かる。収集自体は
-        // 連鎖カリングのシード源として常時維持する(フェード無効時に連鎖が死なないように)。
+        // フェード抑制中(設定OFF/屋内/カメラ埋没)は収集も差分も行わない。収集集合の消費者は
+        // フラッシュ登録と描画のみで、どちらも抑制中は働かない。ただし円柱走査の幾何パスは
+        // メッシュ境界ヒステリシス帳簿の維持のため常時走らせる(collect=false で呼ぶ)。
         boolean transitionsActive = ModState.STATUS.isEnabled() && ModState.STATUS.isCullingEnabled()
                 && !ModState.STATUS.isMiningMode() && Config.isFadeEnabled()
-                && !cachedDisableIndoorFade && contextValid;
+                && !cachedDisableIndoorFade && !cachedCameraBuried && contextValid;
         if (!transitionsActive && cachedFadeTransitionsActive) {
             cachedFadeTransitionsActive = false;
             fadeTransitionController.clearCache();
@@ -1491,16 +1554,19 @@ public final class TopDownCuller {
         LongOpenHashSet current = fadePositions;
 
         long tHandlers = System.nanoTime();
-        if (cachedCoverCullingActive) {
-            coverHandler.addOverdueCullPositions(current);
-        }
-        if (cachedIndoorElementActive) {
-            ceilingSliceCuller.forEachSlicePosition(current);
+        if (transitionsActive) {
+            if (cachedCoverCullingActive) {
+                coverHandler.addOverdueCullPositions(current);
+            }
+            if (cachedIndoorElementActive) {
+                ceilingSliceCuller.forEachSlicePosition(current);
+            }
         }
         PerfMonitor.FADE_SCAN_HANDLERS.add(System.nanoTime() - tHandlers);
 
         long tCylinder = System.nanoTime();
-        collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ, current);
+        collectCylinderCullPositions(level, playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
+                transitionsActive, current);
         PerfMonitor.FADE_SCAN_CYLINDER.add(System.nanoTime() - tCylinder);
 
         // 連鎖メンバーの最終除外(2層目)。階段/ラダー/木/覆い/スライスの各収集器は位置を直接
@@ -1535,9 +1601,12 @@ public final class TopDownCuller {
      * 円柱フェード帯(カメラとプレイヤー間で半透明表示の対象になっていたブロック)の
      * 内、カリング条件と一致する位置を収集する。地下カリングはここでは扱わない
      * (遠方地下の消去はフェードなしの即時切替)。
+     *
+     * <p>{@code collect=false}(フェード抑制中)は位置を収集せず、境界ヒステリシス帳簿のみを
+     * 幾何で更新する。getBlockState を呼ばないため埋没空間での走査コストが激減する。
      */
     private void collectCylinderCullPositions(BlockGetter level, double pX, double pY, double pZ,
-            double cX, double cY, double cZ, LongOpenHashSet out) {
+            double cX, double cY, double cZ, boolean collect, LongOpenHashSet out) {
         int radiusH = cachedCylinderRadiusHorizontal;
         int radiusV = cachedCylinderRadiusVertical;
         int margin = 2;
@@ -1561,6 +1630,9 @@ public final class TopDownCuller {
                     double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                             x + 0.5, y + 0.5, z + 0.5);
                     if (normalizedDistSq < 0.0 || normalizedDistSq > 1.0) {
+                        if (!collect) {
+                            continue;
+                        }
                         // 円柱外でもカリングが真になるのは下支えカリングに連動する薄いブロック類
                         // (雪・カーペット・植物など)。下支えのカリング判定だけを見て拾う。
                         BlockState state = level.getBlockState(mutablePos);
@@ -1571,47 +1643,16 @@ public final class TopDownCuller {
                         }
                         continue;
                     }
+                    if (!collect) {
+                        // フェード抑制中は収集しないが、境界ヒステリシス帳簿はメッシュ判定が読むため
+                        // 幾何だけで更新する。getBlockState は呼ばない(走査コストの本体)。
+                        updateStickyForCell(mutablePos, normalizedDistSq);
+                        continue;
+                    }
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
 
-                    // ピラミッド境界のヒステリシス帳簿をこのティックの幾何で更新する。
-                    // 書き手は走査(メインスレッド)のみ。0以上で採用、解放幅より下で解放、
-                    // 中間は帳簿を保持(揺れを吸収)。
-                    double pyrDiff = PyramidProtectionCalc.calculateBoundaryDiff(
-                            mutablePos, playerX, playerY, playerZ, cameraX, cameraZ);
-                    long posLong2 = mutablePos.asLong();
-                    if (pyrDiff >= 0.0) {
-                        if (pyramidSticky.put(posLong2, (byte) 1) != (byte) 1) {
-                            pyramidStickyDirty = true;
-                        }
-                    } else if (pyrDiff < -PYRAMID_STICKY_RELEASE) {
-                        if (pyramidSticky.remove(posLong2) == (byte) 1) {
-                            pyramidStickyDirty = true;
-                        }
-                    }
-
-                    // 半空間クリップ境界のヒステリシス帳簿。±幅を超えたときだけ側を確定させる。
-                    double clipDot = (x + 0.5 - playerX) * viewDirX + (z + 0.5 - playerZ) * viewDirZ;
-                    if (clipDot > CLIP_STICKY_MARGIN) {
-                        if (clipSticky.put(posLong2, (byte) 1) != (byte) 1) {
-                            clipStickyDirty = true;
-                        }
-                    } else if (clipDot < -CLIP_STICKY_MARGIN) {
-                        if (clipSticky.remove(posLong2) == (byte) 1) {
-                            clipStickyDirty = true;
-                        }
-                    }
-
-                    // 円柱境界の出口ヒステリシス帳簿。内側の間は採用、余白明けで解放、帯内は保持。
-                    if (normalizedDistSq <= 1.0) {
-                        if (cylinderSticky.put(posLong2, (byte) 1) != (byte) 1) {
-                            cylinderStickyDirty = true;
-                        }
-                    } else if (normalizedDistSq > cylinderExitStickyLimit()) {
-                        if (cylinderSticky.remove(posLong2) == (byte) 1) {
-                            cylinderStickyDirty = true;
-                        }
-                    }
+                    updateStickyForCell(mutablePos, normalizedDistSq);
 
                     // 円柱の即時計算ではなく判定キャッシュのみで集める(メッシュ構築時の値と一致させる)。
                     // メッシュと同じ判定(キャッシュ共有)で確定させる。円柱の即時計算だけで集めると
@@ -1641,6 +1682,49 @@ public final class TopDownCuller {
         }
 
         publishPyramidStickyView();
+    }
+
+    /**
+     * 円柱内セル1つ分の境界ヒステリシス帳簿を幾何だけで更新する。ブロック種別を参照しないため
+     * フェード抑制中の走査でも getBlockState なしで呼べる。書き手は走査(メインスレッド)のみ。
+     */
+    private void updateStickyForCell(BlockPos pos, double normalizedDistSq) {
+        long posLong = pos.asLong();
+        // ピラミッド境界: 0以上で採用、解放幅より下で解放、中間は帳簿を保持(揺れを吸収)。
+        double pyrDiff = PyramidProtectionCalc.calculateBoundaryDiff(
+                pos, playerX, playerY, playerZ, cameraX, cameraZ);
+        if (pyrDiff >= 0.0) {
+            if (pyramidSticky.put(posLong, (byte) 1) != (byte) 1) {
+                pyramidStickyDirty = true;
+            }
+        } else if (pyrDiff < -PYRAMID_STICKY_RELEASE) {
+            if (pyramidSticky.remove(posLong) == (byte) 1) {
+                pyramidStickyDirty = true;
+            }
+        }
+
+        // 半空間クリップ境界: ±幅を超えたときだけ側を確定させる。
+        double clipDot = (pos.getX() + 0.5 - playerX) * viewDirX + (pos.getZ() + 0.5 - playerZ) * viewDirZ;
+        if (clipDot > CLIP_STICKY_MARGIN) {
+            if (clipSticky.put(posLong, (byte) 1) != (byte) 1) {
+                clipStickyDirty = true;
+            }
+        } else if (clipDot < -CLIP_STICKY_MARGIN) {
+            if (clipSticky.remove(posLong) == (byte) 1) {
+                clipStickyDirty = true;
+            }
+        }
+
+        // 円柱境界の出口ヒステリシス: 内側の間は採用、余白明けで解放。
+        if (normalizedDistSq <= 1.0) {
+            if (cylinderSticky.put(posLong, (byte) 1) != (byte) 1) {
+                cylinderStickyDirty = true;
+            }
+        } else if (normalizedDistSq > cylinderExitStickyLimit()) {
+            if (cylinderSticky.remove(posLong) == (byte) 1) {
+                cylinderStickyDirty = true;
+            }
+        }
     }
 
     /** ヒステリシス帳簿の変更をワーカー参照用の不変スナップショットへ反映する(定期パージ含む)。 */

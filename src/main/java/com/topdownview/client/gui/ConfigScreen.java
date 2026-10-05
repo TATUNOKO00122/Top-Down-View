@@ -277,6 +277,8 @@ public class ConfigScreen extends Screen {
         y += sp;
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.disable_fade_buried", Config::isDisableFadeBuried, Config::setDisableFadeBuried);
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.fluid", tx);
         addToggle(x, y, w, h, "topdown_view.config.translucent_fluid", Config::isTranslucentFluid, Config::setTranslucentFluid);

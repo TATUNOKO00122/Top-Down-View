@@ -26,6 +26,7 @@ public final class CullingConfig {
     private boolean fadeEnabled = false;
     private double fadeFlashDuration = 0.3;
     private boolean disableFadeIndoors = true;
+    private boolean disableFadeBuried = true;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
     private double mobConeFadeAngle = 10.0;
@@ -96,6 +97,10 @@ public final class CullingConfig {
 
     public boolean isDisableFadeIndoors() { return disableFadeIndoors; }
     public void setDisableFadeIndoors(boolean value) { this.disableFadeIndoors = value; }
+
+    /** カメラが地形に埋没している間、遷移フェードを抑制する。 */
+    public boolean isDisableFadeBuried() { return disableFadeBuried; }
+    public void setDisableFadeBuried(boolean value) { this.disableFadeBuried = value; }
 
     public boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
     public void setMobConeCullingEnabled(boolean value) { this.mobConeCullingEnabled = value; }
