@@ -63,6 +63,9 @@ public final class CoverCullingHandler {
     private int lastScanY = Integer.MIN_VALUE;
     private int lastScanZ = Integer.MIN_VALUE;
 
+    /** 直近の走査で使った探索半径。毎tickの距離保持判定に使う。メインスレッド専用。 */
+    private int lastRadius = -1;
+
     private final BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
     /** 覆い集合の世代番号。値が変わればカリング結果が変わり得る。 */
@@ -92,6 +95,7 @@ public final class CoverCullingHandler {
         lastScanX = Integer.MIN_VALUE;
         lastScanY = Integer.MIN_VALUE;
         lastScanZ = Integer.MIN_VALUE;
+        lastRadius = -1;
     }
 
     /**
@@ -120,6 +124,7 @@ public final class CoverCullingHandler {
             clearCache();
             return;
         }
+        lastRadius = radius;
         if (lastScanX != Integer.MIN_VALUE) {
             int move = Math.abs(feetX - lastScanX)
                     + Math.abs(feetY - lastScanY)
@@ -136,7 +141,7 @@ public final class CoverCullingHandler {
 
         int startY = findStandableY(level, feetX, feetY, feetZ);
         if (startY == NOT_STANDABLE) {
-            applyCollected(next, feetX, feetY, feetZ, radius);
+            applyCollected(level, next, feetX, feetZ, radius, enclosed);
             return;
         }
 
@@ -172,7 +177,7 @@ public final class CoverCullingHandler {
             }
         }
 
-        applyCollected(next, feetX, feetY, feetZ, radius);
+        applyCollected(level, next, feetX, feetZ, radius, enclosed);
     }
 
     /**
@@ -182,8 +187,14 @@ public final class CoverCullingHandler {
      * <p>BFS/ビューシェッドの揺れで集合が毎スキャン少し変わるため、時間で復元させると
      * 「復元→再カリング」を繰り返し、歩行中にブロックが消え/現れする(フェードOFFでも点滅)。
      * 距離で保持する=プレイヤーが近くにいる限りカリングは単調になり、点滅しない。
+     *
+     * <p>ただし固体の覆いは「屋内(enclosed)のときだけ消す」条件で収集されるため、プレイヤーが
+     * 屋外へ出た瞬間は距離保持を適用しない。屋根の上に出たのに半径+余白まで覆いが残ると、
+     * 離れても復元されず遠く(画面外寄り)でようやく戻る遅延になる。葉の覆いは屋内外問わず
+     * 対象なので従来どおり距離で保持する。
      */
-    private void applyCollected(LongOpenHashSet next, int refX, int refY, int refZ, int radius) {
+    private void applyCollected(BlockGetter level, LongOpenHashSet next, int refX, int refZ,
+            int radius, boolean enclosed) {
         LongOpenHashSet previous = coverCullPositions;
         LongOpenHashSet kept = new LongOpenHashSet(next.size());
         kept.addAll(next);
@@ -194,9 +205,12 @@ public final class CoverCullingHandler {
             if (kept.contains(posLong)) {
                 continue;
             }
-            int edgeDistance = Math.max(Math.abs(BlockPos.getX(posLong) - refX),
-                    Math.abs(BlockPos.getZ(posLong) - refZ));
-            if (edgeDistance <= radius + COVER_EDGE_MARGIN) {
+            // 屋外では固体の覆いは対象外。葉以外の取りこぼしは距離保持せず即復元する。
+            if (!enclosed && !isLeafCover(level, posLong)) {
+                droppedPositions.add(posLong);
+                continue;
+            }
+            if (edgeDistance(posLong, refX, refZ) <= radius + COVER_EDGE_MARGIN) {
                 // 走査範囲内の取りこぼしは保持(揺れで一時的に外れただけ)。
                 kept.add(posLong);
             } else {
@@ -212,6 +226,12 @@ public final class CoverCullingHandler {
         coverCullPositions = kept;
     }
 
+    /** 指定位置のブロックが葉(自然の樹冠)か。屋外で保持してよい覆いの判定に使う。 */
+    private boolean isLeafCover(BlockGetter level, long posLong) {
+        mutablePos.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+        return level.getBlockState(mutablePos).is(BlockTags.LEAVES);
+    }
+
     /** 復元フェード用: 集合から外れた覆いを out に移して返す(メインスレッド専用)。 */
     public void takeDroppedPositions(LongOpenHashSet out) {
         if (droppedPositions.isEmpty()) {
@@ -219,6 +239,51 @@ public final class CoverCullingHandler {
         }
         out.addAll(droppedPositions);
         droppedPositions.clear();
+    }
+
+    /**
+     * 走査の合間に、現在のプレイヤー位置で距離保持の期限切れを判定する。
+     *
+     * <p>走査は移動3ブロックごと(プローブ受理時)なので、半径+余白を越えた覆いが次の走査まで
+     * 残ると、離れた距離が余白+走査間隔ぶん過大になり「遠く(画面外寄り)でようやく復元」に
+     * 見える。ここでは高コストなBFSは走らせず、既存集合の距離判定だけを毎tick行い、
+     * しきい値(半径+余白)は走査と同一のままドロップを即時化する。メインスレッド専用。
+     */
+    public void updateRetention(int playerBlockX, int playerBlockZ) {
+        LongOpenHashSet current = coverCullPositions;
+        if (current.isEmpty() || lastRadius < 0) {
+            return;
+        }
+        int limit = lastRadius + COVER_EDGE_MARGIN;
+        // 期限切れが無ければ集合を作り直さない(毎tickの無駄なアロケーション回避)。
+        boolean anyDropped = false;
+        LongIterator probe = current.iterator();
+        while (probe.hasNext()) {
+            if (edgeDistance(probe.nextLong(), playerBlockX, playerBlockZ) > limit) {
+                anyDropped = true;
+                break;
+            }
+        }
+        if (!anyDropped) {
+            return;
+        }
+        LongOpenHashSet kept = new LongOpenHashSet(current.size());
+        LongIterator iterator = current.iterator();
+        while (iterator.hasNext()) {
+            long posLong = iterator.nextLong();
+            if (edgeDistance(posLong, playerBlockX, playerBlockZ) <= limit) {
+                kept.add(posLong);
+            } else {
+                droppedPositions.add(posLong);
+            }
+        }
+        coverCullPositions = kept;
+        generation++;
+    }
+
+    /** プレイヤーのブロック座標からの水平チェビシェフ距離。 */
+    private static int edgeDistance(long posLong, int refX, int refZ) {
+        return Math.max(Math.abs(BlockPos.getX(posLong) - refX), Math.abs(BlockPos.getZ(posLong) - refZ));
     }
 
     /**

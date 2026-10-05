@@ -22,6 +22,7 @@ import com.topdownview.culling.ladder.LadderHelper;
 import com.topdownview.culling.trapdoor.TrapdoorHelper;
 import com.topdownview.util.PerfMonitor;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -63,6 +64,14 @@ public final class TopDownCuller {
     private static final TopDownCuller INSTANCE = new TopDownCuller();
 
     private static final int UPDATE_FREQUENCY = 1;
+    /** ピラミッド境界ヒステリシスの解放しきい値。diff がこの値より下まで下がると解放する。 */
+    private static final double PYRAMID_STICKY_RELEASE = 1.0;
+    /** 半空間クリップ境界のヒステリシス幅(dm)。dot の絶対値がこの値を超えるまで側を反転しない。 */
+    private static final double CLIP_STICKY_MARGIN = 0.75;
+    /** フレーム同期の方向改訂しきい値(≈3°)。これ未満の回転では判定・再構築を起こさない。 */
+    private static final double CONTEXT_DIR_EPS_SQ = 0.05 * 0.05;
+    /** 円柱出口ヒステリシスの余白(ブロック)。境界がこれだけ外へ押し戻されるまで内側扱いを続ける。 */
+    private static final double CYLINDER_EXIT_STICKY_BLOCKS = 1.5;
     private static final double ENTITY_PROTECTION_RADIUS_SQ = 4.0;
     private static final int CACHE_CLEAR_MOVE_THRESHOLD = 1;
     /** 遷移フェード走査集合の上限。各ハンドラの収集ライムと共有する唯一の定義。 */
@@ -147,6 +156,37 @@ public final class TopDownCuller {
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
     /** 遷移フェードの対象となる「今カリングされている位置」の集合。走査ごとに作り直す。 */
     private final LongOpenHashSet fadePositions = new LongOpenHashSet(500);
+
+    /**
+     * ピラミッド境界のヒステリシス帳簿。採用=diff≥0、解放=diff<−1ブロック。
+     * 唯一の書き手はフェード走査(メインスレッド)。ワーカーは volatile スナップショットを読む。
+     */
+    private final Long2ByteOpenHashMap pyramidSticky = new Long2ByteOpenHashMap();
+    private volatile LongOpenHashSet pyramidStickyView = new LongOpenHashSet();
+    private boolean pyramidStickyDirty = false;
+
+    /**
+     * 半空間クリップ(dot=0 の境界線)のヒステリシス帳簿。近接天頂カメラでは歩行のたびに
+     * 量子化された視線方向が揺れて境界線が再方向づけされ、線上のブロックが保護/カリングを
+     * 毎歩で反転する。排 dob が ±幅を超えたときだけ側を確定する。
+     */
+    private final Long2ByteOpenHashMap clipSticky = new Long2ByteOpenHashMap();
+    private volatile LongOpenHashSet clipStickyView = new LongOpenHashSet();
+    private boolean clipStickyDirty = false;
+
+    /**
+     * 円柱境界の出口ヒステリシス帳簿。走査(メインスレッド)が現在のチューブ幾何で更新し、
+     * 境界が余白ぶん押し戻されるまで「内側だった」状態を維持する。ワーカーはスナップショット参照。
+     */
+    private final Long2ByteOpenHashMap cylinderSticky = new Long2ByteOpenHashMap();
+    private volatile LongOpenHashSet cylinderStickyView = new LongOpenHashSet();
+    private boolean cylinderStickyDirty = false;
+
+    /** 円柱出口ヒステリシスの判定限界(norm)。半径に応じて余白ブロックを変換する。 */
+    private double cylinderExitStickyLimit() {
+        int radiusH = Math.max(1, Config.getCylinderRadiusHorizontal());
+        return 1.0 + CYLINDER_EXIT_STICKY_BLOCKS / radiusH;
+    }
     private final MutableBlockPos entityGroundedPos = new MutableBlockPos();
     /** 下支え判定用。isBlockCulled はワーカースレッドからも呼ばれるため ThreadLocal で共有回避。 */
     private static final ThreadLocal<MutableBlockPos> SUPPORT_CHECK_POS =
@@ -253,6 +293,15 @@ public final class TopDownCuller {
         // (実測 sections=111928)になる。
         revealChange.reset();
         ceilingSliceCuller.clearPendingChange();
+        pyramidSticky.clear();
+        pyramidStickyView = new LongOpenHashSet();
+        pyramidStickyDirty = false;
+        clipSticky.clear();
+        clipStickyView = new LongOpenHashSet();
+        clipStickyDirty = false;
+        cylinderSticky.clear();
+        cylinderStickyView = new LongOpenHashSet();
+        cylinderStickyDirty = false;
         LadderHelper.clearCache();
         NaturalTreeDetector.clearCache();
         resetLastBlockCoords();
@@ -305,7 +354,7 @@ public final class TopDownCuller {
         cameraY = camBlockY + 0.5;
         cameraZ = camBlockZ + 0.5;
 
-        CylinderCalculator.updateCache(ModState.CAMERA.getYaw(), Config.getCylinderForwardShift(),
+        CylinderCalculator.updateCache(quantizeYaw(ModState.CAMERA.getYaw()), Config.getCylinderForwardShift(),
                 playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
 
         double wedgeDirX = playerX - cameraX;
@@ -313,7 +362,7 @@ public final class TopDownCuller {
         double wedgeDirLen = Math.sqrt(wedgeDirX * wedgeDirX + wedgeDirZ * wedgeDirZ);
         if (wedgeDirLen < 1.0E-4) {
             // カメラが真上付近: yaw から前方向を求める(CylinderCalculator と同じ規約)
-            double yawRad = Math.toRadians(ModState.CAMERA.getYaw());
+            double yawRad = Math.toRadians(quantizeYaw(ModState.CAMERA.getYaw()));
             viewDirX = -Math.sin(yawRad);
             viewDirZ = Math.cos(yawRad);
         } else {
@@ -326,7 +375,7 @@ public final class TopDownCuller {
         if (!changed) {
             double dirDeltaX = viewDirX - lastSyncViewDirX;
             double dirDeltaZ = viewDirZ - lastSyncViewDirZ;
-            changed = dirDeltaX * dirDeltaX + dirDeltaZ * dirDeltaZ > 1.0E-6;
+            changed = dirDeltaX * dirDeltaX + dirDeltaZ * dirDeltaZ > CONTEXT_DIR_EPS_SQ;
         }
         if (changed) {
             cullingCache.clear();
@@ -342,6 +391,16 @@ public final class TopDownCuller {
     /** カメラ由来の文脈の改訂番号。値が変わると再構築が必要(CullingManager が参照)。 */
     public long getViewContextRevision() {
         return viewContextRevision;
+    }
+
+    /**
+     * yaw を15度刻みに量子化する。円柱軸の前シフト端点(shift=既定1ブロック)は生のyawで
+     * カメラの滑らか追従のたびに連続的に滑り、チューブの端/径向境界がフレームごとに
+     * 積まれて移動し、判定がカリング/復元を連続で往復する。量子化で端点の移動を段階化し
+     * (1段階あたり約0.26ブロック)、連続としての flip を解消する。自動追従yawでも効く。
+     */
+    private static double quantizeYaw(double yaw) {
+        return Math.round(yaw / 15.0) * 15.0;
     }
 
     /** カリング文脈(プレイヤー/カメラ座標)が確定しているか。フレーム毎フックの前提条件。 */
@@ -514,8 +573,17 @@ public final class TopDownCuller {
             double pX, double pY, double pZ, double cX, double cZ) {
         double normalizedDistSq = CylinderCalculator.getNormalizedDistanceSq(
                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-        if (normalizedDistSq < 0 || normalizedDistSq > 1.0) {
+        if (normalizedDistSq < 0.0) {
             return 1.0f;
+        }
+        if (normalizedDistSq > 1.0) {
+            if (!(normalizedDistSq <= cylinderExitStickyLimit()
+                    && cylinderStickyView.contains(pos.asLong()))) {
+                return 1.0f;
+            }
+            // 円柱出口ヒステリシス: 直近まで円柱内だった位置は、境界が余白ぶん回復するまで
+            // チューブ内扱いで判定を通す。カメラ回転のフレーム同期でチューブがサブブロック
+            // 滑っても、境界ブロックのカリング/復元が毎回反転しない。
         }
 
         // 円柱内でもプレイヤーより奥のブロックは保護する。扇形(旧方式)では角度外も保護し、
@@ -527,7 +595,8 @@ public final class TopDownCuller {
                         pX, pZ, viewDirX, viewDirZ, cachedViewWedgeCos)) {
                     return 1.0f;
                 }
-            } else if (OcclusionCalculator.isBeyondPlayerHorizontally(
+            } else if (clipStickyView.contains(pos.asLong())
+                    || OcclusionCalculator.isBeyondPlayerHorizontally(
                     pos.getX() + 0.5, pos.getZ() + 0.5,
                     pX, pZ, viewDirX, viewDirZ)) {
                 return 1.0f;
@@ -536,6 +605,15 @@ public final class TopDownCuller {
 
         double pyramidFactor = PyramidProtectionCalc.calculateProtectionFactor(
                 pos, pX, pY, pZ, cX, cZ);
+        if (pyramidFactor < 1.0f
+                && pyramidStickyView.contains(pos.asLong())
+                && PyramidProtectionCalc.calculateBoundaryDiff(pos, pX, pY, pZ, cX, cZ) >= -PYRAMID_STICKY_RELEASE) {
+            // 境界ヒステリシス: 最近保護側だったブロックは、傾斜がブロック1つ以上下がるまで
+            // 保護を維持する。プレイヤーの1歩で近接リングの diff が ±1 動くため、単純な
+            // 0 しきい値だと境界ブロックがカリング/保護を往復し(消失→復元→消失…)、
+            // 復元ゴーストの単発点滅になる。
+            pyramidFactor = 1.0;
+        }
         float finalAlpha = (float) pyramidFactor;
         // FASTグラフィックの葉は不透明テクスチャで描かれるため、半透明にすると「別ブロック」のように
         // 見える。見た目の変化を避けるため、半透明化せず完全にカリングして視界から消す。
@@ -842,6 +920,11 @@ public final class TopDownCuller {
         fadeTransitionController.tick();
         // メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映(再構築より前に)。
         fadeTransitionController.publishMeshHoldView();
+        // 覆いの距離保持を毎tick判定する。走査(3ブロック間隔)を待つと、半径+余白を越えた
+        // 覆いが余白ぶん遠くまで残り「離れても復元されない」遅延になる。走査しきい値は不変。
+        if (cachedCoverCullingActive) {
+            coverHandler.updateRetention(cachedPlayerBlockX, cachedPlayerBlockZ);
+        }
         // 遷移フェードの走査/差分検出を同じティックで行う。チャンク再構築のスケジューリング
         // (ClientForgeEvents の CullingManager.tick 後段)より先にフラッシュとメッシュホールドを
         // 確定させる。描画パスで遅れて検出すると、実ブロックが先にメッシュから消えてから
@@ -1210,6 +1293,9 @@ public final class TopDownCuller {
         return cachedCoverCullingActive;
     }
 
+    /**
+
+
     /** メッシュ再構築バッチの確定通知。該当セクションの消失フラッシュを開始する。 */
     public void onMeshCommit(LongOpenHashSet committedSections) {
         fadeTransitionController.onMeshCommit(System.currentTimeMillis(), committedSections);
@@ -1434,6 +1520,8 @@ public final class TopDownCuller {
         }, cachedPlayerBlockX, cachedPlayerFloorY, cachedPlayerBlockZ, flashDist * flashDist);
         PerfMonitor.FADE_SCAN_DIFF.add(System.nanoTime() - tDiff);
 
+        fadeTransitionController.publishMeshHoldView();
+        publishPyramidStickyView();
         return current;
     }
 
@@ -1484,6 +1572,46 @@ public final class TopDownCuller {
                     }
                     BlockState state = level.getBlockState(mutablePos);
                     if (state.isAir() || !state.getFluidState().isEmpty()) continue;
+
+                    // ピラミッド境界のヒステリシス帳簿をこのティックの幾何で更新する。
+                    // 書き手は走査(メインスレッド)のみ。0以上で採用、解放幅より下で解放、
+                    // 中間は帳簿を保持(揺れを吸収)。
+                    double pyrDiff = PyramidProtectionCalc.calculateBoundaryDiff(
+                            mutablePos, playerX, playerY, playerZ, cameraX, cameraZ);
+                    long posLong2 = mutablePos.asLong();
+                    if (pyrDiff >= 0.0) {
+                        if (pyramidSticky.put(posLong2, (byte) 1) != (byte) 1) {
+                            pyramidStickyDirty = true;
+                        }
+                    } else if (pyrDiff < -PYRAMID_STICKY_RELEASE) {
+                        if (pyramidSticky.remove(posLong2) == (byte) 1) {
+                            pyramidStickyDirty = true;
+                        }
+                    }
+
+                    // 半空間クリップ境界のヒステリシス帳簿。±幅を超えたときだけ側を確定させる。
+                    double clipDot = (x + 0.5 - playerX) * viewDirX + (z + 0.5 - playerZ) * viewDirZ;
+                    if (clipDot > CLIP_STICKY_MARGIN) {
+                        if (clipSticky.put(posLong2, (byte) 1) != (byte) 1) {
+                            clipStickyDirty = true;
+                        }
+                    } else if (clipDot < -CLIP_STICKY_MARGIN) {
+                        if (clipSticky.remove(posLong2) == (byte) 1) {
+                            clipStickyDirty = true;
+                        }
+                    }
+
+                    // 円柱境界の出口ヒステリシス帳簿。内側の間は採用、余白明けで解放、帯内は保持。
+                    if (normalizedDistSq <= 1.0) {
+                        if (cylinderSticky.put(posLong2, (byte) 1) != (byte) 1) {
+                            cylinderStickyDirty = true;
+                        }
+                    } else if (normalizedDistSq > cylinderExitStickyLimit()) {
+                        if (cylinderSticky.remove(posLong2) == (byte) 1) {
+                            cylinderStickyDirty = true;
+                        }
+                    }
+
                     // 円柱の即時計算ではなく判定キャッシュのみで集める(メッシュ構築時の値と一致させる)。
                     // メッシュと同じ判定(キャッシュ共有)で確定させる。円柱の即時計算だけで集めると
                     // 境界でメッシュと食い違い、既に穴の位置に消失ゴースト(α=1)が立つ。
@@ -1508,5 +1636,35 @@ public final class TopDownCuller {
             }
             if (out.size() >= MAX_FADE_POSITIONS) return;
         }
+
+        publishPyramidStickyView();
+    }
+
+    /** ヒステリシス帳簿の変更をワーカー参照用の不変スナップショットへ反映する(定期パージ含む)。 */
+    private void publishPyramidStickyView() {
+        if (cylinderStickyDirty) {
+            // チューブ外に滞留した帳簿をパージする(走査範囲外に誘導された場合の肥大防止)。
+            double limit = cylinderExitStickyLimit();
+            LongIterator purgeIterator = cylinderSticky.keySet().iterator();
+            while (purgeIterator.hasNext()) {
+                long posLong = purgeIterator.nextLong();
+                double norm = CylinderCalculator.getNormalizedDistanceSq(
+                        BlockPos.getX(posLong) + 0.5, BlockPos.getY(posLong) + 0.5,
+                        BlockPos.getZ(posLong) + 0.5);
+                if (norm < 0.0 || norm > limit) {
+                    purgeIterator.remove();
+                    cylinderStickyDirty = true;
+                }
+            }
+            cylinderStickyView = new LongOpenHashSet(cylinderSticky.keySet());
+            cylinderStickyDirty = false;
+        }
+        if (!pyramidStickyDirty && !clipStickyDirty) {
+            return;
+        }
+        pyramidStickyDirty = false;
+        clipStickyDirty = false;
+        pyramidStickyView = new LongOpenHashSet(pyramidSticky.keySet());
+        clipStickyView = new LongOpenHashSet(clipSticky.keySet());
     }
 }

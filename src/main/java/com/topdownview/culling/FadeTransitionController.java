@@ -1,6 +1,5 @@
 package com.topdownview.culling;
 
-import com.mojang.logging.LogUtils;
 import com.topdownview.Config;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -33,14 +32,7 @@ import net.minecraft.core.SectionPos;
  */
 public final class FadeTransitionController {
 
-    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
-
     private static final long INVALID = Long.MIN_VALUE;
-
-    /** 復元診断ログの間隔(ms)。復元が「されない」事象の切り分け用。確定後に撤去する。 */
-    private static final long RESTORE_LOG_INTERVAL_MS = 2000L;
-    private long lastRestoreLogAt;
-    private long lastKillLogAt;
 
     private final java.util.function.LongConsumer revealSink;
 
@@ -170,6 +162,11 @@ public final class FadeTransitionController {
         return recentlyRestored.containsKey(posLong);
     }
 
+    /** 復元フラッシュが未完走か(消失ループは減衰を担当せず凍結する)。 */
+    public boolean isRestoring(long posLong) {
+        return restoreStarts.containsKey(posLong);
+    }
+
     /**
      * 走査が集めた「今カリングされている」集合を基準と比較する。
      *
@@ -214,14 +211,10 @@ public final class FadeTransitionController {
             if (!canRegisterFlash() || !isWithinFlashRange(posLong, playerX, playerY, playerZ, maxFlashDistSq)) {
                 continue;
             }
+            // 揺れで再登録の可能性があるが、帳簿(GHOST_ALPHA)を描画側が毎フレーム継続で
+            // 保持するためレンプロの再スタートにはならない。put は purge 期限とホールドの更新。
             restoreStarts.put(posLong, now);
             openMeshHold(posLong, now);
-            if (now - lastRestoreLogAt >= RESTORE_LOG_INTERVAL_MS) {
-                lastRestoreLogAt = now;
-                LOGGER.info("[TopDownView] restore registered pos=({} {} {}) transitionMs={}",
-                        BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong),
-                        (int) getTransitionMillis());
-            }
         }
 
         // ---- 今回新たに収集された位置(消失) ----
@@ -233,15 +226,11 @@ public final class FadeTransitionController {
                 continue;
             }
             if (isRecentlyRestored(posLong)) {
-                // 直近に確定復元した位置の再カリング: 境界の揺れとみなしフラッシュしない
-                if (restoreStarts.containsKey(posLong) && now - lastKillLogAt >= RESTORE_LOG_INTERVAL_MS) {
-                    lastKillLogAt = now;
-                    LOGGER.info("[TopDownView] restore killed by re-cull pos=({} {} {}) age={}ms",
-                            BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong),
-                            now - restoreStarts.get(posLong));
-                }
+                // 直近に確定復元した位置の再カリング: 境界の揺れとみなしフラッシュしない。
+                // restoreStarts は残す。描画側は復元ゴーストを凍結し(消失側は減衰させない)、
+                // 揺れが戻ったら同一帳簿からレンプを続ける。ここで除去すると α=1 の帳簿が
+                // 消失ループに流れ「フルαの単発ゴースト→フェーズアウト→再レンプロ」になる。
                 fadeOutStarts.remove(posLong);
-                restoreStarts.remove(posLong);
                 pendingVanish.remove(posLong);
             } else if (!fadeOutStarts.containsKey(posLong) && !pendingVanish.containsKey(posLong)
                     && canRegisterFlash()

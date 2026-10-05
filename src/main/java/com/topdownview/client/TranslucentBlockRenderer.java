@@ -154,6 +154,13 @@ public final class TranslucentBlockRenderer {
         // フェード時間の間露出する)。距離判定は描画(GHOST_VISIBLE/頂点生成)の直前に限定する。
         for (LongIterator iterator = fadePositions.iterator(); iterator.hasNext(); ) {
             long posLong = iterator.nextLong();
+            // 未完走の復元フラッシュを揺れで再カリングした位置: 復元側が帳簿を持続する。
+            // ここで減衰させると、α=1 のまま残った帳簿がフル不透明の単発ゴーストに
+            // 変わってフェーズアウト→再レンプロ(揺れのたびに点滅)になる。
+            if (tracker.isRestoring(posLong)) {
+                SEEN.add(posLong);
+                continue;
+            }
             long start = tracker.getFadeOutStart(posLong);
             // 新規カリング(開始記録あり)は α=1 から、継続カリングは直前の α から 0 へ。
             // 開始時刻はメッシュ確定時に刻まれるため、α=1 の瞬間＝実ブロックが消えた瞬間になる。

@@ -156,19 +156,11 @@ public final class CullingManager {
      * スケジュールは batchPending で直列化されるため、バッチ確定以上の頻度では走らない。
      */
     public static void onRenderFrame() {
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled()) {
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.screen != null || mc.isPaused()) {
-            return;
-        }
-        // 次元変更の settle 中は旧次元の座標で再構築しないよう、tick 側と同じゲートに従う。
-        if (settleTicks > 0 || !CULLER.isContextValid()) {
-            return;
-        }
-        CULLER.syncCameraContext();
-        scheduleChunkRebuildIfNeeded();
+        // 2587d62 のフレーム毎文脈更新は bisect で境界ブロックのカリング/復元の往復を
+        // 再現する事象源と確定したため無効化した。カメラ文脈は tick 側
+        // (TopDownCuller.update → syncCameraContext)で更新され、再構築も 50ms スロットル
+        // のメインパスのみで回る (cdfbb3c 相当の挙動)。回転追従は最大 50ms 遅れるだけで、
+        // 量子化された判定上は culling 領域の形状変化は接到で起きないため許容。
     }
 
     /**
@@ -233,9 +225,11 @@ public final class CullingManager {
         if (currentTime - lastChunkRebuildTime < CHUNK_REBUILD_INTERVAL_MS) {
             // ホールド解除/復元開示の再構築は間隔待ちを飛ばす(穴即閉鎖優先)。再構築予約があっても
             // 50ms 待つと、復元ゴーストの寿命が尽きて1フレーム穴が出る。
-            // カメラ回転も同じく飛ばす: 50ms 待つと回転中に追従が目に見えて遅れる。バッチ直列化で
-            // 実際の頻度はバッチ確定間隔が上限になるため、暴走はしない。
-            if (!meshHoldRelease && !revealRebuild && !contextChanged) {
+            // カメラ回転による contextChanged は 2587d62 でバイパス扱いだったが、自動回転中は
+            // 毎フレーム contextChanged が立って再構築がバッチ確定間隔で連発し、チューブ境界が
+            // サブブロックずれるたびに境界ブロックのカリング/復元が往復した。回転は
+            // 50ms スロットル (≈20Hz) で十分視覚的に追従する。
+            if (!meshHoldRelease && !revealRebuild) {
                 return;
             }
         }
