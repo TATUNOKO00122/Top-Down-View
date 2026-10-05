@@ -1516,6 +1516,9 @@ public final class TopDownCuller {
         // メッシュホールドも掛からないため、登録せず地図の肥大と遷移枠の浪費を防ぐ。
         double flashDist = TranslucentBlockRenderer.GHOST_RENDER_DISTANCE + 1.0;
         if (transitionsActive) {
+            // 連鎖メンバーは既にメッシュから消えている。帳簿に載せておかないと、連鎖から外れて
+            // 円柱側でカリング継続になった時に新規消失扱いとなり、半透明で現れてすぐ消える。
+            fadeTransitionController.markCulledSilently(connectedWallHandler.getMembers());
             fadeTransitionController.processCullSet(current, posLong -> {
                 probe.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
                 return isBlockCulled(probe, level);

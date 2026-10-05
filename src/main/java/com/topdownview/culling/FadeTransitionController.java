@@ -160,6 +160,15 @@ public final class FadeTransitionController {
     }
 
     /**
+     * フェードを開始せずカリング済みとして帳簿に載せる。即時切替のメンバー(連鎖壁)が
+     * 後で連鎖から外れても円柱側で引き続きカリングされる場合に、既に消えているブロックを
+     * 新規消失と誤認して半透明ゴーストを出さないための登録。
+     */
+    public void markCulledSilently(LongSet positions) {
+        previousCulled.addAll(positions);
+    }
+
+    /**
      * 走査が集めた「今カリングされている」集合を基準と比較する。
      *
      * @param currentCulled 今回の走査で収集した位置。取りこぼしを保持するため追加することがある。

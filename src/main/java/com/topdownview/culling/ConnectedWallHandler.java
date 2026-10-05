@@ -104,6 +104,11 @@ public final class ConnectedWallHandler {
         return connectedCulledPositions.contains(posLong);
     }
 
+    /** 現在の公開集合。呼び出し側は読み取り専用で扱うこと。 */
+    public LongOpenHashSet getMembers() {
+        return connectedCulledPositions;
+    }
+
     /** デバッグHUD用: 現在連鎖カリングが有効なブロック数。 */
     public int getChainCount() {
         return connectedCulledPositions.size();
