@@ -17,8 +17,8 @@ public final class LadderHelper {
     }
 
     // ハシゴの連続数キャッシュ (< 0 = 3未満, >= 0 = 連続数)
-    // isBlockCulled はチャンク構築ワーカーからも呼ばれ、ladderOcclude 無効時はワーカーが
-    // 書き込むため ConcurrentHashMap を使う。
+    // isBlockCulled はチャンク構築ワーカーからも呼ばれるため、ワーカーが書き込む前提で
+    // ConcurrentHashMap を使う。
     private static final Map<Long, Integer> chainLengthCache = new ConcurrentHashMap<>();
 
     // チェーン最下部Yのキャッシュ（getChainBottomYの下方走査を1回に抑える）
@@ -31,14 +31,6 @@ public final class LadderHelper {
 
     public static boolean isLadderInLongChain(BlockPos pos, BlockGetter level) {
         return getChainLength(pos, level) >= 3;
-    }
-
-    /**
-     * 指定位置のハシゴチェーン長を返す。ハシゴでない場合は -1。
-     * TopDownCuller のハシゴ視線遮蔽半透明化で使用。
-     */
-    public static int getChainLengthPublic(BlockPos pos, BlockGetter level) {
-        return getChainLength(pos, level);
     }
 
     private static int getChainLength(BlockPos pos, BlockGetter level) {

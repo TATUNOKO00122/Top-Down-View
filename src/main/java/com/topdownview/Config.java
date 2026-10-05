@@ -246,14 +246,6 @@ public class Config {
             .define("staircaseExclusionEnabled", true);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
             .defineInRange("staircaseExclusionHeight", 2, 1, 10);
-    private static final ForgeConfigSpec.BooleanValue STAIRCASE_OCCLUDE_ENABLED = BUILDER
-            .define("staircaseOccludeEnabled", true);
-
-    private static final ForgeConfigSpec.BooleanValue LADDER_OCCLUDE_ENABLED = BUILDER
-            .define("ladderOccludeEnabled", true);
-
-    private static final ForgeConfigSpec.BooleanValue TREE_OCCLUDE_ENABLED = BUILDER
-            .define("treeOccludeEnabled", true);
 
     private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
             .defineInRange("signHoverDisplayMode", 2, 0, 2);
@@ -420,9 +412,6 @@ public class Config {
     public static boolean isClickPositionPlacementEnabled() { return PLACEMENT.isClickPositionPlacementEnabled(); }
     public static boolean isStaircaseExclusionEnabled() { return CULLING.isStaircaseExclusionEnabled(); }
     public static int getStaircaseExclusionHeight() { return CULLING.getStaircaseExclusionHeight(); }
-    public static boolean isStaircaseOccludeEnabled() { return CULLING.isStaircaseOccludeEnabled(); }
-    public static boolean isLadderOccludeEnabled() { return CULLING.isLadderOccludeEnabled(); }
-    public static boolean isTreeOccludeEnabled() { return CULLING.isTreeOccludeEnabled(); }
     public static boolean isIgnoreLeavesInRaycast() { return CULLING.isIgnoreLeavesInRaycast(); }
     public static boolean isProtectNaturalTreeLogs() { return CULLING.isProtectNaturalTreeLogs(); }
     public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
@@ -546,9 +535,6 @@ public class Config {
     public static void setClickPositionPlacementEnabled(boolean value) { PLACEMENT.setClickPositionPlacementEnabled(value); }
     public static void setStaircaseExclusionEnabled(boolean value) { CULLING.setStaircaseExclusionEnabled(value); }
     public static void setStaircaseExclusionHeight(int value) { CULLING.setStaircaseExclusionHeight(value); }
-    public static void setStaircaseOccludeEnabled(boolean value) { CULLING.setStaircaseOccludeEnabled(value); }
-    public static void setLadderOccludeEnabled(boolean value) { CULLING.setLadderOccludeEnabled(value); }
-    public static void setTreeOccludeEnabled(boolean value) { CULLING.setTreeOccludeEnabled(value); }
     public static void setIgnoreLeavesInRaycast(boolean value) { CULLING.setIgnoreLeavesInRaycast(value); }
     public static void setProtectNaturalTreeLogs(boolean value) { CULLING.setProtectNaturalTreeLogs(value); }
     public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
@@ -724,9 +710,6 @@ public class Config {
         addBinding(CLICK_POSITION_PLACEMENT_ENABLED, PLACEMENT::setClickPositionPlacementEnabled, Config::isClickPositionPlacementEnabled);
         addBinding(STAIRCASE_EXCLUSION_ENABLED, CULLING::setStaircaseExclusionEnabled, Config::isStaircaseExclusionEnabled);
         addBinding(STAIRCASE_EXCLUSION_HEIGHT, CULLING::setStaircaseExclusionHeight, Config::getStaircaseExclusionHeight);
-        addBinding(STAIRCASE_OCCLUDE_ENABLED, CULLING::setStaircaseOccludeEnabled, Config::isStaircaseOccludeEnabled);
-        addBinding(LADDER_OCCLUDE_ENABLED, CULLING::setLadderOccludeEnabled, Config::isLadderOccludeEnabled);
-        addBinding(TREE_OCCLUDE_ENABLED, CULLING::setTreeOccludeEnabled, Config::isTreeOccludeEnabled);
         addBinding(IGNORE_LEAVES_IN_RAYCAST, CULLING::setIgnoreLeavesInRaycast, Config::isIgnoreLeavesInRaycast);
         addBinding(PROTECT_NATURAL_TREE_LOGS, CULLING::setProtectNaturalTreeLogs, Config::isProtectNaturalTreeLogs);
         addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);
@@ -763,6 +746,8 @@ public class Config {
         try {
             BINDINGS.forEach(Binding::save);
             SPEC.save();
+        } catch (Exception e) {
+            TopDownViewMod.getLogger().error("[TopDownView] Failed to save config file", e);
         } finally {
             isSaving = false;
         }

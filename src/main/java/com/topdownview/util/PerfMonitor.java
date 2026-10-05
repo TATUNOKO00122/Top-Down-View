@@ -86,8 +86,6 @@ public final class PerfMonitor {
     public static final Timer STAIR = new Timer();
     /** CeilingSliceCuller.update。 */
     public static final Timer CEILING = new Timer();
-    /** LadderCullingHandler.scan。 */
-    public static final Timer LADDER = new Timer();
     /** CoverCullingHandler.update。 */
     public static final Timer COVER = new Timer();
     /** Minecraft.tick 全体(描画スレッド)。スパイクがtick/描画どちら由来かの切り分け用。 */
@@ -193,12 +191,12 @@ public final class PerfMonitor {
                 f1(fps), f1(avgFrameMs), f1(frameMaxNanos / 1.0E6), dropFrames, freezeFrames, frameCount);
         LOGGER.info("[TopDownView][Perf] render fade={} collect={} (h={} c={} d={}) ghosts={} overlay={}ms | "
                         + "tick total={} cull={} entity={}ms | "
-                        + "space probe={} flood={} seg={} ceiling={} stair={} ladder={} cover={} | "
+                        + "space probe={} flood={} seg={} ceiling={} stair={} cover={} | "
                         + "chunk rebuild={} (wide={}) ({}) sections={} upload={} process={} "
                         + "| isBlockCulled~={} fadeBlocks={}",
                 FADE_RENDER, FADE_COLLECT, FADE_SCAN_HANDLERS, FADE_SCAN_CYLINDER, FADE_SCAN_DIFF, FADE_GHOSTS.sum(),
                 OVERLAY_RENDER, TICK_TOTAL, CULL_UPDATE, ENTITY_CULL,
-                PROBE, FLOOD, SEGMENT, CEILING, STAIR, LADDER, COVER,
+                PROBE, FLOOD, SEGMENT, CEILING, STAIR, COVER,
                 CHUNK_REBUILDS.sum(), CHUNK_REBUILDS_WIDE.sum(), CHUNK_REBUILD, CHUNK_REBUILD_SECTIONS.sum(),
                 CHUNK_UPLOAD, CHUNK_PROCESS, IS_BLOCK_CULLED.sum(), FADE_BLOCKS.sum());
 
@@ -221,7 +219,6 @@ public final class PerfMonitor {
         SEGMENT.reset();
         STAIR.reset();
         CEILING.reset();
-        LADDER.reset();
         COVER.reset();
         TICK_TOTAL.reset();
         CHUNK_UPLOAD.reset();

@@ -6,11 +6,9 @@ import com.topdownview.spatial.RoomFloodFill;
 import com.topdownview.spatial.StairAnalyzer;
 import com.topdownview.spatial.Staircase;
 import com.topdownview.state.SpaceDebugState;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockGetter;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,16 +16,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 階段ブロックの走査、保護、および視線遮蔽判定を担うハンドラー。
+ * 階段ブロックの走査と保護を担うハンドラー。
+ *
+ * <p>プレイヤーの足元付近で検出した階段の段をカリング対象から除外し、歩行中の階段が
+ * 消えないようにする。検出一覧はデバッグ表示にも使う。
  */
 public final class StairCullingHandler {
 
-    /** チャンク構築ワーカーから読まれるため、集合は volatile 参照ごと差し替える。 */
-    private volatile Set<BlockPos> excludedStairBlocks = Set.of();
+    /** 保護する段。チャンク構築ワーカーから読むため volatile 参照ごと差し替える。 */
+    private volatile Set<BlockPos> protectedStairBlocks = Set.of();
     private List<Staircase> detectedStaircases = List.of();
 
     public void clearCache() {
-        excludedStairBlocks = Set.of();
+        protectedStairBlocks = Set.of();
         detectedStaircases = List.of();
     }
 
@@ -38,7 +39,7 @@ public final class StairCullingHandler {
 
     public void update(Minecraft mc, int blockY, boolean currentSpaceEnclosed, RoomFloodFill.Result roomResult,
             BlockMap blockMap) {
-        Set<BlockPos> excluded = new HashSet<>();
+        Set<BlockPos> protectedSteps = new HashSet<>();
         List<Staircase> detected = new ArrayList<>();
 
         if (mc.level != null && mc.player != null && Config.isStaircaseExclusionEnabled() && currentSpaceEnclosed
@@ -47,7 +48,7 @@ public final class StairCullingHandler {
             int minSteps = SpaceDebugState.MIN_STAIRCASE_STEPS;
             int playerFeetY = blockY - 1;
             int exclusionHeight = Config.getStaircaseExclusionHeight();
-            // 除外対象の段 (playerFeetY..playerFeetY+exclusionHeight) と、その段を含む階段を
+            // 保護対象の段 (playerFeetY..playerFeetY+exclusionHeight) と、その段を含む階段を
             // minSteps 段として認定できる下限/上限のみ走査する。それ以外のYは結果に寄与しない。
             List<Staircase> staircases = StairAnalyzer.detect(seed,
                     SpaceDebugState.STAIR_SCAN_RADIUS,
@@ -66,7 +67,7 @@ public final class StairCullingHandler {
                     for (BlockPos step : stair.getSteps()) {
                         if (step.getY() >= minY && step.getY() <= maxY) {
                             if (isIndoorStairStep(airCells, step)) {
-                                excluded.add(step.immutable());
+                                protectedSteps.add(step.immutable());
                                 anyStepInRange = true;
                             }
                         }
@@ -79,7 +80,7 @@ public final class StairCullingHandler {
         }
 
         // 描画スレッドで完成した集合に差し替えてから公開する(ワーカーは中途状態を見ない)。
-        excludedStairBlocks = excluded;
+        protectedStairBlocks = protectedSteps;
         detectedStaircases = detected;
     }
 
@@ -95,22 +96,8 @@ public final class StairCullingHandler {
         return airCells.contains(posAbove1) || airCells.contains(posAbove2);
     }
 
-    public boolean isExcludedStairBlock(BlockPos pos) {
-        Set<BlockPos> excluded = excludedStairBlocks;
-        return !excluded.isEmpty() && excluded.contains(pos);
-    }
-
-    public void collectCullPositions(BlockGetter level, LongOpenHashSet out) {
-        Set<BlockPos> excluded = excludedStairBlocks;
-        if (detectedStaircases.isEmpty() || !Config.isStaircaseExclusionEnabled() || !Config.isStaircaseOccludeEnabled()) {
-            return;
-        }
-
-        for (Staircase stair : detectedStaircases) {
-            if (out.size() >= TopDownCuller.MAX_FADE_POSITIONS) {
-                return;
-            }
-            OcclusionFadeCollector.addBlocks(level, out, stair.getSteps(), excluded);
-        }
+    public boolean isProtectedStairBlock(BlockPos pos) {
+        Set<BlockPos> protectedSteps = protectedStairBlocks;
+        return !protectedSteps.isEmpty() && protectedSteps.contains(pos);
     }
 }

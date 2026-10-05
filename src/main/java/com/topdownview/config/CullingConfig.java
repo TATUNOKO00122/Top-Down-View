@@ -33,9 +33,6 @@ public final class CullingConfig {
     private double mobFogEnd = 12.0;
     private boolean staircaseExclusionEnabled = true;
     private int staircaseExclusionHeight = 2;
-    private boolean staircaseOccludeEnabled = true;
-    private boolean ladderOccludeEnabled = true;
-    private boolean treeOccludeEnabled = true;
     private int viewWedgeHalfAngle = 60;
     private boolean cameraSideClipWedge = false;
     private int coverCullingRadius = 10;
@@ -120,15 +117,6 @@ public final class CullingConfig {
 
     public int getStaircaseExclusionHeight() { return staircaseExclusionHeight; }
     public void setStaircaseExclusionHeight(int value) { this.staircaseExclusionHeight = MathUtil.clamp(value, 1, 10); }
-
-    public boolean isStaircaseOccludeEnabled() { return staircaseOccludeEnabled; }
-    public void setStaircaseOccludeEnabled(boolean value) { this.staircaseOccludeEnabled = value; }
-
-    public boolean isLadderOccludeEnabled() { return ladderOccludeEnabled; }
-    public void setLadderOccludeEnabled(boolean value) { this.ladderOccludeEnabled = value; }
-
-    public boolean isTreeOccludeEnabled() { return treeOccludeEnabled; }
-    public void setTreeOccludeEnabled(boolean value) { this.treeOccludeEnabled = value; }
 
     public int getViewWedgeHalfAngle() { return viewWedgeHalfAngle; }
     public void setViewWedgeHalfAngle(int value) { this.viewWedgeHalfAngle = MathUtil.clamp(value, 10, 90); }

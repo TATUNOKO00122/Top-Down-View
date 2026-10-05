@@ -197,7 +197,6 @@ public final class TopDownCuller {
             ThreadLocal.withInitial(MutableBlockPos::new);
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
-    private final LadderCullingHandler ladderHandler = new LadderCullingHandler();
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
     private final CeilingSliceCuller ceilingSliceCuller = new CeilingSliceCuller();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
@@ -266,7 +265,6 @@ public final class TopDownCuller {
         fadePositions.clear();
         surfaceHeightCache.clear();
         stairHandler.clearCache();
-        ladderHandler.clearCache();
         treeHandler.clearCache();
         ceilingSliceCuller.clearCache();
         coverHandler.clearCache();
@@ -501,21 +499,17 @@ public final class TopDownCuller {
             return true;
         }
 
-        if (Config.isLadderOccludeEnabled() && ladderHandler.isProtectedPosition(pos)) {
-            cullingCache.put(posLong, true);
-            return true;
-        }
-
-        if (Config.isTreeOccludeEnabled() && treeHandler.isOccludedLog(posLong, pos)) {
-            cullingCache.put(posLong, true);
-            return true;
-        }
-
         // 雪の層・カーペット・植物など、下の支えが消えると宙に浮く薄い面ブロックは
         // 支え側のカリングに追従させて消す。保護より先に判定して、装飾の保護で残らないようにする。
         if (isRestingOnCulledBlock(pos, state, level)) {
             cullingCache.put(posLong, true);
             return true;
+        }
+
+        // 検出した階段は保護する。歩行中の階段が消えると足場が見えなくなる。
+        if (Config.isStaircaseExclusionEnabled() && stairHandler.isProtectedStairBlock(pos)) {
+            cullingCache.put(posLong, false);
+            return false;
         }
 
         if (isProtectedBlock(pos, state, pY, level)) {
@@ -526,12 +520,6 @@ public final class TopDownCuller {
         if (cachedCoverCullingActive && coverHandler.isCoverCulled(pos)) {
             cullingCache.put(posLong, true);
             return true;
-        }
-
-        if (Config.isStaircaseExclusionEnabled() && stairHandler.isExcludedStairBlock(pos)) {
-            boolean occludeEnabled = Config.isStaircaseOccludeEnabled();
-            cullingCache.put(posLong, occludeEnabled);
-            return occludeEnabled;
         }
 
         if (connectedWallHandler.isConnectedCulled(posLong)) {
@@ -630,9 +618,8 @@ public final class TopDownCuller {
         }
 
         int playerFeetY = cachedPlayerFeetY;
-        boolean ladderOcclude = Config.isLadderOccludeEnabled();
 
-        if (!ladderOcclude && state.getBlock() instanceof LadderBlock) {
+        if (state.getBlock() instanceof LadderBlock) {
             if (LadderHelper.isLadderInLongChain(pos, level)) {
                 int chainBottomY = LadderHelper.getChainBottomY(pos, level);
                 if (chainBottomY >= playerFeetY && chainBottomY <= playerFeetY + 1) {
@@ -641,7 +628,7 @@ public final class TopDownCuller {
             }
         }
 
-        if (!ladderOcclude && LadderHelper.isBlockBehindLadderChain(pos, level, playerFeetY)) {
+        if (LadderHelper.isBlockBehindLadderChain(pos, level, playerFeetY)) {
             return true;
         }
 
@@ -938,7 +925,6 @@ public final class TopDownCuller {
         // 確定させる。描画パスで遅れて検出すると、実ブロックが先にメッシュから消えてから
         // 消失フラッシュが始まる(α=1が一瞬見えてからフェードに差し替わる)レースが残る。
         updateFadePositions(mc.level);
-        treeHandler.updateOcclusion(playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         long tEntity = System.nanoTime();
         updateEntityCulling(mc);
         PerfMonitor.ENTITY_CULL.add(System.nanoTime() - tEntity);
@@ -1135,10 +1121,6 @@ public final class TopDownCuller {
         final int currentBlockX = (int) Math.floor(mc.player.getX());
         final int currentBlockY = (int) Math.floor(mc.player.getEyeY());
         final int currentBlockZ = (int) Math.floor(mc.player.getZ());
-
-        long tLadder = System.nanoTime();
-        ladderHandler.scan(level, currentBlockX, currentBlockZ, currentBlockY - 1);
-        PerfMonitor.LADDER.add(System.nanoTime() - tLadder);
 
         long tStair = System.nanoTime();
         stairHandler.update(mc, currentBlockY, currentSpaceEnclosed, roomResult, spaceScratch.getBlockMap());
@@ -1509,15 +1491,6 @@ public final class TopDownCuller {
         LongOpenHashSet current = fadePositions;
 
         long tHandlers = System.nanoTime();
-        if (Config.isStaircaseExclusionEnabled() && Config.isStaircaseOccludeEnabled()) {
-            stairHandler.collectCullPositions(level, current);
-        }
-        if (Config.isLadderOccludeEnabled()) {
-            ladderHandler.collectCullPositions(level, current);
-        }
-        if (Config.isTreeOccludeEnabled()) {
-            treeHandler.collectCullPositions(level, current);
-        }
         if (cachedCoverCullingActive) {
             coverHandler.addOverdueCullPositions(current);
         }
@@ -1572,11 +1545,6 @@ public final class TopDownCuller {
         int maxY = (int) Math.floor(Math.max(pY, cY)) + radiusV + margin;
         int minZ = (int) Math.floor(Math.min(pZ, cZ)) - radiusH - margin;
         int maxZ = (int) Math.floor(Math.max(pZ, cZ)) + radiusH + margin;
-
-        // 走査中不変な設定・オプションはループ外で1回だけ評価（per-block再評価の回避）
-        boolean ladderOcclude = Config.isLadderOccludeEnabled();
-        boolean stairOcclude = Config.isStaircaseExclusionEnabled();
-        boolean treeOcclude = Config.isTreeOccludeEnabled();
 
         MutableBlockPos mutablePos = new MutableBlockPos();
 
@@ -1656,9 +1624,6 @@ public final class TopDownCuller {
                     // 消失/復元イベントを登録拒否にしていた。帳簿(previousCulled)は復元ループの
                     // stillCulled put-back が同期する(連鎖メンバー=判定true→必ず戻る)。
                     if (connectedWallHandler.isConnectedCulled(posLong)) continue;
-                    if (ladderOcclude && ladderHandler.isProtectedPosition(mutablePos)) continue;
-                    if (stairOcclude && stairHandler.isExcludedStairBlock(mutablePos)) continue;
-                    if (treeOcclude && treeHandler.isOccludedLog(posLong, mutablePos)) continue;
                     if (state.is(BlockTags.LEAVES)
                             && Minecraft.getInstance().options.graphicsMode().get() == GraphicsStatus.FAST) {
                         continue;

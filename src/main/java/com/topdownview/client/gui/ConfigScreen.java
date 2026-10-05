@@ -293,15 +293,9 @@ public class ConfigScreen extends Screen {
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.staircase_exclusion", tx);
-        addToggle(x, y, w, h, "topdown_view.config.staircase_occlude_enabled", Config::isStaircaseOccludeEnabled, Config::setStaircaseOccludeEnabled);
-        y += sp;
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.staircase_exclusion_height",
                 Config.getStaircaseExclusionHeight(), 1, 10,
                 val -> Config.setStaircaseExclusionHeight(val)));
-        y += sp;
-        addToggle(x, y, w, h, "topdown_view.config.ladder_occlude_enabled", Config::isLadderOccludeEnabled, Config::setLadderOccludeEnabled);
-        y += sp;
-        addToggle(x, y, w, h, "topdown_view.config.tree_occlude_enabled", Config::isTreeOccludeEnabled, Config::setTreeOccludeEnabled);
         y += sp;
 
         y = addSection(y, "topdown_view.config.section.underground_culling", tx);
