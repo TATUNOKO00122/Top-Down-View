@@ -103,7 +103,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue TRAPDOOR_TRANSPARENCY = BUILDER
             .defineInRange("trapdoorTransparency", 0.3, 0.0, 1.0);
     private static final ForgeConfigSpec.BooleanValue FADE_ENABLED = BUILDER
-            .define("fadeEnabled", false);
+            .define("fadeEnabled", true);
     private static final ForgeConfigSpec.DoubleValue FADE_FLASH_DURATION = BUILDER
             .comment("Duration (seconds) of the vanish / restore transition fade. 0 = instant switch.")
             .defineInRange("fadeFlashDuration", 0.3, 0.0, 1.0);
@@ -114,7 +114,7 @@ public class Config {
             .defineInRange("viewWedgeHalfAngle", 60, 10, 90);
     private static final ForgeConfigSpec.BooleanValue CAMERA_SIDE_CLIP_WEDGE = BUILDER
             .comment("Camera-side clip shape: true = wedge/fan (original), false = half-space (wider side view).")
-            .define("cameraSideClipWedge", false);
+            .define("cameraSideClipWedge", true);
     private static final ForgeConfigSpec.BooleanValue CONNECTED_WALL_CULLING_ENABLED = BUILDER
             .comment("Propagates culling along connected wall blocks to prevent V-shaped blind spots at corners.")
             .define("connectedWallCullingEnabled", true);
@@ -134,7 +134,7 @@ public class Config {
             .define("protectInteractablesOutdoors", true);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_INDOORS = BUILDER
             .comment("Disables boundary fade rendering while the player is indoors.")
-            .define("disableFadeIndoors", true);
+            .define("disableFadeIndoors", false);
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_BURIED = BUILDER
             .comment("Disables the transition fade while the top-down camera is buried in terrain.")
             .define("disableFadeBuried", true);
@@ -175,7 +175,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
             .defineInRange("cameraSnapRotationSpeed", 0.2, 0.05, 0.5);
     private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-            .defineInRange("cameraPitch", 40.0, 10.0, 90.0);
+            .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
             .defineInRange("miningModePitch", 45.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
@@ -251,7 +251,7 @@ public class Config {
             .comment("Excludes staircase blocks from culling.")
             .define("staircaseExclusionEnabled", true);
     private static final ForgeConfigSpec.IntValue STAIRCASE_EXCLUSION_HEIGHT = BUILDER
-            .defineInRange("staircaseExclusionHeight", 2, 1, 10);
+            .defineInRange("staircaseExclusionHeight", 5, 1, 10);
 
     private static final ForgeConfigSpec.IntValue SIGN_HOVER_DISPLAY_MODE = BUILDER
             .defineInRange("signHoverDisplayMode", 2, 0, 2);

@@ -23,9 +23,9 @@ public final class CullingConfig {
     private double mobTranslucencyAlpha = 0.5;
     private boolean trapdoorTranslucencyEnabled = false;
     private double trapdoorTransparency = 0.3;
-    private boolean fadeEnabled = false;
+    private boolean fadeEnabled = true;
     private double fadeFlashDuration = 0.3;
-    private boolean disableFadeIndoors = true;
+    private boolean disableFadeIndoors = false;
     private boolean disableFadeBuried = true;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
@@ -33,9 +33,9 @@ public final class CullingConfig {
     private double mobNearRadius = 3.0;
     private double mobFogEnd = 12.0;
     private boolean staircaseExclusionEnabled = true;
-    private int staircaseExclusionHeight = 2;
+    private int staircaseExclusionHeight = 5;
     private int viewWedgeHalfAngle = 60;
-    private boolean cameraSideClipWedge = false;
+    private boolean cameraSideClipWedge = true;
     private int coverCullingRadius = 10;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;

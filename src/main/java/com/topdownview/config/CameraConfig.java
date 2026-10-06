@@ -9,7 +9,7 @@ public final class CameraConfig {
 
     private int rotateAngleMode = 1;
     private double cameraSnapRotationSpeed = 0.2;
-    private double cameraPitch = 40.0;
+    private double cameraPitch = 45.0;
     private double miningModePitch = 45.0;
     private double maxCameraDistance = 50.0;
     private double defaultCameraDistance = 30.0;
