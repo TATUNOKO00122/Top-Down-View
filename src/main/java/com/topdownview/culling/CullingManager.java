@@ -30,8 +30,8 @@ public final class CullingManager {
     private static final TopDownCuller CULLER = TopDownCuller.getInstance();
     private static final long CHUNK_REBUILD_INTERVAL_MS = 50;
     private static final String SODIUM_RENDERER_CLASS = "me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer";
-    /** ビルドが続いてもアップロード保留を打ち切る上限フレーム数(スタック防止)。 */
-    private static final int MAX_UPLOAD_HOLD_FRAMES = 60;
+    /** ビルドが続いてもアップロード保留を打ち切る上限フレーム数(スタック防止、約330ms)。 */
+    private static final int MAX_UPLOAD_HOLD_FRAMES = 20;
     /**
      * 次元変更後にカリングを保留する上限ティック数(保険)。通常はロード画面が閉じた時点で
      * 早期解除される。無限に保留しないための安全弁。
@@ -138,7 +138,7 @@ public final class CullingManager {
         }
 
         int frequency = CULLER.getFrequency();
-        if (mc.player.tickCount % frequency == 0) {
+        if (!batchPending && mc.player.tickCount % frequency == 0) {
             long tUpdate = System.nanoTime();
             CULLER.update();
             PerfMonitor.CULL_UPDATE.add(System.nanoTime() - tUpdate);

@@ -48,12 +48,12 @@ public final class FadeTransitionController {
     private static final long RESTORE_LINGER_MS = 200L;
 
     /**
-     * ゴースト→実ブロックの引き継ぎ猶予。メッシュホールド解除で再構築が走ってから実際に
-     * ブロックがメッシュへ戻るまでにはスケジュール待ちとワーカー+バッチ確定が挟まる。
-     * ゴーストを残光+この猶予まで残し、その間に実ブロックを戻すことで、消え際に一瞬見える
-     * 穴を無くす。
+     * ゴースト→実ブロックの引き継ぎ待ちの上限。ホールド解除後、実ブロックがメッシュへ戻るまでは
+     * バッチ待ち(batchPending)・ワーカー・確定が挟み、移動中は数百ms以上かかることがある。
+     * ゴーストは onMeshCommit で閉じるのが本筋で、これは確定が来ない位置(再構築ボックス外など)
+     * のための安全弁。実ブロックと重なっても同一テクスチャなので見た目は変わらない。
      */
-    private static final long RESTORE_HANDOFF_MS = 300L;
+    private static final long RESTORE_HANDOFF_MS = 2000L;
 
     /** 前回走査でカリングされていた集合(差分の基準)。 */
     private LongOpenHashSet previousCulled = new LongOpenHashSet();
