@@ -53,7 +53,7 @@ public final class FadeTransitionController {
      * ゴーストは onMeshCommit で閉じるのが本筋で、これは確定が来ない位置(再構築ボックス外など)
      * のための安全弁。実ブロックと重なっても同一テクスチャなので見た目は変わらない。
      */
-    private static final long RESTORE_HANDOFF_MS = 2000L;
+    private static final long RESTORE_HANDOFF_MS = 1000L;
 
     /** 前回走査でカリングされていた集合(差分の基準)。 */
     private LongOpenHashSet previousCulled = new LongOpenHashSet();
@@ -98,7 +98,7 @@ public final class FadeTransitionController {
      * 同時に保持する遷移ゴースト(消失+復元)の上限。復元はメッシュホールドも同じ枠を共有するため、
      * 超過分はフェードせず即時切替にして穴を残さない。密集地の一斉遷移で描画がスパイクするのを防ぐ。
      */
-    private static final int MAX_ACTIVE_FLASHES = 512;
+    private static final int MAX_ACTIVE_FLASHES = 256;
 
     public void clearCache() {
         previousCulled = new LongOpenHashSet();
@@ -152,6 +152,14 @@ public final class FadeTransitionController {
 
     public void consumeMeshHoldRebuildPending() {
         meshHoldRebuildPending = false;
+    }
+
+    /** 消失フラッシュ中の位置を列挙する(描画側の消失ゴースト候補)。 */
+    public void forEachActiveFadeOut(java.util.function.LongConsumer consumer) {
+        LongIterator iterator = fadeOutStarts.keySet().iterator();
+        while (iterator.hasNext()) {
+            consumer.accept(iterator.nextLong());
+        }
     }
 
     /** 復元フラッシュ中の位置を列挙する(描画側の復元ゴースト対象)。 */

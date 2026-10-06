@@ -1663,10 +1663,37 @@ public final class TopDownCuller {
         int minZ = (int) Math.floor(Math.min(pZ, cZ)) - radiusH - margin;
         int maxZ = (int) Math.floor(Math.max(pZ, cZ)) + radiusH + margin;
 
+        // カメラからシフト後プレイヤーへの水平線分に対する早期刈り込み
+        double yawRad = Math.toRadians(quantizeYaw(ModState.CAMERA.getYaw()));
+        double forwardShift = Config.getCylinderForwardShift();
+        double sPX = pX + forwardShift * (-Math.sin(yawRad));
+        double sPZ = pZ + forwardShift * Math.cos(yawRad);
+        double lineX = sPX - cX;
+        double lineZ = sPZ - cZ;
+        double lineLenSq = lineX * lineX + lineZ * lineZ;
+        double maxHorizDist = radiusH + margin + 1.0;
+        double maxHorizDistSq = maxHorizDist * maxHorizDist;
+        double extT = lineLenSq > 1.0E-6 ? maxHorizDist / Math.sqrt(lineLenSq) : 0.0;
+
         MutableBlockPos mutablePos = new MutableBlockPos();
 
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
+                if (lineLenSq > 1.0E-6) {
+                    double toPtX = (x + 0.5) - cX;
+                    double toPtZ = (z + 0.5) - cZ;
+                    double u = (toPtX * lineX + toPtZ * lineZ) / lineLenSq;
+                    if (u < -extT || u > 1.0 + extT) {
+                        continue;
+                    }
+                    double closeX = cX + lineX * Math.max(0.0, Math.min(1.0, u));
+                    double closeZ = cZ + lineZ * Math.max(0.0, Math.min(1.0, u));
+                    double dx = (x + 0.5) - closeX;
+                    double dz = (z + 0.5) - closeZ;
+                    if (dx * dx + dz * dz > maxHorizDistSq) {
+                        continue;
+                    }
+                }
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
                     // 円柱内かを先に判定する。円柱そのものと同一の CylinderCalculator を使うため
@@ -1676,6 +1703,15 @@ public final class TopDownCuller {
                             x + 0.5, y + 0.5, z + 0.5);
                     if (normalizedDistSq < 0.0 || normalizedDistSq > 1.0) {
                         if (!collect) {
+                            continue;
+                        }
+                        // 直下のブロックが円柱内でないなら、下支えカリング(雪など)の対象外
+                        if (y <= minY) {
+                            continue;
+                        }
+                        double belowDistSq = CylinderCalculator.getNormalizedDistanceSq(
+                                x + 0.5, (y - 1) + 0.5, z + 0.5);
+                        if (belowDistSq < 0.0 || belowDistSq > 1.0) {
                             continue;
                         }
                         // 円柱外でもカリングが真になるのは下支えカリングに連動する薄いブロック類

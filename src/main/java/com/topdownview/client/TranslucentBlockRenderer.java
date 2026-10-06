@@ -65,6 +65,9 @@ public final class TranslucentBlockRenderer {
     /** 今フレーム処理した位置。使われなくなった α を掃除するための作業用。 */
     private static final LongOpenHashSet SEEN = new LongOpenHashSet();
 
+    /** 消失フェード候補位置の作業用セット(再利用)。 */
+    private static final LongOpenHashSet FADE_CANDIDATES = new LongOpenHashSet();
+
     private static long lastFrameNanos;
 
     // 描画スレッド専用。ラッパーをフレーム毎に生成しないよう再利用する。
@@ -83,6 +86,7 @@ public final class TranslucentBlockRenderer {
         GHOST_ALPHA.clear();
         GHOST_VISIBLE.clear();
         SEEN.clear();
+        FADE_CANDIDATES.clear();
         lastFrameNanos = 0L;
     }
 
@@ -148,28 +152,29 @@ public final class TranslucentBlockRenderer {
         GHOST_COUNT[0] = 0;
 
         // ==================== カリング集合(消失/継続) ====================
-        // α帳簿は距離に関係なく毎フレーム更新する。遠方の復元ゴーストはメッシュホールドで
-        // 穴を開けたまま待機しており、接近した瞬間に α=1 で穴を覆えるよう常時 α=1 まで
-        // 遷移させておく必要がある(帳簿を距離で止めると接近時に α0 再レンプとなり、穴が
-        // フェード時間の間露出する)。距離判定は描画(GHOST_VISIBLE/頂点生成)の直前に限定する。
-        for (LongIterator iterator = fadePositions.iterator(); iterator.hasNext(); ) {
+        // 全カリング集合(数千個)を回すのではなく、進行中(GHOST_ALPHA)または新規開始(fadeOutStarts)の
+        // 遷移位置のみを走査対象とすることで、毎フレームの無駄なハッシュ検索を排除する。
+        FADE_CANDIDATES.clear();
+        tracker.forEachActiveFadeOut(FADE_CANDIDATES::add);
+        FADE_CANDIDATES.addAll(GHOST_ALPHA.keySet());
+
+        for (LongIterator iterator = FADE_CANDIDATES.iterator(); iterator.hasNext(); ) {
             long posLong = iterator.nextLong();
-            // 未完走の復元フラッシュを揺れで再カリングした位置: 復元側が帳簿を持続する。
-            // ここで減衰させると、α=1 のまま残った帳簿がフル不透明の単発ゴーストに
-            // 変わってフェーズアウト→再レンプロ(揺れのたびに点滅)になる。
             if (tracker.isRestoring(posLong)) {
                 SEEN.add(posLong);
                 continue;
             }
+            if (!fadePositions.contains(posLong)) {
+                GHOST_ALPHA.remove(posLong);
+                tracker.forgetFadeOut(posLong);
+                continue;
+            }
             long start = tracker.getFadeOutStart(posLong);
-            // 新規カリング(開始記録あり)は α=1 から、継続カリングは直前の α から 0 へ。
-            // 開始時刻はメッシュ確定時に刻まれるため、α=1 の瞬間＝実ブロックが消えた瞬間になる。
             float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong)
                     : (start != INVALID ? 1.0f : 0.0f);
             float alpha = approach(previous, 0.0f, step);
             if (alpha <= ALPHA_EPSILON) {
                 GHOST_ALPHA.remove(posLong);
-                // 完走した消失フラッシュは除去(再シードでの再点滅を防ぐ)。
                 if (start != INVALID) {
                     tracker.forgetFadeOut(posLong);
                 }
