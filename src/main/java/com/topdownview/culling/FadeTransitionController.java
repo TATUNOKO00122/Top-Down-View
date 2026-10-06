@@ -67,8 +67,13 @@ public final class FadeTransitionController {
     /** 直近で復元した(pos→時刻ms)。集合境界の揺れで再フラッシュするのを抑える。 */
     private final Long2LongOpenHashMap recentlyRestored = new Long2LongOpenHashMap();
 
-    /**
-     * メッシュ専用ホールド(pos→期限ms)。復元フラッシュの間、メッシュにブロックを戻さず
+    /** メッシュ確定後、実ブロックが画面へ描画されるまでの引き継ぎ猶予(ms)。GPUアップロード遅延等による穴の露出を防ぐ。 */
+    private static final long RESTORE_COMMIT_GRACE_MS = 150L;
+
+    /** メッシュ確定済みの復元位置(pos→猶予期限ms)。この間はゴーストを残して実描画の遅れを覆う。 */
+    private final Long2LongOpenHashMap restoreGraceUntil = new Long2LongOpenHashMap();
+
+    /** メッシュ専用ホールド(pos→期限ms)。復元フラッシュの間、メッシュにブロックを戻さず
      * 穴を保つことで、ゴーストの α0→1 を目視できるようにする。判定本体(レイキャスト・
      * エンティティ・空間走査)には使わない。ワーカーが読むため不変スナップショットで公開する。
      */
@@ -99,6 +104,7 @@ public final class FadeTransitionController {
         previousCulled = new LongOpenHashSet();
         fadeOutStarts.clear();
         restoreStarts.clear();
+        restoreGraceUntil.clear();
         recentlyRestored.clear();
         meshHoldUntil.clear();
         meshHoldExpiry.clear();
@@ -112,6 +118,7 @@ public final class FadeTransitionController {
     public void clearFlashes() {
         fadeOutStarts.clear();
         restoreStarts.clear();
+        restoreGraceUntil.clear();
     }
 
     /** 消失フラッシュの開始時刻ms。進行していなければ INVALID。 */
@@ -241,6 +248,7 @@ public final class FadeTransitionController {
                 // そのまま消失フェードへクロスフェードする。帳簿は GHOST_ALPHA が共有のため
                 // レンプの再スタート(点滅)にはならず、自然な「見えていたものが溶ける」になる。
                 restoreStarts.remove(posLong);
+                restoreGraceUntil.remove(posLong);
             }
             if (!fadeOutStarts.containsKey(posLong) && canRegisterFlash()
                     && isWithinFlashRange(posLong, playerX, playerY, playerZ, maxFlashDistSq)) {
@@ -295,8 +303,11 @@ public final class FadeTransitionController {
                 int sy = BlockPos.getY(posLong) >> 4;
                 int sz = BlockPos.getZ(posLong) >> 4;
                 if (committedSections.contains(SectionPos.asLong(sx, sy, sz))) {
-                    iterator.remove();
-                    meshHoldExpiry.remove(posLong);
+                    // 即座に消すとGPUアップロード〜実描画の1フレーム差で穴が露出する。
+                    // 猶予期限を記録し、実ブロックが画面に反映されるまでゴーストを維持する。
+                    if (!restoreGraceUntil.containsKey(posLong)) {
+                        restoreGraceUntil.put(posLong, now + RESTORE_COMMIT_GRACE_MS);
+                    }
                 }
             }
         }
@@ -326,6 +337,17 @@ public final class FadeTransitionController {
                 }
             }
         }
+        if (!restoreGraceUntil.isEmpty()) {
+            LongIterator iterator = restoreGraceUntil.keySet().iterator();
+            while (iterator.hasNext()) {
+                long posLong = iterator.nextLong();
+                if (now >= restoreGraceUntil.get(posLong)) {
+                    iterator.remove();
+                    restoreStarts.remove(posLong);
+                    meshHoldExpiry.remove(posLong);
+                }
+            }
+        }
         if (!restoreStarts.isEmpty()) {
             LongIterator iterator = restoreStarts.keySet().iterator();
             while (iterator.hasNext()) {
@@ -335,6 +357,7 @@ public final class FadeTransitionController {
                 if (now >= restoreStarts.get(posLong) + transition + RESTORE_LINGER_MS + RESTORE_HANDOFF_MS) {
                     iterator.remove();
                     meshHoldExpiry.remove(posLong);
+                    restoreGraceUntil.remove(posLong);
                 }
             }
         }

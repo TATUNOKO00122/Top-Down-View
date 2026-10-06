@@ -195,12 +195,10 @@ public final class TranslucentBlockRenderer {
 
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
         // メッシュ再構築が戻るまでの穴を α0→1 で覆う。メッシュが戻ればポリゴンオフセットで
-        // ゴーストは奥に隠れる。再カリングされた位置は消失側が担当するのでここでは描かない。
+        // ゴーストは奥に隠れる。未完走の復元位置は、境界の揺れ等でカリング集合(fadePositions)に
+        // 一時的に入っても復元側が描画を継続する(消失側と相互スキップしてお見合い抜けするのを防ぐ)。
         // 消失側と同様、α帳簿は遠方でも毎フレーム進める(接近時に α=1 で即座に穴を覆えるように)。
         tracker.forEachActiveRestore(posLong -> {
-            if (fadePositions.contains(posLong)) {
-                return;
-            }
             float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong) : 0.0f;
             float alpha = approach(previous, 1.0f, step);
             SEEN.add(posLong);
