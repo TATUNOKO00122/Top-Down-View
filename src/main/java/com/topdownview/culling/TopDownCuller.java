@@ -157,6 +157,11 @@ public final class TopDownCuller {
     private BlockPos lastEnclosedSeed = null;
     private static final int ENCLOSED_STICKY_MOVE = 1;
 
+    /** 連続して屋内と判定されたプローブ回数 */
+    private int enclosedStableCount = 0;
+    /** ヒステリシス (空間維持) を有効化するために必要な連続屋内検出回数 */
+    private static final int ENCLOSED_STABLE_THRESHOLD = 2;
+
     private final CullingCacheManager cullingCache = new CullingCacheManager();
     private final SurfaceHeightCache surfaceHeightCache = new SurfaceHeightCache();
     /** 遷移フェードの対象となる「今カリングされている位置」の集合。走査ごとに作り直す。 */
@@ -285,6 +290,7 @@ public final class TopDownCuller {
         fadeTransitionController.clearCache();
         
         currentSpaceEnclosed = false;
+        enclosedStableCount = 0;
         cachedDisableIndoorFade = false;
         cachedCameraBuried = false;
         cameraBuriedTravel = 0.0;
@@ -1013,7 +1019,9 @@ public final class TopDownCuller {
         if (currentSpaceResult == null || lastSpaceSeed == null || dimensionChanged) {
             needReprobe = true;
         } else {
-            needReprobe = seed.distManhattan(lastSpaceSeed) >= SPACE_REPROBE_MOVE_THRESHOLD;
+            final boolean leftIndoorSpace = currentSpaceEnclosed && !isInsidePreviousSpace(seed);
+            final int threshold = leftIndoorSpace ? 1 : SPACE_REPROBE_MOVE_THRESHOLD;
+            needReprobe = seed.distManhattan(lastSpaceSeed) >= threshold;
         }
         if (!needReprobe) {
             return;
@@ -1139,22 +1147,50 @@ public final class TopDownCuller {
     }
 
     /**
+     * プレイヤー位置が直前の有効な屋内空間の内部に留まっているかを判定する。
+     * 窓際や開口部、一時的な起点のブレで屋外判定が出た場合でも、既知の空間内であれば維持する。
+     */
+    private boolean isInsidePreviousSpace(BlockPos seed) {
+        if (!currentSpaceEnclosed || currentSpaceResult == null) {
+            return false;
+        }
+        // 屋内に入った直後の不安定期間はヒステリシスを適用しない (誤判定の固定化防止)
+        if (enclosedStableCount < ENCLOSED_STABLE_THRESHOLD) {
+            return false;
+        }
+        RoomFloodFill.Result prevRoom = currentSpaceResult.getRoomResult();
+        if (prevRoom != null && prevRoom.isEnclosed()) {
+            LongSet airCells = prevRoom.getAirCells();
+            if (airCells != null && !airCells.isEmpty()) {
+                if (airCells.contains(seed.asLong()) || airCells.contains(seed.above().asLong())) {
+                    return true;
+                }
+            }
+        }
+        return lastEnclosedSeed != null && seed.distManhattan(lastEnclosedSeed) <= ENCLOSED_STICKY_MOVE;
+    }
+
+    /**
      * probe 結果を確定させる (スティッピー屋内判定/天井スライス/はしご/階段/覆い)。
      * メインスレッドからのみ呼ぶこと ({@code mc} とハンドラ内部状態を更新する)。
      */
     private void applySpaceResult(Minecraft mc, Level level, BlockPos seed, SpaceProbe.Result probed) {
-        // ドールハウス表示は生の検出結果を即座に反映する（カリングのヒステリシスに追従させない）。
-        rawSpaceResult = probed;
-        // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングがチカチカする。
-        // 直前まで屋内だった座標の近くならそのブレとして無視し、屋内状態を維持する。
-        if (!probed.isEnclosed() && lastEnclosedSeed != null
-                && seed.distManhattan(lastEnclosedSeed) <= ENCLOSED_STICKY_MOVE) {
+        // 段差・階段・開口部ではフラッドフィル結果が一瞬「屋外」になりカリングやドールハウスがチカチカする。
+        // 直前まで検出されていた空間の内部（または直前シード近傍）ならそのブレとして無視し、屋内状態を維持する。
+        if (!probed.isEnclosed() && isInsidePreviousSpace(seed)) {
             return;
         }
+
+        rawSpaceResult = probed;
 
         currentSpaceResult = probed;
         currentSpaceEnclosed = probed.isEnclosed();
         lastEnclosedSeed = currentSpaceEnclosed ? seed.immutable() : null;
+        if (currentSpaceEnclosed) {
+            enclosedStableCount = Math.min(ENCLOSED_STABLE_THRESHOLD, enclosedStableCount + 1);
+        } else {
+            enclosedStableCount = 0;
+        }
 
         // 屋内の天井スライスは通常カリングに追加する形で動かす。屋内外どちらでも通常カリング
         // (覆い/円柱/保護など) は適用し、天井スライスだけ保護の対象外。
