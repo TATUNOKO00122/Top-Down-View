@@ -224,6 +224,10 @@ public class ConfigScreen extends Screen {
         y += sp;
         boolean coverMode = Config.getCullingMode() != CullingConfig.CULLING_MODE_CYLINDER;
         if (coverMode) {
+            addToggle(x, y, w, h, "topdown_view.config.cover_culling_enabled", Config::isCoverCullingEnabled, Config::setCoverCullingEnabled);
+            y += sp;
+            addToggle(x, y, w, h, "topdown_view.config.cover_culling_solids_outdoors", Config::isCoverCullingSolidsOutdoors, Config::setCoverCullingSolidsOutdoors);
+            y += sp;
             addToggle(x, y, w, h, "topdown_view.config.cover_culling_viewshed_enabled", Config::isCoverCullingViewshedEnabled, Config::setCoverCullingViewshedEnabled);
             y += sp;
             addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,

@@ -21,9 +21,9 @@ import net.minecraft.world.phys.shapes.CollisionContext;
  * 間仕切り・床は残るため間取りが露出せず、覆いより上の多層の屋根や上階もいっしょに
  * 消えるので、上から見下ろしたときにプレイヤーと足元の通路が見える。
  *
- * <p>固体の覆い（建物の屋根・天井）はプレイヤーが屋内（閉鎖空間）にいるときだけ消す。
- * 屋外で近くの歩行可能列が軒下などに入っていても屋根を消さない（屋外から見た屋根に
- * 穴が開くのを防ぐ）。葉（自然の樹冠）は屋内外を問わず消す。
+ * <p>固体の覆い（建物の屋根・天井）はプレイヤーが屋内（閉鎖空間）にいるとき（または設定で
+ * 屋外カリングが有効なとき）だけ消す。屋外で設定が無効なときは、近くの歩行可能列が軒下などに
+ * 入っていても屋根を消さない（屋外から見た屋根に穴が開くのを防ぐ）。葉（自然の樹冠）は屋内外を問わず消す。
  */
 public final class CoverCullingHandler {
 
@@ -45,9 +45,9 @@ public final class CoverCullingHandler {
 
     /**
      * 走査半径の外側でも、この余白(ブロック)以内なら既に消えた覆いを保持する。
-     * 再スキャン間隔(3)より大きくし、前後の往復で境界が揺れても出入りしないようにする。
+     * 復元応答性とチラつき防止のバランスのため 2 ブロックに設定。
      */
-    private static final int COVER_EDGE_MARGIN = 4;
+    private static final int COVER_EDGE_MARGIN = 2;
 
     /**
      * 覆い集合(カリング対象の全ブロック)。時差開始は廃止し、走査が確定した瞬間にメッシュから
@@ -110,16 +110,18 @@ public final class CoverCullingHandler {
      * 歩行可能列を探索し、各列の最初の覆い以降をカリング対象として収集する。
      * 同じ位置では再計算しない（移動時のみ）。
      *
-     * @param enclosed プレイヤーが閉鎖空間（屋内）にいるか。false のとき固体の覆いは消さない
-     * @param eyeX     視点X（ビューシェッド判定の起点）
-     * @param eyeY     視点Y
-     * @param eyeZ     視点Z
-     * @param cameraY  走査上限に使うカメラY
-     * @param radius   探索する水平半径（ブロック）
-     * @param viewshed true なら視点から見える列だけを対象にする
+     * @param enclosed           プレイヤーが閉鎖空間（屋内）にいるか
+     * @param eyeX               視点X（ビューシェッド判定の起点）
+     * @param eyeY               視点Y
+     * @param eyeZ               視点Z
+     * @param cameraY            走査上限に使うカメラY
+     * @param radius             探索する水平半径（ブロック）
+     * @param viewshed           true なら視点から見える列だけを対象にする
+     * @param cullSolidsOutdoors true なら屋外でも固体の覆い（屋根・天井）をカリングする
      */
     public void update(BlockGetter level, int feetX, int feetY, int feetZ, boolean enclosed,
-            double eyeX, double eyeY, double eyeZ, int cameraY, int radius, boolean viewshed) {
+            double eyeX, double eyeY, double eyeZ, int cameraY, int radius, boolean viewshed,
+            boolean cullSolidsOutdoors) {
         if (level == null) {
             clearCache();
             return;
@@ -139,9 +141,11 @@ public final class CoverCullingHandler {
 
         LongOpenHashSet next = new LongOpenHashSet();
 
+        boolean allowSolids = enclosed || cullSolidsOutdoors;
+
         int startY = findStandableY(level, feetX, feetY, feetZ);
         if (startY == NOT_STANDABLE) {
-            applyCollected(level, next, feetX, feetZ, radius, enclosed);
+            applyCollected(level, next, feetX, feetZ, radius, allowSolids);
             return;
         }
 
@@ -158,7 +162,7 @@ public final class CoverCullingHandler {
             int cy = BlockPos.getY(cur);
             int cz = BlockPos.getZ(cur);
 
-            addColumnCover(level, cx, cy, cz, enclosed, eyeX, eyeY, eyeZ, cameraY, viewshed, next);
+            addColumnCover(level, cx, cy, cz, allowSolids, eyeX, eyeY, eyeZ, cameraY, viewshed, next);
 
             for (Direction dir : HORIZONTAL) {
                 int nx = cx + dir.getStepX();
@@ -177,7 +181,7 @@ public final class CoverCullingHandler {
             }
         }
 
-        applyCollected(level, next, feetX, feetZ, radius, enclosed);
+        applyCollected(level, next, feetX, feetZ, radius, allowSolids);
     }
 
     /**
@@ -194,7 +198,7 @@ public final class CoverCullingHandler {
      * 対象なので従来どおり距離で保持する。
      */
     private void applyCollected(BlockGetter level, LongOpenHashSet next, int refX, int refZ,
-            int radius, boolean enclosed) {
+            int radius, boolean allowSolids) {
         LongOpenHashSet previous = coverCullPositions;
         LongOpenHashSet kept = new LongOpenHashSet(next.size());
         kept.addAll(next);
@@ -205,8 +209,8 @@ public final class CoverCullingHandler {
             if (kept.contains(posLong)) {
                 continue;
             }
-            // 屋外では固体の覆いは対象外。葉以外の取りこぼしは距離保持せず即復元する。
-            if (!enclosed && !isLeafCover(level, posLong)) {
+            // 固体カリングが無効な屋外では固体の覆いは対象外。葉以外の取りこぼしは距離保持せず即復元する。
+            if (!allowSolids && !isLeafCover(level, posLong)) {
                 droppedPositions.add(posLong);
                 continue;
             }
@@ -294,7 +298,7 @@ public final class CoverCullingHandler {
      * 屋外では近くの歩行可能列が軒下に入っていても屋根を消さない。葉(自然の樹冠)は常に収集する。
      * viewshed が有効な場合は、視点からその列の地面が見えるものだけを対象にする。
      */
-    private void addColumnCover(BlockGetter level, int x, int feetY, int z, boolean enclosed,
+    private void addColumnCover(BlockGetter level, int x, int feetY, int z, boolean allowSolids,
             double eyeX, double eyeY, double eyeZ, int cameraY, boolean viewshed, LongOpenHashSet out) {
         if (viewshed && !isVisibleFromEye(level, x, feetY, z, eyeX, eyeY, eyeZ)) {
             return;
@@ -316,8 +320,8 @@ public final class CoverCullingHandler {
                 continue;
             }
             if (!covered) {
-                // 最初の覆いが固体で屋外なら、その列の屋根は残す
-                if (!enclosed && !state.is(BlockTags.LEAVES)) {
+                // 最初の覆いが固体で屋外(固体カリング無効)なら、その列の屋根は残す
+                if (!allowSolids && !state.is(BlockTags.LEAVES)) {
                     return;
                 }
                 covered = true;

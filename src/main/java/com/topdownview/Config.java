@@ -121,11 +121,17 @@ public class Config {
     private static final ForgeConfigSpec.IntValue CONNECTED_WALL_MAX_DISTANCE = BUILDER
             .comment("Maximum step distance for connected wall culling propagation.")
             .defineInRange("connectedWallMaxDistance", 3, 1, 6);
+    private static final ForgeConfigSpec.BooleanValue COVER_CULLING_ENABLED = BUILDER
+            .comment("Enables or disables cover culling (roofs, ceilings, canopies).")
+            .define("coverCullingEnabled", true);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
             .defineInRange("coverCullingRadius", 5, 4, 24);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
             .comment("Culls covers only over ground actually visible from the player's eye.")
             .define("coverCullingViewshedEnabled", true);
+    private static final ForgeConfigSpec.BooleanValue COVER_CULLING_SOLIDS_OUTDOORS = BUILDER
+            .comment("Culls solid covers (building roofs/ceilings) even when outdoors.")
+            .define("coverCullingSolidsOutdoors", false);
     private static final ForgeConfigSpec.BooleanValue INDOOR_CEILING_CULLING_ENABLED = BUILDER
             .comment("Culls the ceiling slice above the player's floor while indoors.")
             .define("indoorCeilingCullingEnabled", true);
@@ -357,8 +363,10 @@ public class Config {
     public static boolean isCameraSideClipWedge() { return CULLING.isCameraSideClipWedge(); }
     public static boolean isConnectedWallCullingEnabled() { return CULLING.isConnectedWallCullingEnabled(); }
     public static int getConnectedWallMaxDistance() { return CULLING.getConnectedWallMaxDistance(); }
+    public static boolean isCoverCullingEnabled() { return CULLING.isCoverCullingEnabled(); }
     public static int getCoverCullingRadius() { return CULLING.getCoverCullingRadius(); }
     public static boolean isCoverCullingViewshedEnabled() { return CULLING.isCoverCullingViewshedEnabled(); }
+    public static boolean isCoverCullingSolidsOutdoors() { return CULLING.isCoverCullingSolidsOutdoors(); }
     public static int getCullingMode() { return CULLING.getCullingMode(); }
     public static boolean isIndoorCeilingCullingEnabled() { return CULLING.isIndoorCeilingCullingEnabled(); }
     public static boolean isProtectInteractablesOutdoors() { return CULLING.isProtectInteractablesOutdoors(); }
@@ -485,8 +493,10 @@ public class Config {
     public static void setCameraSideClipWedge(boolean value) { CULLING.setCameraSideClipWedge(value); }
     public static void setConnectedWallCullingEnabled(boolean value) { CULLING.setConnectedWallCullingEnabled(value); }
     public static void setConnectedWallMaxDistance(int value) { CULLING.setConnectedWallMaxDistance(value); }
+    public static void setCoverCullingEnabled(boolean value) { CULLING.setCoverCullingEnabled(value); }
     public static void setCoverCullingRadius(int value) { CULLING.setCoverCullingRadius(value); }
     public static void setCoverCullingViewshedEnabled(boolean value) { CULLING.setCoverCullingViewshedEnabled(value); }
+    public static void setCoverCullingSolidsOutdoors(boolean value) { CULLING.setCoverCullingSolidsOutdoors(value); }
     public static void setCullingMode(int value) { CULLING.setCullingMode(value); }
     public static void setIndoorCeilingCullingEnabled(boolean value) { CULLING.setIndoorCeilingCullingEnabled(value); }
     public static void setProtectInteractablesOutdoors(boolean value) { CULLING.setProtectInteractablesOutdoors(value); }
@@ -662,8 +672,10 @@ public class Config {
         addBinding(CAMERA_SIDE_CLIP_WEDGE, CULLING::setCameraSideClipWedge, Config::isCameraSideClipWedge);
         addBinding(CONNECTED_WALL_CULLING_ENABLED, CULLING::setConnectedWallCullingEnabled, Config::isConnectedWallCullingEnabled);
         addBinding(CONNECTED_WALL_MAX_DISTANCE, CULLING::setConnectedWallMaxDistance, Config::getConnectedWallMaxDistance);
+        addBinding(COVER_CULLING_ENABLED, CULLING::setCoverCullingEnabled, Config::isCoverCullingEnabled);
         addBinding(COVER_CULLING_RADIUS, CULLING::setCoverCullingRadius, Config::getCoverCullingRadius);
         addBinding(COVER_CULLING_VIEWSHED_ENABLED, CULLING::setCoverCullingViewshedEnabled, Config::isCoverCullingViewshedEnabled);
+        addBinding(COVER_CULLING_SOLIDS_OUTDOORS, CULLING::setCoverCullingSolidsOutdoors, Config::isCoverCullingSolidsOutdoors);
         addBinding(CULLING_MODE, CULLING::setCullingMode, Config::getCullingMode);
         addBinding(INDOOR_CEILING_CULLING_ENABLED, CULLING::setIndoorCeilingCullingEnabled, Config::isIndoorCeilingCullingEnabled);
         addBinding(PROTECT_INTERACTABLES_OUTDOORS, CULLING::setProtectInteractablesOutdoors, Config::isProtectInteractablesOutdoors);

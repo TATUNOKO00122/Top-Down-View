@@ -232,6 +232,7 @@ public final class TopDownCuller {
     /** 天井スライス等の要素集合の差分を union した再構築範囲。 */
     private final BlockChangeBox pendingElementChange = new BlockChangeBox();
     private boolean cachedCoverCullingActive;
+    private boolean cachedCoverCullingEnabled;
     private boolean cachedDisableIndoorFade;
     /** カメラが地形に埋没している(固体中を一定距離走破した)と確定した状態。 */
     private boolean cachedCameraBuried;
@@ -300,6 +301,7 @@ public final class TopDownCuller {
         cachedFadeTransitionsActive = false;
         cachedIndoorElementActive = false;
         cachedCoverCullingActive = false;
+        cachedCoverCullingEnabled = false;
         currentSpaceResult = null;
         rawSpaceResult = null;
         spaceScratch.clear();
@@ -852,6 +854,7 @@ public final class TopDownCuller {
         cachedCylinderRadiusHorizontal = Config.getCylinderRadiusHorizontal();
         cachedCylinderRadiusVertical = Config.getCylinderRadiusVertical();
         cachedCullingMode = Config.getCullingMode();
+        cachedCoverCullingEnabled = Config.isCoverCullingEnabled();
         cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
         cachedProtectInteractablesOutdoors = Config.isProtectInteractablesOutdoors();
         cachedCameraSideClip = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
@@ -1198,7 +1201,9 @@ public final class TopDownCuller {
         final boolean cullingEnabled = ModState.STATUS.isCullingEnabled();
         boolean elementActive = cullingEnabled && currentSpaceEnclosed && cachedIndoorCeilingEnabled;
         cachedIndoorElementActive = elementActive;
-        cachedCoverCullingActive = cullingEnabled && cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER;
+        cachedCoverCullingActive = cullingEnabled
+                && cachedCullingMode != CullingConfig.CULLING_MODE_CYLINDER
+                && cachedCoverCullingEnabled;
 
         RoomFloodFill.Result roomResult = currentSpaceResult.getRoomResult();
         RoomSegmentation.Room playerRoom = currentSpaceResult.getSegmentation().getPlayerRoom();
@@ -1234,7 +1239,8 @@ public final class TopDownCuller {
             coverHandler.update(level, currentBlockX, feetY, currentBlockZ, currentSpaceEnclosed,
                     mc.player.getX(), mc.player.getEyeY(), mc.player.getZ(),
                     (int) Math.floor(cameraY), Config.getCoverCullingRadius(),
-                    Config.isCoverCullingViewshedEnabled());
+                    Config.isCoverCullingViewshedEnabled(),
+                    Config.isCoverCullingSolidsOutdoors());
             PerfMonitor.COVER.add(System.nanoTime() - tCover);
             // 覆い集合の入れ替わりでカリング判定が反転する。判定キャッシュが古い値を保持した
             // ままだと、メッシュからの除去が走査(フェード開始)より遅れて発生し、フェード途中で

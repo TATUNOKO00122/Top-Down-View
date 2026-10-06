@@ -36,8 +36,10 @@ public final class CullingConfig {
     private int staircaseExclusionHeight = 5;
     private int viewWedgeHalfAngle = 60;
     private boolean cameraSideClipWedge = true;
+    private boolean coverCullingEnabled = true;
     private int coverCullingRadius = 5;
     private boolean coverCullingViewshedEnabled = true;
+    private boolean coverCullingSolidsOutdoors = false;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private boolean indoorCeilingCullingEnabled = true;
     private boolean protectInteractablesOutdoors = true;
@@ -130,11 +132,17 @@ public final class CullingConfig {
     public boolean isCameraSideClipWedge() { return cameraSideClipWedge; }
     public void setCameraSideClipWedge(boolean value) { this.cameraSideClipWedge = value; }
 
+    public boolean isCoverCullingEnabled() { return coverCullingEnabled; }
+    public void setCoverCullingEnabled(boolean value) { this.coverCullingEnabled = value; }
+
     public int getCoverCullingRadius() { return coverCullingRadius; }
     public void setCoverCullingRadius(int value) { this.coverCullingRadius = MathUtil.clamp(value, 4, 24); }
 
     public boolean isCoverCullingViewshedEnabled() { return coverCullingViewshedEnabled; }
     public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }
+
+    public boolean isCoverCullingSolidsOutdoors() { return coverCullingSolidsOutdoors; }
+    public void setCoverCullingSolidsOutdoors(boolean value) { this.coverCullingSolidsOutdoors = value; }
 
     public int getCullingMode() { return cullingMode; }
     public void setCullingMode(int value) { this.cullingMode = MathUtil.clamp(value, CULLING_MODE_CYLINDER, CULLING_MODE_COVER_CORRIDOR); }
