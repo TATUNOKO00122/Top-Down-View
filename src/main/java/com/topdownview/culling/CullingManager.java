@@ -137,15 +137,17 @@ public final class CullingManager {
             }
         }
 
+        boolean cullerUpdated = false;
         int frequency = CULLER.getFrequency();
         if (!batchPending && mc.player.tickCount % frequency == 0) {
             long tUpdate = System.nanoTime();
             CULLER.update();
             PerfMonitor.CULL_UPDATE.add(System.nanoTime() - tUpdate);
+            cullerUpdated = true;
         }
 
         if (ModState.STATUS.isEnabled()) {
-            scheduleChunkRebuildIfNeeded();
+            scheduleChunkRebuildIfNeeded(cullerUpdated);
         }
     }
 
@@ -181,7 +183,7 @@ public final class CullingManager {
         return cameraPos.distanceToSqr(eyePos) <= MAX_REBUILD_SPAN * MAX_REBUILD_SPAN;
     }
 
-    private static void scheduleChunkRebuildIfNeeded() {
+    private static void scheduleChunkRebuildIfNeeded(boolean cullerUpdated) {
         if (!initializeReflection()) {
             return;
         }
@@ -217,9 +219,18 @@ public final class CullingManager {
         // カメラ文脈の改訂番号。回転(フレーム毎)や真上付近での yaw 回転でも変化する。
         long contextRevision = CULLER.getViewContextRevision();
         boolean contextChanged = contextRevision != lastRebuildContextRevision;
-        if (!meshHoldRelease && !revealRebuild && !generationChanged && !contextChanged
-                && pX == lastRebuildPlayerX && pY == lastRebuildPlayerY && pZ == lastRebuildPlayerZ
-                && cX == lastRebuildCameraX && cY == lastRebuildCameraY && cZ == lastRebuildCameraZ) {
+
+        boolean coordsChanged = pX != lastRebuildPlayerX || pY != lastRebuildPlayerY || pZ != lastRebuildPlayerZ
+                || cX != lastRebuildCameraX || cY != lastRebuildCameraY || cZ != lastRebuildCameraZ;
+
+        // 座標変化による再構築は、カリング走査(CULLER.update)が走ってメッシュホールドが
+        // 確定したティックでのみスケジュールする。走査を待たずに再構築を積むと、
+        // ホールドが掛かる前に実ブロックがメッシュに乗って不透明(α=1)で描画されてしまう。
+        if (coordsChanged && !cullerUpdated && !meshHoldRelease && !revealRebuild) {
+            return;
+        }
+
+        if (!meshHoldRelease && !revealRebuild && !generationChanged && !contextChanged && !coordsChanged) {
             return;
         }
 

@@ -1,8 +1,8 @@
 {
   "key.topdown_view.toggle": "Toggle Top-Down View",
-  "key.topdown_view.rotate": "Rotate Camera (90°/45°/15°)",
-  "key.topdown_view.zoom_modifier": "Camera Distance (Scroll+Modifier)",
-  "key.topdown_view.align_to_movement": "Rotate Camera (Movement Direction)",
+  "key.topdown_view.rotate": "Rotate Camera",
+  "key.topdown_view.zoom_modifier": "Zoom Modifier",
+  "key.topdown_view.align_to_movement": "Align Camera to Movement",
   "key.topdown_view.drag_rotate": "Rotate Camera (Hold)",
   "key.topdown_view.mining_mode": "Toggle Mining Mode",
   "key.topdown_view.destroy": "Mining Action (Click-to-Move)",

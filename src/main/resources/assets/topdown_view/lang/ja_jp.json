@@ -1,8 +1,8 @@
 {
   "key.topdown_view.toggle": "トップダウンビュー切替",
-  "key.topdown_view.rotate": "カメラ回転（90°/45°/15°）",
-  "key.topdown_view.zoom_modifier": "カメラ距離変更（スクロール+修飾キー）",
-  "key.topdown_view.align_to_movement": "カメラ回転（移動方向）",
+  "key.topdown_view.rotate": "カメラ回転",
+  "key.topdown_view.zoom_modifier": "ズーム修飾キー",
+  "key.topdown_view.align_to_movement": "移動方向にカメラを合わせる",
   "key.topdown_view.drag_rotate": "カメラ回転（ホールド）",
   "key.topdown_view.mining_mode": "マイニングモード切替",
   "key.topdown_view.destroy": "採掘アクション（クリック移動用）",

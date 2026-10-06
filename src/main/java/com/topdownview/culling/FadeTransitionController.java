@@ -108,6 +108,12 @@ public final class FadeTransitionController {
         baselineSeeded = false;
     }
 
+    /** 表示中のフラッシュのみを破棄する(フェード一時抑制時。カリング帳簿は維持)。 */
+    public void clearFlashes() {
+        fadeOutStarts.clear();
+        restoreStarts.clear();
+    }
+
     /** 消失フラッシュの開始時刻ms。進行していなければ INVALID。 */
     public long getFadeOutStart(long posLong) {
         return fadeOutStarts.getOrDefault(posLong, INVALID);

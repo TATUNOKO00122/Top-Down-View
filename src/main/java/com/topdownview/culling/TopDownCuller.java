@@ -1509,7 +1509,7 @@ public final class TopDownCuller {
                 && !cachedDisableIndoorFade && !cachedCameraBuried && contextValid;
         if (!transitionsActive && cachedFadeTransitionsActive) {
             cachedFadeTransitionsActive = false;
-            fadeTransitionController.clearCache();
+            fadeTransitionController.clearFlashes();
         }
         if (transitionsActive && !cachedFadeTransitionsActive) {
             cachedFadeTransitionsActive = true;
