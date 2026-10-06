@@ -22,7 +22,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code true} を返して MoBends を完全にキャンセルする。
  */
 @Pseudo
-@Mixin(targets = "goblinbob.mobends.forge.compat.ModCompatManager", remap = false)
+@Mixin(targets = {
+        "goblinbob.mobends.compat.ModCompatManager",
+        "goblinbob.mobends.forge.compat.ModCompatManager"
+}, remap = false)
 public class MoBendsModCompatManagerMixin {
 
     @Inject(method = "shouldDeferAnimation", at = @At("HEAD"), cancellable = true, require = 0)

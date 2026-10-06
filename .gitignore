@@ -26,6 +26,7 @@ forge*changelog.txt
 THIRD-PARTY-LICENSES.txt
 
 # Custom ignores
+backup/
 *.log
 *_log*.txt
 error_log*.txt

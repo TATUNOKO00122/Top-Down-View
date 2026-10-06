@@ -88,6 +88,9 @@ mixin {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
+    maven {
+        url = 'https://maven.architectury.dev/'
+    }
     // libs/ のローカルJAR（各MOD）を解決する
     flatDir {
         dir 'libs'
@@ -102,7 +105,7 @@ dependencies {
     compileOnly fg.deobf("blank:embeddium:${embeddium_version}")
     compileOnly fg.deobf("blank:oculus-mc1.20.1:${oculus_version}")
     compileOnly files('libs/BetterThirdPerson-Forge-1.20-1.9.0.jar')
-    compileOnly files('libs/MoBends-forge-1.20.1-5.1.7.jar')
+    compileOnly fg.deobf("blank:mobends-1.20.1:${mobends_version}")
 
     // 開発run専用MOD（本番JARには含まれない）
     runtimeOnly fg.deobf("blank:embeddium:${embeddium_version}")
@@ -110,6 +113,8 @@ dependencies {
     runtimeOnly fg.deobf("blank:soundphysics:${soundphysics_version}")
     runtimeOnly fg.deobf("blank:libraryferret:${libraryferret_version}")
     runtimeOnly fg.deobf("blank:bettervillage:${bettervillage_version}")
+    runtimeOnly fg.deobf("dev.architectury:architectury-forge:${architectury_version}")
+    runtimeOnly fg.deobf("blank:mobends-1.20.1:${mobends_version}")
 }
 
 // mods.toml / pack.mcmeta の ${...} を gradle.properties の値で置換する。
