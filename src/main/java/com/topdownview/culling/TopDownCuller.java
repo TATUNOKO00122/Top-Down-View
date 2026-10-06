@@ -115,7 +115,7 @@ public final class TopDownCuller {
     private boolean cacheClearedOnDisabled = false;
     private boolean spaceClearedOnDisabled = false;
 
-    private boolean currentSpaceEnclosed = false;
+    private volatile boolean currentSpaceEnclosed = false;
     private SpaceProbe.Result currentSpaceResult = null;
     // ドールハウス表示用: 屋内ヒステリシスを通さない生の検出結果。カリングの遅延に追従させない。
     private volatile SpaceProbe.Result rawSpaceResult = null;
@@ -679,7 +679,11 @@ public final class TopDownCuller {
             if (currentSpaceEnclosed || cachedProtectInteractablesOutdoors) {
                 int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
                 // 視線が通っていれば階違いでも残す。Yバンド制限のみを上書きし、屋外設定などのゲートは維持する。
-                if (blockY <= protectY || hasClearLineOfSight(level, pos)) {
+                // ただしボタン等の小さな面付けブロックは、支持壁のカリング後に宙に浮くため
+                // 視線保護の対象外とし近接(Yバンド)のみで保護する。
+                if (blockY <= protectY
+                        || (!InteractableBlocks.isSmallDecoration(state, level, pos)
+                                && hasClearLineOfSight(level, pos))) {
                     return true;
                 }
             }
@@ -1437,6 +1441,11 @@ public final class TopDownCuller {
     /** 受理済みプローブの BlockMap (建物分類などの追加解析用)。未確定なら null。 */
     public com.topdownview.spatial.BlockMap getSpaceBlockMap() {
         return spaceScratch != null ? spaceScratch.getBlockMap() : null;
+    }
+
+    /** 現在プレイヤーがいる空間が屋内（閉空間）と判定されているか。 */
+    public boolean isSpaceEnclosed() {
+        return currentSpaceEnclosed;
     }
 
     /** 階段ハンドラが直近の走査で検出した階段一覧 (デバッグ表示用)。 */

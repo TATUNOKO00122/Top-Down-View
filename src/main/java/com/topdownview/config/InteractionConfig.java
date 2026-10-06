@@ -10,6 +10,7 @@ public final class InteractionConfig {
     private boolean miningModeEnabled = false;
     private boolean clickToMoveEnabled = false;
     private boolean stepAssistEnabled = true;
+    private boolean disableStepAssistIndoors = true;
     private double sprintDistanceThreshold = 5.0;
     private boolean autoAlignToMovementEnabled = false;
     private int autoAlignAngleThreshold = 45;
@@ -62,6 +63,9 @@ public final class InteractionConfig {
 
     public boolean isStepAssistEnabled() { return stepAssistEnabled; }
     public void setStepAssistEnabled(boolean value) { this.stepAssistEnabled = value; }
+
+    public boolean isDisableStepAssistIndoors() { return disableStepAssistIndoors; }
+    public void setDisableStepAssistIndoors(boolean value) { this.disableStepAssistIndoors = value; }
 
     public double getSprintDistanceThreshold() { return sprintDistanceThreshold; }
     public void setSprintDistanceThreshold(double value) { this.sprintDistanceThreshold = MathUtil.clamp(value, 1.0, 50.0); }

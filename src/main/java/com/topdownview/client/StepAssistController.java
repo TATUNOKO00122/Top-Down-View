@@ -1,6 +1,7 @@
 package com.topdownview.client;
 
 import com.topdownview.Config;
+import com.topdownview.culling.TopDownCuller;
 import com.topdownview.state.ModState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -26,7 +27,9 @@ public final class StepAssistController {
             return;
         }
 
-        boolean active = ModState.STATUS.isEnabled() && Config.isStepAssistEnabled();
+        boolean disabledIndoors = Config.isDisableStepAssistIndoors()
+                && TopDownCuller.getInstance().isSpaceEnclosed();
+        boolean active = ModState.STATUS.isEnabled() && Config.isStepAssistEnabled() && !disabledIndoors;
         float target = active ? ASSISTED_STEP_HEIGHT : VANILLA_STEP_HEIGHT;
 
         // リスポーンやディメンション移動でバニラ値に戻されても維持できるよう毎tick上書きする

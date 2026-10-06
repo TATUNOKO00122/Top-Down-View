@@ -11,6 +11,8 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * ブロックのインタラクト可否と操作種別を判定する。
@@ -206,5 +208,19 @@ public final class InteractableBlocks {
                 || block instanceof LadderBlock
                 || block instanceof ScaffoldingBlock
                 || block instanceof FlowerPotBlock;
+    }
+
+    /**
+     * ボタン・レバー等の小さな面付けブロックか。支持ブロックがカリングされると宙に浮くため、
+     * カリング保護では視線による無条件保護を与えず近接(Yバンド)のみに留める。
+     * ボタン等は noCollission で衝突形状が空のため視覚形状(getShape)で判定する。
+     */
+    public static boolean isSmallDecoration(BlockState state, BlockGetter level, BlockPos pos) {
+        VoxelShape shape = state.getShape(level, pos);
+        if (shape.isEmpty()) {
+            return false;
+        }
+        AABB bounds = shape.bounds();
+        return bounds.getXsize() <= 0.5 && bounds.getYsize() <= 0.5 && bounds.getZsize() <= 0.5;
     }
 }

@@ -319,6 +319,9 @@ public class ConfigScreen extends Screen {
         y = addSection(y, "topdown_view.config.section.step_assist", tx);
         addToggle(x, y, w, h, "topdown_view.config.step_assist", Config::isStepAssistEnabled, Config::setStepAssistEnabled);
         y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.disable_step_assist_indoors", Config::isDisableStepAssistIndoors,
+                Config::setDisableStepAssistIndoors);
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.click_to_move", tx);
         addToggle(x, y, w, h, "topdown_view.config.click_to_move", Config::isClickToMoveEnabled, Config::setClickToMoveEnabled);
