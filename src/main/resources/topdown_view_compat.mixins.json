@@ -11,7 +11,8 @@
         "BlockOcclusionCacheMixin",
         "RenderSectionManagerMixin",
         "SodiumWorldRendererMixin",
-        "compat.mobends.MoBendsModCompatManagerMixin"
+        "compat.mobends.MoBendsModCompatManagerMixin",
+        "compat.soundphysics.SoundPhysicsRemasteredMixin"
     ],
     "mixins": [],
     "injectors": {

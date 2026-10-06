@@ -106,6 +106,7 @@ dependencies {
     compileOnly fg.deobf("blank:oculus-mc1.20.1:${oculus_version}")
     compileOnly files('libs/BetterThirdPerson-Forge-1.20-1.9.0.jar')
     compileOnly fg.deobf("blank:mobends-1.20.1:${mobends_version}")
+    compileOnly fg.deobf("blank:soundphysics:${soundphysics_version}")
 
     // 開発run専用MOD（本番JARには含まれない）
     runtimeOnly fg.deobf("blank:embeddium:${embeddium_version}")
