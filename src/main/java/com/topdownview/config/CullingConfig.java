@@ -36,7 +36,7 @@ public final class CullingConfig {
     private int staircaseExclusionHeight = 5;
     private int viewWedgeHalfAngle = 60;
     private boolean cameraSideClipWedge = true;
-    private int coverCullingRadius = 10;
+    private int coverCullingRadius = 5;
     private boolean coverCullingViewshedEnabled = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private boolean indoorCeilingCullingEnabled = true;

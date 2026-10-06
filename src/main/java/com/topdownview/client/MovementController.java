@@ -94,6 +94,11 @@ public final class MovementController {
                 float speed = (float) Math.sqrt(originalForward * originalForward + originalStrafe * originalStrafe);
                 event.getInput().forwardImpulse = Math.min(speed, 1.0f);
                 event.getInput().leftImpulse = 0.0f;
+
+                float movementYaw = PlayerRotationController.calculateMovementYaw(originalForward, originalStrafe);
+                mc.player.setYRot(movementYaw);
+                mc.player.yRotO = movementYaw;
+                mc.player.setSwimming(true);
             } else {
                 event.getInput().forwardImpulse = 0.0f;
                 event.getInput().leftImpulse = 0.0f;

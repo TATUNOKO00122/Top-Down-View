@@ -55,8 +55,33 @@ public final class PlayerRotationController {
             return;
         }
 
-        // 描画フレームの正確なカメラ位置とマウス方向で照準を更新
         PlayerRotationState state = ModState.PLAYER_ROTATION;
+
+        // 水中移動中は入力方向を向く（アイテム使用・攻撃中はマウス照準を優先）
+        boolean isAimingOrAttacking = state.isUsingItem() || mc.options.keyUse.isDown() || mc.options.keyAttack.isDown();
+        if (isInDeepWater(mc) && hasRawMovementInput(mc) && !isAimingOrAttacking) {
+            float movementYaw = calculateMovementYaw(mc);
+            float targetPitch = calculateWaterPitch(mc, 0.0f);
+
+            state.setHeadLerpSpeed(0.25f);
+            state.setBodyLerpSpeed(0.25f);
+            state.updateTargetHeadYawDirect(movementYaw);
+            state.updateTargetPitch(targetPitch);
+            state.updateTargetBodyYaw(movementYaw, true);
+
+            float headYaw = state.getLerpHeadYaw(partialTick);
+            float bodyYaw = state.getLerpBodyYaw(partialTick);
+
+            mc.player.setYHeadRot(headYaw);
+            mc.player.setYRot(movementYaw);
+            mc.player.yRotO = movementYaw;
+            mc.player.setXRot(targetPitch);
+            mc.player.xRotO = targetPitch;
+            mc.player.setYBodyRot(bodyYaw);
+            return;
+        }
+
+        // 描画フレームの正確なカメラ位置とマウス方向で照準を更新
         if (!updateAimFromMouse(mc, state, partialTick)) return;
 
         // 描画用の角度をプレイヤーに適用
@@ -100,9 +125,28 @@ public final class PlayerRotationController {
             return;
         }
 
+        handleItemUsage(mc, state);
+
+        boolean isAimingOrAttacking = state.isUsingItem() || mc.options.keyUse.isDown() || mc.options.keyAttack.isDown();
+        if (isInDeepWater(mc) && hasRawMovementInput(mc) && !isAimingOrAttacking) {
+            float movementYaw = calculateMovementYaw(mc);
+            float targetPitch = calculateWaterPitch(mc, 0.0f);
+
+            state.setHeadLerpSpeed(0.25f);
+            state.setBodyLerpSpeed(0.25f);
+            state.updateTargetHeadYawDirect(movementYaw);
+            state.updateTargetPitch(targetPitch);
+            state.updateTargetBodyYaw(movementYaw, true);
+
+            state.tick();
+            applyToPlayer(mc.player, state);
+            mc.player.setYRot(movementYaw);
+            mc.player.yRotO = movementYaw;
+            return;
+        }
+
         updateHeadRotationFromMouse(mc, state);
         updateBodyYawFromMovement(mc, state);
-        handleItemUsage(mc, state);
 
         state.tick();
 
@@ -163,13 +207,44 @@ public final class PlayerRotationController {
         return true;
     }
 
+    public static boolean isInDeepWater(Minecraft mc) {
+        return com.topdownview.Config.isWaterMovementControlEnabled()
+                && mc.player != null
+                && (mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming());
+    }
+
+    public static boolean hasRawMovementInput(Minecraft mc) {
+        float rawForward = 0.0f;
+        float rawStrafe = 0.0f;
+        if (mc.options.keyUp.isDown()) rawForward += 1.0f;
+        if (mc.options.keyDown.isDown()) rawForward -= 1.0f;
+        if (mc.options.keyLeft.isDown()) rawStrafe += 1.0f;
+        if (mc.options.keyRight.isDown()) rawStrafe -= 1.0f;
+        return Math.abs(rawForward) > MIN_INPUT_THRESHOLD || Math.abs(rawStrafe) > MIN_INPUT_THRESHOLD;
+    }
+
+    public static float calculateMovementYaw(float forward, float strafe) {
+        float cameraYaw = ModState.CAMERA.getYaw();
+        float inputAngle = (float) Math.toDegrees(Math.atan2(-strafe, forward));
+        return MathUtil.normalizeAngle(cameraYaw + inputAngle);
+    }
+
+    public static float calculateMovementYaw(Minecraft mc) {
+        float rawForward = 0.0f;
+        float rawStrafe = 0.0f;
+        if (mc.options.keyUp.isDown()) rawForward += 1.0f;
+        if (mc.options.keyDown.isDown()) rawForward -= 1.0f;
+        if (mc.options.keyLeft.isDown()) rawStrafe += 1.0f;
+        if (mc.options.keyRight.isDown()) rawStrafe -= 1.0f;
+        return calculateMovementYaw(rawForward, rawStrafe);
+    }
+
     public static float calculateWaterPitch(Minecraft mc, float defaultPitch) {
         if (!com.topdownview.Config.isWaterMovementControlEnabled() || mc.player == null) {
             return defaultPitch;
         }
 
-        boolean inDeepWater = mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming();
-        if (inDeepWater) {
+        if (isInDeepWater(mc)) {
             if (mc.player.input != null && mc.player.input.shiftKeyDown) {
                 return 55.0f;
             } else if (mc.player.input != null && mc.player.input.jumping) {
@@ -182,35 +257,12 @@ public final class PlayerRotationController {
     }
 
     private static void updateBodyYawFromMovement(Minecraft mc, PlayerRotationState state) {
-        boolean inDeepWater = com.topdownview.Config.isWaterMovementControlEnabled() && mc.player != null && (
-            mc.player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) || mc.player.isSwimming()
-        );
-
-        if (inDeepWater) {
-            state.setBodyLerpSpeed(0.25f);
-            state.setHeadLerpSpeed(0.25f);
-
-            float rawForward = 0.0f;
-            float rawStrafe = 0.0f;
-            if (mc.options.keyUp.isDown()) rawForward += 1.0f;
-            if (mc.options.keyDown.isDown()) rawForward -= 1.0f;
-            if (mc.options.keyLeft.isDown()) rawStrafe += 1.0f;
-            if (mc.options.keyRight.isDown()) rawStrafe -= 1.0f;
-
-            boolean hasRawInput = Math.abs(rawForward) > 0.01f || Math.abs(rawStrafe) > 0.01f;
-
-            if (!hasRawInput) {
+        if (isInDeepWater(mc)) {
+            state.resetLerpSpeeds();
+            if (!hasRawMovementInput(mc)) {
                 state.updateTargetBodyYaw(0.0f, false);
                 return;
             }
-
-            float cameraYaw = ModState.CAMERA.getYaw();
-            float inputAngle = (float) Math.toDegrees(Math.atan2(-rawStrafe, rawForward));
-            float movementYaw = MathUtil.normalizeAngle(cameraYaw + inputAngle);
-
-            state.updateTargetBodyYaw(movementYaw, true);
-            state.updateTargetHeadYawDirect(movementYaw);
-            return;
         }
 
         state.resetLerpSpeeds();

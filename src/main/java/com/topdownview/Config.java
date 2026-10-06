@@ -122,7 +122,7 @@ public class Config {
             .comment("Maximum step distance for connected wall culling propagation.")
             .defineInRange("connectedWallMaxDistance", 3, 1, 6);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
-            .defineInRange("coverCullingRadius", 10, 4, 24);
+            .defineInRange("coverCullingRadius", 5, 4, 24);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
             .comment("Culls covers only over ground actually visible from the player's eye.")
             .define("coverCullingViewshedEnabled", true);
