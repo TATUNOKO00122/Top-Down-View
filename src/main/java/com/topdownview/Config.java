@@ -327,6 +327,9 @@ public class Config {
             .define("translucentFluid", true);
     private static final ForgeConfigSpec.DoubleValue FLUID_ALPHA = BUILDER
             .defineInRange("fluidAlpha", 0.35, 0.05, 1.0);
+    private static final ForgeConfigSpec.IntValue FLUID_TRANSLUCENT_DISTANCE = BUILDER
+            .comment("Maximum distance from the player where culled fluids are rendered translucent. Beyond this distance, fluids are fully culled.")
+            .defineInRange("fluidTranslucentDistance", 10, 0, 100);
     private static final ForgeConfigSpec.BooleanValue DOLLHOUSE_ENABLED = BUILDER
             .comment("Darkens everything outside the player's room so the room appears to float in a black void.")
             .define("dollhouseEnabled", false);
@@ -457,6 +460,7 @@ public class Config {
     public static boolean isPortalProtectionEnabled() { return CULLING.isPortalProtectionEnabled(); }
     public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
     public static double getFluidAlpha() { return CULLING.getFluidAlpha(); }
+    public static int getFluidTranslucentDistance() { return CULLING.getFluidTranslucentDistance(); }
     public static boolean isDollhouseEnabled() { return CULLING.isDollhouseEnabled(); }
     public static double getDollhouseExteriorBrightness() { return CULLING.getDollhouseExteriorBrightness(); }
     public static int getSignHoverDisplayMode() { return INTERACTION.getSignHoverDisplayMode(); }
@@ -591,6 +595,7 @@ public class Config {
     public static void setPortalProtectionEnabled(boolean value) { CULLING.setPortalProtectionEnabled(value); }
     public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
     public static void setFluidAlpha(double value) { CULLING.setFluidAlpha(value); }
+    public static void setFluidTranslucentDistance(int value) { CULLING.setFluidTranslucentDistance(value); }
     public static void setDollhouseEnabled(boolean value) { CULLING.setDollhouseEnabled(value); }
     public static void setDollhouseExteriorBrightness(double value) { CULLING.setDollhouseExteriorBrightness(value); }
     public static void setSignHoverDisplayMode(int value) { INTERACTION.setSignHoverDisplayMode(value); }
@@ -777,6 +782,7 @@ public class Config {
         addBinding(PORTAL_PROTECTION_ENABLED, CULLING::setPortalProtectionEnabled, Config::isPortalProtectionEnabled);
         addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);
         addBinding(FLUID_ALPHA, CULLING::setFluidAlpha, Config::getFluidAlpha);
+        addBinding(FLUID_TRANSLUCENT_DISTANCE, CULLING::setFluidTranslucentDistance, Config::getFluidTranslucentDistance);
         addBinding(DOLLHOUSE_ENABLED, CULLING::setDollhouseEnabled, Config::isDollhouseEnabled);
         addBinding(DOLLHOUSE_EXTERIOR_BRIGHTNESS, CULLING::setDollhouseExteriorBrightness, Config::getDollhouseExteriorBrightness);
         addBinding(SIGN_HOVER_DISPLAY_MODE, INTERACTION::setSignHoverDisplayMode, Config::getSignHoverDisplayMode);

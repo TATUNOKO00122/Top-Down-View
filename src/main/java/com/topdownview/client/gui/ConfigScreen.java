@@ -308,6 +308,10 @@ public class ConfigScreen extends Screen {
                 Config.getFluidAlpha(), 0.05, 1.0,
                 val -> Config.setFluidAlpha(val)));
         y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.fluid_translucent_distance",
+                Config.getFluidTranslucentDistance(), 0, 100,
+                Config::setFluidTranslucentDistance));
+        y += sp;
 
         y = addSection(y, "topdown_view.config.section.entity_culling", tx);
         addToggle(x, y, w, h, "topdown_view.config.mob_culling_enabled", Config::isMobCullingEnabled, Config::setMobCullingEnabled);

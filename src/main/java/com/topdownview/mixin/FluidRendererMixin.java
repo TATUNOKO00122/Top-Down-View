@@ -39,11 +39,11 @@ public abstract class FluidRendererMixin {
         }
 
         if (CULLER.isBlockCulled(blockPos, world)) {
-            if (!Config.isTranslucentFluid()) {
-                // 半透明化が無効の場合は従来通り完全非表示にする
+            if (!Config.isTranslucentFluid() || !CULLER.isFluidWithinTranslucentDistance(blockPos)) {
+                // 半透明化が無効、またはプレイヤーから離れている場合は従来通り完全非表示にする
                 ci.cancel();
             }
-            // 半透明化が有効の場合はキャンセルの代わりに描画を継続
+            // 半透明化が有効かつプレイヤー近傍の場合はキャンセルの代わりに描画を継続
         }
     }
 
@@ -64,6 +64,9 @@ public abstract class FluidRendererMixin {
         }
 
         if (CULLER.isBlockCulled(pos, world)) {
+            if (!CULLER.isFluidWithinTranslucentDistance(pos)) {
+                return;
+            }
             float alphaFactor = (float) Config.getFluidAlpha();
 
             for (int i = 0; i < 4; i++) {

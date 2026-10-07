@@ -155,6 +155,8 @@
   "topdown_view.config.translucent_fluid.tooltip": "カリング領域内の液体（水・溶岩）を完全に消さず、指定した透明度で透けて表示します。",
   "topdown_view.config.fluid_alpha": "液体の透明度: %.2f",
   "topdown_view.config.fluid_alpha.tooltip": "液体半透明化有効時の透け具合です。\n0.05でほぼ透明、1.0で不透明になります。",
+  "topdown_view.config.fluid_translucent_distance": "液体半透明化距離: %d",
+  "topdown_view.config.fluid_translucent_distance.tooltip": "プレイヤーからの距離がこの値以内のカリング対象の液体（水・溶岩）を半透明化し、それより離れた液体は完全にカリング（非表示）します。",
   "topdown_view.config.section.entity_culling": "エンティティカリング",
   "topdown_view.config.mob_culling_enabled": "Mobカリング: %s",
   "topdown_view.config.mob_culling_enabled.tooltip": "プレイヤーより上の階にいて、カリングされているブロックの上に乗っているMobを非表示にします。\n壁掛け装飾（額縁、絵画、MOD製キャンバスなど）とアーマースタンドは常にカリングされます。",

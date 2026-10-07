@@ -87,13 +87,13 @@ public final class TopDownCuller {
     /** 埋没判定を解除する距離(ブロック)。走破距離がここまで減ったら解除する(往復防止)。 */
     private static final double BURIED_EXIT_DISTANCE = 5.0;
 
-    private double playerX;
-    private double playerY;
-    private double playerZ;
-    private double cameraX;
-    private double cameraY;
-    private double cameraZ;
-    private boolean contextValid = false;
+    private volatile double playerX;
+    private volatile double playerY;
+    private volatile double playerZ;
+    private volatile double cameraX;
+    private volatile double cameraY;
+    private volatile double cameraZ;
+    private volatile boolean contextValid = false;
 
     /** update() で確定したプレイヤーのブロック座標。ブロック毎の floor 再計算を避ける。 */
     private int cachedPlayerBlockX = Integer.MIN_VALUE;
@@ -452,6 +452,23 @@ public final class TopDownCuller {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return false;
         return isBlockCulled(pos, mc.level);
+    }
+
+    /**
+     * カリング対象の流体がプレイヤー近傍にあり、半透明化すべきかを判定する。
+     */
+    public boolean isFluidWithinTranslucentDistance(BlockPos pos) {
+        if (pos == null || !contextValid) {
+            return false;
+        }
+        int dist = Config.getFluidTranslucentDistance();
+        if (dist <= 0) {
+            return false;
+        }
+        double dx = (pos.getX() + 0.5) - this.playerX;
+        double dy = (pos.getY() + 0.5) - (this.playerY + 1.0);
+        double dz = (pos.getZ() + 0.5) - this.playerZ;
+        return (dx * dx + dy * dy + dz * dz) <= ((double) dist * dist);
     }
 
     /**

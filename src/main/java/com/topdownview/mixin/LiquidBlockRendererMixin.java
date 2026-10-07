@@ -42,8 +42,8 @@ public class LiquidBlockRendererMixin {
         }
 
         if (CULLER.isBlockCulled(pos, level)) {
-            if (!Config.isTranslucentFluid()) {
-                // 半透明化が無効な場合は描画をキャンセル（完全非表示）
+            if (!Config.isTranslucentFluid() || !CULLER.isFluidWithinTranslucentDistance(pos)) {
+                // 半透明化が無効、またはプレイヤーから離れている場合は描画をキャンセル（完全非表示）
                 ci.cancel();
             }
         }
@@ -67,6 +67,9 @@ public class LiquidBlockRendererMixin {
         }
 
         if (CULLER.isBlockCulled(pos, level)) {
+            if (!CULLER.isFluidWithinTranslucentDistance(pos)) {
+                return buffer;
+            }
             float alpha = (float) Config.getFluidAlpha();
             return new AlphaVertexConsumerWrapper(buffer, alpha);
         }

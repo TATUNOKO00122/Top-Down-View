@@ -54,6 +54,7 @@ public final class CullingConfig {
     private boolean portalProtectionEnabled = true;
     private boolean translucentFluid = true;
     private double fluidAlpha = 0.35;
+    private int fluidTranslucentDistance = 10;
 
     private boolean connectedWallCullingEnabled = true;
     private int connectedWallMaxDistance = 3;
@@ -192,6 +193,9 @@ public final class CullingConfig {
 
     public double getFluidAlpha() { return fluidAlpha; }
     public void setFluidAlpha(double value) { this.fluidAlpha = MathUtil.clamp(value, 0.05, 1.0); }
+
+    public int getFluidTranslucentDistance() { return fluidTranslucentDistance; }
+    public void setFluidTranslucentDistance(int value) { this.fluidTranslucentDistance = MathUtil.clamp(value, 0, 100); }
 
     private boolean undergroundCullingEnabled = false;
     private int undergroundCullingStartDistance = 4;
