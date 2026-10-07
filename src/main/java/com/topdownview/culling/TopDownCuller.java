@@ -1452,15 +1452,55 @@ public final class TopDownCuller {
                         cullable.topdownview_setCulled(false);
                         continue;
                     }
-                    boolean shouldCull = (entity instanceof Mob || entity instanceof ItemEntity)
-                        ? shouldCullSupportedEntity(entity, mc, playerFeetBlockY, eyePos)
-                        : shouldCullDecorativeEntity(entity, playerX, playerY, playerZ);
+                    boolean shouldCull;
+                    if (entity instanceof Mob || entity instanceof ItemEntity) {
+                        shouldCull = shouldCullSupportedEntity(entity, mc, playerFeetBlockY, eyePos);
+                    } else if (entity instanceof HangingEntity hanging) {
+                        shouldCull = shouldCullHangingEntity(hanging, mc.level);
+                    } else {
+                        shouldCull = shouldCullDecorativeEntity(entity, playerX, playerY, playerZ);
+                    }
                     cullable.topdownview_setCulled(shouldCull);
                 }
             }
         } catch (java.util.ConcurrentModificationException e) {
             LOGGER.debug("[TopDownView] Entity list modified concurrently during culling update, will retry next frame", e);
         }
+    }
+
+    /**
+     * 額縁や絵画などの壁掛け装飾をカリングするか判定する。
+     * 支持壁（背面ブロック）のカリング状態に追従させ、壁が描画されている間は装飾も残す。
+     */
+    private boolean shouldCullHangingEntity(HangingEntity hanging, Level level) {
+        Direction dir = hanging.getDirection();
+        if (dir == null) {
+            return false;
+        }
+        BlockPos centerSupport = hanging.getPos().relative(dir.getOpposite());
+        int width = Math.max(1, hanging.getWidth() / 16);
+        int height = Math.max(1, hanging.getHeight() / 16);
+        if (width <= 1 && height <= 1) {
+            return isBlockCulled(centerSupport, level);
+        }
+        if (dir.getAxis().isHorizontal()) {
+            Direction counterClockWise = dir.getCounterClockWise();
+            int startX = (width - 1) / -2;
+            int startY = (height - 1) / -2;
+            MutableBlockPos check = SUPPORT_CHECK_POS.get();
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    check.set(centerSupport)
+                            .move(counterClockWise, x + startX)
+                            .move(Direction.UP, y + startY);
+                    if (!isBlockCulled(check, level)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        return isBlockCulled(centerSupport, level);
     }
 
     /**
