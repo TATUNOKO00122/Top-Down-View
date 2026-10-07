@@ -38,6 +38,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
@@ -52,6 +53,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.common.ForgeMod;
 import org.slf4j.Logger;
 
 /**
@@ -247,6 +249,8 @@ public final class TopDownCuller {
     private boolean cachedIndoorElementActive;
     private boolean cachedIndoorCeilingEnabled;
     private boolean cachedProtectInteractablesOutdoors = true;
+    /** プレイヤーのブロックインタラクト可能距離（リーチ）。チャンク構築ワーカーから参照するため volatile。 */
+    private volatile double cachedPlayerReachDistance = 4.5;
     private double viewDirX = 0.0;
     private double viewDirZ = 1.0;
 
@@ -686,11 +690,11 @@ public final class TopDownCuller {
         if (InteractableBlocks.isInteractable(state, level, pos)) {
             if (currentSpaceEnclosed || cachedProtectInteractablesOutdoors) {
                 int protectY = currentSpaceEnclosed ? playerFeetY + 3 : playerFeetY + 1;
-                // 視線が通っていれば階違いでも残す。Yバンド制限のみを上書きし、屋外設定などのゲートは維持する。
-                // ただしボタン等の小さな面付けブロックは、支持壁のカリング後に宙に浮くため
-                // 視線保護の対象外とし近接(Yバンド)のみで保護する。
+                // インタラクト距離内で視線が通っていれば階違いでも残す。
+                // ただしボタン等の小さな面付けブロックは支持壁消失で浮くため除外。
                 if (blockY <= protectY
                         || (!InteractableBlocks.isSmallDecoration(state, level, pos)
+                                && isWithinInteractReach(pos)
                                 && hasClearLineOfSight(level, pos))) {
                     return true;
                 }
@@ -700,8 +704,33 @@ public final class TopDownCuller {
     }
 
     /**
+     * 指定座標のブロックがプレイヤーのインタラクト可能距離（リーチ）内にあるかを判定する。
+     * ブロックの直方体領域 (pos..pos+1) とプレイヤー目線位置との最短距離で判定する。
+     */
+    private boolean isWithinInteractReach(BlockPos pos) {
+        double reach = cachedPlayerReachDistance;
+        double dx = Math.max(0.0, Math.max(pos.getX() - playerX, playerX - (pos.getX() + 1)));
+        double dy = Math.max(0.0, Math.max(pos.getY() - playerY, playerY - (pos.getY() + 1)));
+        double dz = Math.max(0.0, Math.max(pos.getZ() - playerZ, playerZ - (pos.getZ() + 1)));
+        return (dx * dx + dy * dy + dz * dz) <= reach * reach;
+    }
+
+    private double resolvePlayerReachDistance(Minecraft mc) {
+        if (mc.gameMode != null) {
+            return mc.gameMode.getPickRange();
+        }
+        if (mc.player != null) {
+            AttributeInstance reachAttr = mc.player.getAttribute(ForgeMod.BLOCK_REACH.get());
+            if (reachAttr != null) {
+                return reachAttr.getValue();
+            }
+        }
+        return 4.5;
+    }
+
+    /**
      * プレイヤー目線（量子化したアイブロック中心）から対象ブロック中心まで、衝突形状を持つ
-     * 遮蔽物が無いかを判定する。カリング対象のインタラクションブロックを「見えていれば残す」
+     * 遮蔽物が無いかを判定する。インタラクト距離内のインタラクションブロックを「見えていれば残す」
      * ために使い、Yバンド制限を上書きする。
      *
      * <p>isBlockCulled は Embeddium のチャンク構築ワーカーからも呼ばれるため、{@link BlockGetter}
@@ -857,6 +886,7 @@ public final class TopDownCuller {
         cachedCoverCullingEnabled = Config.isCoverCullingEnabled();
         cachedIndoorCeilingEnabled = Config.isIndoorCeilingCullingEnabled();
         cachedProtectInteractablesOutdoors = Config.isProtectInteractablesOutdoors();
+        cachedPlayerReachDistance = resolvePlayerReachDistance(mc);
         cachedCameraSideClip = cachedCullingMode == CullingConfig.CULLING_MODE_COVER_CORRIDOR;
         cachedCameraSideClipWedge = Config.isCameraSideClipWedge();
         cachedViewWedgeCos = Math.cos(Math.toRadians(Config.getViewWedgeHalfAngle()));
@@ -1398,6 +1428,7 @@ public final class TopDownCuller {
         contextValid = false;
         lastSurfaceCacheDimension = null;
         playerX = playerY = playerZ = cameraX = cameraY = cameraZ = 0.0;
+        cachedPlayerReachDistance = 4.5;
     }
 
     /** 覆いカリング(Newモード)が有効か。再構築ボックスを覆い半径まで広げる判断に使う。 */
