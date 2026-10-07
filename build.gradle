@@ -115,7 +115,6 @@ dependencies {
     runtimeOnly fg.deobf("blank:libraryferret:${libraryferret_version}")
     runtimeOnly fg.deobf("blank:bettervillage:${bettervillage_version}")
     runtimeOnly fg.deobf("dev.architectury:architectury-forge:${architectury_version}")
-    runtimeOnly fg.deobf("blank:mobends-1.20.1:${mobends_version}")
 }
 
 // mods.toml / pack.mcmeta の ${...} を gradle.properties の値で置換する。

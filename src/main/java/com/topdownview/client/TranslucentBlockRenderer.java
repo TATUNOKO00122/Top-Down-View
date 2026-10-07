@@ -8,8 +8,10 @@ import com.topdownview.culling.FadeTransitionController;
 import com.topdownview.culling.TopDownCuller;
 import com.topdownview.util.PerfMonitor;
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -78,6 +80,15 @@ public final class TranslucentBlockRenderer {
     private static final AlphaVertexConsumer ALPHA_CONSUMER = new AlphaVertexConsumer();
     private static final BlockPos.MutableBlockPos FADE_POS = new BlockPos.MutableBlockPos();
 
+    /** 1フレーム内にテッセレートするゴーストブロックの最大数。 */
+    public static final int MAX_GHOST_RENDER_COUNT = 250;
+
+    /** 今フレーム描画対象の最上面ゴースト位置(作業用バッファ)。 */
+    private static final LongArrayList TOP_GHOSTS = new LongArrayList(MAX_GHOST_RENDER_COUNT);
+    /** 今フレーム描画対象の隠れている下層ゴースト位置(作業用バッファ)。 */
+    private static final LongArrayList COVERED_GHOSTS = new LongArrayList(MAX_GHOST_RENDER_COUNT);
+    private static final BlockPos.MutableBlockPos FADE_POS_ABOVE = new BlockPos.MutableBlockPos();
+
     /** 今フレームにテッセレートしたゴースト数(ラムダ内から加算するための再利用ホルダー)。 */
     private static final int[] GHOST_COUNT = new int[1];
 
@@ -92,8 +103,49 @@ public final class TranslucentBlockRenderer {
         SEEN.clear();
         FADE_CANDIDATES.clear();
         NEAR_BLOCKS.clear();
+        TOP_GHOSTS.clear();
+        COVERED_GHOSTS.clear();
         NEAR_BLOCK_GETTER.set(null, null);
         lastFrameNanos = 0L;
+    }
+
+    /**
+     * 上空から見てブロックが隠れているか(真上が固体ブロックまたはフェードブロックで覆われているか)を判定する。
+     */
+    private static boolean isCoveredFromAbove(BlockAndTintGetter level, int bx, int by, int bz, LongSet fadePositions) {
+        FADE_POS_ABOVE.set(bx, by + 1, bz);
+        BlockState aboveState = level.getBlockState(FADE_POS_ABOVE);
+        if (aboveState.isAir()) {
+            return false;
+        }
+        long aboveLong = FADE_POS_ABOVE.asLong();
+        if (fadePositions != null && fadePositions.contains(aboveLong)) {
+            return true;
+        }
+        return aboveState.isSolidRender(level, FADE_POS_ABOVE);
+    }
+
+    /** 単一ゴーストブロックを描画する。 */
+    private static void renderSingleGhost(
+            long posLong,
+            Minecraft mc,
+            PoseStack poseStack,
+            BlockRenderDispatcher blockRenderer,
+            Vec3 cameraPos,
+            boolean nearTransEnabled) {
+        float alpha = GHOST_ALPHA.getOrDefault(posLong, 0.0f);
+        if (alpha <= ALPHA_EPSILON) {
+            return;
+        }
+        GHOST_VISIBLE.add(posLong);
+        FADE_POS.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+        boolean isNear = nearTransEnabled && NEAR_BLOCKS.contains(posLong);
+        if (isNear) {
+            renderFadeBlock(NEAR_BLOCK_GETTER, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, true);
+        } else {
+            renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, false);
+        }
+        GHOST_COUNT[0]++;
     }
 
     /** ゴーストが今描画されている位置か(レイキャストのヒット判定用)。 */
@@ -162,6 +214,8 @@ public final class TranslucentBlockRenderer {
         NEAR_BLOCKS.clear();
 
         GHOST_COUNT[0] = 0;
+        TOP_GHOSTS.clear();
+        COVERED_GHOSTS.clear();
 
         // ==================== カリング集合(消失/継続/近接半透明) ====================
         FADE_CANDIDATES.clear();
@@ -240,16 +294,12 @@ public final class TranslucentBlockRenderer {
             if (dx * dx + dy * dy + dz * dz > maxDistSq) {
                 continue;
             }
-            GHOST_VISIBLE.add(posLong);
-            FADE_POS.set(bx, by, bz);
-            if (isNear) {
-                // 近接表示ブロック同士の隣接面のみカリング(checkSides=true)
-                renderFadeBlock(NEAR_BLOCK_GETTER, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, true);
+
+            if (isNear || !isCoveredFromAbove(mc.level, bx, by, bz, fadePositions)) {
+                TOP_GHOSTS.add(posLong);
             } else {
-                // 通常の消失フラッシュは以前のまま全面描画(checkSides=false)
-                renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, false);
+                COVERED_GHOSTS.add(posLong);
             }
-            GHOST_COUNT[0]++;
         }
 
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
@@ -273,12 +323,25 @@ public final class TranslucentBlockRenderer {
                 if (dx * dx + dy * dy + dz * dz > maxDistSq) {
                     return;
                 }
-                GHOST_VISIBLE.add(posLong);
-                FADE_POS.set(bx, by, bz);
-                // 通常の復元フラッシュは以前のまま全面描画(checkSides=false)
-                renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, false);
-                GHOST_COUNT[0]++;
+
+                if (!isCoveredFromAbove(mc.level, bx, by, bz, fadePositions)) {
+                    TOP_GHOSTS.add(posLong);
+                } else {
+                    COVERED_GHOSTS.add(posLong);
+                }
             });
+        }
+
+        // 最上面ブロックを最優先で描画
+        int topSize = TOP_GHOSTS.size();
+        for (int i = 0; i < topSize && GHOST_COUNT[0] < MAX_GHOST_RENDER_COUNT; i++) {
+            renderSingleGhost(TOP_GHOSTS.getLong(i), mc, poseStack, blockRenderer, cameraPos, nearTransEnabled);
+        }
+
+        // 上限に余裕があれば、隠れている下層ブロックも順次描画
+        int coveredSize = COVERED_GHOSTS.size();
+        for (int i = 0; i < coveredSize && GHOST_COUNT[0] < MAX_GHOST_RENDER_COUNT; i++) {
+            renderSingleGhost(COVERED_GHOSTS.getLong(i), mc, poseStack, blockRenderer, cameraPos, nearTransEnabled);
         }
 
         PerfMonitor.recordFadeGhosts(GHOST_COUNT[0]);
