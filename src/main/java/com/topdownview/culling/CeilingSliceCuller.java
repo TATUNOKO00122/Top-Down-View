@@ -2,6 +2,7 @@ package com.topdownview.culling;
 
 import com.mojang.logging.LogUtils;
 import com.topdownview.culling.geometry.BlockChangeBox;
+import com.topdownview.spatial.WallAnalyzer;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -31,14 +32,17 @@ public final class CeilingSliceCuller {
 
     private static final int NO_CEILING = Integer.MIN_VALUE;
 
+    /** 1列あたり最上部空気セルから上へ天井候補を探す上限ブロック数。 */
+    private static final int MAX_CEILING_SCAN = 6;
+
     /** 検出範囲は空気セルの AABB なので、外壁の頂部も含めるため壁厚分マージンする。 */
     private static final int RANGE_MARGIN = 1;
 
     /**
      * 1回の update の時間予算。地下のように天井の上までブロックで埋まった空間では
-     * 「天井Y→地表」の走査量が跳ね上がるため、超えたらその空間では処理を諦める。
+     * 「天井Y→地表」の走査量が跳ね上がるため、超えたらその空間では処理を中断する。
      */
-    private static final long TIME_BUDGET_NANOS = 8_000_000L;
+    private static final long TIME_BUDGET_NANOS = 16_000_000L;
 
     /** 時間チェックの間隔(セル数)。nanoTime の呼び出しを間引く。 */
     private static final int TIME_CHECK_INTERVAL = 512;
@@ -139,7 +143,7 @@ public final class CeilingSliceCuller {
             apply(new LongOpenHashSet());
             return;
         }
-        // 予算超過で諦めた直後はしばらく再試行しない(密な空間での毎probe再スキャンを避ける)。
+        // 予算超過で中断した直後はしばらく再試行しない。
         if (System.nanoTime() < nextRetryNanos) {
             return;
         }
@@ -149,9 +153,15 @@ public final class CeilingSliceCuller {
         overBudget = false;
         LongOpenHashSet next = new LongOpenHashSet();
 
-        int ceilingY = findDominantCeilingY(floorCells);
+        int ceilingY = findDominantCeilingY(level, floorCells);
+        if (overBudget) {
+            abort(minPos, maxPos);
+            // 予算超過しても、既に有効な天井スライスがあれば破棄せず維持する
+            return;
+        }
         if (ceilingY == NO_CEILING) {
             cooldownNanos = COOLDOWN_BASE_NANOS;
+            // 天井が全く検出できなかった場合のみクリア
             apply(next);
             return;
         }
@@ -185,10 +195,8 @@ public final class CeilingSliceCuller {
             }
         }
         if (over) {
-            // 途中結果は破棄する。集合を空にするとこの空間では天井スライスが無効になる。
+            // 途中結果は破棄するが、既存の天井スライスは消さずに維持する
             abort(minPos, maxPos);
-            next.clear();
-            apply(next);
             return;
         }
         // 予算内で完了したのでバックオフを初期値に戻す。
@@ -234,36 +242,56 @@ public final class CeilingSliceCuller {
     }
 
     /**
-     * 部屋の各列について「最上部空気セルの1つ上」を天井候補とし、最も多い Y を返す。
+     * 部屋の各列について「最上部空気セルの上にある最初の天井ブロック」を天井候補とし、最も多い Y を返す。
      *
-     * <p>空気セルの分布から静的に天井高さを決定するため、プレイヤーが部屋の中の階段を上り下りしたり
-     * 段差に乗っても天井高さが変動せず、一定に維持される。最頻値が同数の場合は低い方を採用する。
+     * <p>各列の走査起点を「その列の最上部空気セル + 1」とすることで、プレイヤーが段差・階段・家具に乗ったり
+     * ジャンプしても天井ブロックを飛び越えず、確実に本物の天井ブロックを検出できる。
+     * 検出した天井ブロック（{@link WallAnalyzer#isCeilingLike}）の Y 座標を集計し、最頻値を部屋の天井 Y とする。
      */
-    private int findDominantCeilingY(LongSet floorCells) {
+    private int findDominantCeilingY(LevelReader level, LongSet floorCells) {
         if (floorCells == null || floorCells.isEmpty()) {
             lastCeilingY = NO_CEILING;
             lastColumnCount = 0;
             return NO_CEILING;
         }
 
-        Long2IntOpenHashMap topByColumn = new Long2IntOpenHashMap();
-        topByColumn.defaultReturnValue(Integer.MIN_VALUE);
+        Long2IntOpenHashMap topAirByColumn = new Long2IntOpenHashMap();
+        topAirByColumn.defaultReturnValue(Integer.MIN_VALUE);
         for (long cell : floorCells) {
             long column = BlockPos.asLong(BlockPos.getX(cell), 0, BlockPos.getZ(cell));
             int y = BlockPos.getY(cell);
-            if (y > topByColumn.get(column)) {
-                topByColumn.put(column, y);
+            if (y > topAirByColumn.get(column)) {
+                topAirByColumn.put(column, y);
             }
         }
-        if (topByColumn.isEmpty()) {
+        if (topAirByColumn.isEmpty()) {
             lastCeilingY = NO_CEILING;
             lastColumnCount = 0;
             return NO_CEILING;
         }
 
+        final int maxBuildHeight = level.getMaxBuildHeight() - 1;
         Long2IntOpenHashMap counts = new Long2IntOpenHashMap();
-        for (var entry : topByColumn.long2IntEntrySet()) {
-            counts.addTo((long) entry.getIntValue() + 1, 1);
+        for (var entry : topAirByColumn.long2IntEntrySet()) {
+            long column = entry.getLongKey();
+            int topAir = entry.getIntValue();
+            int x = BlockPos.getX(column);
+            int z = BlockPos.getZ(column);
+            int startY = topAir + 1;
+            int maxY = Math.min(maxBuildHeight, startY + MAX_CEILING_SCAN);
+            for (int y = startY; y <= maxY; y++) {
+                if (budgetExceeded()) {
+                    return lastCeilingY != NO_CEILING ? lastCeilingY : NO_CEILING;
+                }
+                mutablePos.set(x, y, z);
+                BlockState state = level.getBlockState(mutablePos);
+                // フェンス・ランタン・チェーンなどの細い縦構造は天井として機能しないため
+                // 飛ばして、その列の本当の天井を探す。
+                if (!state.isAir() && WallAnalyzer.isCeilingLike(level, mutablePos, state)) {
+                    counts.addTo(y, 1);
+                    break;
+                }
+            }
         }
 
         int bestY = NO_CEILING;
@@ -276,8 +304,11 @@ public final class CeilingSliceCuller {
                 bestY = y;
             }
         }
+        if (bestY == NO_CEILING && lastCeilingY != NO_CEILING) {
+            bestY = lastCeilingY;
+        }
         lastCeilingY = bestY;
-        lastColumnCount = topByColumn.size();
+        lastColumnCount = topAirByColumn.size();
         return bestY;
     }
 

@@ -1346,7 +1346,6 @@ public final class TopDownCuller {
 
         long tCeiling = System.nanoTime();
         if (elementActive) {
-            // 母集団はプレイヤーがいる部屋のセルとし、部屋の形状から静的に天井高さを決定する。
             LongSet floorCells = playerRoom != null ? playerRoom.getAirCells() : roomResult.getAirCells();
             ceilingSliceCuller.update(level, roomResult.getMinPos(), roomResult.getMaxPos(),
                     floorCells);
@@ -1437,8 +1436,6 @@ public final class TopDownCuller {
         probeErrorLogAfterNanos = now + 10_000_000_000L;
         LOGGER.error("[TopDownView] space probe failed: {}", cause.toString());
     }
-
-
 
     private void updateEntityCulling(Minecraft mc) {
         if (!ModState.STATUS.isEnabled() || mc.level == null || mc.player == null || !contextValid) return;
