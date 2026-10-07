@@ -156,9 +156,6 @@ public final class TopDownCuller {
     /** 空間判定を再実行するプレイヤーシードの移動量（マンハッタン）。 */
     private static final int SPACE_REPROBE_MOVE_THRESHOLD = 3;
 
-    /** 立ち位置の基準 Y を求めるときに足元から下へ探す最大ブロック数（ジャンプ・段差を吸収）。 */
-    private static final int STANDING_SCAN_DOWN = 4;
-
     /** 直前に屋内と判定した座標。この近くの非屋内判定は段差等による一瞬のブレとして無視する。 */
     private BlockPos lastEnclosedSeed = null;
     private static final int ENCLOSED_STICKY_MOVE = 1;
@@ -1130,7 +1127,9 @@ public final class TopDownCuller {
         if (currentSpaceResult == null || lastSpaceSeed == null || dimensionChanged) {
             needReprobe = true;
         } else {
-            final boolean leftIndoorSpace = currentSpaceEnclosed && !isInsidePreviousSpace(seed);
+            final boolean leftIndoorSpace = currentSpaceEnclosed
+                    && enclosedStableCount >= ENCLOSED_STABLE_THRESHOLD
+                    && !isInsidePreviousSpace(seed);
             final int threshold = leftIndoorSpace ? 1 : SPACE_REPROBE_MOVE_THRESHOLD;
             needReprobe = seed.distManhattan(lastSpaceSeed) >= threshold;
         }
@@ -1265,26 +1264,49 @@ public final class TopDownCuller {
 
     /**
      * プレイヤー位置が直前の有効な屋内空間の内部に留まっているかを判定する。
-     * 窓際や開口部、一時的な起点のブレで屋外判定が出た場合でも、既知の空間内であれば維持する。
+     * 梁の下、窓際、開口部、家具の隙間など一時的な起点のブレで屋外判定が出た場合でも、
+     * 既知の空間内であれば確実に屋内を維持する。
      */
     private boolean isInsidePreviousSpace(BlockPos seed) {
         if (!currentSpaceEnclosed || currentSpaceResult == null) {
             return false;
         }
-        // 屋内に入った直後の不安定期間はヒステリシスを適用しない (誤判定の固定化防止)
-        if (enclosedStableCount < ENCLOSED_STABLE_THRESHOLD) {
-            return false;
+        // 直前シード近傍はブレとして常に維持する
+        if (lastEnclosedSeed != null && seed.distManhattan(lastEnclosedSeed) <= ENCLOSED_STICKY_MOVE) {
+            return true;
         }
         RoomFloodFill.Result prevRoom = currentSpaceResult.getRoomResult();
-        if (prevRoom != null && prevRoom.isEnclosed()) {
-            LongSet airCells = prevRoom.getAirCells();
-            if (airCells != null && !airCells.isEmpty()) {
-                if (airCells.contains(seed.asLong()) || airCells.contains(seed.above().asLong())) {
+        if (prevRoom == null || !prevRoom.isEnclosed()) {
+            return false;
+        }
+
+        LongSet airCells = prevRoom.getAirCells();
+        if (airCells != null && !airCells.isEmpty()) {
+            // 1. 足元〜頭上2、および足元直下の直接包含
+            long posLong = seed.asLong();
+            if (airCells.contains(posLong) || airCells.contains(seed.above().asLong())
+                    || airCells.contains(seed.above(2).asLong()) || airCells.contains(seed.below().asLong())) {
+                return true;
+            }
+            // 2. 水平4近傍に空気セルがあるか (梁の直下や家具の横など、直下に固体がある場合)
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                if (airCells.contains(seed.relative(dir).asLong())
+                        || airCells.contains(seed.relative(dir).above().asLong())) {
                     return true;
                 }
             }
         }
-        return lastEnclosedSeed != null && seed.distManhattan(lastEnclosedSeed) <= ENCLOSED_STICKY_MOVE;
+
+        // 3. 部屋の AABB 内部包含判定 (梁の下・家具の上など、部屋のバウンディングボックス内)
+        BlockPos min = prevRoom.getMinPos();
+        BlockPos max = prevRoom.getMaxPos();
+        if (seed.getX() >= min.getX() && seed.getX() <= max.getX()
+                && seed.getZ() >= min.getZ() && seed.getZ() <= max.getZ()
+                && seed.getY() >= min.getY() - 1 && seed.getY() <= max.getY() + 1) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1324,11 +1346,10 @@ public final class TopDownCuller {
 
         long tCeiling = System.nanoTime();
         if (elementActive) {
-            // 母集団はプレイヤーがいる部屋のセルに限り、立ち位置より下は集計側で除外する。
-            // これで橋の下や地下道のような下の階が天井候補に混ざらない。
+            // 母集団はプレイヤーがいる部屋のセルとし、部屋の形状から静的に天井高さを決定する。
             LongSet floorCells = playerRoom != null ? playerRoom.getAirCells() : roomResult.getAirCells();
             ceilingSliceCuller.update(level, roomResult.getMinPos(), roomResult.getMaxPos(),
-                    floorCells, resolveStandingY(seed));
+                    floorCells);
         } else {
             ceilingSliceCuller.clearCache();
         }
@@ -1417,24 +1438,7 @@ public final class TopDownCuller {
         LOGGER.error("[TopDownView] space probe failed: {}", cause.toString());
     }
 
-    /**
-     * プレイヤーの立ち位置の基準 Y（支えている地面の1つ上）を返す。
-     *
-     * <p>瞬間的な足元 Y はジャンプで上下するため、天井スライスの母集団の下限がぶれる。
-     * 足元から下へ最初の固体ブロックを探すことで、ジャンプ中でも着地時の高さに固定する。
-     */
-    private int resolveStandingY(BlockPos seed) {
-        var blockMap = spaceScratch.getBlockMap();
-        int x = seed.getX();
-        int z = seed.getZ();
-        int from = seed.getY();
-        for (int y = from; y >= from - STANDING_SCAN_DOWN; y--) {
-            if (blockMap.isSolid(x, y, z)) {
-                return y + 1;
-            }
-        }
-        return from;
-    }
+
 
     private void updateEntityCulling(Minecraft mc) {
         if (!ModState.STATUS.isEnabled() || mc.level == null || mc.player == null || !contextValid) return;

@@ -2,7 +2,6 @@ package com.topdownview.culling;
 
 import com.mojang.logging.LogUtils;
 import com.topdownview.culling.geometry.BlockChangeBox;
-import com.topdownview.spatial.WallAnalyzer;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -31,12 +30,6 @@ public final class CeilingSliceCuller {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final int NO_CEILING = Integer.MIN_VALUE;
-
-    /** 天井候補を探し始める足元からの高さ。プレイヤー(1.8)の頭の上を空ける。 */
-    private static final int HEAD_ROOM = 2;
-
-    /** 1列あたりの天井候補の探索上限ブロック数。見つからなければその列は母集団に入れない。 */
-    private static final int MAX_CEILING_SCAN = 32;
 
     /** 検出範囲は空気セルの AABB なので、外壁の頂部も含めるため壁厚分マージンする。 */
     private static final int RANGE_MARGIN = 1;
@@ -134,16 +127,14 @@ public final class CeilingSliceCuller {
     }
 
     /**
-     * 「今いる階」の空気セルから天井高さを求め、建物の検出範囲内を一括でカリングする。
+     * 「今いる部屋」の空気セルから天井高さを求め、建物の検出範囲内を一括でカリングする。
      *
-     * @param level        ワールド
-     * @param minPos       建物の検出最小座標 (カリング範囲)
-     * @param maxPos       建物の検出最大座標 (カリング範囲)
-     * @param floorCells   プレイヤーがいる部屋の空気セル (packed long)。天井候補の集計に使う。
-     * @param playerLevelY プレイヤーの立ち位置 (支えている地面の1つ上)。これ未満のセルは集計しない。
+     * @param level      ワールド
+     * @param minPos     建物の検出最小座標 (カリング範囲)
+     * @param maxPos     建物の検出最大座標 (カリング範囲)
+     * @param floorCells プレイヤーがいる部屋の空気セル (packed long)。天井候補の集計に使う。
      */
-    public void update(LevelReader level, BlockPos minPos, BlockPos maxPos, LongSet floorCells,
-            int playerLevelY) {
+    public void update(LevelReader level, BlockPos minPos, BlockPos maxPos, LongSet floorCells) {
         if (level == null || minPos == null || maxPos == null) {
             apply(new LongOpenHashSet());
             return;
@@ -158,12 +149,7 @@ public final class CeilingSliceCuller {
         overBudget = false;
         LongOpenHashSet next = new LongOpenHashSet();
 
-        int ceilingY = findDominantCeilingY(level, floorCells, playerLevelY);
-        if (overBudget) {
-            abort(minPos, maxPos);
-            apply(next);
-            return;
-        }
+        int ceilingY = findDominantCeilingY(floorCells);
         if (ceilingY == NO_CEILING) {
             cooldownNanos = COOLDOWN_BASE_NANOS;
             apply(next);
@@ -248,63 +234,36 @@ public final class CeilingSliceCuller {
     }
 
     /**
-     * 「今いる階」の列ごとに「頭上の最初の固体ブロック」を天井候補とし、最も多い Y を返す。
+     * 部屋の各列について「最上部空気セルの1つ上」を天井候補とし、最も多い Y を返す。
      *
-     * <p>候補を「列の最上部空気+1」ではなく「立ち位置の頭より上で最初に当たる固体」にするのが要点。
-     * 最上部空気基準だと、上に開口や吹き抜けがある列は候補が屋根より上へ、逆に立ち位置レベルの
-     * 空気しか無い列(階段の踊り場など)は候補が足元+1へ引っ張られ、実際の天井を外す。頭上基準なら
-     * どの列も「その列で今いる階を覆う最初の面」になり、天井を正しく選べる。
-     *
-     * <p>立ち位置より下のセルは列として採用しない。橋の下の地面や地下へ続く道は立ち位置より下なので
-     * 母集団から外れる。最頻値にするのは、部屋ごとに天井高が違っても建物全体で1枚のスライスに
-     * まとめるため。最頻値が同数の場合は低い方 (より多くの視界を開く方) を選ぶ。
+     * <p>空気セルの分布から静的に天井高さを決定するため、プレイヤーが部屋の中の階段を上り下りしたり
+     * 段差に乗っても天井高さが変動せず、一定に維持される。最頻値が同数の場合は低い方を採用する。
      */
-    private int findDominantCeilingY(LevelReader level, LongSet floorCells, int playerLevelY) {
+    private int findDominantCeilingY(LongSet floorCells) {
         if (floorCells == null || floorCells.isEmpty()) {
             lastCeilingY = NO_CEILING;
             lastColumnCount = 0;
             return NO_CEILING;
         }
-        // 立ち位置レベルの空気がある列だけを対象にする。
-        LongOpenHashSet columns = new LongOpenHashSet();
+
+        Long2IntOpenHashMap topByColumn = new Long2IntOpenHashMap();
+        topByColumn.defaultReturnValue(Integer.MIN_VALUE);
         for (long cell : floorCells) {
-            if (budgetExceeded()) {
-                lastCeilingY = NO_CEILING;
-                lastColumnCount = columns.size();
-                return NO_CEILING;
+            long column = BlockPos.asLong(BlockPos.getX(cell), 0, BlockPos.getZ(cell));
+            int y = BlockPos.getY(cell);
+            if (y > topByColumn.get(column)) {
+                topByColumn.put(column, y);
             }
-            if (BlockPos.getY(cell) < playerLevelY) {
-                continue;
-            }
-            columns.add(BlockPos.asLong(BlockPos.getX(cell), 0, BlockPos.getZ(cell)));
         }
-        if (columns.isEmpty()) {
+        if (topByColumn.isEmpty()) {
             lastCeilingY = NO_CEILING;
             lastColumnCount = 0;
             return NO_CEILING;
         }
 
-        int startY = playerLevelY + HEAD_ROOM;
-        int maxY = Math.min(level.getMaxBuildHeight() - 1, startY + MAX_CEILING_SCAN);
         Long2IntOpenHashMap counts = new Long2IntOpenHashMap();
-        for (long column : columns) {
-            int x = BlockPos.getX(column);
-            int z = BlockPos.getZ(column);
-            for (int y = startY; y <= maxY; y++) {
-                if (budgetExceeded()) {
-                    lastCeilingY = NO_CEILING;
-                    lastColumnCount = columns.size();
-                    return NO_CEILING;
-                }
-                mutablePos.set(x, y, z);
-                BlockState state = level.getBlockState(mutablePos);
-                // フェンス・ランタン・チェーンなどの細い縦構造は天井として機能しないため
-                // 飛ばして、その列の本当の天井を探す。
-                if (!state.isAir() && WallAnalyzer.isCeilingLike(level, mutablePos, state)) {
-                    counts.addTo(y, 1);
-                    break;
-                }
-            }
+        for (var entry : topByColumn.long2IntEntrySet()) {
+            counts.addTo((long) entry.getIntValue() + 1, 1);
         }
 
         int bestY = NO_CEILING;
@@ -318,7 +277,7 @@ public final class CeilingSliceCuller {
             }
         }
         lastCeilingY = bestY;
-        lastColumnCount = columns.size();
+        lastColumnCount = topByColumn.size();
         return bestY;
     }
 
