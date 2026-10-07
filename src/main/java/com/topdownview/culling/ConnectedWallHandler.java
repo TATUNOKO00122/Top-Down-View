@@ -146,10 +146,12 @@ public final class ConnectedWallHandler {
         candidate.clear();
 
         // 1. シード探索: 円柱帯∧クリップ∧ピラミッド非保護∧非保護の壁を幾何のみで認定する。
-        int minX = (int) Math.floor(Math.min(playerX, cameraX)) - radiusH - 1;
-        int maxX = (int) Math.floor(Math.max(playerX, cameraX)) + radiusH + 1;
-        int minZ = (int) Math.floor(Math.min(playerZ, cameraZ)) - radiusH - 1;
-        int maxZ = (int) Math.floor(Math.max(playerZ, cameraZ)) + radiusH + 1;
+        // プレイヤー周辺の到達可能範囲に絞って走査負荷を削減する(+1は隣接からの連鎖受けマージン)。
+        int seedMargin = maxHorizDistFromPlayer + 1;
+        int minX = Math.max((int) Math.floor(Math.min(playerX, cameraX)) - radiusH - 1, pBlockX - seedMargin);
+        int maxX = Math.min((int) Math.floor(Math.max(playerX, cameraX)) + radiusH + 1, pBlockX + seedMargin);
+        int minZ = Math.max((int) Math.floor(Math.min(playerZ, cameraZ)) - radiusH - 1, pBlockZ - seedMargin);
+        int maxZ = Math.min((int) Math.floor(Math.max(playerZ, cameraZ)) + radiusH + 1, pBlockZ + seedMargin);
         int maxY = Math.min(maxChainY, (int) Math.floor(Math.max(playerY, cameraY)) + radiusV);
 
         for (int x = minX; x <= maxX; x++) {
@@ -171,6 +173,13 @@ public final class ConnectedWallHandler {
                     if (normDistSq < 0.0 || normDistSq > 1.0) {
                         continue;
                     }
+                    // プレイヤーの背後ブロック(カメラ側: toPlayerDot < 0)のみをシードとする。
+                    // プレイヤー前方(奥)や真横はシードに含めず、前方の壁のカリングを防ぐ。
+                    double toPlayerDot = (x + 0.5 - playerX) * viewDirX + (z + 0.5 - playerZ) * viewDirZ;
+                    if (toPlayerDot >= 0.0) {
+                        continue;
+                    }
+
                     // クリップ(扇/半空間)の内側 = 円柱のカリング帯
                     if (wedgeActive) {
                         if (!OcclusionCalculator.isWithinViewWedge(
@@ -191,10 +200,13 @@ public final class ConnectedWallHandler {
                         continue;
                     }
 
-                    if (tail < QUEUE_CAPACITY) {
-                        queue[tail] = tempPos.asLong();
-                        depthQueue[tail] = 0;
-                        tail++;
+                    long seedLong = tempPos.asLong();
+                    if (candidate.add(seedLong)) {
+                        if (tail < QUEUE_CAPACITY) {
+                            queue[tail] = seedLong;
+                            depthQueue[tail] = 0;
+                            tail++;
+                        }
                     }
                 }
             }
@@ -221,8 +233,7 @@ public final class ConnectedWallHandler {
                 // カメラより上はカリングしない
                 if (ny > maxChainY) continue;
 
-                // カメラ側半空間に限定する。プレイヤーの反対側(クリップが保護する領域)へは
-                // 連鎖を渡さない。連鎖の役割は「カメラ側の角の裏を回り込む」こと。
+                // カメラ側半空間に限定する。プレイヤーより前方(奥)へは連鎖を渡さない。
                 if (OcclusionCalculator.isBeyondPlayerHorizontally(
                         nx + 0.5, nz + 0.5, playerX, playerZ, viewDirX, viewDirZ)) {
                     continue;
