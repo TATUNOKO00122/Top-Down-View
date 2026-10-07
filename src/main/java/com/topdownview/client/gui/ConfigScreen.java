@@ -321,6 +321,10 @@ public class ConfigScreen extends Screen {
                 val -> Config.setStaircaseExclusionHeight(val)));
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.portal_protection", tx);
+        addToggle(x, y, w, h, "topdown_view.config.portal_protection_enabled", Config::isPortalProtectionEnabled, Config::setPortalProtectionEnabled);
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.underground_culling", tx);
         addToggle(x, y, w, h, "topdown_view.config.underground_culling_enabled", Config::isUndergroundCullingEnabled, Config::setUndergroundCullingEnabled);
         y += sp;

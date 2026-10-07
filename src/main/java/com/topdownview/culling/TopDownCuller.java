@@ -209,6 +209,7 @@ public final class TopDownCuller {
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
     private final TreeCullingHandler treeHandler = new TreeCullingHandler();
+    private final PortalCullingHandler portalHandler = new PortalCullingHandler();
     private final CeilingSliceCuller ceilingSliceCuller = new CeilingSliceCuller();
     private final CoverCullingHandler coverHandler = new CoverCullingHandler();
     private final ConnectedWallHandler connectedWallHandler = new ConnectedWallHandler();
@@ -290,6 +291,7 @@ public final class TopDownCuller {
         surfaceHeightCache.clear();
         stairHandler.clearCache();
         treeHandler.clearCache();
+        portalHandler.clearCache();
         ceilingSliceCuller.clearCache();
         coverHandler.clearCache();
         connectedWallHandler.clearCache();
@@ -473,6 +475,7 @@ public final class TopDownCuller {
                 fadePositions.clear();
                 LadderHelper.clearCache();
                 NaturalTreeDetector.clearCache();
+                portalHandler.clearCache();
                 cacheClearedOnDisabled = true;
             }
             return false;
@@ -645,6 +648,10 @@ public final class TopDownCuller {
     }
 
     private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY, BlockGetter level) {
+        if (Config.isPortalProtectionEnabled() && portalHandler.isProtectedPortal(pos.asLong())) {
+            return true;
+        }
+
         if (state.getBlock() instanceof TrapDoorBlock) {
             return !TrapdoorHelper.shouldCull(pos, level, state, playerX, playerY, playerZ, cameraX, cameraY, cameraZ);
         }
@@ -1087,6 +1094,12 @@ public final class TopDownCuller {
         } else {
             NaturalTreeDetector.clearCache();
             treeHandler.clearCache();
+        }
+
+        if (Config.isPortalProtectionEnabled()) {
+            portalHandler.update(mc.level, blockX, blockY, blockZ, cachedCylinderRadiusHorizontal + 2);
+        } else {
+            portalHandler.clearCache();
         }
 
         if (submitProbe(mc, seed, probeEpoch)) {

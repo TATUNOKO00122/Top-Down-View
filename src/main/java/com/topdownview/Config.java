@@ -319,6 +319,9 @@ public class Config {
             .define("ignoreLeavesInRaycast", false);
     private static final ForgeConfigSpec.BooleanValue PROTECT_NATURAL_TREE_LOGS = BUILDER
             .define("protectNaturalTreeLogs", false);
+    private static final ForgeConfigSpec.BooleanValue PORTAL_PROTECTION_ENABLED = BUILDER
+            .comment("Protects portal blocks and their surrounding frames from culling.")
+            .define("portalProtectionEnabled", true);
 
     private static final ForgeConfigSpec.BooleanValue TRANSLUCENT_FLUID = BUILDER
             .define("translucentFluid", true);
@@ -451,6 +454,7 @@ public class Config {
     public static int getStaircaseExclusionHeight() { return CULLING.getStaircaseExclusionHeight(); }
     public static boolean isIgnoreLeavesInRaycast() { return CULLING.isIgnoreLeavesInRaycast(); }
     public static boolean isProtectNaturalTreeLogs() { return CULLING.isProtectNaturalTreeLogs(); }
+    public static boolean isPortalProtectionEnabled() { return CULLING.isPortalProtectionEnabled(); }
     public static boolean isTranslucentFluid() { return CULLING.isTranslucentFluid(); }
     public static double getFluidAlpha() { return CULLING.getFluidAlpha(); }
     public static boolean isDollhouseEnabled() { return CULLING.isDollhouseEnabled(); }
@@ -584,6 +588,7 @@ public class Config {
     public static void setStaircaseExclusionHeight(int value) { CULLING.setStaircaseExclusionHeight(value); }
     public static void setIgnoreLeavesInRaycast(boolean value) { CULLING.setIgnoreLeavesInRaycast(value); }
     public static void setProtectNaturalTreeLogs(boolean value) { CULLING.setProtectNaturalTreeLogs(value); }
+    public static void setPortalProtectionEnabled(boolean value) { CULLING.setPortalProtectionEnabled(value); }
     public static void setTranslucentFluid(boolean value) { CULLING.setTranslucentFluid(value); }
     public static void setFluidAlpha(double value) { CULLING.setFluidAlpha(value); }
     public static void setDollhouseEnabled(boolean value) { CULLING.setDollhouseEnabled(value); }
@@ -769,6 +774,7 @@ public class Config {
         addBinding(STAIRCASE_EXCLUSION_HEIGHT, CULLING::setStaircaseExclusionHeight, Config::getStaircaseExclusionHeight);
         addBinding(IGNORE_LEAVES_IN_RAYCAST, CULLING::setIgnoreLeavesInRaycast, Config::isIgnoreLeavesInRaycast);
         addBinding(PROTECT_NATURAL_TREE_LOGS, CULLING::setProtectNaturalTreeLogs, Config::isProtectNaturalTreeLogs);
+        addBinding(PORTAL_PROTECTION_ENABLED, CULLING::setPortalProtectionEnabled, Config::isPortalProtectionEnabled);
         addBinding(TRANSLUCENT_FLUID, CULLING::setTranslucentFluid, Config::isTranslucentFluid);
         addBinding(FLUID_ALPHA, CULLING::setFluidAlpha, Config::getFluidAlpha);
         addBinding(DOLLHOUSE_ENABLED, CULLING::setDollhouseEnabled, Config::isDollhouseEnabled);

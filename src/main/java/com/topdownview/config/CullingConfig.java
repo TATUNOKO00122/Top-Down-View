@@ -51,6 +51,7 @@ public final class CullingConfig {
     private boolean protectInteractablesOutdoors = true;
     private boolean ignoreLeavesInRaycast = false;
     private boolean protectNaturalTreeLogs = false;
+    private boolean portalProtectionEnabled = true;
     private boolean translucentFluid = true;
     private double fluidAlpha = 0.35;
 
@@ -182,6 +183,9 @@ public final class CullingConfig {
 
     public boolean isProtectNaturalTreeLogs() { return protectNaturalTreeLogs; }
     public void setProtectNaturalTreeLogs(boolean value) { this.protectNaturalTreeLogs = value; }
+
+    public boolean isPortalProtectionEnabled() { return portalProtectionEnabled; }
+    public void setPortalProtectionEnabled(boolean value) { this.portalProtectionEnabled = value; }
 
     public boolean isTranslucentFluid() { return translucentFluid; }
     public void setTranslucentFluid(boolean value) { this.translucentFluid = value; }
