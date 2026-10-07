@@ -236,6 +236,7 @@ public final class TopDownCuller {
     private boolean cachedCoverCullingActive;
     private boolean cachedCoverCullingEnabled;
     private boolean cachedDisableIndoorFade;
+    private boolean cachedDisableIndoorNear;
     /** カメラが地形に埋没している(固体中を一定距離走破した)と確定した状態。 */
     private boolean cachedCameraBuried;
     /** カメラが固体中を連続して走破した距離(ブロック)。ヒステリシス用。 */
@@ -297,6 +298,7 @@ public final class TopDownCuller {
         currentSpaceEnclosed = false;
         enclosedStableCount = 0;
         cachedDisableIndoorFade = false;
+        cachedDisableIndoorNear = false;
         cachedCameraBuried = false;
         cameraBuriedTravel = 0.0;
         lastBuriedCamX = Integer.MIN_VALUE;
@@ -967,6 +969,11 @@ public final class TopDownCuller {
             fadePositions.clear();
         }
         cachedDisableIndoorFade = disableIndoorFade;
+        boolean disableIndoorNear = Config.isDisableNearTranslucencyIndoors() && currentSpaceEnclosed;
+        if (disableIndoorNear != cachedDisableIndoorNear) {
+            cullingCache.clear();
+        }
+        cachedDisableIndoorNear = disableIndoorNear;
         // フラッシュ/復元どちらの抑制エントリも期限切れを掃除する(ホールド方式は廃止)。
         fadeTransitionController.tick();
         // メッシュ専用ホールドの変更をワーカー読み用スナップショットへ反映(再構築より前に)。
@@ -1546,13 +1553,78 @@ public final class TopDownCuller {
         revealChange.reset();
     }
 
+    public boolean isDisableIndoorFadeActive() {
+        return cachedDisableIndoorFade;
+    }
+
+    public boolean isDisableIndoorNearActive() {
+        return cachedDisableIndoorNear;
+    }
+
+    public int getCachedPlayerBlockX() {
+        return cachedPlayerBlockX;
+    }
+
+    public int getCachedPlayerFloorY() {
+        return cachedPlayerFloorY;
+    }
+
+    public int getCachedPlayerFeetY() {
+        return cachedPlayerFeetY;
+    }
+
+    public int getCachedPlayerBlockZ() {
+        return cachedPlayerBlockZ;
+    }
+
+    public boolean isPlayerNearBlock(BlockPos pos) {
+        if (!contextValid) {
+            return false;
+        }
+        int pBX = cachedPlayerBlockX;
+        int pBY = cachedPlayerFeetY;
+        int pBZ = cachedPlayerBlockZ;
+        int rangeH = Config.getPlayerNearTranslucencyRangeHorizontal();
+        int rangeV = Config.getPlayerNearTranslucencyRangeVertical();
+        return pos.getX() >= pBX - rangeH && pos.getX() <= pBX + rangeH
+                && pos.getZ() >= pBZ - rangeH && pos.getZ() <= pBZ + rangeH
+                && pos.getY() >= pBY && pos.getY() < pBY + rangeV;
+    }
+
+    public boolean isPlayerNearTranslucencyBlock(BlockPos pos, BlockGetter level) {
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() || level == null) {
+            return false;
+        }
+        if (!Config.isPlayerNearTranslucencyEnabled() || cachedDisableIndoorNear) {
+            return false;
+        }
+        if (!isPlayerNearBlock(pos)) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir() || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (isFastGraphicsLeaves(state)) {
+            return false;
+        }
+        return isBlockCulled(pos, level);
+    }
+
     /**
      * カリング境界の半ゴースト表示の間、マウスレイキャストをブロックするか。
      * 遷移フェード(消失/復元)のフラッシュ中の位置は実ブロックとみなして触れられる。
      */
     public boolean isHittableFadeBlock(BlockPos pos, BlockGetter level) {
-        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() || level == null) return false;
-        if (!cachedFadeTransitionsActive) return false;
+        if (!ModState.STATUS.isEnabled() || !ModState.STATUS.isCullingEnabled() || ModState.STATUS.isMiningMode() || level == null) {
+            return false;
+        }
+        if (isPlayerNearTranslucencyBlock(pos, level)) {
+            return Config.isPlayerNearTranslucencyHittable();
+        }
+        if (!cachedFadeTransitionsActive) {
+            return false;
+        }
         return com.topdownview.client.TranslucentBlockRenderer.isGhostVisible(pos.asLong());
     }
 
@@ -1560,7 +1632,7 @@ public final class TopDownCuller {
      * FASTグラフィックの葉は不透明テクスチャで描かれるため、半透明ゴーストにできない。
      * {@code calculateFadeAlpha} と同じ判定を近接半透明化側でも使う。
      */
-    private boolean isFastGraphicsLeaves(BlockState state) {
+    boolean isFastGraphicsLeaves(BlockState state) {
         return state.is(BlockTags.LEAVES)
                 && Minecraft.getInstance().options.graphicsMode().get() == GraphicsStatus.FAST;
     }

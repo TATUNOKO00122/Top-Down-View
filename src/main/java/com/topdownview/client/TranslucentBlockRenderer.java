@@ -19,6 +19,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -67,6 +68,9 @@ public final class TranslucentBlockRenderer {
 
     /** 消失フェード候補位置の作業用セット(再利用)。 */
     private static final LongOpenHashSet FADE_CANDIDATES = new LongOpenHashSet();
+    /** 今フレームに近接半透明表示されているブロック位置の集合（近接ブロック同士の面カリング用）。 */
+    private static final LongOpenHashSet NEAR_BLOCKS = new LongOpenHashSet();
+    private static final NearBlockGetter NEAR_BLOCK_GETTER = new NearBlockGetter();
 
     private static long lastFrameNanos;
 
@@ -87,6 +91,8 @@ public final class TranslucentBlockRenderer {
         GHOST_VISIBLE.clear();
         SEEN.clear();
         FADE_CANDIDATES.clear();
+        NEAR_BLOCKS.clear();
+        NEAR_BLOCK_GETTER.set(null, null);
         lastFrameNanos = 0L;
     }
 
@@ -114,14 +120,19 @@ public final class TranslucentBlockRenderer {
         }
 
         TopDownCuller culler = TopDownCuller.getInstance();
-        // 走査/差分検出は update()(ティック)側で済んでいる。描画はその集合を読むだけ。
         LongOpenHashSet fadePositions = culler.getCollectedFadePositions();
         FadeTransitionController tracker = culler.getFadeController();
         PerfMonitor.recordFadeBlocks(fadePositions.size());
 
+        boolean nearTransEnabled = Config.isPlayerNearTranslucencyEnabled() && !culler.isDisableIndoorNearActive();
+        boolean fadeEnabled = Config.isFadeEnabled() && !culler.isDisableIndoorFadeActive();
         float transitionMs = (float) (Config.getFadeFlashDuration() * 1000.0);
-        if (transitionMs < 1.0f) {
-            // フェード時間0 = 遷移なし(即時)。状態もゴーストも破棄する。
+
+        if (!fadeEnabled && !nearTransEnabled) {
+            clearTransitionState();
+            return;
+        }
+        if (!nearTransEnabled && transitionMs < 1.0f) {
             clearTransitionState();
             return;
         }
@@ -129,7 +140,7 @@ public final class TranslucentBlockRenderer {
         // フレームレート非依存の変化量。dt をクランプして一時停止復帰での暴れを防ぐ。
         float dt = lastFrameNanos == 0L ? 0.0f : Math.min((System.nanoTime() - lastFrameNanos) / 1.0E9f, 0.1f);
         lastFrameNanos = System.nanoTime();
-        float step = dt * 1000.0f / transitionMs;
+        float step = transitionMs >= 1.0f ? dt * 1000.0f / transitionMs : 1.0f;
 
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
@@ -148,38 +159,75 @@ public final class TranslucentBlockRenderer {
 
         GHOST_VISIBLE.clear();
         SEEN.clear();
+        NEAR_BLOCKS.clear();
 
         GHOST_COUNT[0] = 0;
 
-        // ==================== カリング集合(消失/継続) ====================
-        // 全カリング集合(数千個)を回すのではなく、進行中(GHOST_ALPHA)または新規開始(fadeOutStarts)の
-        // 遷移位置のみを走査対象とすることで、毎フレームの無駄なハッシュ検索を排除する。
+        // ==================== カリング集合(消失/継続/近接半透明) ====================
         FADE_CANDIDATES.clear();
-        tracker.forEachActiveFadeOut(FADE_CANDIDATES::add);
+        if (fadeEnabled) {
+            tracker.forEachActiveFadeOut(FADE_CANDIDATES::add);
+        }
         FADE_CANDIDATES.addAll(GHOST_ALPHA.keySet());
+
+        if (nearTransEnabled) {
+            int pBX = culler.getCachedPlayerBlockX();
+            int pBY = culler.getCachedPlayerFeetY();
+            int pBZ = culler.getCachedPlayerBlockZ();
+            int rangeH = Config.getPlayerNearTranslucencyRangeHorizontal();
+            int rangeV = Config.getPlayerNearTranslucencyRangeVertical();
+
+            for (int dx = -rangeH; dx <= rangeH; dx++) {
+                for (int dz = -rangeH; dz <= rangeH; dz++) {
+                    for (int dy = 0; dy < rangeV; dy++) {
+                        FADE_POS.set(pBX + dx, pBY + dy, pBZ + dz);
+                        if (culler.isPlayerNearTranslucencyBlock(FADE_POS, mc.level)) {
+                            long posLong = FADE_POS.asLong();
+                            FADE_CANDIDATES.add(posLong);
+                            NEAR_BLOCKS.add(posLong);
+                        }
+                    }
+                }
+            }
+        }
+
+        NEAR_BLOCK_GETTER.set(mc.level, NEAR_BLOCKS);
+
+        float targetNearAlpha = (float) Config.getPlayerNearTranslucencyAlpha();
 
         for (LongIterator iterator = FADE_CANDIDATES.iterator(); iterator.hasNext(); ) {
             long posLong = iterator.nextLong();
-            if (tracker.isRestoring(posLong)) {
+            if (fadeEnabled && tracker.isRestoring(posLong)) {
                 SEEN.add(posLong);
                 continue;
             }
-            if (!fadePositions.contains(posLong)) {
+
+            FADE_POS.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
+            boolean isNear = nearTransEnabled && NEAR_BLOCKS.contains(posLong);
+
+            if (!isNear && (!fadeEnabled || !fadePositions.contains(posLong))) {
                 GHOST_ALPHA.remove(posLong);
-                tracker.forgetFadeOut(posLong);
+                if (fadeEnabled) {
+                    tracker.forgetFadeOut(posLong);
+                }
                 continue;
             }
-            long start = tracker.getFadeOutStart(posLong);
+
+            long start = fadeEnabled ? tracker.getFadeOutStart(posLong) : INVALID;
             float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong)
                     : (start != INVALID ? 1.0f : 0.0f);
-            float alpha = approach(previous, 0.0f, step);
-            if (alpha <= ALPHA_EPSILON) {
+
+            float targetAlpha = isNear ? targetNearAlpha : 0.0f;
+            float alpha = approach(previous, targetAlpha, step);
+
+            if (!isNear && alpha <= ALPHA_EPSILON) {
                 GHOST_ALPHA.remove(posLong);
                 if (start != INVALID) {
                     tracker.forgetFadeOut(posLong);
                 }
                 continue;
             }
+
             SEEN.add(posLong);
             GHOST_ALPHA.put(posLong, alpha);
 
@@ -194,39 +242,44 @@ public final class TranslucentBlockRenderer {
             }
             GHOST_VISIBLE.add(posLong);
             FADE_POS.set(bx, by, bz);
-            renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
+            if (isNear) {
+                // 近接表示ブロック同士の隣接面のみカリング(checkSides=true)
+                renderFadeBlock(NEAR_BLOCK_GETTER, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, true);
+            } else {
+                // 通常の消失フラッシュは以前のまま全面描画(checkSides=false)
+                renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, false);
+            }
             GHOST_COUNT[0]++;
         }
 
         // ==================== 復元フラッシュ(集合から外れた位置) ====================
-        // メッシュ再構築が戻るまでの穴を α0→1 で覆う。メッシュが戻ればポリゴンオフセットで
-        // ゴーストは奥に隠れる。未完走の復元位置は、境界の揺れ等でカリング集合(fadePositions)に
-        // 一時的に入っても復元側が描画を継続する(消失側と相互スキップしてお見合い抜けするのを防ぐ)。
-        // 消失側と同様、α帳簿は遠方でも毎フレーム進める(接近時に α=1 で即座に穴を覆えるように)。
-        long nowMs = System.currentTimeMillis();
-        tracker.forEachActiveRestore(posLong -> {
-            if (tracker.isRestoreCompleted(posLong, nowMs)) {
-                return;
-            }
-            float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong) : 0.0f;
-            float alpha = approach(previous, 1.0f, step);
-            SEEN.add(posLong);
-            GHOST_ALPHA.put(posLong, alpha);
+        if (fadeEnabled) {
+            long nowMs = System.currentTimeMillis();
+            tracker.forEachActiveRestore(posLong -> {
+                if (tracker.isRestoreCompleted(posLong, nowMs)) {
+                    return;
+                }
+                float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong) : 0.0f;
+                float alpha = approach(previous, 1.0f, step);
+                SEEN.add(posLong);
+                GHOST_ALPHA.put(posLong, alpha);
 
-            int bx = BlockPos.getX(posLong);
-            int by = BlockPos.getY(posLong);
-            int bz = BlockPos.getZ(posLong);
-            double dx = bx + 0.5 - pX;
-            double dy = by + 0.5 - pY;
-            double dz = bz + 0.5 - pZ;
-            if (dx * dx + dy * dy + dz * dz > maxDistSq) {
-                return;
-            }
-            GHOST_VISIBLE.add(posLong);
-            FADE_POS.set(bx, by, bz);
-            renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos);
-            GHOST_COUNT[0]++;
-        });
+                int bx = BlockPos.getX(posLong);
+                int by = BlockPos.getY(posLong);
+                int bz = BlockPos.getZ(posLong);
+                double dx = bx + 0.5 - pX;
+                double dy = by + 0.5 - pY;
+                double dz = bz + 0.5 - pZ;
+                if (dx * dx + dy * dy + dz * dz > maxDistSq) {
+                    return;
+                }
+                GHOST_VISIBLE.add(posLong);
+                FADE_POS.set(bx, by, bz);
+                // 通常の復元フラッシュは以前のまま全面描画(checkSides=false)
+                renderFadeBlock(mc.level, FADE_POS, poseStack, blockRenderer, ALPHA_CONSUMER, alpha, cameraPos, false);
+                GHOST_COUNT[0]++;
+            });
+        }
 
         PerfMonitor.recordFadeGhosts(GHOST_COUNT[0]);
 
@@ -269,7 +322,8 @@ public final class TranslucentBlockRenderer {
             BlockRenderDispatcher blockRenderer,
             AlphaVertexConsumer alphaConsumer,
             float alpha,
-            Vec3 cameraPos) {
+            Vec3 cameraPos,
+            boolean checkSides) {
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) {
             return;
@@ -296,8 +350,8 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // 実レベルを渡し、面カリングを無効化(checkSides=false)して立体として描く。
-        // checkSides=true だとカリング済み隣接ブロックとの境界面がカットされてペラペラになるため。
+        // 近接表示ブロック同士のみ checkSides=true かつ NEAR_BLOCK_GETTER で隣接面をカリング。
+        // 通常の消失・復元フェードブロックは checkSides=false で全ポリゴンを描画。
         blockRenderer.getModelRenderer().tesselateBlock(
                 level,
                 model,
@@ -305,7 +359,7 @@ public final class TranslucentBlockRenderer {
                 pos,
                 poseStack,
                 alphaConsumer,
-                false,
+                checkSides,
                 RANDOM,
                 seed,
                 OverlayTexture.NO_OVERLAY,
@@ -313,5 +367,34 @@ public final class TranslucentBlockRenderer {
                 RenderType.translucent());
 
         poseStack.popPose();
+    }
+
+    private static final BlockState AIR_STATE = Blocks.AIR.defaultBlockState();
+
+    /**
+     * 近接表示ブロック同士の隣接面カリング用プロキシ。
+     * 近接集合内のブロックは実状態を返し(面カリング対象)、集合外は空気として返す。
+     * これにより、近接ブロック同士が隣接している面のみがカリングされ、外側の露出面のみが描画される。
+     */
+    private static final class NearBlockGetter extends DelegatingBlockGetter {
+
+        private LongOpenHashSet nearBlocks;
+
+        NearBlockGetter() {
+            super(null);
+        }
+
+        void set(BlockAndTintGetter delegate, LongOpenHashSet nearBlocks) {
+            setDelegate(delegate);
+            this.nearBlocks = nearBlocks;
+        }
+
+        @Override
+        public BlockState getBlockState(BlockPos pos) {
+            if (nearBlocks != null && nearBlocks.contains(pos.asLong())) {
+                return delegate.getBlockState(pos);
+            }
+            return AIR_STATE;
+        }
     }
 }

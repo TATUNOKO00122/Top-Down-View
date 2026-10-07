@@ -144,6 +144,21 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue DISABLE_FADE_BURIED = BUILDER
             .comment("Disables the transition fade while the top-down camera is buried in terrain.")
             .define("disableFadeBuried", true);
+    private static final ForgeConfigSpec.BooleanValue DISABLE_NEAR_TRANSLUCENCY_INDOORS = BUILDER
+            .comment("Disables proximity block translucency while the player is indoors.")
+            .define("disableNearTranslucencyIndoors", true);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_ENABLED = BUILDER
+            .comment("Renders culled blocks near the player as translucent.")
+            .define("playerNearTranslucencyEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue PLAYER_NEAR_TRANSLUCENCY_ALPHA = BUILDER
+            .defineInRange("playerNearTranslucencyAlpha", 0.6, 0.0, 1.0);
+    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL = BUILDER
+            .defineInRange("playerNearTranslucencyRangeHorizontal", 2, 1, 5);
+    private static final ForgeConfigSpec.IntValue PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL = BUILDER
+            .defineInRange("playerNearTranslucencyRangeVertical", 2, 1, 5);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_NEAR_TRANSLUCENCY_HITTABLE = BUILDER
+            .comment("Whether blocks rendered by proximity translucency can be targeted / hit.")
+            .define("playerNearTranslucencyHittable", true);
     private static final ForgeConfigSpec.BooleanValue RANGE_INDICATOR_ENABLED = BUILDER
             .define("rangeIndicatorEnabled", false);
     private static final ForgeConfigSpec.BooleanValue DESTINATION_HIGHLIGHT_ENABLED = BUILDER
@@ -359,6 +374,12 @@ public class Config {
     public static double getFadeFlashDuration() { return CULLING.getFadeFlashDuration(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
     public static boolean isDisableFadeBuried() { return CULLING.isDisableFadeBuried(); }
+    public static boolean isDisableNearTranslucencyIndoors() { return CULLING.isDisableNearTranslucencyIndoors(); }
+    public static boolean isPlayerNearTranslucencyEnabled() { return CULLING.isPlayerNearTranslucencyEnabled(); }
+    public static double getPlayerNearTranslucencyAlpha() { return CULLING.getPlayerNearTranslucencyAlpha(); }
+    public static int getPlayerNearTranslucencyRangeHorizontal() { return CULLING.getPlayerNearTranslucencyRangeHorizontal(); }
+    public static int getPlayerNearTranslucencyRangeVertical() { return CULLING.getPlayerNearTranslucencyRangeVertical(); }
+    public static boolean isPlayerNearTranslucencyHittable() { return CULLING.isPlayerNearTranslucencyHittable(); }
     public static int getViewWedgeHalfAngle() { return CULLING.getViewWedgeHalfAngle(); }
     public static boolean isCameraSideClipWedge() { return CULLING.isCameraSideClipWedge(); }
     public static boolean isConnectedWallCullingEnabled() { return CULLING.isConnectedWallCullingEnabled(); }
@@ -489,6 +510,12 @@ public class Config {
     public static void setFadeFlashDuration(double value) { CULLING.setFadeFlashDuration(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
     public static void setDisableFadeBuried(boolean value) { CULLING.setDisableFadeBuried(value); }
+    public static void setDisableNearTranslucencyIndoors(boolean value) { CULLING.setDisableNearTranslucencyIndoors(value); }
+    public static void setPlayerNearTranslucencyEnabled(boolean value) { CULLING.setPlayerNearTranslucencyEnabled(value); }
+    public static void setPlayerNearTranslucencyAlpha(double value) { CULLING.setPlayerNearTranslucencyAlpha(value); }
+    public static void setPlayerNearTranslucencyRangeHorizontal(int value) { CULLING.setPlayerNearTranslucencyRangeHorizontal(value); }
+    public static void setPlayerNearTranslucencyRangeVertical(int value) { CULLING.setPlayerNearTranslucencyRangeVertical(value); }
+    public static void setPlayerNearTranslucencyHittable(boolean value) { CULLING.setPlayerNearTranslucencyHittable(value); }
     public static void setViewWedgeHalfAngle(int value) { CULLING.setViewWedgeHalfAngle(value); }
     public static void setCameraSideClipWedge(boolean value) { CULLING.setCameraSideClipWedge(value); }
     public static void setConnectedWallCullingEnabled(boolean value) { CULLING.setConnectedWallCullingEnabled(value); }
@@ -668,6 +695,12 @@ public class Config {
         addBinding(FADE_FLASH_DURATION, CULLING::setFadeFlashDuration, Config::getFadeFlashDuration);
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
         addBinding(DISABLE_FADE_BURIED, CULLING::setDisableFadeBuried, Config::isDisableFadeBuried);
+        addBinding(DISABLE_NEAR_TRANSLUCENCY_INDOORS, CULLING::setDisableNearTranslucencyIndoors, Config::isDisableNearTranslucencyIndoors);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_ENABLED, CULLING::setPlayerNearTranslucencyEnabled, Config::isPlayerNearTranslucencyEnabled);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_ALPHA, CULLING::setPlayerNearTranslucencyAlpha, Config::getPlayerNearTranslucencyAlpha);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_HORIZONTAL, CULLING::setPlayerNearTranslucencyRangeHorizontal, Config::getPlayerNearTranslucencyRangeHorizontal);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_RANGE_VERTICAL, CULLING::setPlayerNearTranslucencyRangeVertical, Config::getPlayerNearTranslucencyRangeVertical);
+        addBinding(PLAYER_NEAR_TRANSLUCENCY_HITTABLE, CULLING::setPlayerNearTranslucencyHittable, Config::isPlayerNearTranslucencyHittable);
         addBinding(VIEW_WEDGE_HALF_ANGLE, CULLING::setViewWedgeHalfAngle, Config::getViewWedgeHalfAngle);
         addBinding(CAMERA_SIDE_CLIP_WEDGE, CULLING::setCameraSideClipWedge, Config::isCameraSideClipWedge);
         addBinding(CONNECTED_WALL_CULLING_ENABLED, CULLING::setConnectedWallCullingEnabled, Config::isConnectedWallCullingEnabled);

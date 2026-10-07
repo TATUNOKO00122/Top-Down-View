@@ -27,6 +27,12 @@ public final class CullingConfig {
     private double fadeFlashDuration = 0.3;
     private boolean disableFadeIndoors = false;
     private boolean disableFadeBuried = true;
+    private boolean disableNearTranslucencyIndoors = true;
+    private boolean playerNearTranslucencyEnabled = true;
+    private double playerNearTranslucencyAlpha = 0.6;
+    private int playerNearTranslucencyRangeHorizontal = 2;
+    private int playerNearTranslucencyRangeVertical = 2;
+    private boolean playerNearTranslucencyHittable = true;
     private boolean mobConeCullingEnabled = false;
     private double mobConeHalfAngle = 30.0;
     private double mobConeFadeAngle = 10.0;
@@ -103,6 +109,24 @@ public final class CullingConfig {
     /** カメラが地形に埋没している間、遷移フェードを抑制する。 */
     public boolean isDisableFadeBuried() { return disableFadeBuried; }
     public void setDisableFadeBuried(boolean value) { this.disableFadeBuried = value; }
+
+    public boolean isDisableNearTranslucencyIndoors() { return disableNearTranslucencyIndoors; }
+    public void setDisableNearTranslucencyIndoors(boolean value) { this.disableNearTranslucencyIndoors = value; }
+
+    public boolean isPlayerNearTranslucencyEnabled() { return playerNearTranslucencyEnabled; }
+    public void setPlayerNearTranslucencyEnabled(boolean value) { this.playerNearTranslucencyEnabled = value; }
+
+    public double getPlayerNearTranslucencyAlpha() { return playerNearTranslucencyAlpha; }
+    public void setPlayerNearTranslucencyAlpha(double value) { this.playerNearTranslucencyAlpha = MathUtil.clamp(value, 0.0, 1.0); }
+
+    public int getPlayerNearTranslucencyRangeHorizontal() { return playerNearTranslucencyRangeHorizontal; }
+    public void setPlayerNearTranslucencyRangeHorizontal(int value) { this.playerNearTranslucencyRangeHorizontal = MathUtil.clamp(value, 1, 5); }
+
+    public int getPlayerNearTranslucencyRangeVertical() { return playerNearTranslucencyRangeVertical; }
+    public void setPlayerNearTranslucencyRangeVertical(int value) { this.playerNearTranslucencyRangeVertical = MathUtil.clamp(value, 1, 5); }
+
+    public boolean isPlayerNearTranslucencyHittable() { return playerNearTranslucencyHittable; }
+    public void setPlayerNearTranslucencyHittable(boolean value) { this.playerNearTranslucencyHittable = value; }
 
     public boolean isMobConeCullingEnabled() { return mobConeCullingEnabled; }
     public void setMobConeCullingEnabled(boolean value) { this.mobConeCullingEnabled = value; }

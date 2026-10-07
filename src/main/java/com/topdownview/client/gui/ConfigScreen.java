@@ -284,6 +284,23 @@ public class ConfigScreen extends Screen {
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_buried", Config::isDisableFadeBuried, Config::setDisableFadeBuried);
         y += sp;
 
+        y = addSection(y, "topdown_view.config.section.player_near_translucency", tx);
+        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_enabled", Config::isPlayerNearTranslucencyEnabled, Config::setPlayerNearTranslucencyEnabled);
+        y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.disable_near_translucency_indoors", Config::isDisableNearTranslucencyIndoors, Config::setDisableNearTranslucencyIndoors);
+        y += sp;
+        addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_alpha", Config.getPlayerNearTranslucencyAlpha(), 0.0,
+                1.0, val -> Config.setPlayerNearTranslucencyAlpha(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_horizontal", Config.getPlayerNearTranslucencyRangeHorizontal(), 1,
+                5, val -> Config.setPlayerNearTranslucencyRangeHorizontal(val)));
+        y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.player_near_translucency_range_vertical", Config.getPlayerNearTranslucencyRangeVertical(), 1,
+                5, val -> Config.setPlayerNearTranslucencyRangeVertical(val)));
+        y += sp;
+        addToggle(x, y, w, h, "topdown_view.config.player_near_translucency_hittable", Config::isPlayerNearTranslucencyHittable, Config::setPlayerNearTranslucencyHittable);
+        y += sp;
+
         y = addSection(y, "topdown_view.config.section.fluid", tx);
         addToggle(x, y, w, h, "topdown_view.config.translucent_fluid", Config::isTranslucentFluid, Config::setTranslucentFluid);
         y += sp;
