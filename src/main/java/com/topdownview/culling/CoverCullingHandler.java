@@ -43,11 +43,6 @@ public final class CoverCullingHandler {
     /** 再スキャンを起こす最小移動量（マンハッタン）。カリングキャッシュのクリア間隔と揃える。 */
     private static final int SCAN_MOVE_THRESHOLD = 3;
 
-    /**
-     * 走査半径の外側でも、この余白(ブロック)以内なら既に消えた覆いを保持する。
-     * 復元応答性とチラつき防止のバランスのため 2 ブロックに設定。
-     */
-    private static final int COVER_EDGE_MARGIN = 2;
 
     /**
      * 覆い集合(カリング対象の全ブロック)。時差開始は廃止し、走査が確定した瞬間にメッシュから
@@ -145,7 +140,7 @@ public final class CoverCullingHandler {
 
         int startY = findStandableY(level, feetX, feetY, feetZ);
         if (startY == NOT_STANDABLE) {
-            applyCollected(level, next, feetX, feetZ, radius, allowSolids);
+            applyCollected(next);
             return;
         }
 
@@ -181,59 +176,26 @@ public final class CoverCullingHandler {
             }
         }
 
-        applyCollected(level, next, feetX, feetZ, radius, allowSolids);
+        applyCollected(next);
     }
 
     /**
-     * 収集した覆い集合へ差し替える。入ったブロックは即カリング。集合から外れたものでも、
-     * 走査範囲内(半径+余白)に残っているものは保持し、範囲外へ出たものだけ復元対象にする。
-     *
-     * <p>BFS/ビューシェッドの揺れで集合が毎スキャン少し変わるため、時間で復元させると
-     * 「復元→再カリング」を繰り返し、歩行中にブロックが消え/現れする(フェードOFFでも点滅)。
-     * 距離で保持する=プレイヤーが近くにいる限りカリングは単調になり、点滅しない。
-     *
-     * <p>ただし固体の覆いは「屋内(enclosed)のときだけ消す」条件で収集されるため、プレイヤーが
-     * 屋外へ出た瞬間は距離保持を適用しない。屋根の上に出たのに半径+余白まで覆いが残ると、
-     * 離れても復元されず遠く(画面外寄り)でようやく戻る遅延になる。葉の覆いは屋内外問わず
-     * 対象なので従来どおり距離で保持する。
+     * 収集した覆い集合へ差し替える。集合から外れたブロックは即座に復元対象にする。
      */
-    private void applyCollected(BlockGetter level, LongOpenHashSet next, int refX, int refZ,
-            int radius, boolean allowSolids) {
+    private void applyCollected(LongOpenHashSet next) {
         LongOpenHashSet previous = coverCullPositions;
-        LongOpenHashSet kept = new LongOpenHashSet(next.size());
-        kept.addAll(next);
-
         LongIterator dropped = previous.iterator();
         while (dropped.hasNext()) {
             long posLong = dropped.nextLong();
-            if (kept.contains(posLong)) {
-                continue;
-            }
-            // 固体カリングが無効な屋外では固体の覆いは対象外。葉以外の取りこぼしは距離保持せず即復元する。
-            if (!allowSolids && !isLeafCover(level, posLong)) {
-                droppedPositions.add(posLong);
-                continue;
-            }
-            if (edgeDistance(posLong, refX, refZ) <= radius + COVER_EDGE_MARGIN) {
-                // 走査範囲内の取りこぼしは保持(揺れで一時的に外れただけ)。
-                kept.add(posLong);
-            } else {
-                // 範囲外へ出た(=もう覆う必要がない)ので復元対象にする。
+            if (!next.contains(posLong)) {
                 droppedPositions.add(posLong);
             }
         }
 
-        // 集合が実際に変わったときだけ世代を進め、覆い半径まで広げた再構築を誘発する。
-        if (!kept.equals(previous)) {
+        if (!next.equals(previous)) {
             generation++;
         }
-        coverCullPositions = kept;
-    }
-
-    /** 指定位置のブロックが葉(自然の樹冠)か。屋外で保持してよい覆いの判定に使う。 */
-    private boolean isLeafCover(BlockGetter level, long posLong) {
-        mutablePos.set(BlockPos.getX(posLong), BlockPos.getY(posLong), BlockPos.getZ(posLong));
-        return level.getBlockState(mutablePos).is(BlockTags.LEAVES);
+        coverCullPositions = next;
     }
 
     /** 復元フェード用: 集合から外れた覆いを out に移して返す(メインスレッド専用)。 */
@@ -246,19 +208,14 @@ public final class CoverCullingHandler {
     }
 
     /**
-     * 走査の合間に、現在のプレイヤー位置で距離保持の期限切れを判定する。
-     *
-     * <p>走査は移動3ブロックごと(プローブ受理時)なので、半径+余白を越えた覆いが次の走査まで
-     * 残ると、離れた距離が余白+走査間隔ぶん過大になり「遠く(画面外寄り)でようやく復元」に
-     * 見える。ここでは高コストなBFSは走らせず、既存集合の距離判定だけを毎tick行い、
-     * しきい値(半径+余白)は走査と同一のままドロップを即時化する。メインスレッド専用。
+     * 走査の合間に、探索半径を越えて離れた覆いを即座に復元対象にする（毎tick判定）。
      */
     public void updateRetention(int playerBlockX, int playerBlockZ) {
         LongOpenHashSet current = coverCullPositions;
         if (current.isEmpty() || lastRadius < 0) {
             return;
         }
-        int limit = lastRadius + COVER_EDGE_MARGIN;
+        int limit = lastRadius;
         // 期限切れが無ければ集合を作り直さない(毎tickの無駄なアロケーション回避)。
         boolean anyDropped = false;
         LongIterator probe = current.iterator();
