@@ -44,16 +44,13 @@ public final class FadeTransitionController {
         this.revealSink = revealSink;
     }
 
-    /** 復元フラッシュの残光。この間 α=1 で穴を覆うだけ(判定は不変)。 */
-    private static final long RESTORE_LINGER_MS = 200L;
+    /** 復元フラッシュの残光。ホールドを無駄に引き延ばさずフェード完了と同時に再構築を始めるため 0ms。 */
+    private static final long RESTORE_LINGER_MS = 0L;
 
     /**
-     * ゴースト→実ブロックの引き継ぎ待ちの上限。ホールド解除後、実ブロックがメッシュへ戻るまでは
-     * バッチ待ち(batchPending)・ワーカー・確定が挟み、移動中は数百ms以上かかることがある。
-     * ゴーストは onMeshCommit で閉じるのが本筋で、これは確定が来ない位置(再構築ボックス外など)
-     * のための安全弁。実ブロックと重なっても同一テクスチャなので見た目は変わらない。
+     * ゴースト→実ブロックの引き継ぎ待ちの上限。確定が来ない位置のための安全弁。
      */
-    private static final long RESTORE_HANDOFF_MS = 1000L;
+    private static final long RESTORE_HANDOFF_MS = 300L;
 
     /** 前回走査でカリングされていた集合(差分の基準)。 */
     private LongOpenHashSet previousCulled = new LongOpenHashSet();
@@ -67,8 +64,8 @@ public final class FadeTransitionController {
     /** 直近で復元した(pos→時刻ms)。集合境界の揺れで再フラッシュするのを抑える。 */
     private final Long2LongOpenHashMap recentlyRestored = new Long2LongOpenHashMap();
 
-    /** メッシュ確定後、実ブロックが画面へ描画されるまでの引き継ぎ猶予(ms)。GPUアップロード遅延等による穴の露出を防ぐ。 */
-    private static final long RESTORE_COMMIT_GRACE_MS = 150L;
+    /** メッシュ確定後、実ブロックが画面へ描画されるまでの引き継ぎ猶予(ms)。重なりを避けるため最小限(約1〜2フレーム)。 */
+    private static final long RESTORE_COMMIT_GRACE_MS = 30L;
 
     /** メッシュ確定済みの復元位置(pos→猶予期限ms)。この間はゴーストを残して実描画の遅れを覆う。 */
     private final Long2LongOpenHashMap restoreGraceUntil = new Long2LongOpenHashMap();
@@ -178,6 +175,12 @@ public final class FadeTransitionController {
     /** 復元フラッシュが未完走か(消失ループは減衰を担当せず凍結する)。 */
     public boolean isRestoring(long posLong) {
         return restoreStarts.containsKey(posLong);
+    }
+
+    /** 復元ゴーストがメッシュ確定後の猶予期限を満了しているか(描画スレッドからの早期打ち切り用)。 */
+    public boolean isRestoreCompleted(long posLong, long now) {
+        long grace = restoreGraceUntil.getOrDefault(posLong, INVALID);
+        return grace != INVALID && now >= grace;
     }
 
     /**

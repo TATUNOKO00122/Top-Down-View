@@ -203,7 +203,11 @@ public final class TranslucentBlockRenderer {
         // ゴーストは奥に隠れる。未完走の復元位置は、境界の揺れ等でカリング集合(fadePositions)に
         // 一時的に入っても復元側が描画を継続する(消失側と相互スキップしてお見合い抜けするのを防ぐ)。
         // 消失側と同様、α帳簿は遠方でも毎フレーム進める(接近時に α=1 で即座に穴を覆えるように)。
+        long nowMs = System.currentTimeMillis();
         tracker.forEachActiveRestore(posLong -> {
+            if (tracker.isRestoreCompleted(posLong, nowMs)) {
+                return;
+            }
             float previous = GHOST_ALPHA.containsKey(posLong) ? GHOST_ALPHA.get(posLong) : 0.0f;
             float alpha = approach(previous, 1.0f, step);
             SEEN.add(posLong);
@@ -292,9 +296,8 @@ public final class TranslucentBlockRenderer {
             }
         }
 
-        // 実レベルを渡し、面カリングを無効化(checkSides=false)して全面を描く。近傍を空気と偽ると
-        // AO(環境遮蔽)が一切かからず実ブロックより平坦/明るくなるため、近傍は実状態のまま参照させ、
-        // 内部面は深度で隠す。
+        // 実レベルを渡し、面カリングを無効化(checkSides=false)して立体として描く。
+        // checkSides=true だとカリング済み隣接ブロックとの境界面がカットされてペラペラになるため。
         blockRenderer.getModelRenderer().tesselateBlock(
                 level,
                 model,
