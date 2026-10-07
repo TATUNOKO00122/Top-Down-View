@@ -472,6 +472,11 @@ public class ConfigScreen extends Screen {
         y = addSection(y, "topdown_view.config.section.experimental_warning", tx);
         y += sp;
 
+        // プレイヤーシルエット表示（実験的）
+        y = addSection(y, "topdown_view.config.section.player_silhouette", tx);
+        addToggle(x, y, w, h, "topdown_view.config.player_silhouette_enabled", Config::isPlayerSilhouetteEnabled, Config::setPlayerSilhouetteEnabled);
+        y += sp;
+
         // マイニングモード設定
         y = addSection(y, "topdown_view.config.section.mining_mode", tx);
         addToggle(x, y, w, h, "topdown_view.config.mining_mode_enabled", Config::isMiningModeEnabled, Config::setMiningModeEnabled);
@@ -517,10 +522,6 @@ public class ConfigScreen extends Screen {
     }
 
     private void buildVisualTab(int x, int y, int w, int h, int sp, int tx) {
-        y = addSection(y, "topdown_view.config.section.player_silhouette", tx);
-        addToggle(x, y, w, h, "topdown_view.config.player_silhouette_enabled", Config::isPlayerSilhouetteEnabled, Config::setPlayerSilhouetteEnabled);
-        y += sp;
-
         y = addSection(y, "topdown_view.config.section.placement_preview", tx);
         addToggle(x, y, w, h, "topdown_view.config.placement_preview_enabled", Config::isPlacementPreviewEnabled, Config::setPlacementPreviewEnabled);
         y += sp;

@@ -28,11 +28,6 @@ public final class HiddenBodyRenderType extends RenderType {
         super(name, format, mode, bufferSize, affectsCrumbling, sortOnUpload, setupState, clearState);
     }
 
-    private static final RenderStateShard.OutputStateShard MAIN_TARGET = new RenderStateShard.OutputStateShard(
-            "topdown_main_target",
-            () -> Minecraft.getInstance().getMainRenderTarget().bindWrite(false),
-            () -> {});
-
     private static RenderType createImpl(String name, ResourceLocation texture) {
         return RenderType.create(
                 name,
