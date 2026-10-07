@@ -16,7 +16,7 @@ public final class CameraState {
     private static final float MAX_PITCH = 90.0f;
 
     // デフォルト値定数
-    public static final float DEFAULT_PITCH = 45.0f;
+    public static final float DEFAULT_PITCH = 40.0f;
     public static final float DEFAULT_YAW = 0.0f;
     public static final Vec3 DEFAULT_POSITION = Vec3.ZERO;
 

@@ -9,7 +9,7 @@ public final class CameraConfig {
 
     private int rotateAngleMode = 1;
     private double cameraSnapRotationSpeed = 0.2;
-    private double cameraPitch = 45.0;
+    private double cameraPitch = 40.0;
     private double miningModePitch = 45.0;
     private double maxCameraDistance = 50.0;
     private double defaultCameraDistance = 30.0;
@@ -20,7 +20,7 @@ public final class CameraConfig {
     private boolean cameraZFollowDelayEnabled = false;
     private double cameraZFollowDelay = 1.0;
     private boolean followDelayWhileMounted = false;
-    private double playerScreenOffset = 0.5;
+    private double playerScreenOffset = 1.0;
     private boolean headBodyRotationEnabled = true;
     private boolean waterMovementControlEnabled = true;
     private boolean independentMountAim = true;

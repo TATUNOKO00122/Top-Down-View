@@ -45,7 +45,7 @@ public final class CullingConfig {
     private boolean coverCullingEnabled = true;
     private int coverCullingRadius = 5;
     private boolean coverCullingViewshedEnabled = true;
-    private boolean coverCullingSolidsOutdoors = false;
+    private boolean coverCullingSolidsOutdoors = true;
     private int cullingMode = CULLING_MODE_COVER_CORRIDOR;
     private boolean indoorCeilingCullingEnabled = true;
     private boolean protectInteractablesOutdoors = true;
@@ -160,7 +160,7 @@ public final class CullingConfig {
     public void setCoverCullingEnabled(boolean value) { this.coverCullingEnabled = value; }
 
     public int getCoverCullingRadius() { return coverCullingRadius; }
-    public void setCoverCullingRadius(int value) { this.coverCullingRadius = MathUtil.clamp(value, 4, 24); }
+    public void setCoverCullingRadius(int value) { this.coverCullingRadius = MathUtil.clamp(value, 1, 10); }
 
     public boolean isCoverCullingViewshedEnabled() { return coverCullingViewshedEnabled; }
     public void setCoverCullingViewshedEnabled(boolean value) { this.coverCullingViewshedEnabled = value; }

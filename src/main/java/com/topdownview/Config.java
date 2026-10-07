@@ -125,13 +125,13 @@ public class Config {
             .comment("Enables or disables cover culling (roofs, ceilings, canopies).")
             .define("coverCullingEnabled", true);
     private static final ForgeConfigSpec.IntValue COVER_CULLING_RADIUS = BUILDER
-            .defineInRange("coverCullingRadius", 5, 4, 24);
+            .defineInRange("coverCullingRadius", 5, 1, 10);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_VIEWSHED_ENABLED = BUILDER
             .comment("Culls covers only over ground actually visible from the player's eye.")
             .define("coverCullingViewshedEnabled", true);
     private static final ForgeConfigSpec.BooleanValue COVER_CULLING_SOLIDS_OUTDOORS = BUILDER
             .comment("Culls solid covers (building roofs/ceilings) even when outdoors.")
-            .define("coverCullingSolidsOutdoors", false);
+            .define("coverCullingSolidsOutdoors", true);
     private static final ForgeConfigSpec.BooleanValue INDOOR_CEILING_CULLING_ENABLED = BUILDER
             .comment("Culls the ceiling slice above the player's floor while indoors.")
             .define("indoorCeilingCullingEnabled", true);
@@ -196,7 +196,7 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue CAMERA_SNAP_ROTATION_SPEED = BUILDER
             .defineInRange("cameraSnapRotationSpeed", 0.2, 0.05, 0.5);
     private static final ForgeConfigSpec.DoubleValue CAMERA_PITCH = BUILDER
-            .defineInRange("cameraPitch", 45.0, 10.0, 90.0);
+            .defineInRange("cameraPitch", 40.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MINING_MODE_PITCH = BUILDER
             .defineInRange("miningModePitch", 45.0, 10.0, 90.0);
     private static final ForgeConfigSpec.DoubleValue MAX_CAMERA_DISTANCE = BUILDER
@@ -218,7 +218,7 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue FOLLOW_DELAY_WHILE_MOUNTED = BUILDER
             .define("followDelayWhileMounted", false);
     private static final ForgeConfigSpec.DoubleValue PLAYER_SCREEN_OFFSET = BUILDER
-            .defineInRange("playerScreenOffset", 0.5, -10.0, 10.0);
+            .defineInRange("playerScreenOffset", 1.0, -10.0, 10.0);
     private static final ForgeConfigSpec.BooleanValue HEAD_BODY_ROTATION_ENABLED = BUILDER
             .define("headBodyRotationEnabled", true);
     private static final ForgeConfigSpec.BooleanValue WATER_MOVEMENT_CONTROL_ENABLED = BUILDER

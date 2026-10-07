@@ -230,8 +230,8 @@ public class ConfigScreen extends Screen {
             y += sp;
             addToggle(x, y, w, h, "topdown_view.config.cover_culling_viewshed_enabled", Config::isCoverCullingViewshedEnabled, Config::setCoverCullingViewshedEnabled);
             y += sp;
-            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 4,
-                    24, val -> Config.setCoverCullingRadius(val)));
+            addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cover_culling_radius", Config.getCoverCullingRadius(), 1,
+                    10, val -> Config.setCoverCullingRadius(val)));
             y += sp;
         }
         addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.cylinder_radius_horizontal",
