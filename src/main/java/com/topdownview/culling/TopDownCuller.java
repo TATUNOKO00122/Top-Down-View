@@ -47,7 +47,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EndGatewayBlock;
+import net.minecraft.world.level.block.EndPortalBlock;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
 import net.minecraft.world.level.block.LadderBlock;
+import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -205,6 +209,9 @@ public final class TopDownCuller {
             ThreadLocal.withInitial(MutableBlockPos::new);
     /** 視線判定用。同じくワーカースレッドから呼ばれるため作業座標は ThreadLocal で確保する。 */
     private static final ThreadLocal<MutableBlockPos> LOS_CHECK_POS =
+            ThreadLocal.withInitial(MutableBlockPos::new);
+    /** ポータル枠判定用。作業座標は ThreadLocal で確保する。 */
+    private static final ThreadLocal<MutableBlockPos> PORTAL_CHECK_POS =
             ThreadLocal.withInitial(MutableBlockPos::new);
 
     private final StairCullingHandler stairHandler = new StairCullingHandler();
@@ -646,10 +653,47 @@ public final class TopDownCuller {
         }
         return finalAlpha;
     }
+    private static boolean isPortalOrFrame(BlockPos pos, BlockState state, BlockGetter level) {
+        if (state.getBlock() instanceof NetherPortalBlock
+                || state.getBlock() instanceof EndPortalBlock
+                || state.getBlock() instanceof EndGatewayBlock
+                || state.getBlock() instanceof EndPortalFrameBlock) {
+            return true;
+        }
+        if (!state.isAir() && state.getFluidState().isEmpty()) {
+            return isAdjacentToPortal(pos, level);
+        }
+        return false;
+    }
+
+    private static boolean isAdjacentToPortal(BlockPos pos, BlockGetter level) {
+        MutableBlockPos check = PORTAL_CHECK_POS.get();
+        int px = pos.getX();
+        int py = pos.getY();
+        int pz = pos.getZ();
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    if (dx != 0 && dz != 0) continue;
+                    check.set(px + dx, py + dy, pz + dz);
+                    BlockState s = level.getBlockState(check);
+                    if (s.getBlock() instanceof NetherPortalBlock
+                            || s.getBlock() instanceof EndPortalBlock
+                            || s.getBlock() instanceof EndGatewayBlock) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     private boolean isProtectedBlock(BlockPos pos, BlockState state, double pY, BlockGetter level) {
-        if (Config.isPortalProtectionEnabled() && portalHandler.isProtectedPortal(pos.asLong())) {
-            return true;
+        if (Config.isPortalProtectionEnabled()) {
+            if (isPortalOrFrame(pos, state, level) || portalHandler.isProtectedPortal(pos.asLong())) {
+                return true;
+            }
         }
 
         if (state.getBlock() instanceof TrapDoorBlock) {
@@ -821,7 +865,10 @@ public final class TopDownCuller {
      * 専用ハンドラの歩行判定を優先して除外する。
      */
     private boolean isRestingOnCulledBlock(BlockPos pos, BlockState state, BlockGetter level) {
-        if (!state.getFluidState().isEmpty() || state.getBlock() instanceof TrapDoorBlock) {
+        if (!state.getFluidState().isEmpty() || state.getBlock() instanceof TrapDoorBlock
+                || state.getBlock() instanceof NetherPortalBlock
+                || state.getBlock() instanceof EndPortalBlock
+                || state.getBlock() instanceof EndGatewayBlock) {
             return false;
         }
         VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());

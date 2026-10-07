@@ -254,6 +254,7 @@ public final class ConnectedWallHandler {
                 if (!WallAnalyzer.isSolid(level, neighborPos)) continue;
                 BlockState state = level.getBlockState(neighborPos);
                 if (InteractableBlocks.isInteractable(state, level, neighborPos)) continue;
+                if (isProtected.test(neighborPos, state)) continue;
 
                 candidate.add(neighborLong);
 
@@ -291,6 +292,7 @@ public final class ConnectedWallHandler {
                     if (!WallAnalyzer.isSolid(level, neighborPos)) continue;
                     BlockState state = level.getBlockState(neighborPos);
                     if (InteractableBlocks.isInteractable(state, level, neighborPos)) continue;
+                    if (isProtected.test(neighborPos, state)) continue;
 
                     candidate.add(neighborLong);
                     changed = true;
