@@ -6,7 +6,6 @@ import com.topdownview.culling.geometry.CylinderCalculator;
 import com.topdownview.culling.geometry.OcclusionCalculator;
 import com.topdownview.culling.geometry.PyramidProtectionCalc;
 import com.topdownview.spatial.WallAnalyzer;
-import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -24,7 +23,6 @@ import java.util.function.BiPredicate;
  *       メンバーシップの揺れになる。</li>
  *   <li>シードは独立した幾何(円柱帯∧クリップ∧ピラミッド非保護∧非保護ブロック)だけで認定する。
  *       判定({@code isBlockCulled})の出力をシードにすると自己参照ループになる。</li>
- *   <li>距離保持でスキャン間のBFS/境界の揺れを吸収する。</li>
  *   <li>連鎖メンバーは遷移フェードの収集から除外する(即時切替)。毎プローブの一斉遷移を
  *       フェードへ流すと予算・位相が崩れる。</li>
  * </ul>
@@ -37,14 +35,6 @@ public final class ConnectedWallHandler {
     private static final int MAX_TOTAL_BLOCKS = 1024;
     private static final int QUEUE_CAPACITY = 1024;
 
-    /**
-     * 保持できる「候補から外れたプローブ数」。1プローブ(3ブロック)分の境界揺れだけを吸収し、
-     * 2プローブ連続で候補外なら解放する。距離ベースの保持は、入室時に手前の壁が範囲内に
-     * 留まる限り永久に握り続けて「カリングされた壁が復元されない」状態になるため使わない。
-     */
-    private static final int RETAIN_MISSED_PROBES = 2;
-    /** 保持時のY余白(ブロック)。 */
-    private static final int RETENTION_Y_SPAN = 2;
 
     /** Y 平滑化パスの反復数。隣接列への Y レベル伝播が収束するのに十分な回数。 */
     private static final int Y_LEVEL_PASSES = 3;
@@ -87,9 +77,6 @@ public final class ConnectedWallHandler {
     /** 解放された(連鎖から外れた)メンバーの受け渡し。開示経路でメッシュへ戻す。 */
     private final LongOpenHashSet droppedPositions = new LongOpenHashSet(MAX_TOTAL_BLOCKS);
 
-    /** 候補から連続で外れているプローブ数(前回メンバーごと)。しきい値で解放。 */
-    private final Long2ByteOpenHashMap missedProbes = new Long2ByteOpenHashMap();
-
     public ConnectedWallHandler() {
     }
 
@@ -97,7 +84,6 @@ public final class ConnectedWallHandler {
         connectedCulledPositions = new LongOpenHashSet(MAX_TOTAL_BLOCKS);
         candidateBuffer.clear();
         droppedPositions.clear();
-        missedProbes.clear();
     }
 
     public boolean isConnectedCulled(long posLong) {
@@ -304,40 +290,6 @@ public final class ConnectedWallHandler {
             }
         }
 
-        // 4. 保持マージ(プローブ欠席制): 候補に無い前回メンバーは RETAIN_MISSED_PROBES まで
-        //    維持し、連続で外れたら解放する。距離ベースだと入室時に手前の壁が範囲内に留まる
-        //    限り永久に握られて復元されない。
-        for (long prevLong : published) {
-            if (candidate.contains(prevLong)) {
-                missedProbes.remove(prevLong);
-                continue;
-            }
-            int missed = missedProbes.get(prevLong) + 1;
-            if (missed >= RETAIN_MISSED_PROBES) {
-                missedProbes.remove(prevLong);
-                continue;
-            }
-            int nx = BlockPos.getX(prevLong);
-            int ny = BlockPos.getY(prevLong);
-            int nz = BlockPos.getZ(prevLong);
-            neighborPos.set(nx, ny, nz);
-            // まだ壁で、インタラクション保護対象でもないメンバーのみ保持対象。
-            if (ny < pFeetY || ny > maxChainY + RETENTION_Y_SPAN
-                    || !WallAnalyzer.isSolid(level, neighborPos)) {
-                missedProbes.remove(prevLong);
-                continue;
-            }
-            BlockState state = level.getBlockState(neighborPos);
-            if (InteractableBlocks.isInteractable(state, level, neighborPos)) {
-                missedProbes.remove(prevLong);
-                continue;
-            }
-            missedProbes.put(prevLong, (byte) missed);
-            if (candidate.size() >= MAX_TOTAL_BLOCKS) {
-                continue;
-            }
-            candidate.add(prevLong);
-        }
 
         LongOpenHashSet next = (published == publishBufferA) ? publishBufferB : publishBufferA;
         next.clear();
