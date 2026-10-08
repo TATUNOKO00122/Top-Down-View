@@ -107,6 +107,9 @@ public class Config {
     private static final ForgeConfigSpec.DoubleValue FADE_FLASH_DURATION = BUILDER
             .comment("Duration (seconds) of the vanish / restore transition fade. 0 = instant switch.")
             .defineInRange("fadeFlashDuration", 0.3, 0.0, 1.0);
+    private static final ForgeConfigSpec.IntValue MAX_GHOST_RENDER_COUNT = BUILDER
+            .comment("Maximum number of translucent ghost blocks rendered per frame during fade transitions.")
+            .defineInRange("maxGhostRenderCount", 250, 0, 1000);
     private static final ForgeConfigSpec.IntValue CULLING_MODE = BUILDER
             .comment("0 = Legacy (cylinder), 1 = New (cover + corridor).")
             .defineInRange("cullingMode", 1, 0, 1);
@@ -378,6 +381,7 @@ public class Config {
     public static double getTrapdoorTransparency() { return CULLING.getTrapdoorTransparency(); }
     public static boolean isFadeEnabled() { return CULLING.isFadeEnabled(); }
     public static double getFadeFlashDuration() { return CULLING.getFadeFlashDuration(); }
+    public static int getMaxGhostRenderCount() { return CULLING.getMaxGhostRenderCount(); }
     public static boolean isDisableFadeIndoors() { return CULLING.isDisableFadeIndoors(); }
     public static boolean isDisableFadeBuried() { return CULLING.isDisableFadeBuried(); }
     public static boolean isDisableNearTranslucencyIndoors() { return CULLING.isDisableNearTranslucencyIndoors(); }
@@ -516,6 +520,7 @@ public class Config {
     public static void setTrapdoorTransparency(double value) { CULLING.setTrapdoorTransparency(value); }
     public static void setFadeEnabled(boolean value) { CULLING.setFadeEnabled(value); }
     public static void setFadeFlashDuration(double value) { CULLING.setFadeFlashDuration(value); }
+    public static void setMaxGhostRenderCount(int value) { CULLING.setMaxGhostRenderCount(value); }
     public static void setDisableFadeIndoors(boolean value) { CULLING.setDisableFadeIndoors(value); }
     public static void setDisableFadeBuried(boolean value) { CULLING.setDisableFadeBuried(value); }
     public static void setDisableNearTranslucencyIndoors(boolean value) { CULLING.setDisableNearTranslucencyIndoors(value); }
@@ -703,6 +708,7 @@ public class Config {
         addBinding(TRAPDOOR_TRANSPARENCY, CULLING::setTrapdoorTransparency, Config::getTrapdoorTransparency);
         addBinding(FADE_ENABLED, CULLING::setFadeEnabled, Config::isFadeEnabled);
         addBinding(FADE_FLASH_DURATION, CULLING::setFadeFlashDuration, Config::getFadeFlashDuration);
+        addBinding(MAX_GHOST_RENDER_COUNT, CULLING::setMaxGhostRenderCount, Config::getMaxGhostRenderCount);
         addBinding(DISABLE_FADE_INDOORS, CULLING::setDisableFadeIndoors, Config::isDisableFadeIndoors);
         addBinding(DISABLE_FADE_BURIED, CULLING::setDisableFadeBuried, Config::isDisableFadeBuried);
         addBinding(DISABLE_NEAR_TRANSLUCENCY_INDOORS, CULLING::setDisableNearTranslucencyIndoors, Config::isDisableNearTranslucencyIndoors);

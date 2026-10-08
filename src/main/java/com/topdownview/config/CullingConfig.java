@@ -25,6 +25,7 @@ public final class CullingConfig {
     private double trapdoorTransparency = 0.3;
     private boolean fadeEnabled = true;
     private double fadeFlashDuration = 0.3;
+    private int maxGhostRenderCount = 250;
     private boolean disableFadeIndoors = false;
     private boolean disableFadeBuried = true;
     private boolean disableNearTranslucencyIndoors = true;
@@ -104,6 +105,9 @@ public final class CullingConfig {
     /** 消失/復元フェードの秒数。0 = 即時切替(遷移なし)。 */
     public double getFadeFlashDuration() { return fadeFlashDuration; }
     public void setFadeFlashDuration(double value) { this.fadeFlashDuration = MathUtil.clamp(value, 0.0, 1.0); }
+
+    public int getMaxGhostRenderCount() { return maxGhostRenderCount; }
+    public void setMaxGhostRenderCount(int value) { this.maxGhostRenderCount = MathUtil.clamp(value, 0, 1000); }
 
     public boolean isDisableFadeIndoors() { return disableFadeIndoors; }
     public void setDisableFadeIndoors(boolean value) { this.disableFadeIndoors = value; }

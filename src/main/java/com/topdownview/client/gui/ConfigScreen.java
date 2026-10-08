@@ -279,6 +279,9 @@ public class ConfigScreen extends Screen {
         addRightWidget(new ConfigSlider(x, y, w, h, "topdown_view.config.fade_flash_duration", Config.getFadeFlashDuration(), 0.0,
                 1.0, val -> Config.setFadeFlashDuration(val)));
         y += sp;
+        addRightWidget(new IntConfigSlider(x, y, w, h, "topdown_view.config.max_ghost_render_count",
+                Config.getMaxGhostRenderCount(), 0, 1000, Config::setMaxGhostRenderCount));
+        y += sp;
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_indoors", Config::isDisableFadeIndoors, Config::setDisableFadeIndoors);
         y += sp;
         addToggle(x, y, w, h, "topdown_view.config.disable_fade_buried", Config::isDisableFadeBuried, Config::setDisableFadeBuried);

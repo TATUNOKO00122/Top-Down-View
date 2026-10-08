@@ -80,7 +80,7 @@ public final class TranslucentBlockRenderer {
     private static final AlphaVertexConsumer ALPHA_CONSUMER = new AlphaVertexConsumer();
     private static final BlockPos.MutableBlockPos FADE_POS = new BlockPos.MutableBlockPos();
 
-    /** 1フレーム内にテッセレートするゴーストブロックの最大数。 */
+    /** 1フレーム内にテッセレートするゴーストブロックの既定の最大数。 */
     public static final int MAX_GHOST_RENDER_COUNT = 250;
 
     /** 今フレーム描画対象の最上面ゴースト位置(作業用バッファ)。 */
@@ -332,15 +332,17 @@ public final class TranslucentBlockRenderer {
             });
         }
 
+        int maxGhostRenderCount = Config.getMaxGhostRenderCount();
+
         // 最上面ブロックを最優先で描画
         int topSize = TOP_GHOSTS.size();
-        for (int i = 0; i < topSize && GHOST_COUNT[0] < MAX_GHOST_RENDER_COUNT; i++) {
+        for (int i = 0; i < topSize && GHOST_COUNT[0] < maxGhostRenderCount; i++) {
             renderSingleGhost(TOP_GHOSTS.getLong(i), mc, poseStack, blockRenderer, cameraPos, nearTransEnabled);
         }
 
         // 上限に余裕があれば、隠れている下層ブロックも順次描画
         int coveredSize = COVERED_GHOSTS.size();
-        for (int i = 0; i < coveredSize && GHOST_COUNT[0] < MAX_GHOST_RENDER_COUNT; i++) {
+        for (int i = 0; i < coveredSize && GHOST_COUNT[0] < maxGhostRenderCount; i++) {
             renderSingleGhost(COVERED_GHOSTS.getLong(i), mc, poseStack, blockRenderer, cameraPos, nearTransEnabled);
         }
 
