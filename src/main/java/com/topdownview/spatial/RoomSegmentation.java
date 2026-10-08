@@ -1,5 +1,6 @@
 package com.topdownview.spatial;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -45,6 +46,12 @@ public final class RoomSegmentation {
 
     /** スラブとみなす固体層の最大厚。これより厚い塊(壁・柱)は床レベルにしない。 */
     private static final int MAX_SLAB_THICKNESS = 8;
+
+    /** 部屋とみなす最小クリアランス高さ（ブロック）。プレイヤーの全身（2ブロック）を収めるために必須。 */
+    public static final int MIN_ROOM_HEIGHT = 2;
+
+    /** 独立した階 (storey) とみなす最小床レベル間隔（ブロック）。天井高2ブロック＋床厚1ブロック。 */
+    private static final int MIN_STOREY_CLEARANCE = 3;
 
     /** 分割された 1 部屋。 */
     public static final class Room {
@@ -186,14 +193,25 @@ public final class RoomSegmentation {
         }
         floorLevels.sort(null);
 
+        // 家具や段差による近接した床レベルを除去し、十分なクリアランスを持つ床のみを階とする
+        final LongArrayList filteredFloorLevels = new LongArrayList();
+        int lastFloorY = Integer.MIN_VALUE;
+        for (int i = 0; i < floorLevels.size(); i++) {
+            int y = (int) floorLevels.getLong(i);
+            if (lastFloorY == Integer.MIN_VALUE || y - lastFloorY >= MIN_STOREY_CLEARANCE) {
+                filteredFloorLevels.add(y);
+                lastFloorY = y;
+            }
+        }
+
         final Long2IntOpenHashMap storeyOf = new Long2IntOpenHashMap(air.size());
         storeyOf.defaultReturnValue(0);
         int maxStorey = 0;
         for (long cell : air) {
             int y = BlockPos.getY(cell);
             int storey = 0;
-            for (int i = 0; i < floorLevels.size(); i++) {
-                if (floorLevels.getLong(i) < y) {
+            for (int i = 0; i < filteredFloorLevels.size(); i++) {
+                if (filteredFloorLevels.getLong(i) < y) {
                     storey++;
                 } else {
                     break;
@@ -311,13 +329,32 @@ public final class RoomSegmentation {
             int storey = storeyOf.get(cell);
             byStorey.computeIfAbsent(storey, k -> new LongOpenHashSet()).add(cell);
         }
-        List<Room> rooms = new ArrayList<>(byStorey.size());
+
+        List<LongOpenHashSet> validComponents = new ArrayList<>();
+        List<LongOpenHashSet> invalidComponents = new ArrayList<>();
         for (var entry : byStorey.long2ObjectEntrySet()) {
-            rooms.add(new Room(entry.getValue(), (int) entry.getLongKey(),
-                    boundsMin(entry.getValue()), boundsMax(entry.getValue())));
+            LongOpenHashSet cells = entry.getValue();
+            if (isRoomHeightValid(cells, boundsMin(cells), boundsMax(cells))) {
+                validComponents.add(cells);
+            } else {
+                invalidComponents.add(cells);
+            }
+        }
+        if (validComponents.isEmpty() && !invalidComponents.isEmpty()) {
+            invalidComponents.sort(Comparator.comparingInt(LongOpenHashSet::size).reversed());
+            validComponents.add(invalidComponents.remove(0));
+        }
+        if (!validComponents.isEmpty() && !invalidComponents.isEmpty()) {
+            mergeInvalidComponents(validComponents, invalidComponents);
+        }
+
+        List<Room> rooms = new ArrayList<>(validComponents.size());
+        for (LongOpenHashSet cells : validComponents) {
+            int storey = storeyOf.get(cells.iterator().nextLong());
+            rooms.add(new Room(cells, storey, boundsMin(cells), boundsMax(cells)));
         }
         rooms.sort(Comparator.comparingInt(Room::size).reversed());
-        int playerRoomIndex = indexOfRoomContaining(rooms, seed != null ? seed : roomSeed);
+        int playerRoomIndex = indexOfPlayerRoom(rooms, seed != null ? seed : roomSeed);
         return new Result(rooms, playerRoomIndex, maxStorey + 1, storeyOf);
     }
 
@@ -329,14 +366,31 @@ public final class RoomSegmentation {
             cellsByComponent.computeIfAbsent(component, k -> new LongOpenHashSet()).add(cell);
         }
 
-        List<Room> rooms = new ArrayList<>(componentCount);
+        List<LongOpenHashSet> validComponents = new ArrayList<>();
+        List<LongOpenHashSet> invalidComponents = new ArrayList<>();
         for (var entry : cellsByComponent.long2ObjectEntrySet()) {
             LongOpenHashSet cells = entry.getValue();
+            if (isRoomHeightValid(cells, boundsMin(cells), boundsMax(cells))) {
+                validComponents.add(cells);
+            } else {
+                invalidComponents.add(cells);
+            }
+        }
+        if (validComponents.isEmpty() && !invalidComponents.isEmpty()) {
+            invalidComponents.sort(Comparator.comparingInt(LongOpenHashSet::size).reversed());
+            validComponents.add(invalidComponents.remove(0));
+        }
+        if (!validComponents.isEmpty() && !invalidComponents.isEmpty()) {
+            mergeInvalidComponents(validComponents, invalidComponents);
+        }
+
+        List<Room> rooms = new ArrayList<>(validComponents.size());
+        for (LongOpenHashSet cells : validComponents) {
             int storey = storeyOf.get(cells.iterator().nextLong());
             rooms.add(new Room(cells, storey, boundsMin(cells), boundsMax(cells)));
         }
         rooms.sort(Comparator.comparingInt(Room::size).reversed());
-        int playerRoomIndex = indexOfRoomContaining(rooms, seed != null ? seed : roomSeed);
+        int playerRoomIndex = indexOfPlayerRoom(rooms, seed != null ? seed : roomSeed);
         int storeyCount = 0;
         for (Room room : rooms) {
             if (room.getStorey() + 1 > storeyCount) {
@@ -360,16 +414,113 @@ public final class RoomSegmentation {
         return solid >= 3;
     }
 
-    private static int indexOfRoomContaining(List<Room> rooms, BlockPos pos) {
-        if (pos == null) {
+    /**
+     * 部屋が人間（プレイヤー）の入れる最低高さ（2ブロック以上）を満たしているか判定する。
+     * 部屋のバウンディングボックスの高さが {@link #MIN_ROOM_HEIGHT} 以上で、かつ
+     * 部屋内に上下連続する {@link #MIN_ROOM_HEIGHT} ブロック以上の気柱が少なくとも1箇所存在することを要求する。
+     */
+    private static boolean isRoomHeightValid(LongSet cells, BlockPos minPos, BlockPos maxPos) {
+        if (maxPos.getY() - minPos.getY() + 1 < MIN_ROOM_HEIGHT) {
+            return false;
+        }
+        for (long cell : cells) {
+            int x = BlockPos.getX(cell);
+            int y = BlockPos.getY(cell);
+            int z = BlockPos.getZ(cell);
+            if (cells.contains(BlockPos.asLong(x, y + 1, z))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 高さ2ブロック未満の成分（床の段差や家具下など）を、隣接する有効な部屋にマージする。
+     */
+    private static void mergeInvalidComponents(List<LongOpenHashSet> validList,
+                                               List<LongOpenHashSet> invalidList) {
+        Long2IntOpenHashMap cellToValidIdx = new Long2IntOpenHashMap();
+        cellToValidIdx.defaultReturnValue(-1);
+        for (int v = 0; v < validList.size(); v++) {
+            for (long c : validList.get(v)) {
+                cellToValidIdx.put(c, v);
+            }
+        }
+
+        boolean mergedAny = true;
+        while (mergedAny && !invalidList.isEmpty()) {
+            mergedAny = false;
+            for (int i = invalidList.size() - 1; i >= 0; i--) {
+                LongOpenHashSet invalid = invalidList.get(i);
+                int bestValidIdx = -1;
+                int maxContact = 0;
+                Int2IntOpenHashMap contacts = new Int2IntOpenHashMap();
+
+                for (long c : invalid) {
+                    int cx = BlockPos.getX(c);
+                    int cy = BlockPos.getY(c);
+                    int cz = BlockPos.getZ(c);
+                    for (Direction dir : ALL6) {
+                        long nb = BlockPos.asLong(
+                                cx + dir.getStepX(), cy + dir.getStepY(), cz + dir.getStepZ());
+                        int vIdx = cellToValidIdx.get(nb);
+                        if (vIdx >= 0) {
+                            int cnt = contacts.addTo(vIdx, 1) + 1;
+                            if (cnt > maxContact) {
+                                maxContact = cnt;
+                                bestValidIdx = vIdx;
+                            }
+                        }
+                    }
+                }
+
+                if (bestValidIdx >= 0) {
+                    LongOpenHashSet target = validList.get(bestValidIdx);
+                    target.addAll(invalid);
+                    for (long c : invalid) {
+                        cellToValidIdx.put(c, bestValidIdx);
+                    }
+                    invalidList.remove(i);
+                    mergedAny = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * プレイヤーが存在する部屋のインデックスを返す。
+     * 全身（足元と頭の両方）が入っている部屋を最優先し、
+     * 次いで頭（視線位置）が入っている部屋、足元が入っている部屋の順で検索する。
+     */
+    private static int indexOfPlayerRoom(List<Room> rooms, BlockPos seed) {
+        if (seed == null || rooms.isEmpty()) {
             return -1;
         }
-        long target = pos.asLong();
+        long feet = seed.asLong();
+        long head = seed.above().asLong();
+
+        // 1. 全身（足元と頭の両方）が入っている部屋を最優先
         for (int i = 0; i < rooms.size(); i++) {
-            if (rooms.get(i).getAirCells().contains(target)) {
+            LongSet cells = rooms.get(i).getAirCells();
+            if (cells.contains(feet) && cells.contains(head)) {
                 return i;
             }
         }
+
+        // 2. 全身が入る部屋が見つからない場合、頭（視線位置）が入っている部屋を優先
+        for (int i = 0; i < rooms.size(); i++) {
+            if (rooms.get(i).getAirCells().contains(head)) {
+                return i;
+            }
+        }
+
+        // 3. フォールバック: 足元が入っている部屋
+        for (int i = 0; i < rooms.size(); i++) {
+            if (rooms.get(i).getAirCells().contains(feet)) {
+                return i;
+            }
+        }
+
         return -1;
     }
 
