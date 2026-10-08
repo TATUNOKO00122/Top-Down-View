@@ -204,6 +204,9 @@ public final class TopDownCuller {
     /** 下支え判定用。isBlockCulled はワーカースレッドからも呼ばれるため ThreadLocal で共有回避。 */
     private static final ThreadLocal<MutableBlockPos> SUPPORT_CHECK_POS =
             ThreadLocal.withInitial(MutableBlockPos::new);
+    /** 壁掛け装飾の支持壁判定用。isBlockCulled の再入呼び出しと競合しないよう独立して確保。 */
+    private static final ThreadLocal<MutableBlockPos> HANGING_CHECK_POS =
+            ThreadLocal.withInitial(MutableBlockPos::new);
     /** 視線判定用。同じくワーカースレッドから呼ばれるため作業座標は ThreadLocal で確保する。 */
     private static final ThreadLocal<MutableBlockPos> LOS_CHECK_POS =
             ThreadLocal.withInitial(MutableBlockPos::new);
@@ -1484,7 +1487,7 @@ public final class TopDownCuller {
             Direction counterClockWise = dir.getCounterClockWise();
             int startX = (width - 1) / -2;
             int startY = (height - 1) / -2;
-            MutableBlockPos check = SUPPORT_CHECK_POS.get();
+            MutableBlockPos check = HANGING_CHECK_POS.get();
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
                     check.set(centerSupport)
